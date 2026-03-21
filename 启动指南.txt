@@ -1,0 +1,102 @@
+========================================
+PaperCrawler 平台 - 启动指南
+========================================
+
+您现在拥有3种使用方式！
+
+┌─────────────────────────────────────┐
+│ 方式1: 后端API + Web前端 (推荐)⭐  │
+└─────────────────────────────────────┘
+
+步骤1: 启动后端API
+  双击运行: START-BACKEND.bat
+  或运行: E:\PaperCrawler\backend\build\PaperCrawlerServer.exe
+  
+  后端将在 http://localhost:8080 启动
+
+步骤2: 测试API
+  浏览器访问: http://localhost:8080/health
+  应该看到: {"status":"ok","service":"PaperCrawler API"}
+
+步骤3: 搜索论文
+  访问: http://localhost:8080/api/search?q=test
+  查看返回的JSON数据
+
+┌─────────────────────────────────────┐
+│ 方式2: Qt桌面应用                  │
+└─────────────────────────────────────┘
+
+步骤1: 启动Qt应用
+  双击运行: E:\PaperCrawler\desktop\run-desktop.bat
+  
+步骤2: 使用界面
+  - 在搜索框输入关键词
+  - 点击搜索
+  - 查看结果
+  - 尝试切换主题
+
+┌─────────────────────────────────────┐
+│ 方式3: Docker一键部署              │
+└─────────────────────────────────────┘
+
+步骤1: 安装Docker Desktop (如未安装)
+
+步骤2: 启动服务
+  cd E:\PaperCrawler
+  docker-compose up -d
+
+步骤3: 访问应用
+  浏览器打开: http://localhost
+
+========================================
+API端点测试
+========================================
+
+健康检查:
+  http://localhost:8080/health
+
+搜索论文:
+  http://localhost:8080/api/search?q=deep
+
+获取统计:
+  http://localhost:8080/api/stats/overview
+
+导出CSV:
+  http://localhost:8080/api/export/csv
+
+导出JSON:
+  http://localhost:8080/api/export/json
+
+========================================
+推荐工作流程
+========================================
+
+1. 启动后端API (START-BACKEND.bat)
+
+2. 浏览器测试API (访问上面的URL)
+
+3. 如果需要GUI，运行Qt桌面应用
+
+4. 享受您的论文爬虫平台！
+
+========================================
+技术栈
+========================================
+
+后端:
+  - C++ REST API (Crow框架)
+  - 端口: 8080
+  - JSON响应
+  - CORS支持
+
+前端:
+  - Vue 3 + TypeScript
+  - Element Plus UI
+  - Vite构建
+
+桌面:
+  - Qt 6.10
+  - MinGW编译器
+  - 原生GUI
+
+========================================

@@ -1,0 +1,34 @@
+{
+    "database": {
+        "host": "localhost",
+        "port": 3306,
+        "user": "your_username",
+        "password": "your_password",
+        "database": "csdatabs",
+        "charset": "utf8"
+    },
+    "crawler": {
+        "timeout": 10,
+        "retryTimes": 3,
+        "delayBetweenRequests": 1000,
+        "maxConcurrentRequests": 5,
+        "userAgent": "PaperCrawler/1.0 (C++ Academic Paper Crawler)",
+        "pageSize": 30,
+        "maxResults": 10000
+    },
+    "paths": {
+        "outputDir": "./output",
+        "journalMapping": "./data/journal_mapping.txt"
+    },
+    "logging": {
+        "level": "info",
+        "file": "paper_crawler.log",
+        "maxSize": "100MB",
+        "maxFiles": 10
+    },
+    "search": {
+        "defaultKeyword": "dma",
+        "dblpBaseUrl": "https://dblp.uni-trier.de/search",
+        "huibanBaseUrl": "https://www.myhuiban.com/search"
+    }
+}

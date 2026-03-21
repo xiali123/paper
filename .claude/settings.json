@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /e/PaperCrawler/src/**/*.cpp /e/PaperCrawler/include/**/*.hpp)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

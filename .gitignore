@@ -1,0 +1,48 @@
+# Build directories
+build/
+bin/
+lib/
+out/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.vcxproj.filters
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Output
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Config (sensitive data)
+config/config.json
+!config/config.json.example
+
+# Temporary files
+*.tmp
+*.swp
+*~
