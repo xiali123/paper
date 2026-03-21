@@ -5,6 +5,7 @@ import Home from './views/Home.vue'
 import Search from './views/Search.vue'
 import Stats from './views/Stats.vue'
 import './assets/theme.css'
+import './i18n' // Import i18n configuration
 
 const routes = [
   { path: '/', component: Home },

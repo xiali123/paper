@@ -4,13 +4,14 @@
       <header class="app-header">
         <div class="logo">
           <h1>📚 PaperCrawler</h1>
-          <p>Academic Paper Search & Analysis Platform</p>
+          <p>{{ $t('app.description') }}</p>
         </div>
         <nav class="nav">
-          <router-link to="/" class="nav-link">首页</router-link>
-          <router-link to="/search" class="nav-link">搜索</router-link>
-          <router-link to="/stats" class="nav-link">统计</router-link>
-          <button @click="toggleTheme" class="theme-toggle" :title="isDark() ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+          <router-link to="/" class="nav-link">{{ $t('nav.home') }}</router-link>
+          <router-link to="/search" class="nav-link">{{ $t('nav.search') }}</router-link>
+          <router-link to="/stats" class="nav-link">{{ $t('nav.stats') }}</router-link>
+          <LanguageSwitcher />
+          <button @click="toggleTheme" class="theme-toggle" :title="isDark() ? $t('theme.light') : $t('theme.dark')">
             {{ isDark() ? '☀️' : '🌙' }}
           </button>
         </nav>
@@ -21,8 +22,8 @@
       </main>
 
       <footer class="app-footer">
-        <p>&copy; 2024 PaperCrawler | Powered by Vue 3 + C++ REST API</p>
-        <p>Backend Status: <span :class="{ 'status-ok': backendStatus, 'status-error': !backendStatus }">{{ backendStatus ? 'Connected' : 'Disconnected' }}</span></p>
+        <p>{{ $t('footer.copyright') }} | {{ $t('footer.poweredBy') }}</p>
+        <p>{{ $t('backend.status') }}: <span :class="{ 'status-ok': backendStatus, 'status-error': !backendStatus }">{{ backendStatus ? $t('backend.connected') : $t('backend.disconnected') }}</span></p>
       </footer>
     </div>
   </div>
@@ -31,6 +32,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useTheme } from './composables/useTheme'
+import LanguageSwitcher from './components/LanguageSwitcher.vue'
 
 const { theme, toggleTheme, isDark } = useTheme()
 const backendStatus = ref(false)

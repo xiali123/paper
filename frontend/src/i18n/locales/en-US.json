@@ -1,0 +1,128 @@
+{
+  "app": {
+    "title": "PaperCrawler - Academic Paper Search Platform",
+    "description": "Academic Paper Search & Analysis Platform",
+    "keywords": "paper search, academic, DBLP, CCF, computer science"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "stats": "Statistics",
+    "settings": "Settings",
+    "about": "About"
+  },
+  "home": {
+    "welcome": "Welcome to PaperCrawler",
+    "subtitle": "Powerful Academic Paper Search & Analysis Platform",
+    "quickSearch": "Quick Search",
+    "searchPlaceholder": "Enter keywords, e.g.: deep learning, machine learning...",
+    "searchButton": "Search",
+    "popularSearches": "Popular Searches",
+    "recentPapers": "Recent Papers"
+  },
+  "search": {
+    "title": "Paper Search",
+    "description": "Search academic papers by keywords",
+    "keyword": "Keyword",
+    "keywordPlaceholder": "Enter search keyword",
+    "search": "Search",
+    "searching": "Searching...",
+    "filters": "Filters",
+    "year": "Year",
+    "allYears": "All",
+    "level": "Level",
+    "allLevels": "All",
+    "results": "Search Results",
+    "found": "Found",
+    "papers": "papers",
+    "duration": "Duration",
+    "seconds": "s",
+    "noResults": "No papers found",
+    "tryOtherKeywords": "Please try other keywords"
+  },
+  "stats": {
+    "title": "Statistics",
+    "overview": "Overview",
+    "totalPapers": "Total Papers",
+    "totalJournals": "Total Journals",
+    "topTierPapers": "Top-Tier Papers",
+    "papersLastYear": "Papers Last Year",
+    "mostActiveJournal": "Most Active Journal",
+    "refresh": "Refresh Data",
+    "export": "Export Data",
+    "exportCSV": "Export CSV",
+    "exportJSON": "Export JSON"
+  },
+  "paper": {
+    "title": "Paper Title",
+    "journal": "Journal",
+    "year": "Year",
+    "authors": "Authors",
+    "level": "Level",
+    "abstract": "Abstract",
+    "doi": "DOI",
+    "url": "URL",
+    "ccfLevel": "CCF Level",
+    "viewDetails": "View Details",
+    "cite": "Cite",
+    "download": "Download"
+  },
+  "level": {
+    "A": "CCF-A (Top-Tier)",
+    "B": "CCF-B",
+    "C": "CCF-C",
+    "Unknown": "Unknown"
+  },
+  "theme": {
+    "toggle": "Toggle Theme",
+    "light": "Light Mode",
+    "dark": "Dark Mode",
+    "auto": "Auto"
+  },
+  "backend": {
+    "status": "Backend Status",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "checking": "Checking..."
+  },
+  "footer": {
+    "copyright": "© 2024 PaperCrawler",
+    "poweredBy": "Powered by Vue 3 + C++ REST API",
+    "version": "Version",
+    "docs": "Docs",
+    "github": "GitHub"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "reset": "Reset"
+  },
+  "error": {
+    "networkError": "Network error, please check your connection",
+    "serverError": "Server error, please try again later",
+    "notFound": "Page not found",
+    "unauthorized": "Unauthorized access",
+    "forbidden": "Access forbidden",
+    "unknownError": "Unknown error"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "apiUrl": "API URL",
+    "timeout": "Timeout",
+    "save": "Save Settings",
+    "reset": "Reset to Default"
+  }
+}
