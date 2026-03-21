@@ -10,6 +10,9 @@
           <router-link to="/" class="nav-link">首页</router-link>
           <router-link to="/search" class="nav-link">搜索</router-link>
           <router-link to="/stats" class="nav-link">统计</router-link>
+          <button @click="toggleTheme" class="theme-toggle" :title="isDark() ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+            {{ isDark() ? '☀️' : '🌙' }}
+          </button>
         </nav>
       </header>
 
@@ -27,7 +30,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useTheme } from './composables/useTheme'
 
+const { theme, toggleTheme, isDark } = useTheme()
 const backendStatus = ref(false)
 
 const checkBackend = async () => {
@@ -48,7 +53,7 @@ onMounted(() => {
 <style scoped>
 #app {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-bg-gradient);
 }
 
 .app-container {
@@ -60,46 +65,64 @@ onMounted(() => {
 }
 
 .app-header {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--color-bg-overlay);
   padding: 20px 40px;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
 }
 
 .logo h1 {
   margin: 0;
   font-size: 32px;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .logo p {
   margin: 5px 0 0 0;
   font-size: 14px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .nav {
   margin-top: 20px;
   display: flex;
   gap: 30px;
+  align-items: center;
 }
 
 .nav-link {
   text-decoration: none;
-  color: #333;
+  color: var(--color-text-primary);
   font-weight: 500;
   padding: 8px 16px;
   border-radius: 8px;
-  transition: all 0.3s;
+  transition: all var(--transition-normal);
 }
 
 .nav-link:hover {
-  background: #f3f4f6;
-  color: #667eea;
+  background: var(--color-bg-tertiary);
+  color: var(--color-primary);
 }
 
 .nav-link.router-link-active {
-  background: #667eea;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.theme-toggle {
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border-primary);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  margin-left: auto;
+}
+
+.theme-toggle:hover {
+  background: var(--color-bg-tertiary);
+  transform: scale(1.05);
 }
 
 .app-main {
@@ -108,21 +131,22 @@ onMounted(() => {
 }
 
 .app-footer {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--color-bg-overlay);
   padding: 20px;
   text-align: center;
   font-size: 14px;
-  color: #666;
-  border-top: 1px solid #e5e7eb;
+  color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-border-primary);
+  backdrop-filter: blur(10px);
 }
 
 .status-ok {
-  color: #10b981;
+  color: var(--color-success);
   font-weight: 600;
 }
 
 .status-error {
-  color: #ef4444;
+  color: var(--color-error);
   font-weight: 600;
 }
 </style>

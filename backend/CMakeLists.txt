@@ -18,6 +18,52 @@ add_executable(PaperCrawlerServer
     ${BACKEND_SOURCES}
 )
 
+# Find required packages
+find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
+
+# FetchContent for dependencies
+include(FetchContent)
+
+# nlohmann/json
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(json)
+
+# spdlog
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.12.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(spdlog)
+
+# gumbo-parser
+FetchContent_Declare(
+    gumbo
+    GIT_REPOSITORY https://github.com/google/gumbo-parser.git
+    GIT_TAG v0.10.1
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(gumbo)
+
+# Link PaperCrawlerCore library
+target_link_libraries(PaperCrawlerServer
+    PRIVATE
+        PaperCrawlerCore
+        nlohmann_json::nlohmann_json
+        spdlog::spdlog
+        gumbo
+        Threads::Threads
+        OpenSSL::SSL
+        OpenSSL::Crypto
+)
+
 # Platform specific
 if(WIN32)
     target_compile_definitions(PaperCrawlerServer PRIVATE
@@ -29,6 +75,7 @@ if(WIN32)
     target_link_libraries(PaperCrawlerServer
         PRIVATE
             ws2_32
+            wsock32
     )
 endif()
 

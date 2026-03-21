@@ -1,12 +1,16 @@
 #include "database/DatabaseManager.hpp"
+#include "database/ConnectionPool.hpp"
 #include <mysql/mysql.h>
 #include <sstream>
 #include <stdexcept>
+#include <chrono>
 
 namespace PaperCrawler {
 
 DatabaseManager::~DatabaseManager() {
     disconnect();
+    delete pool_;
+    pool_ = nullptr;
 }
 
 DatabaseManager& DatabaseManager::getInstance() {
@@ -16,41 +20,43 @@ DatabaseManager& DatabaseManager::getInstance() {
 
 void DatabaseManager::connect(const std::string& host, const std::string& user,
                               const std::string& password, const std::string& database,
-                              int port) {
+                              int port, const PoolConfig& poolConfig) {
     if (connected_) {
         LOG_WARN("Already connected to database");
         return;
     }
 
-    connection_ = mysql_init(nullptr);
-    if (!connection_) {
-        throw DatabaseException("Failed to initialize MySQL connection");
-    }
+    // Create connection pool
+    ConnectionPool::Config config;
+    config.host = host;
+    config.user = user;
+    config.password = password;
+    config.database = database;
+    config.port = port;
+    config.minConnections = poolConfig.minConnections;
+    config.maxConnections = poolConfig.maxConnections;
+    config.connectionTimeout = poolConfig.connectionTimeout;
+    config.idleTimeout = poolConfig.idleTimeout;
 
-    // Set charset
-    if (mysql_options(connection_, MYSQL_SET_CHARSET_NAME, "utf8")) {
-        mysql_close(connection_);
-        throw DatabaseException("Failed to set charset: " + std::string(mysql_error(connection_)));
-    }
+    pool_ = new ConnectionPool(config);
 
-    // Connect
-    if (!mysql_real_connect(connection_, host.c_str(), user.c_str(),
-                            password.c_str(), database.c_str(),
-                            port, nullptr, CLIENT_MULTI_STATEMENTS)) {
-        std::string error = mysql_error(connection_);
-        mysql_close(connection_);
-        connection_ = nullptr;
-        throw DatabaseException("Failed to connect to database: " + error);
+    try {
+        pool_->initialize();
+        connected_ = true;
+        LOG_INFO("Connected to database '{}' with connection pool (min={}, max={})",
+                 database, config.minConnections, config.maxConnections);
+    } catch (const std::exception& e) {
+        delete pool_;
+        pool_ = nullptr;
+        throw DatabaseException("Failed to initialize connection pool: " + std::string(e.what()));
     }
-
-    connected_ = true;
-    LOG_INFO("Connected to database: {}", database);
 }
 
 void DatabaseManager::disconnect() {
-    if (connection_) {
-        mysql_close(connection_);
-        connection_ = nullptr;
+    if (pool_) {
+        pool_->close();
+        delete pool_;
+        pool_ = nullptr;
         connected_ = false;
         LOG_INFO("Disconnected from database");
     }
@@ -61,29 +67,68 @@ void DatabaseManager::execute(const std::string& sql) {
         throw DatabaseException("Not connected to database");
     }
 
-    if (mysql_query(connection_, sql.c_str())) {
-        throw DatabaseException("SQL execute failed: " + std::string(mysql_error(connection_)),
+    void* conn = getConnection();
+    MYSQL* mysql = static_cast<MYSQL*>(conn);
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    if (mysql_query(mysql, sql.c_str())) {
+        returnConnection(conn);
+        throw DatabaseException("SQL execute failed: " + std::string(mysql_error(mysql)),
                                sql);
     }
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    double duration = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+
+    if (duration > 1000) {  // Log slow queries (> 1 second)
+        LOG_WARN("Slow execute detected: {:.2f}ms - {}", duration, sql);
+    }
+
+    returnConnection(conn);
 }
 
 DbResult DatabaseManager::query(const std::string& sql) {
+    double queryTime = 0;
+    return queryWithTiming(sql, &queryTime);
+}
+
+DbResult DatabaseManager::queryWithTiming(const std::string& sql, double* queryTime) {
     if (!connected_) {
         throw DatabaseException("Not connected to database");
     }
 
-    if (mysql_query(connection_, sql.c_str())) {
-        throw DatabaseException("SQL query failed: " + std::string(mysql_error(connection_)),
+    void* conn = getConnection();
+    MYSQL* mysql = static_cast<MYSQL*>(conn);
+
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    if (mysql_query(mysql, sql.c_str())) {
+        returnConnection(conn);
+        throw DatabaseException("SQL query failed: " + std::string(mysql_error(mysql)),
                                sql);
     }
 
-    MYSQL_RES* result = mysql_store_result(connection_);
+    MYSQL_RES* result = mysql_store_result(mysql);
     if (!result) {
-        if (mysql_field_count(connection_) == 0) {
+        if (mysql_field_count(mysql) == 0) {
             // No result set (INSERT, UPDATE, etc.)
+            returnConnection(conn);
             return DbResult();
         }
-        throw DatabaseException("Failed to store result: " + std::string(mysql_error(connection_)));
+        returnConnection(conn);
+        throw DatabaseException("Failed to store result: " + std::string(mysql_error(mysql)));
+    }
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    double duration = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+
+    if (queryTime) {
+        *queryTime = duration;
+    }
+
+    if (duration > 1000) {  // Log slow queries (> 1 second)
+        LOG_WARN("Slow query detected: {:.2f}ms - {}", duration, sql);
     }
 
     DbResult dbResult;
@@ -99,6 +144,7 @@ DbResult DatabaseManager::query(const std::string& sql) {
     }
 
     mysql_free_result(result);
+    returnConnection(conn);
     return dbResult;
 }
 

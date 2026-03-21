@@ -46,3 +46,18 @@ config/config.json
 *.tmp
 *.swp
 *~
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Testing
+tests/build/
+coverage/
+
+# Docker
+*.dockerignore

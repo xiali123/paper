@@ -6,6 +6,7 @@
 #include <mutex>
 #include <chrono>
 #include <vector>
+#include <iomanip>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -21,6 +22,12 @@
     #define SOCKET_ERROR -1
     typedef int SOCKET;
 #endif
+
+// PaperCrawler API
+#include "core/PaperCrawlerAPI.hpp"
+#include "core/Exception.hpp"
+
+using namespace PaperCrawler;
 
 // Simple JSON response builder
 std::string buildResponse(const std::string& content, const std::string& contentType = "application/json") {
@@ -46,83 +53,142 @@ std::string buildErrorResponse(int code, const std::string& message) {
     return response.str();
 }
 
-// Demo papers data
-struct Paper {
-    int id;
-    std::string title;
-    std::string journal;
-    std::string year;
-    std::string level;
-};
+// Global API instance
+PaperCrawlerAPI* g_api = nullptr;
 
-std::vector<Paper> getDemoPapers(const std::string& keyword, int count) {
-    std::vector<Paper> papers;
-    for (int i = 0; i < count; ++i) {
-        Paper p;
-        p.id = i + 1;
-        p.title = "Paper " + std::to_string(i + 1) + ": Deep Learning for " + keyword;
-        p.journal = "CVPR " + std::to_string(2024 - i % 5);
-        p.year = std::to_string(2024 - i % 5);
-        p.level = (i % 3 == 0) ? "A" : (i % 3 == 1) ? "B" : "C";
-        papers.push_back(p);
+// Helper function to escape JSON strings
+std::string escapeJsonString(const std::string& str) {
+    std::ostringstream escaped;
+    for (char c : str) {
+        switch (c) {
+            case '"':  escaped << "\\\""; break;
+            case '\\': escaped << "\\\\"; break;
+            case '\b': escaped << "\\b"; break;
+            case '\f': escaped << "\\f"; break;
+            case '\n': escaped << "\\n"; break;
+            case '\r': escaped << "\\r"; break;
+            case '\t': escaped << "\\t"; break;
+            default:
+                if (c < '\x20') {
+                    escaped << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)c;
+                } else {
+                    escaped << c;
+                }
+        }
     }
-    return papers;
+    return escaped.str();
 }
 
 std::string searchPapers(const std::string& keyword, int maxResults) {
-    auto papers = getDemoPapers(keyword, std::min(10, maxResults));
-
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"papers\": [\n";
-    for (size_t i = 0; i < papers.size(); ++i) {
-        json << "    {\n";
-        json << "      \"id\": " << papers[i].id << ",\n";
-        json << "      \"title\": \"" << papers[i].title << "\",\n";
-        json << "      \"journal\": \"" << papers[i].journal << "\",\n";
-        json << "      \"year\": \"" << papers[i].year << "\",\n";
-        json << "      \"level\": \"" << papers[i].level << "\"\n";
-        json << "    }" << (i < papers.size() - 1 ? ",\n" : "\n");
+    if (!g_api || !g_api->isInitialized()) {
+        return buildErrorResponse(500, "API not initialized");
     }
-    json << "  ],\n";
-    json << "  \"total\": 50,\n";
-    json << "  \"keyword\": \"" << keyword << "\",\n";
-    json << "  \"duration\": 1.5\n";
-    json << "}";
-    return json.str();
+
+    try {
+        SearchRequest request;
+        request.keyword = keyword;
+        request.maxResults = maxResults;
+
+        SearchResult result = g_api->search(request);
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"papers\": [\n";
+        for (size_t i = 0; i < result.papers.size(); ++i) {
+            const auto& paper = result.papers[i];
+            json << "    {\n";
+            json << "      \"id\": " << paper.getId() << ",\n";
+            json << "      \"title\": \"" << escapeJsonString(paper.getTitle()) << "\",\n";
+            json << "      \"journal\": \"" << escapeJsonString(paper.getJournalShort()) << "\",\n";
+            json << "      \"year\": \"" << paper.getYear() << "\",\n";
+            json << "      \"level\": \"" << paper.getLevel() << "\"\n";
+            json << "    }" << (i < result.papers.size() - 1 ? ",\n" : "\n");
+        }
+        json << "  ],\n";
+        json << "  \"total\": " << result.totalCount << ",\n";
+        json << "  \"keyword\": \"" << escapeJsonString(result.keyword) << "\",\n";
+        json << "  \"duration\": " << result.durationSeconds << "\n";
+        json << "}";
+        return json.str();
+    } catch (const DatabaseException& e) {
+        std::cerr << "Database error: " << e.what() << std::endl;
+        return buildErrorResponse(500, "Database error: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        std::cerr << "Error searching papers: " << e.what() << std::endl;
+        return buildErrorResponse(500, std::string(e.what()));
+    }
 }
 
 std::string getStatistics() {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"totalPapers\": 1000,\n";
-    json << "  \"totalJournals\": 50,\n";
-    json << "  \"topTierPapers\": 300,\n";
-    json << "  \"papersLastYear\": 150,\n";
-    json << "  \"mostActiveJournal\": \"CVPR\"\n";
-    json << "}";
-    return json.str();
+    if (!g_api || !g_api->isInitialized()) {
+        return buildErrorResponse(500, "API not initialized");
+    }
+
+    try {
+        Statistics stats = g_api->getStatistics();
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"totalPapers\": " << stats.totalPapers << ",\n";
+        json << "  \"totalJournals\": " << stats.totalJournals << ",\n";
+        json << "  \"topTierPapers\": " << stats.topTierPapers << ",\n";
+        json << "  \"papersLastYear\": " << stats.papersLastYear << ",\n";
+        json << "  \"mostActiveJournal\": \"" << escapeJsonString(stats.mostActiveJournal) << "\"\n";
+        json << "}";
+        return json.str();
+    } catch (const DatabaseException& e) {
+        std::cerr << "Database error: " << e.what() << std::endl;
+        return buildErrorResponse(500, "Database error: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        std::cerr << "Error getting statistics: " << e.what() << std::endl;
+        return buildErrorResponse(500, std::string(e.what()));
+    }
 }
 
 std::string exportToCSV(const std::string& keyword) {
-    auto papers = getDemoPapers(keyword, 10);
-
-    std::ostringstream csv;
-    csv << "ID,Title,Journal,Year,Level\n";
-    for (const auto& p : papers) {
-        csv << p.id << ",\"" << p.title << "\",\"" << p.journal << "\",\"" << p.year << "\",\"" << p.level << "\"\n";
+    if (!g_api || !g_api->isInitialized()) {
+        return buildErrorResponse(500, "API not initialized");
     }
-    return csv.str();
+
+    try {
+        std::vector<Paper> papers = g_api->getPapers(keyword, 0, 100);
+        return g_api->exportToCSV(papers);
+    } catch (const DatabaseException& e) {
+        std::cerr << "Database error: " << e.what() << std::endl;
+        return buildErrorResponse(500, "Database error: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        std::cerr << "Error exporting to CSV: " << e.what() << std::endl;
+        return buildErrorResponse(500, std::string(e.what()));
+    }
+}
+
+std::string exportToJSON(const std::string& keyword) {
+    if (!g_api || !g_api->isInitialized()) {
+        return buildErrorResponse(500, "API not initialized");
+    }
+
+    try {
+        std::vector<Paper> papers = g_api->getPapers(keyword, 0, 100);
+        return g_api->exportToJSON(papers);
+    } catch (const DatabaseException& e) {
+        std::cerr << "Database error: " << e.what() << std::endl;
+        return buildErrorResponse(500, "Database error: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        std::cerr << "Error exporting to JSON: " << e.what() << std::endl;
+        return buildErrorResponse(500, std::string(e.what()));
+    }
 }
 
 std::string handleRequest(const std::string& path, const std::string& method) {
     std::cout << "Request: " << method << " " << path << std::endl;
 
     if (path == "/health" || path == "/") {
+        std::string apiStatus = (g_api && g_api->isInitialized()) ? "connected" : "disconnected";
         return buildResponse("{"
             "\"status\":\"ok\","
             "\"service\":\"PaperCrawler API\","
             "\"version\":\"1.0.0\","
+            "\"database\":\"" + apiStatus + "\","
             "\"timestamp\":" + std::to_string(std::time(nullptr)) +
         "}");
     }
@@ -150,29 +216,15 @@ std::string handleRequest(const std::string& path, const std::string& method) {
     }
 
     if (path == "/api/export/json") {
-        auto papers = getDemoPapers("demo", 10);
-        std::ostringstream json;
-        json << "[\n";
-        for (size_t i = 0; i < papers.size(); ++i) {
-            json << "  {\n";
-            json << "    \"id\":" << papers[i].id << ",\n";
-            json << "    \"title\":\"" << papers[i].title << "\",\n";
-            json << "    \"journal\":\"" << papers[i].journal << "\",\n";
-            json << "    \"year\":\"" << papers[i].year << "\",\n";
-            json << "    \"level\":\"" << papers[i].level << "\"\n";
-            json << "  }" << (i < papers.size() - 1 ? ",\n" : "\n");
-        }
-        json << "]\n";
-
-        std::string jsonStr = json.str();
+        std::string json = exportToJSON("all");
         std::ostringstream response;
         response << "HTTP/1.1 200 OK\r\n";
         response << "Content-Type: application/json\r\n";
         response << "Access-Control-Allow-Origin: *\r\n";
         response << "Content-Disposition: attachment; filename=papers.json\r\n";
-        response << "Content-Length: " << jsonStr.length() << "\r\n";
+        response << "Content-Length: " << json.length() << "\r\n";
         response << "\r\n";
-        response << jsonStr;
+        response << json;
         return response.str();
     }
 
@@ -223,6 +275,27 @@ int main() {
     std::cout << "  PaperCrawler REST API Server v1.0.0" << std::endl;
     std::cout << "========================================" << std::endl;
     std::cout << std::endl;
+
+    // Initialize PaperCrawler API
+    std::cout << "Initializing PaperCrawler API..." << std::endl;
+    try {
+        g_api = &PaperCrawlerAPI::getInstance();
+        g_api->initialize("config/config.json");
+        std::cout << "✓ API initialized successfully" << std::endl;
+        std::cout << "✓ Database connected" << std::endl;
+    } catch (const ConfigException& e) {
+        std::cerr << "✗ Configuration error: " << e.what() << std::endl;
+        return 1;
+    } catch (const DatabaseException& e) {
+        std::cerr << "✗ Database connection error: " << e.what() << std::endl;
+        std::cerr << "Please ensure MySQL is running and config/config.json is correct" << std::endl;
+        return 1;
+    } catch (const std::exception& e) {
+        std::cerr << "✗ Initialization error: " << e.what() << std::endl;
+        return 1;
+    }
+    std::cout << std::endl;
+
     std::cout << "Server starting on port 8080..." << std::endl;
     std::cout << std::endl;
     std::cout << "Available endpoints:" << std::endl;
@@ -277,6 +350,12 @@ int main() {
             std::cout << "\nNew connection accepted" << std::endl;
             handleClient(clientSocket);
         }
+    }
+
+    // Cleanup
+    if (g_api) {
+        std::cout << std::endl << "Shutting down API..." << std::endl;
+        g_api->shutdown();
     }
 
 #ifdef _WIN32

@@ -3,7 +3,24 @@
     "allow": [
       "Bash(wc -l /e/PaperCrawler/src/**/*.cpp /e/PaperCrawler/include/**/*.hpp)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(cmd.exe /C test-api.bat)",
+      "Bash(curl -s http://localhost:8080/health)",
+      "Bash(curl -s \"http://localhost:8080/api/search?q=deep\")",
+      "Bash(curl -s http://localhost:8080/api/stats/overview)",
+      "Bash(curl -s http://localhost:8080/api/export/csv)",
+      "Bash(curl -s -o /dev/null -w \"HTTP Status: %{http_code}\\\\nTime Total: %{time_total}s\\\\nSize Download: %{size_download} bytes\\\\n\" http://localhost:8080/health)",
+      "Bash(curl -s -o /dev/null -w \"HTTP Status: %{http_code}\\\\nTime Total: %{time_total}s\\\\nSize Download: %{size_download} bytes\\\\n\" \"http://localhost:8080/api/search?q=deep\")",
+      "Bash(curl -s \"http://localhost:8080/api/search?q=\")",
+      "Bash(curl -s \"http://localhost:8080/nonexistent\")",
+      "Bash(curl -s http://localhost:5173)",
+      "Read(//e/PaperCrawler/{sum+=$1; count++} END {print \"\"\"\"\"\"\"\"Average: \"\"\"\"\"\"\"\" sum/count \"\"\"\"\"\"\"\"s/nMin: \"\"\"\"\"\"\"\" min \"\"\"\"\"\"\"\"s/**)",
+      "Bash(curl -s \"http://localhost:8080/api/search?q=machine\")",
+      "Bash(python3 -c \"import sys, json; data=json.load\\(sys.stdin\\); print\\(f''''Total papers: {data[\"\"total\"\"]}''''\\); print\\(f''''Returned papers: {len\\(data[\"\"papers\"\"]\\)}''''\\); print\\(f''''Keyword matched: {data[\"\"keyword\"\"]}''''\\); print\\(f''''Duration: {data[\"\"duration\"\"]}s''''\\); print\\(f''''All papers have required fields: {all\\(\"\"id\"\" in p and \"\"title\"\" in p and \"\"journal\"\" in p for p in data[\"\"papers\"\"]\\)}''''\\)\")",
+      "Bash(curl -s \"http://localhost:8080/api/search?q=validation\")",
+      "Read(//e/PaperCrawler/**)",
+      "Bash(ls -la *.sh *.bat)"
     ]
   }
 }
