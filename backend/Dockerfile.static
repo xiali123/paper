@@ -1,0 +1,121 @@
+# Multi-stage build for PaperCrawler Backend
+# This Dockerfile creates a fully static executable
+
+# ============================================
+# Stage 1: Dependencies Builder
+# ============================================
+FROM ubuntu:22.04 AS deps-builder
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    wget \
+    curl \
+    libssl-dev \
+    libcurl4-openssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /deps
+
+# Build static OpenSSL (for static linking)
+RUN wget https://www.openssl.org/source/openssl-3.0.13.tar.gz && \
+    tar xzf openssl-3.0.13.tar.gz && \
+    cd openssl-3.0.13 && \
+    ./Configure linux-x86_64 no-shared no-threads -fPIC --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf openssl-3.0.13*
+
+# Build static libcurl (for HTTP requests)
+RUN wget https://curl.se/download/curl-8.5.0.tar.gz && \
+    tar xzf curl-8.5.0.tar.gz && \
+    cd curl-8.5.0 && \
+    ./configure --disable-shared --enable-static --with-openssl=/usr/local --without-zlib && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf curl-8.5.0*
+
+# ============================================
+# Stage 2: Application Builder
+# ============================================
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build tools
+RUN apt-get update && apt-get install -y \
+    g++ \
+    cmake \
+    git \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy dependency libraries from deps-builder
+COPY --from=deps-builder /usr/local/lib /usr/local/lib
+COPY --from=deps-builder /usr/local/include /usr/local/include
+RUN ldconfig
+
+# Copy source code
+COPY CMakeLists.txt ./
+COPY core/ ./core/
+COPY backend/ ./backend/
+COPY include/ ./include/
+COPY src/ ./src/
+
+# Build with static linking
+RUN mkdir -p build && cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_STATIC=ON \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_PREFIX_PATH=/usr/local \
+          -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
+          -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+          .. && \
+    make -j$(nproc) && \
+    # Strip symbols to reduce size
+    strip --strip-unneeded backend/PaperCrawlerServer || true
+
+# ============================================
+# Stage 3: Minimal Runtime Image
+# ============================================
+FROM ubuntu:22.04
+
+# Install ONLY runtime dependencies (no build tools)
+RUN apt-get update && apt-get install -y \
+    libssl3 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -s /bin/false -m -d /app papercrawler
+
+WORKDIR /app
+
+# Copy ONLY the executable (statically linked, no .so files needed)
+COPY --from=builder --chown=papercrawler:papercrawler /build/build/backend/PaperCrawlerServer /app/
+
+# Copy configuration files
+COPY --chown=papercrawler:papercrawler config/*.json /app/config/
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/data /app/sql && \
+    chown -R papercrawler:papercrawler /app
+
+# Switch to non-root user
+USER papercrawler
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run the application
+CMD ["/app/PaperCrawlerServer"]
