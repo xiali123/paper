@@ -52,6 +52,13 @@ if(WIN32)
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
     )
+    # MSVC specific options
+    if(MSVC)
+        target_compile_options(PaperCrawlerDesktop PRIVATE
+            /Zc:__cplusplus
+            /utf-8
+        )
+    endif()
 endif()
 
 # Installation
