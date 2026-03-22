@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
+      '@': resolve(__dirname, './src')
     }
   },
   server: {
@@ -14,9 +14,8 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8082',  // Complete Mock API
         changeOrigin: true
-        // 移除 rewrite，保留 /api 前缀
       }
     }
   }

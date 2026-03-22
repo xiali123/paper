@@ -88,11 +88,16 @@
 
           <div class="journal-content">
             <div class="journal-icon-large">
-              {{ overview.mostActiveJournal ? overview.mostActiveJournal.charAt(0).toUpperCase() : '?' }}
+              {{ overview.mostActiveJournal?.name ? overview.mostActiveJournal.name.charAt(0).toUpperCase() : '?' }}
             </div>
             <div class="journal-info">
-              <h3 class="journal-title">{{ overview.mostActiveJournal || '未知' }}</h3>
-              <p class="journal-description">该期刊在我们的数据库中拥有最丰富的论文资源</p>
+              <h3 class="journal-title">{{ overview.mostActiveJournal?.name || '未知期刊' }}</h3>
+              <p class="journal-description">
+                该期刊在我们的数据库中拥有最丰富的论文资源
+                <span v-if="overview.mostActiveJournal?.paperCount" class="journal-paper-count">
+                  ({{ overview.mostActiveJournal.paperCount.toLocaleString() }} 篇论文)
+                </span>
+              </p>
               <div class="journal-stats">
                 <div class="journal-stat">
                   <span class="stat-label">收录完整度</span>
@@ -148,14 +153,26 @@ onMounted(async () => {
 
 <style scoped>
 .stats-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 20px;
+  padding: 0 24px;
+  position: relative;
+}
+
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.stats-content > * {
+  margin: 0 !important;
 }
 
 .stats-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 }
 
 .page-title {
@@ -184,20 +201,16 @@ onMounted(async () => {
   display: inline-block;
 }
 
-.metrics-section {
-  margin-bottom: 40px;
-}
-
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  gap: 24px;
 }
 
 .metric-card {
   background: white;
   border-radius: 12px;
-  padding: 30px;
+  padding: 24px !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   text-align: center;
 }
@@ -245,14 +258,19 @@ onMounted(async () => {
 .trend-up { color: #28a745; }
 .trend-neutral { color: #6c757d; }
 
-.journal-section, .update-section {
-  margin-bottom: 40px;
+.journal-section, .update-section, .metrics-section {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.section-compact {
+  padding: 0 !important;
 }
 
 .journal-card, .update-card {
   background: white;
   border-radius: 12px;
-  padding: 30px;
+  padding: 20px !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
@@ -322,21 +340,23 @@ onMounted(async () => {
 .update-content {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 8px;
 }
 
 .update-icon {
-  font-size: 24px;
+  font-size: 18px;
 }
 
 .update-label {
   color: #666;
-  margin-right: 10px;
+  margin-right: 8px;
+  font-size: 13px;
 }
 
 .update-time {
   color: #333;
   font-weight: 500;
+  font-size: 13px;
 }
 
 .btn {
@@ -355,4 +375,105 @@ onMounted(async () => {
 .btn:hover {
   opacity: 0.9;
 }
+
+/* ===================================
+   DARK MODE SUPPORT
+   =================================== */
+[data-theme="dark"] .stats-page {
+  background: transparent;
+}
+
+[data-theme="dark"] .stats-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .page-title {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .page-subtitle {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .metric-card {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .trend-up {
+  color: #34d399;
+}
+
+[data-theme="dark"] .trend-neutral {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .journal-card, [data-theme="dark"] .update-card {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .section-title {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .section-subtitle {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .journal-title {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .journal-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .journal-icon-large {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+[data-theme="dark"] .stat-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .stat-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .update-icon {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+}
+
+[data-theme="dark"] .update-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .update-time {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .error-card {
+  background: rgba(60, 40, 40, 0.95) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .retry-btn {
+  background: rgba(239, 68, 68, 0.9) !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-primary {
+  background: rgba(102, 126, 234, 0.9) !important;
+}
+
 </style>

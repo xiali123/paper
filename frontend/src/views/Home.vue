@@ -13,25 +13,21 @@
           <span class="gradient-text">发现研究价值</span>
         </h1>
         <p class="hero-description">快速搜索、分析和导出学术论文，让研究更高效</p>
-        <div class="hero-meta">
-          <div v-if="isHealthy === true" class="status-indicator status-success">
-            <span class="status-dot"></span>
-            <span class="status-text">服务正常运行</span>
-          </div>
-        </div>
       </div>
     </div>
 
     <!-- Quick Search Section - Premium Search Experience -->
     <div class="quick-search">
       <div class="search-card card card-spacious">
+        <!-- 右上角提示 -->
+        <div class="search-hint-card">
+          <span class="hint-icon">💡</span>
+          <span class="hint-text">支持中英文关键词，实时搜索</span>
+        </div>
+
         <div class="search-card-header">
           <div class="header-left">
             <h2 class="search-title">快速搜索</h2>
-            <div class="search-hint">
-              <span class="hint-icon">💡</span>
-              <span class="hint-text">支持中英文关键词，实时搜索</span>
-            </div>
           </div>
         </div>
 
@@ -63,20 +59,20 @@
 
         <!-- Popular Suggestions - Enhanced Visual Presentation -->
         <div class="suggestions">
-          <div class="suggestions-header">
+          <div class="suggestions-row">
             <span class="suggestions-label">热门搜索</span>
-          </div>
-          <div class="suggestion-tags">
-            <button
-              v-for="suggestion in popularSuggestions"
-              :key="suggestion.keyword"
-              @click="searchSuggestion(suggestion.keyword)"
-              class="suggestion-tag"
-            >
-              <span class="tag-icon">{{ suggestion.icon }}</span>
-              <span class="tag-text">{{ suggestion.display }}</span>
-              <span class="tag-arrow">→</span>
-            </button>
+            <div class="suggestion-tags">
+              <button
+                v-for="suggestion in popularSuggestions"
+                :key="suggestion.keyword"
+                @click="searchSuggestion(suggestion.keyword)"
+                class="suggestion-tag"
+              >
+                <span class="tag-icon">{{ suggestion.icon }}</span>
+                <span class="tag-text">{{ suggestion.display }}</span>
+                <span class="tag-arrow">→</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -151,18 +147,14 @@
       <SkeletonLoader variant="card" :count="3" />
     </div>
 
-    <!-- Loading state -->
-    <Transition name="fade">
-      <div v-if="search.loading && search.searched" class="loading-state">
-        <LoadingSpinner size="large" variant="primary" text="搜索中，请稍候..." />
-      </div>
-    </Transition>
+    <!-- Loading state - 只在首次搜索时显示 -->
+    <div v-if="search.loading && !search.searched" class="loading-state">
+      <LoadingSpinner size="large" variant="primary" text="搜索中，请稍候..." />
+    </div>
 
     <!-- Search Results Section - Enhanced layout -->
-    <Transition name="slide-up">
-      <div v-if="search.hasResults" class="results-section section-compact">
-        <div class="container">
-          <div class="results-card">
+    <div v-if="search.hasResults" class="results-section section-compact">
+      <div class="results-card">
             <div class="results-header">
               <div class="results-title-group">
                 <h2 class="results-title">搜索结果</h2>
@@ -198,9 +190,10 @@
 
               <div class="pagination-nav">
                 <button
-                  @click="goToPage(currentPage - 1)"
+                  @click.prevent="goToPage(currentPage - 1)"
                   :disabled="currentPage <= 1 || search.loading"
                   class="page-btn"
+                  type="button"
                 >
                   ‹ 上一页
                 </button>
@@ -209,18 +202,20 @@
                   <button
                     v-for="page in visiblePages"
                     :key="page"
-                    @click="goToPage(page)"
+                    @click.prevent="goToPage(page)"
                     :class="['page-number', { active: page === currentPage }]"
                     :disabled="search.loading"
+                    type="button"
                   >
                     {{ page }}
                   </button>
                 </div>
 
                 <button
-                  @click="goToPage(currentPage + 1)"
+                  @click.prevent="goToPage(currentPage + 1)"
                   :disabled="currentPage >= totalPages || search.loading"
                   class="page-btn"
+                  type="button"
                 >
                   下一页 ›
                 </button>
@@ -232,15 +227,18 @@
             </div>
 
             <!-- Paper list with enhanced cards -->
-            <div class="paper-list">
-              <TransitionGroup name="list" tag="div">
-                <div
-                  v-for="(paper, index) in search.results"
-                  :key="paper.id || `paper-${index}`"
-                  class="paper-card card card-compact"
-                  :style="{ '--delay': `${index * 50}ms` }"
-                  @click="viewPaper(paper)"
-                >
+            <div class="paper-list" :class="{ 'is-loading': search.loading }">
+              <!-- Loading indicator inside results -->
+              <div v-if="search.loading" class="inline-loading">
+                <LoadingSpinner size="medium" variant="primary" text="加载中..." />
+              </div>
+
+              <div
+                v-for="(paper, index) in search.results"
+                :key="paper.id || `paper-${currentPage}-${index}`"
+                class="paper-card card card-compact"
+                @click="viewPaper(paper)"
+              >
                   <div class="paper-header">
                     <h3 class="paper-title">{{ paper.title }}</h3>
                     <span :class="['level-badge', `level-${paper.level?.toLowerCase() || 'c'}`]">
@@ -270,17 +268,14 @@
                     </a>
                   </div>
                 </div>
-              </TransitionGroup>
             </div>
           </div>
         </div>
       </div>
-    </Transition>
 
     <!-- Empty state -->
-    <Transition name="fade">
+    <div v-if="search.isEmpty">
       <EmptyState
-        v-if="search.isEmpty"
         icon="🔍"
         title="未找到相关论文"
         description="请尝试其他关键词或调整搜索条件"
@@ -288,15 +283,13 @@
         action-text="重新搜索"
         @action="resetSearch"
       />
-    </Transition>
-  </div>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSearch } from '@/composables/useSearch'
-import { useHealthCheck } from '@/composables/useHealthCheck'
 import { formatLevel, formatAuthors, formatDuration } from '@/utils/format'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import SkeletonLoader from '@/components/common/SkeletonLoader.vue'
@@ -339,24 +332,55 @@ const totalPages = computed(() => {
 // 显示的页码
 const visiblePages = computed(() => {
   const pages: number[] = []
-  const start = Math.max(1, currentPage.value - 2)
-  const end = Math.min(totalPages.value, start + 4)
+  const maxVisible = 5
+  const total = totalPages.value
 
-  for (let i = start; i <= end; i++) {
-    pages.push(i)
+  if (total <= maxVisible) {
+    // 总页数小于等于最大显示数，显示所有页码
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // 总页数大于最大显示数
+    let start = currentPage.value - Math.floor(maxVisible / 2)
+    let end = start + maxVisible - 1
+
+    // 调整start和end确保不超出范围
+    if (start < 1) {
+      start = 1
+      end = maxVisible
+    }
+    if (end > total) {
+      end = total
+      start = total - maxVisible + 1
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i)
+    }
   }
 
   return pages
 })
 
 // 跳转到指定页
-const goToPage = (page: number) => {
+const goToPage = async (page: number) => {
   if (page < 1 || page > totalPages.value || search.loading) return
+
+  // 保存当前loading状态
+  const wasLoading = search.loading
 
   const offset = (page - 1) * search.searchParams.limit
   search.searchParams.offset = offset
   currentPage.value = page
-  search.performSearch()
+
+  // 执行搜索
+  await search.performSearch()
+
+  // 确保loading状态正确恢复
+  if (!wasLoading) {
+    search.loading = false
+  }
 }
 
 // 每页数量改变
@@ -370,9 +394,6 @@ const onPageSizeChange = () => {
 onMounted(() => {
   console.log('Home.vue mounted successfully')
 })
-
-// 使用健康检查 composable
-const { statusText, status, isHealthy } = useHealthCheck(true, 60000)
 
 // 热门搜索建议
 const popularSuggestions = ref([
@@ -424,10 +445,61 @@ const viewPaper = (paper: any) => {
 <style scoped>
 .home {
   width: 100%;
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: var(--space-5);
+  padding: 0 24px;
   position: relative;
+}
+
+/* ===================================
+   搜索卡片提示（右上角）
+   =================================== */
+.search-hint-card {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  border-radius: 50px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.search-hint-card .hint-icon {
+  font-size: 18px;
+  animation: pulse 2s ease-in-out infinite;
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+.search-hint-card .hint-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #667eea;
 }
 
 /* ===================================
@@ -435,15 +507,15 @@ const viewPaper = (paper: any) => {
    =================================== */
 .hero {
   text-align: center;
-  padding: var(--space-20) var(--space-12);
+  padding: 40px 32px;
   position: relative;
-  margin-bottom: var(--space-10);
-  border-radius: var(--radius-3xl);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-2xl);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 24px;
+  border-radius: 24px;
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.22);
+  border: 2px solid rgba(102, 126, 234, 0.25);
   overflow: hidden;
-  background: var(--bg-gradient-card);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 254, 255, 0.95) 100%);
 }
 
 .hero-background {
@@ -453,7 +525,7 @@ const viewPaper = (paper: any) => {
   right: 0;
   bottom: 0;
   background: var(--bg-gradient-hero);
-  opacity: 0.1;
+  opacity: 0.08;
   pointer-events: none;
 }
 
@@ -464,8 +536,8 @@ const viewPaper = (paper: any) => {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
-  animation: float 20s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 60%);
+  animation: float 30s ease-in-out infinite;
 }
 
 @keyframes float {
@@ -474,9 +546,164 @@ const viewPaper = (paper: any) => {
   66% { transform: translate(-20px, 20px) rotate(240deg); }
 }
 
-.hero-content {
-  position: relative;
-  z-index: 1;
+/* ===================================
+   DARK MODE FOR CARDS
+   =================================== */
+[data-theme="dark"] .hero {
+  background: linear-gradient(135deg, rgba(95, 95, 115, 0.9) 0%, rgba(75, 75, 95, 0.93) 100%) !important;
+  border-color: rgba(102, 126, 234, 0.35) !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.08) !important;
+}
+
+[data-theme="dark"] .hero-background {
+  opacity: 0.08 !important;
+}
+
+[data-theme="dark"] .hero-background::before {
+  background: radial-gradient(circle at 30% 50%, rgba(102, 126, 234, 0.12) 0%, transparent 50%) !important;
+}
+
+[data-theme="dark"] .hero-title {
+  color: #ffffff !important;
+  text-shadow: none;
+}
+
+[data-theme="dark"] .hero-description {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .hero-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2) !important;
+}
+
+[data-theme="dark"] .badge-icon {
+  filter: none;
+}
+
+[data-theme="dark"] .gradient-text {
+  text-shadow: none;
+  filter: none;
+}
+
+[data-theme="dark"] .search-card {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .search-title {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .search-input {
+  background: rgba(30, 30, 35, 0.8) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .search-input:focus {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+[data-theme="dark"] .search-input::placeholder {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .suggestions-label {
+  background: rgba(40, 40, 45, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .suggestion-tag {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .suggestion-tag:hover {
+  background: rgba(102, 126, 234, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .feature-card {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .feature-card:hover {
+  border-color: rgba(102, 126, 234, 0.5) !important;
+  background: rgba(45, 45, 50, 0.98) !important;
+}
+
+[data-theme="dark"] .feature-title {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .feature-description {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .feature-action {
+  color: #a78bfa !important;
+}
+
+[data-theme="dark"] .results-card {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .results-title {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .paper-card {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .paper-card:hover {
+  background: rgba(50, 50, 55, 0.5) !important;
+}
+
+[data-theme="dark"] .paper-title {
+  color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .level-badge {
+  background: rgba(35, 35, 40, 0.9) !important;
+}
+
+[data-theme="dark"] .meta-item {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .meta-text {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .meta-icon {
+  opacity: 0.7;
+}
+
+[data-theme="dark"] .search-button {
+  background: rgba(102, 126, 234, 0.9) !important;
+}
+
+[data-theme="dark"] .search-button:hover:not(:disabled) {
+  background: rgba(118, 75, 162, 0.95) !important;
+}
+
+[data-theme="dark"] .paper-link {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .paper-link:hover {
+  background: rgba(102, 126, 234, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+  color: white !important;
 }
 
 .hero-badge {
@@ -484,95 +711,57 @@ const viewPaper = (paper: any) => {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
-  background: var(--color-primary-600);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border-radius: var(--radius-full);
   font-size: var(--font-sm);
   font-weight: var(--font-semibold);
   margin-bottom: var(--space-8);
-  box-shadow: var(--shadow-primary);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
   animation: slideUp 0.6s ease-out;
 }
 
 .badge-icon {
   font-size: var(--font-base);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .hero-title {
-  font-size: var(--font-6xl);
-  font-weight: var(--font-extrabold);
-  line-height: var(--leading-tight);
-  margin-bottom: var(--space-6);
-  color: var(--text-primary);
-  letter-spacing: var(--tracking-tight);
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 16px;
+  color: #1f2937;
+  letter-spacing: -0.5px;
   animation: slideUp 0.6s ease-out 0.1s both;
 }
 
 .gradient-text {
-  background: var(--bg-gradient-hero);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   display: block;
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
 }
 
 .hero-description {
-  font-size: var(--font-lg);
-  color: var(--text-secondary);
-  max-width: 600px;
-  margin: 0 auto var(--space-8);
-  line-height: var(--leading-relaxed);
+  font-size: 18px;
+  color: #6b7280;
+  max-width: 700px;
+  margin: 0 auto 16px;
+  line-height: 1.6;
   animation: slideUp 0.6s ease-out 0.2s both;
-}
-
-.hero-meta {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-4);
-  animation: slideUp 0.6s ease-out 0.3s both;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: var(--radius-full);
-  font-size: var(--font-sm);
-  font-weight: var(--font-semibold);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-primary);
-  backdrop-filter: blur(10px);
-}
-
-.status-success {
-  color: var(--color-success-600);
-}
-
-.status-dot {
-  width: var(--space-2);
-  height: var(--space-2);
-  border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.status-success .status-dot {
-  background: var(--color-success-500);
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.1); }
+  font-weight: 500;
 }
 
 /* ===================================
    QUICK SEARCH SECTION
    =================================== */
 .quick-search {
-  margin: var(--space-10) auto;
-  max-width: 800px;
+  margin: 0 auto var(--space-12);
+  max-width: 100%;
+  width: 100%;
   animation: slideUp 0.6s ease-out 0.4s both;
 }
 
@@ -619,7 +808,7 @@ const viewPaper = (paper: any) => {
 
 .search-box {
   display: flex;
-  gap: var(--space-4);
+  gap: 12px;
   margin-bottom: var(--space-8);
 }
 
@@ -633,21 +822,45 @@ const viewPaper = (paper: any) => {
 .search-icon {
   position: absolute;
   left: var(--space-5);
-  color: var(--text-tertiary);
+  color: #667eea;
   font-size: var(--font-lg);
   pointer-events: none;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  top: 0;
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.25));
 }
 
 .search-input {
-  padding-left: var(--space-14);
+  padding: 18px 20px 18px calc(var(--space-5) + 36px);
+  font-size: 16px;
+  border-radius: 16px;
+  border: 2px solid #e5e7eb;
+  height: 56px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #fafbfc;
+  width: 100%;
+}
+
+.search-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  background: white;
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
+  font-size: 15px;
 }
 
 .clear-button {
   position: absolute;
   right: var(--space-3);
-  width: var(--space-8);
-  height: var(--space-8);
+  width: calc(var(--space-8) + var(--space-2));
+  height: calc(var(--space-8) + var(--space-2));
   border: none;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
@@ -659,17 +872,30 @@ const viewPaper = (paper: any) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .clear-button:hover {
   background: var(--border-secondary);
   color: var(--text-primary);
-  transform: scale(1.1);
+  transform: translateY(-50%) scale(1.1);
 }
 
 .search-button {
-  min-width: 140px;
-  padding: var(--space-4) var(--space-8);
+  min-width: 130px;
+  padding: 18px 24px;
+  height: 56px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.search-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
 }
 
 /* ===================================
@@ -679,13 +905,16 @@ const viewPaper = (paper: any) => {
   margin-top: var(--space-6);
 }
 
-.suggestions-header {
-  text-align: center;
-  margin-bottom: var(--space-5);
+.suggestions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
 }
 
 .suggestions-label {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   color: var(--text-secondary);
   font-size: var(--font-sm);
   font-weight: var(--font-semibold);
@@ -693,13 +922,14 @@ const viewPaper = (paper: any) => {
   background: var(--bg-secondary);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-primary);
+  flex-shrink: 0;
 }
 
 .suggestion-tags {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  justify-content: center;
+  align-items: center;
 }
 
 .suggestion-tag {
@@ -717,6 +947,7 @@ const viewPaper = (paper: any) => {
   transition: all var(--duration-normal);
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(10px);
 }
 
 .suggestion-tag::before {
@@ -726,7 +957,7 @@ const viewPaper = (paper: any) => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.15), transparent);
   transition: left var(--duration-slower);
 }
 
@@ -738,12 +969,13 @@ const viewPaper = (paper: any) => {
   background: var(--color-primary-600);
   color: white;
   border-color: var(--color-primary-600);
-  transform: translateY(-2px);
+  transform: translateY(-3px) scale(1.02);
   box-shadow: var(--shadow-primary);
 }
 
 .tag-icon {
   font-size: var(--font-base);
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.2));
 }
 
 .tag-arrow {
@@ -776,6 +1008,7 @@ const viewPaper = (paper: any) => {
 
 .error-icon {
   font-size: var(--font-size-xl);
+  filter: drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3));
 }
 
 .error-text {
@@ -787,19 +1020,20 @@ const viewPaper = (paper: any) => {
    =================================== */
 .features-section {
   background: var(--bg-gradient-card);
-  border-radius: var(--radius-3xl);
+  border-radius: var(--radius-2xl);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-primary);
   box-shadow: var(--shadow-lg);
+  padding: var(--space-10);
 }
 
 .features-header {
   text-align: center;
-  margin-bottom: var(--space-12);
+  margin-bottom: var(--space-10);
 }
 
 .features-title {
-  font-size: var(--font-4xl);
+  font-size: var(--font-3xl);
   color: var(--text-primary);
   margin-bottom: var(--space-4);
   font-weight: var(--font-bold);
@@ -816,7 +1050,7 @@ const viewPaper = (paper: any) => {
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--space-6);
 }
 
@@ -842,13 +1076,26 @@ const viewPaper = (paper: any) => {
   transition: opacity var(--duration-normal);
 }
 
+.feature-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity var(--duration-normal);
+}
+
 .feature-card:hover::before {
   opacity: 1;
 }
 
+.feature-card:hover::after {
+  opacity: 1;
+}
+
 .feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-xl);
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: var(--shadow-xl), var(--shadow-premium);
   border-color: var(--color-primary-300);
 }
 
@@ -856,24 +1103,26 @@ const viewPaper = (paper: any) => {
   width: 80px;
   height: 80px;
   margin: 0 auto var(--space-5);
-  background: var(--bg-gradient-hero);
-  opacity: 0.15;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0.92;
   border-radius: var(--radius-2xl);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all var(--duration-normal);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.5);
 }
 
 .feature-card:hover .feature-icon-wrapper {
-  opacity: 0.25;
+  opacity: 1;
   transform: scale(1.1);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
 }
 
 .feature-icon {
   font-size: var(--font-4xl);
   display: inline-block;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
 }
 
 .feature-title {
@@ -919,23 +1168,32 @@ const viewPaper = (paper: any) => {
 /* ===================================
    RESULTS SECTION
    =================================== */
+.results-section {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto var(--space-8);
+  padding: 0;
+}
+
 .results-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--bg-gradient-card);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-lg);
   overflow: hidden;
-  border: 1px solid var(--color-border-primary);
+  padding: var(--space-8);
 }
 
 .results-header {
-  padding: var(--space-6) var(--space-8);
-  background: var(--color-bg-secondary);
-  border-bottom: 2px solid var(--color-border-primary);
+  padding: 0;
+  background: transparent;
+  border: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-4);
   flex-wrap: wrap;
+  margin-bottom: var(--space-6);
 }
 
 .results-title-group {
@@ -945,10 +1203,10 @@ const viewPaper = (paper: any) => {
 }
 
 .results-title {
-  margin: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
+  margin: 0 0 var(--space-3) 0;
+  color: var(--text-primary);
+  font-size: var(--font-3xl);
+  font-weight: var(--font-bold);
 }
 
 .results-count {
@@ -990,6 +1248,7 @@ const viewPaper = (paper: any) => {
 
 .duration-icon {
   font-size: var(--font-size-base);
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.25));
 }
 
 .duration-text {
@@ -1026,14 +1285,22 @@ const viewPaper = (paper: any) => {
    PAGINATION
    =================================== */
 .pagination-controls {
-  background: var(--color-bg-primary);
-  padding: var(--space-4) var(--space-6);
+  background: transparent;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--color-border-primary);
+  border: none;
+  margin-bottom: var(--space-6);
+}
+
+.pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .pagination-size {
@@ -1066,12 +1333,6 @@ const viewPaper = (paper: any) => {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.pagination-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .page-btn {
   padding: var(--space-2) var(--space-4);
   border: 2px solid var(--color-border-primary);
@@ -1098,6 +1359,8 @@ const viewPaper = (paper: any) => {
 .page-numbers {
   display: flex;
   gap: var(--space-1);
+  min-width: 200px;
+  justify-content: center;
 }
 
 .page-number {
@@ -1142,25 +1405,49 @@ const viewPaper = (paper: any) => {
 .paper-list {
   display: flex;
   flex-direction: column;
+  min-height: 600px;
+  position: relative;
+}
+
+.paper-list.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.inline-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-lg);
+}
+
+.paper-card {
+  cursor: pointer;
+  transition: background-color var(--duration-fast), border-left-color var(--duration-fast);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  border-left: 3px solid transparent;
+  flex-shrink: 0;
 }
 
 .paper-list .paper-card:not(:last-child) {
   border-bottom: 1px solid var(--color-border-primary);
 }
 
-.paper-card {
-  cursor: pointer;
-  transition: all var(--duration-normal);
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  border-left: 3px solid transparent;
-}
 
 .paper-card:hover {
   background: var(--color-bg-secondary);
   border-left-color: var(--color-primary);
-  transform: translateX(4px);
 }
 
 .paper-header {
@@ -1225,7 +1512,8 @@ const viewPaper = (paper: any) => {
 
 .meta-icon {
   font-size: var(--font-size-base);
-  opacity: 0.6;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.2));
 }
 
 .meta-text.authors {
@@ -1261,6 +1549,7 @@ const viewPaper = (paper: any) => {
 
 .link-icon {
   font-size: var(--font-size-sm);
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.2));
 }
 
 /* ===================================
@@ -1274,7 +1563,16 @@ const viewPaper = (paper: any) => {
 .loading-state {
   text-align: center;
   padding: var(--space-20) var(--space-4);
-  color: white;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  margin: 0 auto;
+  max-width: 100%;
+  border: 1px solid var(--color-border-primary);
 }
 
 /* ===================================
@@ -1333,19 +1631,26 @@ const viewPaper = (paper: any) => {
    =================================== */
 @media (max-width: 768px) {
   .home {
-    padding: var(--space-4);
+    padding: 0;
   }
 
   .hero {
-    padding: var(--space-12) var(--space-6);
+    padding: var(--space-10) var(--space-6);
+    margin-bottom: var(--space-6);
+    border-radius: var(--radius-xl);
   }
 
   .hero-title {
-    font-size: var(--font-4xl);
+    font-size: var(--font-3xl);
   }
 
   .hero-description {
     font-size: var(--font-base);
+  }
+
+  .quick-search {
+    padding: 0 var(--space-4);
+    margin-bottom: var(--space-8);
   }
 
   .search-box {
@@ -1355,6 +1660,11 @@ const viewPaper = (paper: any) => {
 
   .search-button {
     width: 100%;
+  }
+
+  .features-section {
+    padding: var(--space-6);
+    border-radius: var(--radius-xl);
   }
 
   .features-grid {
@@ -1380,8 +1690,12 @@ const viewPaper = (paper: any) => {
 }
 
 @media (max-width: 480px) {
+  .hero {
+    padding: var(--space-8) var(--space-4);
+  }
+
   .hero-title {
-    font-size: var(--font-3xl);
+    font-size: var(--font-2xl);
   }
 
   .features-grid {

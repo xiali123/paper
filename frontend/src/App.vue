@@ -39,6 +39,41 @@
               >
                 <span class="theme-icon">{{ isDark() ? '☀️' : '🌙' }}</span>
               </button>
+
+              <!-- Auth Section -->
+              <div class="auth-section">
+                <div v-if="authStore.isAuthenticated" class="user-menu">
+                  <div class="user-info" @click="toggleUserDropdown">
+                    <span class="user-avatar">{{ userInitial }}</span>
+                    <span class="user-name">{{ authStore.user?.fullName || authStore.user?.username || 'User' }}</span>
+                    <span class="dropdown-arrow">▼</span>
+                  </div>
+                  <div v-if="showUserDropdown" class="user-dropdown">
+                    <div class="dropdown-item" @click="goToProfile">
+                      <span class="dropdown-icon">👤</span>
+                      <span>{{ $t('nav.profile') }}</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item logout" @click="handleLogout">
+                      <span class="dropdown-icon">🚪</span>
+                      <span>{{ $t('nav.logout') }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="auth-buttons">
+                  <router-link to="/login" class="auth-btn login-btn">
+                    <span>{{ $t('nav.login') }}</span>
+                  </router-link>
+                  <router-link to="/register" class="auth-btn register-btn">
+                    <span>{{ $t('nav.register') }}</span>
+                  </router-link>
+                </div>
+              </div>
+
+              <div class="health-status" :class="{ online: backendStatus }">
+                <span class="status-dot"></span>
+                <span class="status-text">{{ $t('app.status') }}</span>
+              </div>
             </div>
           </nav>
         </div>
@@ -146,12 +181,54 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTheme } from './composables/useTheme'
+import { useAuthStore } from './stores/auth'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
 
+const router = useRouter()
 const { theme, toggleTheme, isDark } = useTheme()
+const authStore = useAuthStore()
 const backendStatus = ref(false)
 const healthCheckInitialized = ref(false)
+const showUserDropdown = ref(false)
+
+// User initial for avatar
+const userInitial = computed(() => {
+  const fullName = authStore.user?.fullName || authStore.user?.username || ''
+  return fullName.charAt(0).toUpperCase()
+})
+
+// Toggle user dropdown
+const toggleUserDropdown = () => {
+  showUserDropdown.value = !showUserDropdown.value
+}
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  const userMenu = document.querySelector('.user-menu')
+  if (userMenu && !userMenu.contains(target)) {
+    showUserDropdown.value = false
+  }
+}
+
+// Go to profile page
+const goToProfile = () => {
+  showUserDropdown.value = false
+  router.push('/profile')
+}
+
+// Handle logout
+const handleLogout = async () => {
+  try {
+    await authStore.logout()
+    showUserDropdown.value = false
+    router.push('/login')
+  } catch (error) {
+    console.error('Logout failed:', error)
+  }
+}
 
 // Computed class for footer to support dark mode
 const footerClass = computed(() => ({
@@ -165,9 +242,10 @@ const checkBackend = async () => {
     console.log('Health check response:', response.status)
 
     if (response.ok) {
-      const data = await response.json()
-      console.log('Health check data:', data)
-      backendStatus.value = data.status === 'ok'
+      const result = await response.json()
+      console.log('Health check result:', result)
+      // 后端返回格式：{ success: true, data: { status: "ok", message: "..." } }
+      backendStatus.value = result.success && result.data && result.data.status === 'ok'
       healthCheckInitialized.value = true
     } else {
       console.warn('Health check failed with status:', response.status)
@@ -185,6 +263,13 @@ let healthCheckTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   console.log('App mounted, starting health check...')
+
+  // Add click outside listener for dropdown
+  document.addEventListener('click', handleClickOutside)
+
+  // Initialize auth store
+  authStore.initializeAuth()
+
   setTimeout(() => {
     checkBackend()
     healthCheckTimer = setInterval(checkBackend, 30000)
@@ -195,6 +280,7 @@ onUnmounted(() => {
   if (healthCheckTimer) {
     clearInterval(healthCheckTimer)
   }
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -358,6 +444,58 @@ onUnmounted(() => {
   gap: 12px;
 }
 
+.health-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s;
+}
+
+.health-status.online {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #16a34a;
+}
+
+.health-status:not(.online) {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.status-text {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .theme-toggle-btn {
   width: 48px;
   height: 48px;
@@ -386,6 +524,167 @@ onUnmounted(() => {
 .theme-icon {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
   transition: color 0.3s;
+}
+
+/* Auth Section */
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-btn {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.login-btn {
+  background: transparent;
+  color: #667eea;
+  border: 2px solid #667eea;
+}
+
+.login-btn:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.register-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: 2px solid transparent;
+}
+
+.register-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* User Menu */
+.user-menu {
+  position: relative;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid #e5e7eb;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.user-info:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  color: #9ca3af;
+  transition: transform 0.3s;
+}
+
+.user-info:hover .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+/* User Dropdown */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  z-index: 1000;
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  color: #374151;
+}
+
+.dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+.dropdown-item.logout {
+  color: #dc2626;
+}
+
+.dropdown-item.logout:hover {
+  background: #fef2f2;
+}
+
+.dropdown-icon {
+  font-size: 16px;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 0;
 }
 
 /* ===================================
@@ -552,27 +851,114 @@ onUnmounted(() => {
   50% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0); }
 }
 
-/* Dark Mode Support */
-:deep(.dark) .app-footer {
-  --footer-bg: #1a1a1a;
-  --footer-border: #2d2d2d;
-  --footer-text: #e9ecef;
-  --footer-title: #f8f9fa;
-  --footer-text-muted: #adb5bd;
+/* ===================================
+   DARK MODE SUPPORT
+   =================================== */
+
+/* Header Dark Mode */
+[data-theme="dark"] .app-header {
+  background: rgba(30, 30, 35, 0.95) !important;
+  border-bottom-color: rgba(102, 126, 234, 0.2) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .logo-subtitle {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .nav-link {
+  color: #e5e7eb !important;
+  border-color: transparent !important;
+}
+
+[data-theme="dark"] .nav-link:hover {
+  background: rgba(102, 126, 234, 0.15) !important;
+  color: #a78bfa !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .nav-link.router-link-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+}
+
+/* Theme Toggle Button Dark Mode */
+[data-theme="dark"] .theme-toggle-btn {
+  background: rgba(40, 40, 45, 0.9) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .theme-toggle-btn:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* Health Status Dark Mode */
+[data-theme="dark"] .health-status {
+  background: rgba(40, 40, 45, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #e5e7eb !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .health-status.online {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  color: #4ade80 !important;
+}
+
+[data-theme="dark"] .health-status:not(.online) {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #f87171 !important;
+}
+
+/* Footer Dark Mode */
+[data-theme="dark"] .app-footer {
+  --footer-bg: rgba(30, 30, 35, 0.98);
+  --footer-border: rgba(102, 126, 234, 0.2);
+  --footer-text: #e5e7eb;
+  --footer-title: #f3f4f6;
+  --footer-text-muted: #9ca3af;
   --footer-accent: #a78bfa;
   --footer-status-online: #34d399;
   --footer-status-offline: #f87171;
-  --status-text-color: #e9ecef;
-  background: #1a1a1a;
-  border-top-color: #2d2d2d;
+  --status-text-color: #e5e7eb;
+  background: var(--footer-bg) !important;
+  border-top-color: var(--footer-border) !important;
+  color: var(--footer-text) !important;
 }
 
-:deep(.dark) .status-indicator.online {
-  background: #34d399;
+[data-theme="dark"] .footer-group-divider {
+  background: rgba(102, 126, 234, 0.3) !important;
 }
 
-:deep(.dark) .status-indicator:not(.online) {
-  background: #f87171;
+[data-theme="dark"] .footer-link-item {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .footer-link-item:hover {
+  color: #a78bfa !important;
+}
+
+[data-theme="dark"] .status-indicator.online {
+  background: #34d399 !important;
+}
+
+[data-theme="dark"] .status-indicator:not(.online) {
+  background: #f87171 !important;
+}
+
+[data-theme="dark"] .footer-status {
+  border-right-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .footer-copyright {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .copyright-divider {
+  color: #6b7280 !important;
 }
 
 /* ===================================
