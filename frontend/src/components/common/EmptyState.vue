@@ -53,8 +53,24 @@ withDefaults(defineProps<Props>(), {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 60px 20px;
-  border-radius: 16px;
+  padding: 80px 24px;
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+}
+
+.empty-state::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity var(--duration-normal);
+}
+
+.empty-state:hover::before {
+  opacity: 1;
 }
 
 .size-small {
@@ -139,18 +155,18 @@ withDefaults(defineProps<Props>(), {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%);
-  animation: glow 2s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+  animation: glow 3s ease-in-out infinite;
 }
 
 @keyframes glow {
   0%, 100% {
     transform: scale(1);
-    opacity: 0.5;
+    opacity: 0.6;
   }
   50% {
-    transform: scale(1.2);
-    opacity: 0.8;
+    transform: scale(1.3);
+    opacity: 1;
   }
 }
 
@@ -174,27 +190,45 @@ withDefaults(defineProps<Props>(), {
 }
 
 .action-button {
-  padding: 12px 24px;
-  background: var(--color-primary);
+  padding: var(--space-3) var(--space-6);
+  background: var(--bg-gradient-hero);
   color: var(--color-text-inverse);
   border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-base);
+  font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all var(--duration-normal);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
+  box-shadow: var(--shadow-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.action-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left var(--duration-slower);
+}
+
+.action-button:hover::before {
+  left: 100%;
 }
 
 .action-button:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: var(--shadow-xl), var(--shadow-primary);
 }
 
 .action-button:active {
-  transform: translateY(0);
+  transform: translateY(-1px) scale(1.02);
 }
 
 /* Theme variants */
@@ -207,7 +241,8 @@ withDefaults(defineProps<Props>(), {
 }
 
 .theme-colored {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.1);
 }
 
 /* Dark theme adjustments */

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试 - PaperCrawler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.testing { background: #fff3cd; color: #856404; }
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #5568d3; }
+        .result {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 PaperCrawler API 测试</h1>
+
+    <div class="test-card">
+        <h2>1. 测试搜索API</h2>
+        <div id="search-status" class="status testing">等待测试...</div>
+        <button onclick="testSearch()">测试搜索功能</button>
+        <div id="search-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>2. 测试健康检查</h2>
+        <div id="health-status" class="status testing">等待测试...</div>
+        <button onclick="testHealth()">测试健康检查</button>
+        <div id="health-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-card">
+        <h2>3. 快速搜索测试</h2>
+        <input type="text" id="search-input" placeholder="输入关键词..." style="padding: 8px; width: 300px;">
+        <button onclick="quickSearch()">搜索</button>
+        <div id="quick-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        async function testSearch() {
+            const status = document.getElementById('search-status');
+            const result = document.getElementById('search-result');
+
+            status.className = 'status testing';
+            status.textContent = '正在测试...';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/search?q=test');
+                const data = await response.json();
+
+                status.className = 'status success';
+                status.textContent = '✅ 搜索API正常';
+                result.style.display = 'block';
+                result.textContent = `找到 ${data.total || 0} 篇论文\n` +
+                    `前3篇：\n` +
+                    JSON.stringify(data.papers?.slice(0, 3), null, 2);
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ 搜索API失败';
+                result.style.display = 'block';
+                result.textContent = '错误: ' + error.message;
+            }
+        }
+
+        async function testHealth() {
+            const status = document.getElementById('health-status');
+            const result = document.getElementById('health-result');
+
+            status.className = 'status testing';
+            status.textContent = '正在测试...';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+
+                status.className = 'status success';
+                status.textContent = '✅ 健康检查正常';
+                result.style.display = 'block';
+                result.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ 健康检查失败';
+                result.style.display = 'block';
+                result.textContent = '错误: ' + error.message;
+            }
+        }
+
+        async function quickSearch() {
+            const keyword = document.getElementById('search-input').value;
+            const resultDiv = document.getElementById('quick-result');
+
+            if (!keyword) {
+                alert('请输入搜索关键词');
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '正在搜索...';
+
+            try {
+                const response = await fetch(`/api/search?q=${encodeURIComponent(keyword)}`);
+                const data = await response.json();
+
+                resultDiv.textContent = `找到 ${data.total || 0} 篇相关论文\n\n` +
+                    `结果预览：\n` +
+                    data.papers?.slice(0, 5).map((p, i) =>
+                        `${i+1}. ${p.title}\n   ${p.journal} | ${p.year} | ${p.level}`
+                    ).join('\n\n') || '无结果';
+            } catch (error) {
+                resultDiv.textContent = '搜索失败: ' + error.message;
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            console.log('页面已加载，服务器地址:', window.location.origin);
+            setTimeout(testSearch, 500);
+        };
+    </script>
+</body>
+</html>

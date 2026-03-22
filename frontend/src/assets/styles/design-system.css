@@ -1,24 +1,24 @@
 /**
  * PaperCrawler Premium Design System
  * Inspired by Vercel, Linear, Stripe - Modern, Elegant, Professional
- * Version: 2.0 - Ultimate Visual Experience
+ * Version: 3.0 - Elite Visual Experience with Crystal-Clear Aesthetics
  */
 
 /* ===================================
    DESIGN TOKENS - Premium Color System
    =================================== */
 :root {
-  /* Primary Color - Refined Purple */
-  --color-primary-50: #f5f3ff;
-  --color-primary-100: #ede9fe;
-  --color-primary-200: #ddd6fe;
-  --color-primary-300: #c4b5fd;
-  --color-primary-400: #a78bfa;
-  --color-primary-500: #8b5cf6;
-  --color-primary-600: #7c3aed;
-  --color-primary-700: #6d28d9;
-  --color-primary-800: #5b21b6;
-  --color-primary-900: #4c1d95;
+  /* Primary Color - Refined Indigo-Violet Gradient */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
 
   /* Secondary - Slate Gray System */
   --color-slate-50: #f8fafc;
@@ -62,16 +62,17 @@
   --badge-ccf-c-text: #334155;
   --badge-ccf-c-border: #64748b;
 
-  /* Background System */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
-  --bg-overlay: rgba(255, 255, 255, 0.85);
+  /* Background System - Premium Glass Effect */
+  --bg-primary: #f4f5f7;
+  --bg-secondary: #ebecef;
+  --bg-tertiary: #e2e4e8;
+  --bg-overlay: rgba(248, 249, 250, 0.92);
 
-  /* Gradient Backgrounds */
-  --bg-gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --bg-gradient-subtle: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  --bg-gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+  /* Premium Gradient Backgrounds */
+  --bg-gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  --bg-gradient-subtle: linear-gradient(180deg, #f0f1f3 0%, #e8e9eb 100%);
+  --bg-gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 254, 255, 0.95) 100%);
+  --bg-gradient-premium: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
 
   /* Text Colors */
   --text-primary: #0f172a;
@@ -154,19 +155,20 @@
   --radius-full: 9999px;
 
   /* ===================================
-   SHADOW SYSTEM - Subtle Depth
+   SHADOW SYSTEM - Premium Depth & Elevation
    =================================== */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.15), 0 4px 8px -2px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 40px -8px rgba(0, 0, 0, 0.18), 0 8px 16px -4px rgba(0, 0, 0, 0.12);
+  --shadow-2xl: 0 32px 64px -8px rgba(0, 0, 0, 0.22), 0 16px 32px -8px rgba(0, 0, 0, 0.18);
 
-  /* Colored Shadows */
-  --shadow-primary: 0 4px 14px 0 rgba(139, 92, 246, 0.3);
-  --shadow-success: 0 4px 14px 0 rgba(34, 197, 94, 0.3);
-  --shadow-error: 0 4px 14px 0 rgba(239, 68, 68, 0.3);
+  /* Premium Colored Shadows */
+  --shadow-primary: 0 8px 32px -4px rgba(99, 102, 241, 0.4);
+  --shadow-success: 0 8px 32px -4px rgba(34, 197, 94, 0.4);
+  --shadow-error: 0 8px 32px -4px rgba(239, 68, 68, 0.4);
+  --shadow-premium: 0 8px 32px -8px rgba(99, 102, 241, 0.2), 0 4px 16px -4px rgba(139, 92, 246, 0.15);
 
   /* ===================================
    TRANSITION SYSTEM - Smooth Motion
@@ -291,7 +293,7 @@ p {
    COMPONENT BASE STYLES
    =================================== */
 
-/* Button Component */
+/* Button Component - Premium Design */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -309,6 +311,24 @@ p {
   transition: all var(--duration-normal) var(--easing-out);
   user-select: none;
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left var(--duration-slower);
+}
+
+.btn:hover::before {
+  left: 100%;
 }
 
 .btn:focus-visible {
@@ -322,19 +342,18 @@ p {
   pointer-events: none;
 }
 
-/* Button Variants */
+/* Button Variants - Premium */
 .btn-primary {
-  background: var(--color-primary-600);
+  background: var(--bg-gradient-hero);
   color: white;
-  border-color: var(--color-primary-600);
+  border-color: transparent;
   box-shadow: var(--shadow-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-700);
-  border-color: var(--color-primary-700);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl), var(--shadow-primary);
+  filter: brightness(1.05);
 }
 
 .btn-secondary {
@@ -395,19 +414,38 @@ p {
   font-size: var(--font-base);
 }
 
-/* Card Component */
+/* Card Component - Premium Glass Effect */
 .card {
   background: var(--bg-gradient-card);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-sm);
   transition: all var(--duration-normal) var(--easing-out);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px) saturate(180%);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  opacity: 0;
+  transition: opacity var(--duration-normal);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-premium);
   border-color: var(--border-secondary);
+  transform: translateY(-2px);
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .card-spacious {
@@ -459,13 +497,17 @@ p {
   .container { max-width: var(--container-2xl); }
 }
 
-/* Section Spacing */
+/* Section Spacing - Premium Layout */
 .section {
-  padding: var(--space-12) 0;
+  padding: var(--space-16) 0;
 }
 
 .section-compact {
-  padding: var(--space-8) 0;
+  padding: var(--space-10) 0;
+}
+
+.section-spacious {
+  padding: var(--space-20) 0;
 }
 
 /* ===================================
@@ -488,12 +530,52 @@ p {
 .text-secondary { color: var(--text-secondary); }
 .text-tertiary { color: var(--text-tertiary); }
 
-/* Gradient Text */
+/* Gradient Text - Premium */
 .gradient-text {
   background: var(--bg-gradient-hero);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  background-size: 200% 200%;
+  animation: gradientShift 5s ease infinite;
+}
+
+/* Glass Morphism Effect */
+.glass {
+  background: var(--bg-gradient-card);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-intense {
+  background: var(--bg-gradient-card);
+  backdrop-filter: blur(30px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Premium Glow Effects */
+.glow-primary {
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.3);
+}
+
+.glow-success {
+  box-shadow: 0 0 40px rgba(34, 197, 94, 0.3);
+}
+
+.glow-error {
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.3);
+}
+
+/* Hover Lift Effect */
+.hover-lift {
+  transition: all var(--duration-normal) var(--easing-out);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
 }
 
 /* Display Utilities */
@@ -587,36 +669,111 @@ p {
 .transition-colors { transition: color var(--duration-fast) var(--easing-out), background-color var(--duration-fast) var(--easing-out), border-color var(--duration-fast) var(--easing-out); }
 
 /* ===================================
-   ANIMATIONS
+   PREMIUM ANIMATIONS - Smooth & Refined
    =================================== */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Premium Animation - Float */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(4px) rotate(-1deg);
+  }
+}
+
+/* Premium Animation - Glow */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+  }
+}
+
+/* Premium Animation - Ripple */
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* Premium Animation - Gradient Shift */
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 /* ===================================

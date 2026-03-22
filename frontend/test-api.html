@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Test Page</h1>
+
+    <div class="test-section">
+        <h2>Test Stats API</h2>
+        <button onclick="testStatsAPI()">Test /api/stats/overview</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testStatsAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            try {
+                console.log('Testing API call to /api/stats/overview');
+
+                const response = await fetch('/api/stats/overview', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                // Display results
+                resultDiv.innerHTML = `
+                    <div class="test-section success">
+                        <h3>Success!</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Success:</strong> ${data.success}</p>
+                        <p><strong>Data:</strong></p>
+                        <pre>${JSON.stringify(data.data, null, 2)}</pre>
+                        <p><strong>Timestamp:</strong> ${data.timestamp}</p>
+                    </div>
+                `;
+
+                // Validate data structure
+                if (data.success && data.data) {
+                    const requiredFields = ['totalPapers', 'totalJournals', 'topTierPapers', 'papersLastYear', 'mostActiveJournal'];
+                    const missingFields = requiredFields.filter(field => !(field in data.data));
+
+                    if (missingFields.length > 0) {
+                        resultDiv.innerHTML += `
+                            <div class="test-section error">
+                                <h3>Warning: Missing Fields</h3>
+                                <p>The following required fields are missing: ${missingFields.join(', ')}</p>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML += `
+                            <div class="test-section success">
+                                <h3>All Required Fields Present</h3>
+                                <ul>
+                                    ${requiredFields.map(field => `<li><strong>${field}:</strong> ${data.data[field]}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    // Check for optional fields
+                    const optionalFields = ['averagePapersPerYear', 'latestUpdate', 'yearRange'];
+                    const presentOptional = optionalFields.filter(field => field in data.data);
+                    const missingOptional = optionalFields.filter(field => !(field in data.data));
+
+                    if (presentOptional.length > 0) {
+                        resultDiv.innerHTML += `
+                            <div class="test-section success">
+                                <h3>Optional Fields Present</h3>
+                                <ul>
+                                    ${presentOptional.map(field => `<li><strong>${field}:</strong> ${data.data[field]}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    if (missingOptional.length > 0) {
+                        resultDiv.innerHTML += `
+                            <div class="test-section">
+                                <h3>Optional Fields Missing</h3>
+                                <p>The following optional fields are not provided by the API: ${missingOptional.join(', ')}</p>
+                                <p><strong>Note:</strong> This is expected if the backend doesn't provide these fields.</p>
+                            </div>
+                        `;
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `
+                    <div class="test-section error">
+                        <h3>Error!</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Stack:</strong> ${error.stack}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run test on page load
+        window.addEventListener('load', () => {
+            setTimeout(testStatsAPI, 500);
+        });
+    </script>
+</body>
+</html>

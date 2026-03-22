@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API连接测试 - PaperCrawler</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #555;
+        }
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .response-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .response-box pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 PaperCrawler API 连接测试</h1>
+
+        <!-- 测试1: 直接连接后端 -->
+        <div class="test-section">
+            <h2>测试 1: 直接连接后端 API</h2>
+            <p>测试能否直接连接到后端服务器（端口 8080）</p>
+            <button onclick="testDirectBackend()" id="btn1">测试直接连接</button>
+            <div id="result1"></div>
+        </div>
+
+        <!-- 测试2: 通过Vite代理 -->
+        <div class="test-section">
+            <h2>测试 2: 通过 Vite 代理连接</h2>
+            <p>测试通过前端开发服务器的代理连接（端口 5173）</p>
+            <button onclick="testProxyConnection()" id="btn2">测试代理连接</button>
+            <div id="result2"></div>
+        </div>
+
+        <!-- 测试3: 健康检查 -->
+        <div class="test-section">
+            <h2>测试 3: 健康检查端点</h2>
+            <p>测试 /health 端点是否正常响应</p>
+            <button onclick="testHealthEndpoint()" id="btn3">测试健康检查</button>
+            <div id="result3"></div>
+        </div>
+
+        <!-- 测试4: 统计端点 -->
+        <div class="test-section">
+            <h2>测试 4: 统计数据端点</h2>
+            <p>测试 /api/stats/overview 端点是否返回正确格式的数据</p>
+            <button onclick="testStatsEndpoint()" id="btn4">测试统计数据</button>
+            <div id="result4"></div>
+        </div>
+
+        <!-- 诊断信息 -->
+        <div class="test-section">
+            <h2>📋 诊断信息</h2>
+            <div class="response-box">
+                <pre id="diagnostics">正在收集诊断信息...</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 显示诊断信息
+        function showDiagnostics() {
+            const diagnostics = {
+                timestamp: new Date().toISOString(),
+                location: window.location.href,
+                userAgent: navigator.userAgent,
+                tests: {
+                    directBackend: false,
+                    proxyConnection: false,
+                    healthEndpoint: false,
+                    statsEndpoint: false
+                }
+            };
+
+            document.getElementById('diagnostics').textContent = JSON.stringify(diagnostics, null, 2);
+        }
+
+        // 辅助函数：显示结果
+        function showResult(elementId, message, type = 'info', response = null) {
+            const container = document.getElementById(elementId);
+            let html = `<div class="status ${type}">${message}</div>`;
+
+            if (response) {
+                html += `<div class="response-box"><pre>${JSON.stringify(response, null, 2)}</pre></div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // 测试1: 直接连接后端
+        async function testDirectBackend() {
+            const btn = document.getElementById('btn1');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/stats/overview');
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    showResult('result1', '✅ 成功连接到后端 API！', 'success', {
+                        status: response.status,
+                        data: data
+                    });
+                } else {
+                    showResult('result1', '⚠️ 响应格式异常', 'error', data);
+                }
+            } catch (error) {
+                showResult('result1', `❌ 连接失败: ${error.message}`, 'error', {
+                    error: error.message,
+                    hint: '请确保后端服务器正在端口 8080 上运行'
+                });
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试直接连接';
+        }
+
+        // 测试2: 通过Vite代理
+        async function testProxyConnection() {
+            const btn = document.getElementById('btn2');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            try {
+                const response = await fetch('/api/stats/overview');
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    showResult('result2', '✅ 成功通过代理连接！', 'success', {
+                        status: response.status,
+                        data: data
+                    });
+                } else {
+                    showResult('result2', '⚠️ 响应格式异常', 'error', data);
+                }
+            } catch (error) {
+                showResult('result2', `❌ 代理连接失败: ${error.message}`, 'error', {
+                    error: error.message,
+                    hint: '请确保 Vite 开发服务器正在运行，并且代理配置正确'
+                });
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试代理连接';
+        }
+
+        // 测试3: 健康检查
+        async function testHealthEndpoint() {
+            const btn = document.getElementById('btn3');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+
+                showResult('result3', '✅ 健康检查端点正常！', 'success', {
+                    status: response.status,
+                    data: data
+                });
+            } catch (error) {
+                showResult('result3', `❌ 健康检查失败: ${error.message}`, 'error', {
+                    error: error.message
+                });
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试健康检查';
+        }
+
+        // 测试4: 统计数据
+        async function testStatsEndpoint() {
+            const btn = document.getElementById('btn4');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch('/api/stats/overview');
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+
+                // 验证数据结构
+                const expectedFields = ['totalPapers', 'totalJournals', 'topTierPapers', 'papersLastYear', 'mostActiveJournal'];
+                const actualFields = Object.keys(data.data || {});
+                const missingFields = expectedFields.filter(f => !actualFields.includes(f));
+                const extraFields = actualFields.filter(f => !expectedFields.includes(f));
+
+                const validationResult = {
+                    responseTime: `${duration}ms`,
+                    structureValid: data.success && data.data && missingFields.length === 0,
+                    expectedFields,
+                    actualFields,
+                    missingFields,
+                    extraFields,
+                    data: data.data
+                };
+
+                if (data.success && data.data) {
+                    showResult('result4', `✅ 统计数据端点正常！响应时间: ${duration}ms`, 'success', validationResult);
+                } else {
+                    showResult('result4', '⚠️ 数据结构验证失败', 'error', validationResult);
+                }
+            } catch (error) {
+                showResult('result4', `❌ 统计数据请求失败: ${error.message}`, 'error', {
+                    error: error.message
+                });
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试统计数据';
+        }
+
+        // 页面加载时显示诊断信息
+        window.addEventListener('load', () => {
+            showDiagnostics();
+        });
+    </script>
+</body>
+</html>

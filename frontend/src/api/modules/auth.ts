@@ -57,7 +57,7 @@ export interface User {
   avatarUrl?: string
   affiliation?: string
   researchInterests?: string
-  role: 'user' | 'admin' | 'premium'
+  role: 'user' | 'admin' | 'premium' | 'superadmin'
   isActive: boolean
   isVerified: boolean
   lastLoginAt: number

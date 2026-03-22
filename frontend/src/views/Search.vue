@@ -390,7 +390,8 @@ const selectPaper = (paper: any) => {
 }
 </script>
 
-<style scoped>
+<style>
+/* Global styles - NOT scoped to override design system */
 .search-page {
   width: 100%;
   max-width: var(--container-8xl);
@@ -404,11 +405,11 @@ const selectPaper = (paper: any) => {
 .search-header {
   text-align: center;
   padding: var(--space-8) var(--space-6);
-  background: rgba(255, 255, 255, 0.35);
+  background: var(--bg-gradient-card);
   border-radius: var(--radius-2xl);
   backdrop-filter: blur(20px);
   box-shadow: var(--shadow-md);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--border-primary);
   margin-bottom: var(--space-6);
 }
 
@@ -434,9 +435,9 @@ const selectPaper = (paper: any) => {
 }
 
 .search-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--bg-gradient-card);
   box-shadow: var(--shadow-lg);
-  border: 1px solid var(--color-border-primary);
+  border: 1px solid var(--border-primary);
 }
 
 .search-input-group {
@@ -722,7 +723,7 @@ const selectPaper = (paper: any) => {
   width: var(--space-5);
   height: var(--space-5);
   border: none;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bg-primary);
   color: white;
   border-radius: 50%;
   cursor: pointer;
@@ -732,10 +733,12 @@ const selectPaper = (paper: any) => {
   align-items: center;
   justify-content: center;
   transition: background var(--duration-fast);
+  opacity: 0.8;
 }
 
 .remove-filter:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--bg-secondary);
+  opacity: 1;
 }
 
 /* ===================================
@@ -780,7 +783,7 @@ const selectPaper = (paper: any) => {
    RESULTS SECTION
    =================================== */
 .results-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--bg-gradient-card);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
@@ -1095,5 +1098,196 @@ const selectPaper = (paper: any) => {
     flex-direction: column;
     gap: var(--space-2);
   }
+}
+
+/* ===================================
+   DARK MODE - Complete override
+   =================================== */
+[data-theme="dark"] .search-header {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border: 1px solid rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .page-title {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .page-subtitle {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .search-card {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border: 1px solid rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .search-input,
+[data-theme="dark"] input.search-input,
+[data-theme="dark"] .input,
+[data-theme="dark"] input {
+  background: #1e293b !important;
+  border: 2px solid #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .search-input:focus,
+[data-theme="dark"] input.search-input:focus,
+[data-theme="dark"] .input:focus,
+[data-theme="dark"] input:focus {
+  background: #0f172a !important;
+  border: 2px solid #667eea !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .search-input::placeholder,
+[data-theme="dark"] input::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .search-btn,
+[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+[data-theme="dark"] .filter-section {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .filter-header {
+  background: rgba(40, 40, 45, 0.9) !important;
+  border-bottom-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .filter-title {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .toggle-filters-btn {
+  background: rgba(40, 40, 45, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .toggle-filters-btn:hover {
+  background: rgba(102, 126, 234, 0.9) !important;
+  color: white !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+[data-theme="dark"] .filter-label {
+  color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .filter-chip {
+  background: rgba(40, 40, 45, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .filter-chip:hover {
+  background: rgba(102, 126, 234, 0.9) !important;
+  color: white !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+[data-theme="dark"] .filter-chip.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+[data-theme="dark"] .active-filters {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-top-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .active-filters-label {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .clear-all-btn {
+  color: #9ca3af !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .clear-all-btn:hover {
+  background: rgba(239, 68, 68, 0.9) !important;
+  color: white !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+[data-theme="dark"] .active-filter-tag {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+[data-theme="dark"] .error-message {
+  background: rgba(60, 40, 40, 0.95) !important;
+  color: #fca5a5 !important;
+  border-left-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+[data-theme="dark"] .results-card {
+  background: rgba(40, 40, 45, 0.98) !important;
+}
+
+[data-theme="dark"] .results-header {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-bottom-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .results-title {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .results-duration {
+  background: rgba(30, 30, 35, 0.8) !important;
+  color: #9ca3af !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .duration-text {
+  color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .paper-item {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+}
+
+[data-theme="dark"] .paper-item:hover {
+  background: rgba(45, 45, 50, 0.95) !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+[data-theme="dark"] .paper-title {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .detail-item {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .detail-text {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] .paper-link {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #a78bfa !important;
+}
+
+[data-theme="dark"] .paper-link:hover {
+  background: rgba(102, 126, 234, 0.9) !important;
+  color: white !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+[data-theme="dark"] .load-more-container {
+  background: rgba(35, 35, 40, 0.9) !important;
+  border-top-color: rgba(102, 126, 234, 0.3) !important;
 }
 </style>

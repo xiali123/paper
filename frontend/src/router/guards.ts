@@ -66,12 +66,17 @@ export function setupAuthGuards(router: Router) {
     }
 
     // Check role-based access
-    if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    if (to.meta.requiresAdmin && !authStore.isAdminOrSuper) {
       ElMessage.error('This page requires admin privileges')
       return next('/')
     }
 
-    if (to.meta.requiresPremium && !authStore.isPremium && !authStore.isAdmin) {
+    if (to.meta.requiresSuperAdmin && !authStore.isSuperAdmin) {
+      ElMessage.error('This page requires superadmin privileges')
+      return next('/')
+    }
+
+    if (to.meta.requiresPremium && !authStore.isPremium && !authStore.isAdminOrSuper) {
       ElMessage.error('This feature requires a premium account')
       return next('/pricing')
     }
@@ -141,6 +146,40 @@ export function isUserPremium(): boolean {
 }
 
 /**
+ * Guard: Check if user has superadmin role
+ *
+ * @example
+ * ```typescript
+ * import { isUserSuperAdmin } from '@/router/guards'
+ *
+ * if (isUserSuperAdmin()) {
+ *   // User is superadmin
+ * }
+ * ```
+ */
+export function isUserSuperAdmin(): boolean {
+  const authStore = useAuthStore()
+  return authStore.isSuperAdmin
+}
+
+/**
+ * Guard: Check if user has admin or superadmin role
+ *
+ * @example
+ * ```typescript
+ * import { isUserAdminOrSuper } from '@/router/guards'
+ *
+ * if (isUserAdminOrSuper()) {
+ *   // User is admin or superadmin
+ * }
+ * ```
+ */
+export function isUserAdminOrSuper(): boolean {
+  const authStore = useAuthStore()
+  return authStore.isAdminOrSuper
+}
+
+/**
  * Guard: Require authentication (for use in beforeEnter)
  *
  * @example
@@ -183,8 +222,35 @@ export function requireAdmin(to: any, from: any, next: any) {
       query: { redirect: to.fullPath }
     })
   }
-  if (!isUserAdmin()) {
+  if (!isUserAdminOrSuper()) {
     ElMessage.error('This page requires admin privileges')
+    return next('/')
+  }
+  next()
+}
+
+/**
+ * Guard: Require superadmin role (for use in beforeEnter)
+ *
+ * @example
+ * ```typescript
+ * {
+ *   path: '/admin/audit-logs',
+ *   component: AuditLogs,
+ *   beforeEnter: [requireSuperAdmin]
+ * }
+ * ```
+ */
+export function requireSuperAdmin(to: any, from: any, next: any) {
+  if (!isUserAuthenticated()) {
+    ElMessage.warning('Please login to access this page')
+    return next({
+      path: '/login',
+      query: { redirect: to.fullPath }
+    })
+  }
+  if (!isUserSuperAdmin()) {
+    ElMessage.error('This page requires superadmin privileges')
     return next('/')
   }
   next()
@@ -216,6 +282,7 @@ export function redirectIfAuthenticated(to: any, from: any, next: any) {
 export const authGuards = {
   requireAuth,
   requireAdmin,
+  requireSuperAdmin,
   redirectIfAuthenticated
 }
 

@@ -1,0 +1,20 @@
+{
+  "name": "papercrawler",
+  "version": "1.0.0",
+  "description": "[![C++](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/) [![Qt](https://img.shields.io/badge/Qt-6.10-green.svg)](https://www.qt.io/) [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)",
+  "main": "mock-auth-api.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}

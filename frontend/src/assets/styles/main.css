@@ -1,0 +1,600 @@
+/**
+ * PaperCrawler Main Stylesheet
+ * 主要样式文件 - 整合所有布局和设计系统
+ * Version: 2.0
+ */
+
+/* ===================================
+   DESIGN SYSTEM IMPORT
+   =================================== */
+@import './design-system.css';
+
+/* ===================================
+   LAYOUT UTILITIES IMPORT
+   =================================== */
+@import './layout-utilities.css';
+
+/* ===================================
+   GLOBAL STYLES
+   =================================== */
+
+/* 基础设置 */
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family-base);
+  font-size: var(--font-base);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background: var(--bg-gradient-subtle);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-primary);
+}
+
+/* Firefox滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-secondary) var(--bg-secondary);
+}
+
+/* ===================================
+   RESPONSIVE TYPOGRAPHY
+   =================================== */
+
+/* 标题响应式大小 */
+h1 {
+  font-size: clamp(var(--font-3xl), 5vw, var(--font-5xl));
+}
+
+h2 {
+  font-size: clamp(var(--font-2xl), 4vw, var(--font-4xl));
+}
+
+h3 {
+  font-size: clamp(var(--font-xl), 3vw, var(--font-3xl));
+}
+
+h4 {
+  font-size: clamp(var(--font-lg), 2.5vw, var(--font-2xl));
+}
+
+/* ===================================
+   PERFORMANCE OPTIMIZATIONS
+   =================================== */
+
+/* GPU加速 */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* 减少重绘 */
+.optimize-rendering {
+  contain: layout style paint;
+}
+
+/* 内容可见性优化 */
+.in-view-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* ===================================
+   ACCESSIBILITY ENHANCEMENTS
+   =================================== */
+
+/* 焦点样式 */
+*:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+/* 跳过链接 */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-primary-600);
+  color: white;
+  padding: var(--space-2) var(--space-4);
+  text-decoration: none;
+  border-radius: 0 0 var(--radius-md) 0;
+  z-index: var(--z-tooltip);
+  transition: top var(--duration-fast);
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* 屏幕阅读器专用 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ===================================
+   MOBILE-FIRST RESPONSIVE UTILITIES
+   =================================== */
+
+/* 显示工具类 */
+.mobile-only {
+  display: block;
+}
+
+.tablet-up {
+  display: none;
+}
+
+.desktop-up {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .mobile-only {
+    display: none;
+  }
+
+  .tablet-up {
+    display: block;
+  }
+}
+
+@media (min-width: 1025px) {
+  .desktop-up {
+    display: block;
+  }
+}
+
+/* 文本对齐响应式 */
+.text-responsive {
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .text-responsive {
+    text-align: center;
+  }
+}
+
+/* ===================================
+   LAYOUT PATTERNS
+   =================================== */
+
+/* Holy Grail Layout */
+.holy-grail {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: auto 1fr auto;
+  min-height: 100vh;
+}
+
+@media (max-width: 1024px) {
+  .holy-grail {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+  }
+}
+
+/* Card Grid Layout */
+.card-grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+@media (max-width: 640px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+/* ===================================
+   ANIMATIONS & TRANSITIONS
+   =================================== */
+
+/* 全局过渡 */
+a,
+button,
+input,
+textarea,
+select {
+  transition: color var(--duration-fast),
+              background-color var(--duration-fast),
+              border-color var(--duration-fast),
+              box-shadow var(--duration-fast),
+              transform var(--duration-fast);
+}
+
+/* 悬停提升效果 */
+.hover-lift {
+  transition: transform var(--duration-normal),
+              box-shadow var(--duration-normal);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 悬停缩放效果 */
+.hover-scale {
+  transition: transform var(--duration-normal);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* ===================================
+   DARK MODE SUPPORT
+   =================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --bg-overlay: rgba(15, 23, 42, 0.85);
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #64748b;
+    --border-primary: #334155;
+    --border-secondary: #475569;
+  }
+}
+
+/* ===================================
+   PRINT STYLES
+   =================================== */
+@media print {
+  body {
+    background: white;
+    color: black;
+    line-height: 1.2;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+  }
+
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+
+  img, svg {
+    page-break-inside: avoid;
+  }
+
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+  }
+}
+
+/* ===================================
+   REDUCED MOTION SUPPORT
+   =================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ===================================
+   HIGH CONTRAST MODE SUPPORT
+   =================================== */
+@media (prefers-contrast: high) {
+  :root {
+    --border-primary: #000000;
+    --border-secondary: #333333;
+    --text-primary: #000000;
+  }
+
+  [data-theme="dark"] {
+    --border-primary: #ffffff;
+    --border-secondary: #cccccc;
+    --text-primary: #ffffff;
+  }
+
+  .card,
+  .btn {
+    border-width: 2px;
+  }
+}
+
+/* ===================================
+   UTILITY CLASSES ENHANCEMENTS
+   =================================== */
+
+/* 文本省略 */
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.text-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 截断文本 */
+.truncate {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 强制换行 */
+.break-words {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.break-all {
+  word-break: break-all;
+}
+
+/* ===================================
+   SPACER UTILITIES
+   =================================== */
+.spacer {
+  flex: 1 1 auto;
+}
+
+.spacer-2 {
+  width: 100%;
+  height: var(--space-2);
+}
+
+.spacer-4 {
+  width: 100%;
+  height: var(--space-4);
+}
+
+.spacer-6 {
+  width: 100%;
+  height: var(--space-6);
+}
+
+.spacer-8 {
+  width: 100%;
+  height: var(--space-8);
+}
+
+/* ===================================
+   VISIBILITY UTILITIES
+   =================================== */
+.visible {
+  visibility: visible;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+.opacity-0 { opacity: 0; }
+.opacity-25 { opacity: 0.25; }
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
+.opacity-100 { opacity: 1; }
+
+/* ===================================
+   Z-INDEX UTILITIES
+   =================================== */
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.z-40 { z-index: 40; }
+.z-50 { z-index: 50; }
+.z-auto { z-index: auto; }
+
+/* ===================================
+   OVERFLOW UTILITIES
+   =================================== */
+.overflow-auto { overflow: auto; }
+.overflow-hidden { overflow: hidden; }
+.overflow-visible { overflow: visible; }
+.overflow-scroll { overflow: scroll; }
+.overflow-x-auto { overflow-x: auto; }
+.overflow-y-auto { overflow-y: auto; }
+.overflow-x-hidden { overflow-x: hidden; }
+.overflow-y-hidden { overflow-y: hidden; }
+
+/* ===================================
+   POSITION UTILITIES
+   =================================== */
+.static { position: static; }
+.fixed { position: fixed; }
+.absolute { position: absolute; }
+.relative { position: relative; }
+.sticky { position: sticky; }
+
+/* ===================================
+   COMPONENT-SPECIFIC STYLES
+   =================================== */
+
+/* 按钮重置 */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+/* 链接重置 */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 列表重置 */
+ul, ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* 图片响应式 */
+img, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 表单元素重置 */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+/* ===================================
+   CUSTOM PROPERTIES FOR COMPONENTS
+   =================================== */
+:root {
+  /* Header height for sticky positioning */
+  --header-height: 64px;
+  --header-height-scrolled: 56px;
+
+  /* Sidebar width */
+  --sidebar-width: 280px;
+  --sidebar-width-collapsed: 64px;
+
+  /* Container gutters */
+  --container-gutter: var(--space-6);
+  --container-gutter-mobile: var(--space-4);
+
+  /* Animation durations */
+  --animation-duration-fast: 150ms;
+  --animation-duration-normal: 200ms;
+  --animation-duration-slow: 300ms;
+}
+
+/* ===================================
+   MOBILE OPTIMIZATIONS
+   =================================== */
+@media (max-width: 640px) {
+  :root {
+    --header-height: 56px;
+    --header-height-scrolled: 48px;
+    --container-gutter: var(--space-4);
+  }
+
+  /* 移动端触摸优化 */
+  button,
+  a,
+  input,
+  textarea {
+    min-height: 44px; /* 推荐的最小触摸目标 */
+    min-width: 44px;
+  }
+
+  /* 移动端文本大小 */
+  body {
+    font-size: 14px;
+  }
+}
+
+/* ===================================
+   DESKTOP OPTIMIZATIONS
+   =================================== */
+@media (min-width: 1025px) {
+  :root {
+    --container-gutter: var(--space-8);
+  }
+
+  /* 桌面端悬停效果 */
+  .desktop-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* ===================================
+   DEBUG UTILITIES (开发时使用)
+   =================================== */
+.debug * {
+  outline: 1px solid rgba(255, 0, 0, 0.3);
+}
+
+.debug-grid * {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* ===================================
+   END OF MAIN STYLES
+   =================================== */

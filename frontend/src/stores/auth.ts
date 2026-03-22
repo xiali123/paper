@@ -15,7 +15,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, type User, type AuthTokens, type LoginRequest, type RegisterRequest } from '@/api/modules/auth'
-import type { Router } from 'vue-router'
 
 export const useAuthStore = defineStore(
   'auth',
@@ -51,6 +50,14 @@ export const useAuthStore = defineStore(
 
     /** Check if user has premium role */
     const isPremium = computed(() => user.value?.role === 'premium')
+
+    /** Check if user has superadmin role */
+    const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
+
+    /** Check if user has admin or superadmin role */
+    const isAdminOrSuper = computed(() =>
+      user.value?.role === 'admin' || user.value?.role === 'superadmin'
+    )
 
     /** Get user's display name */
     const displayName = computed(() => {
@@ -100,28 +107,45 @@ export const useAuthStore = defineStore(
      * Login user
      */
     async function login(credentials: LoginRequest) {
+      console.log('🔵 [AuthStore] login() called with:', { email: credentials.email, passwordLength: credentials.password.length })
+      console.log('🔵 [AuthStore] loading before:', loading.value)
+
       loading.value = true
       error.value = null
 
+      console.log('🔵 [AuthStore] Set loading to true, calling authApi.login()')
+
       try {
         const response = await authApi.login(credentials)
+
+        console.log('🟢 [AuthStore] authApi.login() returned:', response)
+        console.log('🟢 [AuthStore] User:', response.user)
+        console.log('🟢 [AuthStore] Tokens:', response.tokens)
 
         // Store user and tokens
         user.value = response.user
         tokens.value = response.tokens
 
+        console.log('🟢 [AuthStore] Stored in state, user:', user.value)
+        console.log('🟢 [AuthStore] Tokens:', tokens.value)
+
         // Store in localStorage
         persistTokens(response.tokens)
+        console.log('🟢 [AuthStore] Persisted to localStorage')
 
         // Setup auto-refresh
         scheduleTokenRefresh(response.tokens.expiresAt)
+        console.log('🟢 [AuthStore] Scheduled token refresh')
 
         return { success: true }
       } catch (err: any) {
+        console.error('🔴 [AuthStore] Login error:', err)
         error.value = err.message || 'Login failed'
         return { success: false, error: error.value }
       } finally {
+        console.log('🔵 [AuthStore] Setting loading to false')
         loading.value = false
+        console.log('🔵 [AuthStore] loading after:', loading.value)
       }
     }
 
@@ -432,6 +456,8 @@ export const useAuthStore = defineStore(
       isAuthenticated,
       isAdmin,
       isPremium,
+      isSuperAdmin,
+      isAdminOrSuper,
       displayName,
       avatarUrl,
 

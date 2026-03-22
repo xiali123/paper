@@ -125,12 +125,21 @@ const validatePassword = () => {
 }
 
 async function handleLogin() {
+  console.log('🔵 [Login] handleLogin called')
+  console.log('🔵 [Login] Form data:', { email: form.email, passwordLength: form.password.length })
+
   const isEmailValid = validateEmail()
   const isPasswordValid = validatePassword()
 
+  console.log('🔵 [Login] Validation:', { isEmailValid, isPasswordValid })
+
   if (!isEmailValid || !isPasswordValid) {
+    console.log('❌ [Login] Validation failed')
     return
   }
+
+  console.log('✅ [Login] Validation passed, calling authStore.login()')
+  console.log('🔵 [Login] authStore.loading before:', authStore.loading)
 
   try {
     const result = await authStore.login({
@@ -138,19 +147,29 @@ async function handleLogin() {
       password: form.password
     })
 
+    console.log('🔵 [Login] authStore.login() returned')
+    console.log('🔵 [Login] authStore.loading after:', authStore.loading)
+    console.log('🟢 [Login] Result:', result)
+    console.log('🟢 [Login] User:', authStore.user)
+    console.log('🟢 [Login] Tokens:', authStore.tokens)
+
     if (result.success) {
       ElMessage.success(t('auth.loginSuccess') || 'Login successful!')
 
       // Redirect to intended page or home
       const redirect = (route.query.redirect as string) || '/'
+      console.log('🔵 [Login] Redirecting to:', redirect)
       router.push(redirect)
     } else {
+      console.log('❌ [Login] Login failed:', result.error)
       ElMessage.error(result.error || t('auth.loginFailed') || 'Login failed')
     }
   } catch (error: any) {
-    console.error('Login error:', error)
+    console.error('🔴 [Login] Exception caught:', error)
     ElMessage.error(error.message || t('auth.errorOccurred'))
   }
+
+  console.log('🔵 [Login] handleLogin finished, authStore.loading:', authStore.loading)
 }
 </script>
 

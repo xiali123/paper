@@ -43,12 +43,22 @@ const getSegmentStyle = (index: number) => {
   justify-content: center;
 }
 
+.spinner-ring::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+  animation: pulse 2s ease-in-out infinite;
+}
+
 .spinner-segment {
   position: absolute;
   width: 12%;
   height: 40%;
   border-radius: 50%;
   animation: spinner-fade 1.2s linear infinite;
+  backdrop-filter: blur(10px);
 }
 
 .size-small .spinner-ring {

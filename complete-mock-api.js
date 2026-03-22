@@ -13,16 +13,80 @@ app.use(cors())
 app.use(express.json())
 
 // 模拟用户数据库
-const users = [{
-  id: 1,
-  username: 'S221000789',
-  email: 'x2830540584@163.com',
-  password: 'Xl1234567890*#',
-  fullName: 'xiali',
-  role: 'user'
-}]
+const users = [
+  {
+    id: 1,
+    username: 'S221000789',
+    email: 'x2830540584@163.com',
+    password: 'Xl1234567890*#',
+    fullName: 'xiali',
+    role: 'user',
+    isActive: true,
+    createdAt: '2024-01-15T10:30:00Z'
+  },
+  {
+    id: 2,
+    username: 'superadmin',
+    email: 'superadmin@papercrawler.local',
+    password: 'SuperAdmin123!',
+    fullName: 'Super Administrator',
+    role: 'superadmin',
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z'
+  },
+  {
+    id: 3,
+    username: 'admin',
+    email: 'admin@papercrawler.local',
+    password: 'Admin123!',
+    fullName: 'System Admin',
+    role: 'admin',
+    isActive: true,
+    createdAt: '2024-01-10T08:00:00Z'
+  },
+  {
+    id: 4,
+    username: 'premium_user',
+    email: 'premium@example.com',
+    password: 'Premium123!',
+    fullName: 'Premium User',
+    role: 'premium',
+    isActive: true,
+    createdAt: '2024-02-01T12:00:00Z'
+  }
+]
 
 const sessions = []
+
+// 模拟审计日志
+const auditLogs = [
+  {
+    id: 1,
+    adminUserId: 2,
+    adminUsername: 'superadmin',
+    targetUserId: 4,
+    action: 'role_changed',
+    entityType: 'user',
+    entityId: 4,
+    oldValues: { role: 'user' },
+    newValues: { role: 'premium' },
+    status: 'success',
+    createdAt: '2024-02-01T12:30:00Z'
+  },
+  {
+    id: 2,
+    adminUserId: 2,
+    adminUsername: 'superadmin',
+    targetUserId: 3,
+    action: 'user_created',
+    entityType: 'user',
+    entityId: 3,
+    oldValues: null,
+    newValues: { role: 'admin' },
+    status: 'success',
+    createdAt: '2024-01-10T08:00:00Z'
+  }
+]
 
 // 生成简单的 JWT-like token
 function generateToken() {
@@ -95,10 +159,21 @@ app.post('/api/auth/register', (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body
 
+  console.log('🔍 Login attempt:', { email, passwordLength: password?.length })
+
   const user = users.find(u => u.email === email)
 
   if (!user) {
-    console.log('❌ Login failed: User not found')
+    console.log('❌ Login failed: User not found for email:', email)
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid email or password'
+    })
+  }
+
+  // 简单的密码验证（实际生产环境应该使用哈希比较）
+  if (user.password !== password) {
+    console.log('❌ Login failed: Wrong password for user:', user.email)
     return res.status(401).json({
       success: false,
       error: 'Invalid email or password'
@@ -114,16 +189,20 @@ app.post('/api/auth/login', (req, res) => {
     createdAt: new Date().toISOString()
   })
 
-  console.log('✅ User logged in:', user.email)
+  console.log('✅ User logged in successfully:', user.email, 'Role:', user.role)
+
+  // 返回用户时不包含密码
+  const { password: _, ...userWithoutPassword } = user
 
   res.json({
     success: true,
     data: {
-      user,
+      user: userWithoutPassword,
       tokens: {
         accessToken,
         refreshToken,
-        expiresIn: 900
+        expiresIn: 900,
+        expiresAt: Date.now() + 15 * 60 * 1000
       }
     }
   })
@@ -364,6 +443,442 @@ app.get('/health', healthHandler)
 app.get('/api/health', healthHandler)
 
 // ============================================================================
+// Admin API Endpoints
+// ============================================================================
+
+// Middleware to check admin role
+const checkAdminRole = (req, res, next) => {
+  const authHeader = req.headers.authorization
+
+  if (!authHeader) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized'
+    })
+  }
+
+  // Extract user from token (simplified for mock)
+  // In real implementation, verify JWT token
+  const userId = 2 // Default to superadmin for testing
+
+  const user = users.find(u => u.id === userId)
+
+  if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+    return res.status(403).json({
+      success: false,
+      error: 'Forbidden: Admin access required'
+    })
+  }
+
+  req.user = user
+  next()
+}
+
+// Middleware to check superadmin role
+const checkSuperAdminRole = (req, res, next) => {
+  const authHeader = req.headers.authorization
+
+  if (!authHeader) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized'
+    })
+  }
+
+  const userId = 2 // Default to superadmin for testing
+  const user = users.find(u => u.id === userId)
+
+  if (!user || user.role !== 'superadmin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Forbidden: Superadmin access required'
+    })
+  }
+
+  req.user = user
+  next()
+}
+
+// GET /api/admin/stats - Admin dashboard statistics
+app.get('/api/admin/stats', checkAdminRole, (req, res) => {
+  const totalUsers = users.length
+  const activeUsers = users.filter(u => u.isActive).length
+  const adminUsers = users.filter(u => u.role === 'admin').length
+  const premiumUsers = users.filter(u => u.role === 'premium').length
+  const superadminUsers = users.filter(u => u.role === 'superadmin').length
+
+  res.json({
+    success: true,
+    data: {
+      totalUsers,
+      activeUsers,
+      adminUsers,
+      premiumUsers,
+      superadminUsers,
+      regularUsers: totalUsers - adminUsers - premiumUsers - superadminUsers,
+      totalPapers: 12500,
+      totalSearches: 8900,
+      recentRegistrations: 5
+    }
+  })
+})
+
+// GET /api/admin/users - List all users with filtering and pagination
+app.get('/api/admin/users', checkAdminRole, (req, res) => {
+  const { page = 1, limit = 10, search = '', role = '' } = req.query
+  const pageNum = parseInt(page)
+  const limitNum = parseInt(limit)
+
+  let filteredUsers = users
+
+  // Filter by role
+  if (role) {
+    filteredUsers = filteredUsers.filter(u => u.role === role)
+  }
+
+  // Filter by search
+  if (search) {
+    const lowerSearch = search.toLowerCase()
+    filteredUsers = filteredUsers.filter(u =>
+      u.username.toLowerCase().includes(lowerSearch) ||
+      u.email.toLowerCase().includes(lowerSearch) ||
+      (u.fullName && u.fullName.toLowerCase().includes(lowerSearch))
+    )
+  }
+
+  const total = filteredUsers.length
+  const totalPages = Math.ceil(total / limitNum)
+  const startIndex = (pageNum - 1) * limitNum
+  const endIndex = startIndex + limitNum
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex)
+
+  res.json({
+    success: true,
+    data: {
+      users: paginatedUsers,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages
+      }
+    }
+  })
+})
+
+// GET /api/admin/users/:id - Get user details
+app.get('/api/admin/users/:id', checkAdminRole, (req, res) => {
+  const { id } = req.params
+  const user = users.find(u => u.id === parseInt(id))
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    })
+  }
+
+  res.json({
+    success: true,
+    data: user
+  })
+})
+
+// PUT /api/admin/users/:id - Update user
+app.put('/api/admin/users/:id', checkAdminRole, (req, res) => {
+  const { id } = req.params
+  const { fullName, affiliation, isActive, role } = req.body
+
+  const userIndex = users.findIndex(u => u.id === parseInt(id))
+
+  if (userIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    })
+  }
+
+  const targetUser = users[userIndex]
+  const oldValues = { ...targetUser }
+
+  // Permission checks
+  if (req.user.role === 'admin' && targetUser.role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Admin cannot modify other admin users'
+    })
+  }
+
+  if (req.user.role === 'admin' && role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Admin cannot promote users to admin role'
+    })
+  }
+
+  if (role === 'superadmin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Only superadmin can assign superadmin role'
+    })
+  }
+
+  // Apply updates
+  if (fullName !== undefined) targetUser.fullName = fullName
+  if (affiliation !== undefined) targetUser.affiliation = affiliation
+  if (isActive !== undefined) targetUser.isActive = isActive
+  if (role !== undefined) targetUser.role = role
+
+  const newValues = { ...targetUser }
+
+  // Log the action
+  const logEntry = {
+    id: auditLogs.length + 1,
+    adminUserId: req.user.id,
+    adminUsername: req.user.username,
+    targetUserId: targetUser.id,
+    action: 'user_updated',
+    entityType: 'user',
+    entityId: targetUser.id,
+    oldValues,
+    newValues,
+    status: 'success',
+    createdAt: new Date().toISOString()
+  }
+  auditLogs.push(logEntry)
+
+  res.json({
+    success: true,
+    data: targetUser
+  })
+})
+
+// DELETE /api/admin/users/:id - Delete user (superadmin only)
+app.delete('/api/admin/users/:id', checkSuperAdminRole, (req, res) => {
+  const { id } = req.params
+  const userId = parseInt(id)
+
+  // Cannot delete self
+  if (userId === req.user.id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Cannot delete your own account'
+    })
+  }
+
+  const userIndex = users.findIndex(u => u.id === userId)
+
+  if (userIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    })
+  }
+
+  const targetUser = users[userIndex]
+
+  // Cannot delete another superadmin
+  if (targetUser.role === 'superadmin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Cannot delete superadmin user'
+    })
+  }
+
+  const oldValues = { ...targetUser }
+
+  // Remove user
+  users.splice(userIndex, 1)
+
+  // Log the action
+  const logEntry = {
+    id: auditLogs.length + 1,
+    adminUserId: req.user.id,
+    adminUsername: req.user.username,
+    targetUserId: userId,
+    action: 'user_deleted',
+    entityType: 'user',
+    entityId: userId,
+    oldValues,
+    newValues: null,
+    status: 'success',
+    createdAt: new Date().toISOString()
+  }
+  auditLogs.push(logEntry)
+
+  res.json({
+    success: true,
+    message: 'User deleted successfully'
+  })
+})
+
+// GET /api/admin/audit-logs - Get audit logs (superadmin only)
+app.get('/api/admin/audit-logs', checkSuperAdminRole, (req, res) => {
+  const { page = 1, limit = 20, action = '', userId = '' } = req.query
+  const pageNum = parseInt(page)
+  const limitNum = parseInt(limit)
+
+  let filteredLogs = auditLogs
+
+  // Filter by action
+  if (action) {
+    filteredLogs = filteredLogs.filter(log => log.action === action)
+  }
+
+  // Filter by userId (either admin or target)
+  if (userId) {
+    const uid = parseInt(userId)
+    filteredLogs = filteredLogs.filter(log =>
+      log.adminUserId === uid || log.targetUserId === uid
+    )
+  }
+
+  const total = filteredLogs.length
+  const totalPages = Math.ceil(total / limitNum)
+  const startIndex = (pageNum - 1) * limitNum
+  const endIndex = startIndex + limitNum
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex)
+
+  res.json({
+    success: true,
+    data: {
+      logs: paginatedLogs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages
+      }
+    }
+  })
+})
+
+// POST /api/admin/users/:id/activate - Activate user
+app.post('/api/admin/users/:id/activate', checkAdminRole, (req, res) => {
+  const { id } = req.params
+  const userId = parseInt(id)
+
+  const user = users.find(u => u.id === userId)
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    })
+  }
+
+  if (user.isActive) {
+    return res.status(400).json({
+      success: false,
+      error: 'User is already active'
+    })
+  }
+
+  // Permission check
+  if (req.user.role === 'admin' && user.role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Admin cannot activate other admin users'
+    })
+  }
+
+  const oldValues = { isActive: user.isActive }
+  user.isActive = true
+  const newValues = { isActive: user.isActive }
+
+  // Log the action
+  const logEntry = {
+    id: auditLogs.length + 1,
+    adminUserId: req.user.id,
+    adminUsername: req.user.username,
+    targetUserId: user.id,
+    action: 'user_activated',
+    entityType: 'user',
+    entityId: user.id,
+    oldValues,
+    newValues,
+    status: 'success',
+    createdAt: new Date().toISOString()
+  }
+  auditLogs.push(logEntry)
+
+  res.json({
+    success: true,
+    data: user
+  })
+})
+
+// POST /api/admin/users/:id/deactivate - Deactivate user
+app.post('/api/admin/users/:id/deactivate', checkAdminRole, (req, res) => {
+  const { id } = req.params
+  const userId = parseInt(id)
+
+  const user = users.find(u => u.id === userId)
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: 'User not found'
+    })
+  }
+
+  if (!user.isActive) {
+    return res.status(400).json({
+      success: false,
+      error: 'User is already inactive'
+    })
+  }
+
+  // Cannot deactivate self
+  if (userId === req.user.id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Cannot deactivate your own account'
+    })
+  }
+
+  // Permission check
+  if (req.user.role === 'admin' && user.role === 'admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Admin cannot deactivate other admin users'
+    })
+  }
+
+  if (user.role === 'superadmin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Cannot deactivate superadmin user'
+    })
+  }
+
+  const oldValues = { isActive: user.isActive }
+  user.isActive = false
+  const newValues = { isActive: user.isActive }
+
+  // Log the action
+  const logEntry = {
+    id: auditLogs.length + 1,
+    adminUserId: req.user.id,
+    adminUsername: req.user.username,
+    targetUserId: user.id,
+    action: 'user_deactivated',
+    entityType: 'user',
+    entityId: user.id,
+    oldValues,
+    newValues,
+    status: 'success',
+    createdAt: new Date().toISOString()
+  }
+  auditLogs.push(logEntry)
+
+  res.json({
+    success: true,
+    data: user
+  })
+})
+
+// ============================================================================
 // 404 处理
 // ============================================================================
 
@@ -384,7 +899,15 @@ app.use((req, res) => {
       'GET /api/stats/overview',
       'GET /api/search',
       'GET /api/papers/:id',
-      'GET /health'
+      'GET /health',
+      'GET /api/admin/stats',
+      'GET /api/admin/users',
+      'GET /api/admin/users/:id',
+      'PUT /api/admin/users/:id',
+      'DELETE /api/admin/users/:id',
+      'GET /api/admin/audit-logs',
+      'POST /api/admin/users/:id/activate',
+      'POST /api/admin/users/:id/deactivate'
     ]
   })
 })
@@ -398,7 +921,7 @@ app.listen(PORT, () => {
   console.log(``)
   console.log(`Registered Users:`)
   users.forEach(u => {
-    console.log(`  - ${u.email} (${u.username})`)
+    console.log(`  - ${u.email} (${u.username}) [${u.role}]`)
   })
   console.log(``)
   console.log(`Available Endpoints:`)
@@ -418,12 +941,25 @@ app.listen(PORT, () => {
   console.log(`  📄 Papers:`)
   console.log(`     GET    /api/papers/:id`)
   console.log(``)
+  console.log(`  👨‍💼 Admin (Admin/Superadmin):`)
+  console.log(`     GET    /api/admin/stats`)
+  console.log(`     GET    /api/admin/users`)
+  console.log(`     GET    /api/admin/users/:id`)
+  console.log(`     PUT    /api/admin/users/:id`)
+  console.log(`     POST   /api/admin/users/:id/activate`)
+  console.log(`     POST   /api/admin/users/:id/deactivate`)
+  console.log(``)
+  console.log(`  🔐 Superadmin Only:`)
+  console.log(`     DELETE /api/admin/users/:id`)
+  console.log(`     GET    /api/admin/audit-logs`)
+  console.log(``)
   console.log(`  ❤️  Health:`)
   console.log(`     GET    /health`)
   console.log(``)
   console.log(`Test credentials:`)
-  console.log(`  Email: x2830540584@163.com`)
-  console.log(`  Password: Xl1234567890*#`)
+  console.log(`  User: x2830540584@163.com / Xl1234567890*#`)
+  console.log(`  Admin: admin@papercrawler.local / Admin123!`)
+  console.log(`  Superadmin: superadmin@papercrawler.local / SuperAdmin123!`)
   console.log(`========================================\n`)
 })
 

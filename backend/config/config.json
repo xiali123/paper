@@ -1,0 +1,43 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "papercrawler",
+    "user": "root",
+    "password": "",
+    "charset": "utf8mb4",
+    "connection_pool_size": 10,
+    "timeout": 30
+  },
+  "server": {
+    "port": 8080,
+    "host": "0.0.0.0",
+    "worker_threads": 4,
+    "max_connections": 1000,
+    "request_timeout": 60
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/api.log",
+    "max_size": "100MB",
+    "max_files": 10,
+    "console": true
+  },
+  "security": {
+    "enable_cors": true,
+    "cors_origin": "*",
+    "cors_methods": ["GET", "POST", "OPTIONS"],
+    "cors_headers": ["Content-Type", "Authorization"],
+    "rate_limiting": {
+      "enabled": false,
+      "requests_per_minute": 60
+    }
+  },
+  "features": {
+    "enable_search": true,
+    "enable_export": true,
+    "enable_statistics": true,
+    "max_export_records": 10000,
+    "search_timeout": 30
+  }
+}

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试 - 无缓存</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-box">
+        <h1>🔍 统计API测试（无缓存版本）</h1>
+        <p>点击按钮测试API连接并显示统计数据</p>
+
+        <button onclick="testStatsAPI()">🚀 测试统计API</button>
+
+        <div id="result"></div>
+
+        <div id="stats" class="stats" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-value" id="totalPapers">-</div>
+                <div class="stat-label">总论文数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalJournals">-</div>
+                <div class="stat-label">总期刊数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="topTierPapers">-</div>
+                <div class="stat-label">顶刊论文</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="papersLastYear">-</div>
+                <div class="stat-label">去年论文</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testStatsAPI() {
+            const resultDiv = document.getElementById('result');
+            const statsDiv = document.getElementById('stats');
+
+            resultDiv.innerHTML = '<div class="result">⏳ 正在测试...</div>';
+            statsDiv.style.display = 'none';
+
+            try {
+                console.log('🔍 开始测试API...');
+
+                // 使用时间戳避免缓存
+                const timestamp = new Date().getTime();
+                const url = `/api/stats/overview?_=${timestamp}`;
+
+                console.log('📍 请求URL:', url);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+
+                console.log('📡 响应状态:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const raw = await response.json();
+                console.log('📦 原始响应:', raw);
+
+                // 验证响应格式
+                if (!raw.success || !raw.data) {
+                    throw new Error('响应格式不正确: ' + JSON.stringify(raw));
+                }
+
+                const data = raw.data;
+                console.log('✅ 提取的数据:', data);
+
+                // 验证必需字段
+                const requiredFields = ['totalPapers', 'totalJournals', 'topTierPapers', 'papersLastYear'];
+                const missing = requiredFields.filter(f => !(f in data));
+
+                if (missing.length > 0) {
+                    throw new Error('缺少字段: ' + missing.join(', '));
+                }
+
+                // 显示成功消息
+                resultDiv.innerHTML = `<div class="result success">✅ API测试成功！\n\n响应时间: ${timestamp - timestamp + 'ms'}\n所有必需字段都存在</div>`;
+
+                // 显示统计数据
+                document.getElementById('totalPapers').textContent = data.totalPapers.toLocaleString();
+                document.getElementById('totalJournals').textContent = data.totalJournals.toLocaleString();
+                document.getElementById('topTierPapers').textContent = data.topTierPapers.toLocaleString();
+                document.getElementById('papersLastYear').textContent = data.papersLastYear.toLocaleString();
+                statsDiv.style.display = 'grid';
+
+                console.log('✅ 测试完成');
+
+            } catch (error) {
+                console.error('❌ 测试失败:', error);
+                resultDiv.innerHTML = `<div class="result error">❌ 测试失败: ${error.message}\n\n详细信息:\n${error.stack}</div>`;
+            }
+        }
+
+        // 页面加载时自动测试
+        window.addEventListener('load', () => {
+            console.log('📄 页面已加载');
+            console.log('💡 点击按钮开始测试，或查看控制台日志');
+        });
+    </script>
+</body>
+</html>

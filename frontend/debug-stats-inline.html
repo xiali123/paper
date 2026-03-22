@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计页面调试 - PaperCrawler</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #555;
+            font-size: 18px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 10px 0;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 统计页面调试工具</h1>
+
+        <!-- 测试1: Fetch API -->
+        <div class="test-section">
+            <h2>测试 1: 使用 Fetch API 调用</h2>
+            <p>测试原生 fetch 函数能否正确获取数据</p>
+            <button onclick="testFetchAPI()" id="btn1">测试 Fetch</button>
+            <div id="result1"></div>
+        </div>
+
+        <!-- 测试2: Axios -->
+        <div class="test-section">
+            <h2>测试 2: 使用 Axios 调用</h2>
+            <p>测试 axios 库能否正确获取数据（前端使用的方式）</p>
+            <button onclick="testAxios()" id="btn2">测试 Axios</button>
+            <div id="result2"></div>
+        </div>
+
+        <!-- 测试3: 模拟响应拦截器 -->
+        <div class="test-section">
+            <h2>测试 3: 模拟响应拦截器</h2>
+            <p>测试前端拦截器如何处理响应数据</p>
+            <button onclick="testInterceptor()" id="btn3">测试拦截器</button>
+            <div id="result3"></div>
+        </div>
+
+        <!-- 测试4: 完整流程 -->
+        <div class="test-section">
+            <h2>测试 4: 完整数据流程</h2>
+            <p>模拟前端完整的请求-响应-显示流程</p>
+            <button onclick="testFullFlow()" id="btn4">测试完整流程</button>
+            <div id="result4"></div>
+        </div>
+
+        <!-- 显示统计数据 -->
+        <div class="test-section" id="stats-display" style="display: none;">
+            <h2>📊 统计数据展示</h2>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-total-papers">-</div>
+                    <div class="metric-label">总论文数</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-total-journals">-</div>
+                    <div class="metric-label">总期刊数</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-top-tier">-</div>
+                    <div class="metric-label">顶刊论文数</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="metric-last-year">-</div>
+                    <div class="metric-label">去年论文数</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 辅助函数：显示结果
+        function showResult(elementId, message, type = 'info', data = null) {
+            const container = document.getElementById(elementId);
+            let html = `<div class="result ${type}">${message}</div>`;
+
+            if (data) {
+                html += `<div class="result ${type}"><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // 测试1: Fetch API
+        async function testFetchAPI() {
+            const btn = document.getElementById('btn1');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch('/api/stats/overview');
+                const duration = Date.now() - startTime;
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const raw = await response.json();
+
+                showResult('result1',
+                    `✅ Fetch API 成功！响应时间: ${duration}ms`,
+                    'success',
+                    {
+                        status: response.status,
+                        ok: response.ok,
+                        headers: Object.fromEntries(response.headers.entries()),
+                        body: raw
+                    }
+                );
+            } catch (error) {
+                showResult('result1',
+                    `❌ Fetch API 失败: ${error.message}`,
+                    'error',
+                    { error: error.message, stack: error.stack }
+                );
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试 Fetch';
+        }
+
+        // 测试2: Axios
+        async function testAxios() {
+            const btn = document.getElementById('btn2');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            try {
+                const startTime = Date.now();
+                const response = await axios.get('/api/stats/overview');
+                const duration = Date.now() - startTime;
+
+                showResult('result2',
+                    `✅ Axios 成功！响应时间: ${duration}ms`,
+                    'success',
+                    {
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers: response.headers,
+                        data: response.data
+                    }
+                );
+            } catch (error) {
+                showResult('result2',
+                    `❌ Axios 失败: ${error.message}`,
+                    'error',
+                    {
+                        message: error.message,
+                        response: error.response?.data,
+                        status: error.response?.status
+                    }
+                );
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试 Axios';
+        }
+
+        // 测试3: 模拟拦截器
+        async function testInterceptor() {
+            const btn = document.getElementById('btn3');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            try {
+                const response = await fetch('/api/stats/overview');
+                const raw = await response.json();
+
+                // 模拟前端拦截器的处理逻辑
+                console.log('📍 原始响应:', raw);
+
+                let extractedData;
+                if (raw && typeof raw === 'object' && 'success' in raw) {
+                    if (raw.success && 'data' in raw) {
+                        console.log('✅ 从包装器中提取数据:', raw.data);
+                        extractedData = raw.data;
+                    } else if (!raw.success) {
+                        throw new Error(raw.error || raw.message || '请求失败');
+                    }
+                } else {
+                    extractedData = raw;
+                }
+
+                showResult('result3',
+                    `✅ 拦截器处理成功！`,
+                    'success',
+                    {
+                        original: raw,
+                        extracted: extractedData,
+                        note: '拦截器提取了 data.data 字段'
+                    }
+                );
+            } catch (error) {
+                showResult('result3',
+                    `❌ 拦截器处理失败: ${error.message}`,
+                    'error',
+                    { error: error.message }
+                );
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试拦截器';
+        }
+
+        // 测试4: 完整流程
+        async function testFullFlow() {
+            const btn = document.getElementById('btn4');
+            btn.disabled = true;
+            btn.innerHTML = '测试中...';
+
+            const steps = [];
+
+            try {
+                // 步骤1: API调用
+                steps.push('🔄 步骤1: 调用 API...');
+                const response = await fetch('/api/stats/overview');
+                const raw = await response.json();
+                steps.push('✅ API调用成功');
+
+                // 步骤2: 响应验证
+                steps.push('🔄 步骤2: 验证响应格式...');
+                if (!raw.success || !raw.data) {
+                    throw new Error('响应格式不正确');
+                }
+                steps.push('✅ 响应格式正确');
+
+                // 步骤3: 数据提取
+                steps.push('🔄 步骤3: 提取数据...');
+                const data = raw.data;
+                steps.push('✅ 数据提取成功');
+
+                // 步骤4: 数据验证
+                steps.push('🔄 步骤4: 验证数据字段...');
+                const requiredFields = ['totalPapers', 'totalJournals', 'topTierPapers', 'papersLastYear'];
+                const missingFields = requiredFields.filter(f => !(f in data));
+                if (missingFields.length > 0) {
+                    throw new Error(`缺少字段: ${missingFields.join(', ')}`);
+                }
+                steps.push('✅ 所有必需字段存在');
+
+                // 步骤5: 显示数据
+                steps.push('🔄 步骤5: 显示数据...');
+                document.getElementById('metric-total-papers').textContent = data.totalPapers.toLocaleString();
+                document.getElementById('metric-total-journals').textContent = data.totalJournals.toLocaleString();
+                document.getElementById('metric-top-tier').textContent = data.topTierPapers.toLocaleString();
+                document.getElementById('metric-last-year').textContent = data.papersLastYear.toLocaleString();
+                document.getElementById('stats-display').style.display = 'block';
+                steps.push('✅ 数据显示完成');
+
+                showResult('result4',
+                    `✅ 完整流程成功！\n${steps.join('\n')}`,
+                    'success',
+                    {
+                        steps: steps,
+                        finalData: data
+                    }
+                );
+            } catch (error) {
+                steps.push(`❌ 失败: ${error.message}`);
+                showResult('result4',
+                    `❌ 完整流程失败\n${steps.join('\n')}`,
+                    'error',
+                    { error: error.message, steps: steps }
+                );
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '测试完整流程';
+        }
+
+        // 页面加载时的提示
+        window.addEventListener('load', () => {
+            console.log('🔍 统计页面调试工具已加载');
+            console.log('💡 点击各个测试按钮开始诊断');
+            console.log('📋 查看控制台可以获取更详细的调试信息');
+        });
+    </script>
+</body>
+</html>

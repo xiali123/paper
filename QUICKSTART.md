@@ -1,205 +1,200 @@
-# 快速入门指南
+# PaperCrawler 快速启动指南
 
-## 5分钟快速上手
+## 🚀 一键启动（推荐）
 
-### 1️⃣ 准备工作
-
-确保你的系统已安装：
-- MySQL 5.7+ 或 MariaDB
-- C++17 编译器
-- CMake 3.15+
-- Git
-
-### 2️⃣ 获取代码
-
-```bash
-cd E:\研究生\资料
-git clone <your-repo-url> PaperCrawler
-cd PaperCrawler
+双击运行启动脚本：
+```
+start-test-env.bat
 ```
 
-### 3️⃣ 安装依赖
+这将自动启动：
+- 后端服务器 (http://127.0.0.1:8080)
+- 前端开发服务器 (http://localhost:5173)
 
-#### Windows
-```bash
-# 使用 vcpkg 安装依赖
-vcpkg install curl:x64-windows openssl:x64-windows mysql-connector-cpp:x64-windows
+## 📝 测试账号
+
+系统已自动创建测试账号：
+
+```
+邮箱: test@example.com
+密码: TestPass123!
 ```
 
-#### Linux
-```bash
-sudo apt-get update
-sudo apt-get install -y build-essential cmake libcurl4-openssl-dev libssl-dev libmysqlclient-dev
+## 🌐 访问应用
+
+打开浏览器访问：
+```
+http://localhost:5173
 ```
 
-### 4️⃣ 配置数据库
+## 🧪 快速测试流程
 
+### 1. 测试登录
+1. 访问 http://localhost:5173/login
+2. 输入测试账号：
+   - 邮箱: `test@example.com`
+   - 密码: `TestPass123!`
+3. 点击"登录"
+4. 验证：自动跳转到首页
+
+### 2. 测试注册
+1. 访问 http://localhost:5173/register
+2. 填写新用户信息
+3. 验证：注册成功后自动登录
+
+### 3. 测试令牌
+1. 登录后，按 F12 打开开发者工具
+2. 切换到 Application > Local Storage
+3. 查看 `auth_tokens`，应该包含：
+   - `accessToken`: JWT 访问令牌
+   - `refreshToken`: JWT 刷新令牌
+
+### 4. 测试登出
+1. 点击右上角用户菜单
+2. 选择"登出"
+3. 验证：重定向到登录页，令牌已清除
+
+## 🔧 手动启动（如果一键启动失败）
+
+### 启动后端
 ```bash
-# 登录 MySQL
-mysql -u root -p
+# 方法 1: 使用脚本
+start-backend.bat
 
-# 执行以下 SQL
-CREATE DATABASE IF NOT EXISTS csdatabs CHARACTER SET utf8mb4;
-USE csdatabs;
-
-CREATE TABLE IF NOT EXISTS cspaper (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    kid INT NOT NULL DEFAULT 0,
-    type VARCHAR(50),
-    title TEXT,
-    qikanfull VARCHAR(255),
-    qikanjc VARCHAR(100),
-    year VARCHAR(10),
-    author VARCHAR(255),
-    qikanurl VARCHAR(512),
-    doiurl VARCHAR(512),
-    info TEXT,
-    qkid INT DEFAULT 0,
-    level VARCHAR(10),
-    INDEX idx_type (type),
-    INDEX idx_qkid (qkid)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS qikantb (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) UNIQUE,
-    fullname VARCHAR(255),
-    level VARCHAR(10),
-    flevel VARCHAR(10),
-    info TEXT,
-    url VARCHAR(512),
-    INDEX idx_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+# 方法 2: 手动启动
+cd e:/PaperCrawler/backend
+build\PaperCrawlerServer.exe
 ```
 
-### 5️⃣ 配置应用
-
+### 启动前端（新窗口）
 ```bash
-# 复制示例配置
-cp config/config.json.example config/config.json
+# 方法 1: 使用脚本
+start-frontend.bat
 
-# 编辑配置文件
-# Windows: notepad config\config.json
-# Linux: vim config/config.json
+# 方法 2: 手动启动
+cd e:/PaperCrawler/frontend
+npm run dev
 ```
 
-修改数据库配置：
+## 📊 验证服务状态
+
+### 检查后端
+```bash
+curl http://127.0.0.1:8080/health
+```
+
+预期响应：
 ```json
 {
-    "database": {
-        "host": "localhost",
-        "port": 3306,
-        "user": "root",
-        "password": "你的MySQL密码",
-        "database": "csdatabs"
-    }
+  "status": "healthy",
+  "database": "connected"
 }
 ```
 
-### 6️⃣ 编译项目
-
-#### Windows
+### 检查数据库
 ```bash
-# 使用构建脚本
-build.bat
-
-# 或手动编译
-mkdir build && cd build
-cmake -G "Visual Studio 17 2022" -A x64 ^
-    -DCMAKE_TOOLCHAIN_FILE=[vcpkg路径]/scripts/buildsystems/vcpkg.cmake ..
-cmake --build . --config Release
+cd e:/PaperCrawler/backend
+python verify_db_schema.py
 ```
 
-#### Linux
+## 🛠️ 常见问题
+
+### 问题 1: 后端无法启动
+**错误**: `找不到 build\PaperCrawlerServer.exe`
+
+**解决**: 后端未编译，运行：
 ```bash
-chmod +x build.sh
-./build.sh
-
-# 或手动编译
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j$(nproc)
+cd e:/PaperCrawler/backend/build
+cmake .. -G "MinGW Makefiles"
+make
 ```
 
-### 7️⃣ 运行程序
+### 问题 2: 前端无法连接后端
+**错误**: `ERR_CONNECTION_REFUSED`
 
+**解决**: 
+1. 确认后端正在运行
+2. 检查端口 8080 是否被占用
+3. 查看后端窗口的错误信息
+
+### 问题 3: 登录失败
+**错误**: `邮箱或密码错误`
+
+**解决**:
+1. 确认使用正确的测试账号
+2. 检查数据库中用户是否存在：
 ```bash
-# Windows
-.\build\bin\Release\PaperCrawler.exe --keyword "dma"
-
-# Linux
-./build/bin/PaperCrawler --keyword "dma"
+cd e:/PaperCrawler/backend
+sqlite3 papercrawler_test.db "SELECT email FROM users;"
 ```
 
-### 📊 查看结果
+### 问题 4: 令牌不刷新
+**症状**: 15分钟后需要重新登录
 
-```bash
-# 登录 MySQL 查看结果
-mysql -u root -p
-USE csdatabs;
+**解决**:
+1. 检查浏览器控制台是否有错误
+2. 确认前端代码中的刷新逻辑是否正常
+3. 查看网络请求，确认刷新 API 被调用
 
-# 查看论文数量
-SELECT COUNT(*) FROM cspaper;
+## 📖 更多文档
 
-# 查看期刊数量
-SELECT COUNT(*) FROM qikantb;
+- **完整测试指南**: [MANUAL_TESTING_GUIDE.md](MANUAL_TESTING_GUIDE.md)
+- **认证系统文档**: [AUTHENTICATION_GUIDE.md](AUTHENTICATION_GUIDE.md)
+- **测试总结报告**: [TESTING_SUMMARY.md](TESTING_SUMMARY.md)
 
-# 查看论文详情
-SELECT id, title, qikanjc, year FROM cspaper LIMIT 10;
-```
+## 🎯 下一步
 
-## 🎯 常用命令
+测试完成后，您可以：
 
-```bash
-# 指定搜索关键词
-./PaperCrawler --keyword "machine learning"
+1. **查看所有功能**
+   - 用户管理
+   - 论文搜索
+   - 数据统计
+   - 收藏夹
 
-# 指定配置文件
-./PaperCrawler --config /path/to/config.json
+2. **测试安全功能**
+   - 密码强度验证
+   - 速率限制
+   - 会话管理
 
-# 查看帮助
-./PaperCrawler --help
-```
-
-## 🐛 常见问题
-
-### Q: 编译时找不到 MySQL 头文件？
-A: 设置 MySQL 路径：
-```bash
-cmake -DMYSQL_INCLUDE_DIR=/path/to/mysql/include \
-      -DMYSQL_LIBRARY=/path/to/mysql/lib/libmysqlclient.so ..
-```
-
-### Q: 网络请求超时？
-A: 在配置文件中增加超时时间：
-```json
-{
-    "crawler": {
-        "timeout": 30
-    }
-}
-```
-
-### Q: 数据库连接失败？
-A: 检查 MySQL 服务是否运行：
-```bash
-# Windows
-net start mysql
-
-# Linux
-sudo systemctl status mysql
-```
-
-## 📚 下一步
-
-- 📖 阅读 [README.md](README.md) 了解更多功能
-- 🎨 自定义 `config/config.json` 配置
-- 🔍 查看 `paper_crawler.log` 日志文件
-- 💻 参考源码进行二次开发
+3. **准备生产部署**
+   - 更换 JWT secret
+   - 配置 MySQL
+   - 启用 HTTPS
+   - 设置备份
 
 ## 💡 提示
 
-- 首次运行建议从少量数据开始测试
-- 定期检查日志文件了解运行状态
-- 数据库密码不要提交到版本控制系统
-- 建议使用数据库备份保护数据安全
+- 测试数据库位置: `e:/PaperCrawler/backend/papercrawler_test.db`
+- 后端配置文件: `e:/PaperCrawler/backend/config.json`
+- 前端环境变量: `e:/PaperCrawler/frontend/.env.development`
+- 所有日志都在各自的终端窗口中显示
+
+## ✅ 检查清单
+
+启动前检查：
+- [ ] Python 3.x 已安装
+- [ ] Node.js 18+ 已安装
+- [ ] 后端已编译（build\PaperCrawlerServer.exe 存在）
+- [ ] 前端依赖已安装（node_modules 目录存在）
+
+测试后检查：
+- [ ] 能够成功登录
+- [ ] 能够注册新用户
+- [ ] 令牌正确存储
+- [ ] 受保护路由工作正常
+- [ ] 登出功能正常
+
+## 🎉 开始使用
+
+一切就绪！现在运行：
+```
+start-test-env.bat
+```
+
+然后打开浏览器访问：
+```
+http://localhost:5173
+```
+
+**享受 PaperCrawler！** 📚
