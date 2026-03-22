@@ -20,6 +20,10 @@
                 <span class="nav-icon">🏠</span>
                 <span class="nav-text">{{ $t('nav.home') }}</span>
               </router-link>
+              <router-link to="/papers" class="nav-link">
+                <span class="nav-icon">📚</span>
+                <span class="nav-text">{{ $t('nav.searchPapers') }}</span>
+              </router-link>
               <router-link to="/search" class="nav-link">
                 <span class="nav-icon">🔍</span>
                 <span class="nav-text">{{ $t('nav.search') }}</span>
