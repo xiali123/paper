@@ -20,10 +20,19 @@ export function formatNumber(num: number): string {
  * @returns 格式化后的日期字符串
  */
 export function formatDate(
-  date: string | Date,
-  format: string = 'YYYY-MM-DD'
+  date: string | Date | null | undefined,
+  format: string = 'YYYY-MM-DD HH:mm:ss'
 ): string {
+  if (!date) {
+    return '暂无数据'
+  }
+
   const d = typeof date === 'string' ? new Date(date) : date
+
+  // 检查是否是有效日期
+  if (isNaN(d.getTime())) {
+    return '无效日期'
+  }
 
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')

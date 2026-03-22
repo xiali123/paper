@@ -290,7 +290,7 @@ export interface Statistics {
   mostActiveJournal: string
 
   /** Average papers published per year */
-  averagePapersPerYear: number
+  averagePapersPerYear?: number
 
   /** Timestamp of the latest data update */
   latestUpdate?: string

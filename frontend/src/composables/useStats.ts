@@ -18,22 +18,43 @@ export function useStats() {
 
   // 获取总体统计
   const fetchOverview = async (refresh: boolean = false) => {
+    console.log('🔄 [useStats] Starting fetchOverview...')
     loading.value = true
     error.value = null
 
     try {
-      const data = await statsApi.getOverview({
-        showError: false
-      })
+      console.log('📍 [useStats] API endpoint: /stats/overview')
 
+      const data = await statsApi.getOverview()
+
+      console.log('✅ [useStats] Received overview data:', data)
+      console.log('📊 [useStats] Data type:', typeof data)
+
+      // Validate data
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid data received from API')
+      }
+
+      // Use data directly without extra validation
       overview.value = data
       lastUpdate.value = new Date()
+
+      console.log('✨ [useStats] Overview set successfully')
+      console.log('📈 [useStats] hasData computed:', hasData.value)
+      console.log('🏁 [useStats] Fetch completed successfully')
     } catch (err: any) {
-      console.error('Failed to fetch overview:', err)
-      error.value = err.message || '加载统计信息失败'
+      console.error('❌ [useStats] Failed to fetch overview:', err)
+      console.error('❌ [useStats] Error message:', err.message)
+      console.error('❌ [useStats] Error stack:', err.stack)
+
+      error.value = err.message || err.error || '加载统计信息失败'
       overview.value = null
+
+      console.log('❌ [useStats] Error state set')
     } finally {
+      // Ensure loading is always set to false
       loading.value = false
+      console.log('✅ [useStats] Loading set to false in finally block')
     }
   }
 
@@ -43,14 +64,14 @@ export function useStats() {
     error.value = null
 
     try {
-      const data = await statsApi.getJournalStats({
-        showError: false
-      })
+      console.log('🔄 Fetching journal stats...')
+      const data = await statsApi.getJournalStats()
 
+      console.log('✅ Received journal stats:', data)
       journalStats.value = data
     } catch (err: any) {
-      console.error('Failed to fetch journal stats:', err)
-      error.value = err.message || '加载期刊统计失败'
+      console.error('❌ Failed to fetch journal stats:', err)
+      error.value = err.error || err.message || '加载期刊统计失败'
     } finally {
       loading.value = false
     }
@@ -62,14 +83,14 @@ export function useStats() {
     error.value = null
 
     try {
-      const data = await statsApi.getYearStats({
-        showError: false
-      })
+      console.log('🔄 Fetching year stats...')
+      const data = await statsApi.getYearStats()
 
+      console.log('✅ Received year stats:', data)
       yearStats.value = data
     } catch (err: any) {
-      console.error('Failed to fetch year stats:', err)
-      error.value = err.message || '加载年度统计失败'
+      console.error('❌ Failed to fetch year stats:', err)
+      error.value = err.error || err.message || '加载年度统计失败'
     } finally {
       loading.value = false
     }
