@@ -121,7 +121,7 @@
       <div class="action-buttons">
         <el-button
           size="small"
-          :icon="Bookmark"
+          :icon="Star"
           @click="handleBatchBookmark(true)"
         >
           {{ $t('papers.batchBookmark') || '批量收藏' }}
@@ -217,7 +217,7 @@ import {
   Plus,
   Search,
   RefreshLeft,
-  Bookmark,
+  Star,
   Delete
 } from '@element-plus/icons-vue'
 import { usePaperManagementStore } from '@/stores/paperManagement'
