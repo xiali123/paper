@@ -390,10 +390,434 @@ app.get('/api/search', (req, res) => {
 })
 
 // ============================================================================
-// 业务端点 - Papers
+// 业务端点 - Papers (完整CRUD)
 // ============================================================================
 
-// GET /api/papers/:id
+// 模拟论文数据库
+const papers = [
+  {
+    id: 1,
+    userId: 1,
+    title: 'Attention Is All You Need: Transformers for Computer Vision',
+    authors: 'Ashish Vaswani, Shazeer Nazeem, Niki Parmar',
+    abstract: 'We propose a new simple network architecture, the Transformer, based solely on attention mechanisms...',
+    keywords: 'attention, transformer, computer vision',
+    doi: '10.1109/2023.scene12345',
+    publication: 'NeurIPS',
+    year: '2023',
+    volume: '30',
+    issue: '1',
+    pages: '1234-1256',
+    url: 'https://arxiv.org/abs/1706.03762',
+    pdfPath: 'papers/transformers-cv.pdf',
+    source: 'arxiv',
+    category: 'CV',
+    tags: 'deep learning,attention',
+    citationCount: 156,
+    isRead: true,
+    isBookmarked: true,
+    readingProgress: 75,
+    notes: 'Excellent paper on attention mechanism',
+    createdAt: '2024-01-15T10:30:00Z',
+    updatedAt: '2024-01-20T14:20:00Z'
+  },
+  {
+    id: 2,
+    userId: 1,
+    title: 'BERT: Pre-training of Deep Bidirectional Transformers',
+    authors: 'Jacob Devlin, Ming-Wei Chang, Kenton Lee, Kristina Toutanova',
+    abstract: 'We introduce a new language representation model called BERT...',
+    keywords: 'NLP, transformer, pre-training',
+    doi: '10.1109/2023.scene12346',
+    publication: 'NAACL',
+    year: '2019',
+    volume: '1',
+    issue: '1',
+    pages: '4171-4186',
+    url: 'https://arxiv.org/abs/1810.04805',
+    pdfPath: 'papers/bert-nlp.pdf',
+    source: 'manual',
+    category: 'NLP',
+    tags: 'transformer,NLP',
+    citationCount: 89000,
+    isRead: false,
+    isBookmarked: false,
+    readingProgress: 30,
+    notes: '',
+    createdAt: '2024-02-01T10:30:00Z',
+    updatedAt: '2024-02-01T10:30:00Z'
+  },
+  {
+    id: 3,
+    userId: 1,
+    title: 'ResNet: Deep Residual Learning for Image Recognition',
+    authors: 'Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun',
+    abstract: 'Deeper neural networks are more difficult to train...',
+    keywords: 'computer vision, deep learning, CNN',
+    doi: '10.1109/2023.scene12347',
+    publication: 'CVPR',
+    year: '2016',
+    volume: '',
+    issue: '',
+    pages: '770-778',
+    url: 'https://arxiv.org/abs/1512.03385',
+    pdfPath: 'papers/resnet-cvpr.pdf',
+    source: 'cnki',
+    category: 'CV',
+    tags: 'CNN,image classification',
+    citationCount: 150000,
+    isRead: true,
+    isBookmarked: true,
+    readingProgress: 100,
+    notes: 'Classic paper on residual learning',
+    createdAt: '2024-02-10T10:30:00Z',
+    updatedAt: '2024-02-15T14:20:00Z'
+  },
+  {
+    id: 4,
+    userId: 2,
+    title: 'GPT-4 Technical Report',
+    authors: 'OpenAI',
+    abstract: 'We report the development of GPT-4...',
+    keywords: 'LLM, generative AI',
+    doi: '10.1109/2023.scene12348',
+    publication: 'arXiv',
+    year: '2023',
+    volume: '',
+    issue: '',
+    pages: '',
+    url: 'https://arxiv.org/abs/2303.08765',
+    pdfPath: '',
+    source: 'arxiv',
+    category: 'AI',
+    tags: 'LLM,transformer',
+    citationCount: 5000,
+    isRead: false,
+    isBookmarked: false,
+    readingProgress: 0,
+    notes: '',
+    createdAt: '2024-03-01T10:30:00Z',
+    updatedAt: '2024-03-01T10:30:00Z'
+  }
+]
+
+// GET /api/papers - 获取论文列表
+app.get('/api/papers', (req, res) => {
+  const {
+    page = 1,
+    pageSize = 20,
+    keyword = '',
+    category = '',
+    source = '',
+    isRead = '',
+    isBookmarked = ''
+  } = req.query
+
+  console.log('✅ Papers list requested:', { page, pageSize, keyword, category, source })
+
+  const pageNum = parseInt(page)
+  const size = parseInt(pageSize)
+  const startIndex = (pageNum - 1) * size
+
+  // Filter papers
+  let filteredPapers = papers.filter(p => {
+    if (category && p.category !== category) return false
+    if (source && p.source !== source) return false
+    if (isRead === 'true' && !p.isRead) return false
+    if (isRead === 'false' && p.isRead) return false
+    if (isBookmarked === 'true' && !p.isBookmarked) return false
+    if (isBookmarked === 'false' && p.isBookmarked) return false
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase()
+      if (!p.title.toLowerCase().includes(lowerKeyword) &&
+          !p.authors.toLowerCase().includes(lowerKeyword) &&
+          !p.abstract.toLowerCase().includes(lowerKeyword)) {
+        return false
+      }
+    }
+    return true
+  })
+
+  const total = filteredPapers.length
+  const paginatedPapers = filteredPapers.slice(startIndex, startIndex + size)
+
+  res.json({
+    success: true,
+    data: {
+      papers: paginatedPapers,
+      total: total,
+      page: pageNum,
+      pageSize: size,
+      totalPages: Math.ceil(total / size)
+    }
+  })
+})
+
+// POST /api/papers - 创建论文
+app.post('/api/papers', (req, res) => {
+  const { title, authors, abstract, publication, year, doi, url, pdfPath, source, category, tags } = req.body
+
+  console.log('✅ Creating paper:', { title, authors })
+
+  const newPaper = {
+    id: papers.length + 1,
+    userId: 1, // 默认用户ID
+    title,
+    authors: authors || '',
+    abstract: abstract || '',
+    keywords: '',
+    doi: doi || '',
+    publication: publication || '',
+    year: year || '',
+    volume: '',
+    issue: '',
+    pages: '',
+    url: url || '',
+    pdfPath: pdfPath || '',
+    source: source || 'manual',
+    category: category || '',
+    tags: tags || '',
+    citationCount: 0,
+    isRead: false,
+    isBookmarked: false,
+    readingProgress: 0,
+    notes: '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+
+  papers.push(newPaper)
+
+  res.status(201).json({
+    success: true,
+    data: newPaper
+  })
+})
+
+// GET /api/papers/:id - 获取论文详情
+app.get('/api/papers/:id', (req, res) => {
+  const { id } = req.params
+  console.log('✅ Paper details requested:', id)
+
+  const paper = papers.find(p => p.id === parseInt(id))
+
+  if (!paper) {
+    return res.status(404).json({
+      success: false,
+      error: 'Paper not found'
+    })
+  }
+
+  res.json({
+    success: true,
+    data: paper
+  })
+})
+
+// PUT /api/papers/:id - 更新论文
+app.put('/api/papers/:id', (req, res) => {
+  const { id } = req.params
+  console.log('✅ Updating paper:', id)
+
+  const paper = papers.find(p => p.id === parseInt(id))
+
+  if (!paper) {
+    return res.status(404).json({
+      success: false,
+      error: 'Paper not found'
+    })
+  }
+
+  // Update paper fields
+  Object.assign(paper, req.body)
+  paper.updatedAt = new Date().toISOString()
+
+  console.log('✅ Paper updated:', paper)
+
+  res.json({
+    success: true,
+    data: paper
+  })
+})
+
+// DELETE /api/papers/:id - 删除论文
+app.delete('/api/papers/:id', (req, res) => {
+  const { id } = req.params
+  console.log('✅ Deleting paper:', id)
+
+  const index = papers.findIndex(p => p.id === parseInt(id))
+
+  if (index === -1) {
+    return res.status(404).json({
+      success: false,
+      error: 'Paper not found'
+    })
+  }
+
+  papers.splice(index, 1)
+
+  res.json({
+    success: true,
+    data: { message: 'Paper deleted successfully' }
+  })
+})
+
+// POST /api/papers/:id/bookmark - 切换收藏
+app.post('/api/papers/:id/bookmark', (req, res) => {
+  const { id } = req.params
+  console.log('✅ Toggling bookmark for paper:', id)
+
+  const paper = papers.find(p => p.id === parseInt(id))
+
+  if (!paper) {
+    return res.status(404).json({
+      success: false,
+      error: 'Paper not found'
+    })
+  }
+
+  paper.isBookmarked = !paper.isBookmarked
+  paper.updatedAt = new Date().toISOString()
+
+  console.log('✅ Bookmark toggled:', { id: paper.id, isBookmarked: paper.isBookmarked })
+
+  res.json({
+    success: true,
+    data: { isBookmarked: paper.isBookmarked }
+  })
+})
+
+// POST /api/papers/:id/read - 标记已读
+app.post('/api/papers/:id/read', (req, res) => {
+  const { id } = req.params
+  const { isRead } = req.body
+
+  console.log('✅ Marking paper as read:', { id, isRead })
+
+  const paper = papers.find(p => p.id === parseInt(id))
+
+  if (!paper) {
+    return res.status(404).json({
+      success: false,
+      error: 'Paper not found'
+    })
+  }
+
+  paper.isRead = isRead
+  paper.updatedAt = new Date().toISOString()
+
+  res.json({
+    success: true,
+    data: { isRead: paper.isRead }
+  })
+})
+
+// POST /api/papers/:id/progress - 更新阅读进度
+app.post('/api/papers/:id/progress', (req, res) => {
+  const { id } = req.params
+  const { progress } = req.body
+
+  console.log('✅ Updating reading progress:', { id, progress })
+
+  const paper = papers.find(p => p.id === parseInt(id))
+
+  if (!paper) {
+    return res.status(404).json({
+      success: false,
+      error: 'Paper not found'
+    })
+  }
+
+  paper.readingProgress = progress
+  if (progress >= 100) {
+    paper.isRead = true
+  }
+  paper.updatedAt = new Date().toISOString()
+
+  res.json({
+    success: true,
+    data: { readingProgress: paper.readingProgress }
+  })
+})
+
+// GET /api/papers/stats - 获取统计信息
+app.get('/api/papers/stats', (req, res) => {
+  console.log('✅ Papers stats requested')
+
+  const stats = {
+    totalPapers: papers.length,
+    readPapers: papers.filter(p => p.isRead).length,
+    unreadPapers: papers.filter(p => !p.isRead).length,
+    bookmarkedPapers: papers.filter(p => p.isBookmarked).length,
+    papersBySource: {
+      manual: papers.filter(p => p.source === 'manual').length,
+      cnki: papers.filter(p => p.source === 'cnki').length,
+      ieee: papers.filter(p => p.source === 'ieee').length,
+      arxiv: papers.filter(p => p.source === 'arxiv').length,
+      pubmed: papers.filter(p => p.source === 'pubmed').length
+    },
+    papersByCategory: {
+      AI: papers.filter(p => p.category === 'AI').length,
+      ML: papers.filter(p => p.category === 'ML').length,
+      DL: papers.filter(p => p.category === 'DL').length,
+      NLP: papers.filter(p => p.category === 'NLP').length,
+      CV: papers.filter(p => p.category === 'CV').length,
+      other: papers.filter(p => !p.category || p.category === 'other').length
+    }
+  }
+
+  res.json({
+    success: true,
+    data: stats
+  })
+})
+
+// GET /api/papers/search - 搜索论文
+app.get('/api/papers/search', (req, res) => {
+  const { q, page = 1, pageSize = 20 } = req.query
+
+  console.log('✅ Papers search:', { q, page, pageSize })
+
+  const query = q?.toLowerCase().trim()
+  if (!query) {
+    return res.status(400).json({
+      success: false,
+      error: 'Search query is required'
+    })
+  }
+
+  const pageNum = parseInt(page)
+  const size = parseInt(pageSize)
+  const startIndex = (pageNum - 1) * size
+
+  // Search in title, authors, abstract
+  const searchResults = papers.filter(p =>
+    p.title.toLowerCase().includes(query) ||
+    p.authors.toLowerCase().includes(query) ||
+    (p.abstract && p.abstract.toLowerCase().includes(query))
+  )
+
+  const total = searchResults.length
+  const paginatedResults = searchResults.slice(startIndex, startIndex + size)
+
+  res.json({
+    success: true,
+    data: {
+      papers: paginatedResults,
+      total: total,
+      page: pageNum,
+      pageSize: size,
+      totalPages: Math.ceil(total / size),
+      query: q
+    }
+  })
+})
+
+// ============================================================================
+// 业务端点 - Papers (原有)
+// ============================================================================
+
+// GET /api/papers/:id (保留原有端点用于兼容)
 app.get('/api/papers/:id', (req, res) => {
   const { id } = req.params
   console.log('✅ Paper details requested:', id)
@@ -938,8 +1362,17 @@ app.listen(PORT, () => {
   console.log(`  🔍 Search:`)
   console.log(`     GET    /api/search`)
   console.log(``)
-  console.log(`  📄 Papers:`)
+  console.log(`  📄 Paper Management:`)
+  console.log(`     GET    /api/papers`)
   console.log(`     GET    /api/papers/:id`)
+  console.log(`     POST   /api/papers`)
+  console.log(`     PUT    /api/papers/:id`)
+  console.log(`     DELETE /api/papers/:id`)
+  console.log(`     POST   /api/papers/:id/bookmark`)
+  console.log(`     POST   /api/papers/:id/read`)
+  console.log(`     POST   /api/papers/:id/progress`)
+  console.log(`     GET    /api/papers/stats`)
+  console.log(`     GET    /api/papers/search`)
   console.log(``)
   console.log(`  👨‍💼 Admin (Admin/Superadmin):`)
   console.log(`     GET    /api/admin/stats`)
