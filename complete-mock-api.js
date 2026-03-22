@@ -594,6 +594,79 @@ app.post('/api/papers', (req, res) => {
   })
 })
 
+// GET /api/papers/stats - 获取统计信息
+app.get('/api/papers/stats', (req, res) => {
+  console.log('✅ Papers stats requested')
+
+  const stats = {
+    totalPapers: papers.length,
+    readPapers: papers.filter(p => p.isRead).length,
+    unreadPapers: papers.filter(p => !p.isRead).length,
+    bookmarkedPapers: papers.filter(p => p.isBookmarked).length,
+    papersBySource: {
+      manual: papers.filter(p => p.source === 'manual').length,
+      cnki: papers.filter(p => p.source === 'cnki').length,
+      ieee: papers.filter(p => p.source === 'ieee').length,
+      arxiv: papers.filter(p => p.source === 'arxiv').length,
+      pubmed: papers.filter(p => p.source === 'pubmed').length
+    },
+    papersByCategory: {
+      AI: papers.filter(p => p.category === 'AI').length,
+      ML: papers.filter(p => p.category === 'ML').length,
+      DL: papers.filter(p => p.category === 'DL').length,
+      NLP: papers.filter(p => p.category === 'NLP').length,
+      CV: papers.filter(p => p.category === 'CV').length,
+      other: papers.filter(p => !p.category || p.category === 'other').length
+    }
+  }
+
+  res.json({
+    success: true,
+    data: stats
+  })
+})
+
+// GET /api/papers/search - 搜索论文
+app.get('/api/papers/search', (req, res) => {
+  const { q, page = 1, pageSize = 20 } = req.query
+
+  console.log('✅ Papers search:', { q, page, pageSize })
+
+  const query = q?.toLowerCase().trim()
+  if (!query) {
+    return res.status(400).json({
+      success: false,
+      error: 'Search query is required'
+    })
+  }
+
+  const pageNum = parseInt(page)
+  const size = parseInt(pageSize)
+  const startIndex = (pageNum - 1) * size
+
+  // Search in title, authors, abstract
+  const searchResults = papers.filter(p =>
+    p.title.toLowerCase().includes(query) ||
+    p.authors.toLowerCase().includes(query) ||
+    (p.abstract && p.abstract.toLowerCase().includes(query))
+  )
+
+  const total = searchResults.length
+  const paginatedResults = searchResults.slice(startIndex, startIndex + size)
+
+  res.json({
+    success: true,
+    data: {
+      papers: paginatedResults,
+      total: total,
+      page: pageNum,
+      pageSize: size,
+      totalPages: Math.ceil(total / size),
+      query: q
+    }
+  })
+})
+
 // GET /api/papers/:id - 获取论文详情
 app.get('/api/papers/:id', (req, res) => {
   const { id } = req.params
@@ -737,112 +810,6 @@ app.post('/api/papers/:id/progress', (req, res) => {
   res.json({
     success: true,
     data: { readingProgress: paper.readingProgress }
-  })
-})
-
-// GET /api/papers/stats - 获取统计信息
-app.get('/api/papers/stats', (req, res) => {
-  console.log('✅ Papers stats requested')
-
-  const stats = {
-    totalPapers: papers.length,
-    readPapers: papers.filter(p => p.isRead).length,
-    unreadPapers: papers.filter(p => !p.isRead).length,
-    bookmarkedPapers: papers.filter(p => p.isBookmarked).length,
-    papersBySource: {
-      manual: papers.filter(p => p.source === 'manual').length,
-      cnki: papers.filter(p => p.source === 'cnki').length,
-      ieee: papers.filter(p => p.source === 'ieee').length,
-      arxiv: papers.filter(p => p.source === 'arxiv').length,
-      pubmed: papers.filter(p => p.source === 'pubmed').length
-    },
-    papersByCategory: {
-      AI: papers.filter(p => p.category === 'AI').length,
-      ML: papers.filter(p => p.category === 'ML').length,
-      DL: papers.filter(p => p.category === 'DL').length,
-      NLP: papers.filter(p => p.category === 'NLP').length,
-      CV: papers.filter(p => p.category === 'CV').length,
-      other: papers.filter(p => !p.category || p.category === 'other').length
-    }
-  }
-
-  res.json({
-    success: true,
-    data: stats
-  })
-})
-
-// GET /api/papers/search - 搜索论文
-app.get('/api/papers/search', (req, res) => {
-  const { q, page = 1, pageSize = 20 } = req.query
-
-  console.log('✅ Papers search:', { q, page, pageSize })
-
-  const query = q?.toLowerCase().trim()
-  if (!query) {
-    return res.status(400).json({
-      success: false,
-      error: 'Search query is required'
-    })
-  }
-
-  const pageNum = parseInt(page)
-  const size = parseInt(pageSize)
-  const startIndex = (pageNum - 1) * size
-
-  // Search in title, authors, abstract
-  const searchResults = papers.filter(p =>
-    p.title.toLowerCase().includes(query) ||
-    p.authors.toLowerCase().includes(query) ||
-    (p.abstract && p.abstract.toLowerCase().includes(query))
-  )
-
-  const total = searchResults.length
-  const paginatedResults = searchResults.slice(startIndex, startIndex + size)
-
-  res.json({
-    success: true,
-    data: {
-      papers: paginatedResults,
-      total: total,
-      page: pageNum,
-      pageSize: size,
-      totalPages: Math.ceil(total / size),
-      query: q
-    }
-  })
-})
-
-// ============================================================================
-// 业务端点 - Papers (原有)
-// ============================================================================
-
-// GET /api/papers/:id (保留原有端点用于兼容)
-app.get('/api/papers/:id', (req, res) => {
-  const { id } = req.params
-  console.log('✅ Paper details requested:', id)
-
-  const mockPaper = {
-    id: parseInt(id),
-    title: 'Deep Learning for Computer Vision: A Comprehensive Review',
-    authors: ['Zhang Wei', 'Li Ming', 'Wang Fang'],
-    affiliations: ['Tsinghua University', 'Peking University'],
-    abstract: 'This paper presents a comprehensive review of deep learning techniques in computer vision, covering convolutional neural networks, recurrent neural networks, and transformer architectures...',
-    keywords: ['deep learning', 'computer vision', 'CNN', 'transformer'],
-    year: 2023,
-    journal: 'IEEE Transactions on Pattern Analysis and Machine Intelligence',
-    volume: '45',
-    issue: '3',
-    pages: '1234-1256',
-    citations: 156,
-    doi: '10.1109/TPAMI.2023.1234567',
-    pdfUrl: 'https://example.com/papers/123.pdf',
-    createdAt: '2023-01-15T10:30:00Z'
-  }
-
-  res.json({
-    success: true,
-    data: mockPaper
   })
 })
 
