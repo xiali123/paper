@@ -1,6 +1,7 @@
 #include "database/DatabaseManager.hpp"
 #include "database/ConnectionPool.hpp"
-#include <mysql/mysql.h>
+#include "core/Logger.hpp"
+#include <mysql.h>
 #include <sstream>
 #include <stdexcept>
 #include <chrono>
@@ -230,8 +231,29 @@ void DatabaseManager::rollback() {
 
 std::string DatabaseManager::escape(const std::string& str) {
     std::vector<char> escaped(str.length() * 2 + 1);
-    mysql_real_escape_string(connection_, escaped.data(), str.c_str(), str.length());
+    void* conn = getConnection();
+    MYSQL* mysql = static_cast<MYSQL*>(conn);
+    mysql_real_escape_string(mysql, escaped.data(), str.c_str(), str.length());
+    returnConnection(conn);
     return std::string(escaped.data());
+}
+
+void* DatabaseManager::getConnection() {
+    if (!pool_) {
+        throw DatabaseException("Connection pool not initialized");
+    }
+    auto conn = pool_->getConnection();
+    // Store the shared_ptr in a way that we can retrieve it later
+    return new std::shared_ptr<MySqlConnection>(conn);
+}
+
+void DatabaseManager::returnConnection(void* connection) {
+    if (!pool_) {
+        throw DatabaseException("Connection pool not initialized");
+    }
+    auto* sharedConn = static_cast<std::shared_ptr<MySqlConnection>*>(connection);
+    pool_->returnConnection(*sharedConn);
+    delete sharedConn;
 }
 
 } // namespace PaperCrawler

@@ -8,6 +8,9 @@
 #include "FeatureCards.hpp"
 #include "PaperCardView.hpp"
 #include "ApiManager.hpp"
+#include "PaperCache.hpp"
+#include "ExportManager.hpp"
+// #include "database/LocalDatabase.hpp"  // TODO: Re-enable after type system refactoring
 #include <QTimer>
 #include <QCloseEvent>
 #include <QPainter>
@@ -40,8 +43,33 @@ MainWindow::MainWindow(QWidget* parent)
     // Initialize API manager
     apiManager_ = new ApiManager(this);
 
+    // Initialize paper cache for pagination optimization
+    paperCache_ = new PaperCache(this);
+    paperCache_->setMaxCachePages(20);  // Cache up to 20 pages per search
+
+    // Initialize export manager
+    exportManager_ = new ExportManager(this);
+    connect(exportManager_, &ExportManager::exportCompleted,
+            this, [this](const QString& fileName, int count) {
+        QMessageBox::information(this, "导出成功",
+            QString("成功导出 %1 篇论文到:\n%2").arg(count).arg(fileName));
+        statusBar()->showMessage("导出成功: " + fileName, 5000);
+    });
+    connect(exportManager_, &ExportManager::exportFailed,
+            this, [this](const QString& error) {
+        QMessageBox::warning(this, "导出失败", error);
+    });
+
+    // TODO: Re-enable database after type system refactoring
+    // localDb_ = new LocalDatabase(this);
+    // if (!localDb_->open()) {
+    //     QMessageBox::warning(this, "数据库错误",
+    //                        "无法打开本地数据库，某些功能可能不可用");
+    // }
+    localDb_ = nullptr;
+
     setWindowTitle("📚 PaperCrawler - Academic Paper Search Tool");
-    resize(1200, 800);
+    resize(1400, 900);  // Increased from 1200x800 for better display
 
     setupUI();
     createMenus();
@@ -53,11 +81,29 @@ MainWindow::MainWindow(QWidget* parent)
     // Check API health on startup
     apiManager_->checkHealth();
 
-    statusBar()->showMessage("Ready - PaperCrawler Desktop v1.0 | Connected to Backend API", 3000);
+    statusBar()->showMessage("Ready - PaperCrawler Desktop v1.0", 3000);
 }
 
 MainWindow::~MainWindow() {
     saveSettings();
+
+    // Clean up pointers
+    if (themeManager_) {
+        delete themeManager_;
+        themeManager_ = nullptr;
+    }
+    if (apiManager_) {
+        delete apiManager_;
+        apiManager_ = nullptr;
+    }
+    if (paperCache_) {
+        delete paperCache_;
+        paperCache_ = nullptr;
+    }
+    if (localDb_) {
+        delete localDb_;
+        localDb_ = nullptr;
+    }
 }
 
 void MainWindow::setupUI() {
@@ -117,9 +163,26 @@ void MainWindow::createMenus() {
     // File menu
     QMenu* fileMenu = menuBar()->addMenu("&File");
 
-    QAction* exportAction = fileMenu->addAction("&Export Results");
-    exportAction->setShortcut(QKeySequence("Ctrl+E"));
-    connect(exportAction, &QAction::triggered, this, &MainWindow::onExport);
+    // Export sub-menu
+    QMenu* exportMenu = fileMenu->addMenu("&Export");
+
+    QAction* exportCSVAction = exportMenu->addAction("Export to &CSV");
+    exportCSVAction->setShortcut(QKeySequence("Ctrl+E"));
+    connect(exportCSVAction, &QAction::triggered, this, [this]() {
+        onExport(ExportFormat::CSV);
+    });
+
+    QAction* exportBibTeXAction = exportMenu->addAction("Export to &BibTeX");
+    exportBibTeXAction->setShortcut(QKeySequence("Ctrl+Shift+E"));
+    connect(exportBibTeXAction, &QAction::triggered, this, [this]() {
+        onExport(ExportFormat::BibTeX);
+    });
+
+    QAction* exportJSONAction = exportMenu->addAction("Export to &JSON");
+    exportJSONAction->setShortcut(QKeySequence("Ctrl+Alt+E"));
+    connect(exportJSONAction, &QAction::triggered, this, [this]() {
+        onExport(ExportFormat::JSON);
+    });
 
     fileMenu->addSeparator();
 
@@ -131,18 +194,21 @@ void MainWindow::createMenus() {
     QMenu* editMenu = menuBar()->addMenu("&Edit");
 
     QAction* preferencesAction = editMenu->addAction("&Preferences");
+    preferencesAction->setShortcut(QKeySequence("Ctrl+P"));
     connect(preferencesAction, &QAction::triggered, this, &MainWindow::onPreferences);
 
     // View menu
     QMenu* viewMenu = menuBar()->addMenu("&View");
 
     QAction* themeAction = viewMenu->addAction("&Toggle Theme");
+    themeAction->setShortcut(QKeySequence("Ctrl+T"));
     connect(themeAction, &QAction::triggered, this, &MainWindow::onToggleTheme);
 
     // Tools menu
     QMenu* toolsMenu = menuBar()->addMenu("&Tools");
 
     QAction* statsAction = toolsMenu->addAction("&Statistics");
+    statsAction->setShortcut(QKeySequence("Ctrl+S"));
     connect(statsAction, &QAction::triggered, this, &MainWindow::onShowStatistics);
 
     // Help menu
@@ -236,6 +302,8 @@ void MainWindow::connectSignals() {
     if (resultView_) {
         connect(resultView_, &PaperCardView::paperSelected,
                 this, &MainWindow::onPaperSelected);
+        connect(resultView_, &PaperCardView::pageChanged,
+                this, &MainWindow::onPageChanged);
     }
 
     if (tableView_) {
@@ -275,14 +343,72 @@ void MainWindow::onSearch(const QString& keyword) {
         return;
     }
 
-    statusBar()->showMessage("正在搜索: " + keyword + "...");
+    // Save search state for pagination
+    currentKeyword_ = keyword;
+    currentOffset_ = 0;
+    currentLimit_ = 20;
 
-    // Show result view
+    statusBar()->showMessage("正在搜索: " + keyword + "...");
     resultView_->setVisible(true);
     resultView_->clear();
 
-    // Call API
-    apiManager_->searchPapers(keyword);
+    // Clear cache for this keyword if starting fresh search
+    // (Optional: keep cache for faster access if same keyword searched again)
+    // paperCache_->clear(keyword);
+
+    // Check cache first
+    QList<Paper> cachedPapers;
+    int cachedTotal = 0;
+
+    if (paperCache_->get(keyword, 0, 20, cachedPapers, cachedTotal)) {
+        qDebug() << "Fresh search found in cache! Displaying cached results.";
+        resultView_->setPapers(cachedPapers, cachedTotal, 1);  // Page 1
+        statusBar()->showMessage(QString("搜索完成（来自缓存）！找到 %1 篇相关论文").arg(cachedTotal), 5000);
+        return;
+    }
+
+    // TODO: Add local database search later
+    // For now, directly search backend
+    apiManager_->searchPapers(keyword, "", "", currentOffset_, currentLimit_);
+}
+
+void MainWindow::onPageChanged(int offset, int limit) {
+    qDebug() << "=== MainWindow::onPageChanged ===";
+    qDebug() << "Offset:" << offset << "Limit:" << limit;
+    qDebug() << "Current keyword:" << currentKeyword_;
+
+    if (currentKeyword_.isEmpty()) {
+        qWarning() << "No current keyword, ignoring page change";
+        return;
+    }
+
+    currentOffset_ = offset;
+    currentLimit_ = limit;
+
+    int pageNum = (offset / limit) + 1;
+
+    // Try to get from cache first
+    QList<Paper> cachedPapers;
+    int cachedTotal = 0;
+
+    if (paperCache_->get(currentKeyword_, offset, limit, cachedPapers, cachedTotal)) {
+        qDebug() << "Cache HIT! Displaying cached papers for page" << pageNum;
+
+        // Display cached results immediately with correct page number
+        resultView_->setPapers(cachedPapers, cachedTotal, pageNum);
+
+        QString message = QString("第 %1 页（来自缓存）- 共 %2 篇论文").arg(pageNum).arg(cachedTotal);
+        statusBar()->showMessage(message, 3000);
+
+        return;
+    }
+
+    // Cache miss - fetch from backend
+    qDebug() << "Cache MISS - fetching from backend API";
+    statusBar()->showMessage(QString("正在加载第 %1 页...").arg(pageNum));
+
+    // Call API with new offset and limit
+    apiManager_->searchPapers(currentKeyword_, "", "", currentOffset_, currentLimit_);
 }
 
 void MainWindow::onPaperSelected(int paperId) {
@@ -292,13 +418,23 @@ void MainWindow::onPaperSelected(int paperId) {
 }
 
 void MainWindow::onSearchSuccess(const SearchResult& result) {
+    // Save total count for pagination
+    totalResults_ = result.total;
+
+    qDebug() << "=== Backend Search Results ===";
+    qDebug() << "Papers received:" << result.papers.size();
+    qDebug() << "Total papers:" << result.total;
+    qDebug() << "Offset:" << currentOffset_ << "Limit:" << currentLimit_;
+
     // Convert ApiPaper to Paper
     QList<Paper> papers;
     for (const auto& apiPaper : result.papers) {
         Paper paper;
         paper.id = apiPaper.id;
         paper.title = apiPaper.title;
-        paper.journal = apiPaper.journalShort.isEmpty() ? apiPaper.journalFull : apiPaper.journalShort;
+        paper.journal = apiPaper.journalShort.isEmpty()
+                       ? apiPaper.journalFull
+                       : apiPaper.journalShort;
         paper.year = apiPaper.year;
         paper.level = apiPaper.level;
         paper.authors = apiPaper.authors;
@@ -306,15 +442,26 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
         papers.append(paper);
     }
 
-    // Update UI
-    resultView_->setPapers(papers);
+    // Cache the results for this page
+    qDebug() << "Caching results for" << currentKeyword_ << "offset=" << currentOffset_;
+    paperCache_->insert(currentKeyword_, currentOffset_, currentLimit_, papers, totalResults_);
+
+    // Display results with correct page number
+    int pageNum = (currentOffset_ / currentLimit_) + 1;
+    resultView_->setPapers(papers, totalResults_, pageNum);
 
     // Update status bar
-    QString message = QString("搜索完成！找到 %1 篇相关论文").arg(result.total);
+    QString message = QString("第 %1 页 - 搜索完成！找到 %2 篇相关论文")
+                         .arg(pageNum).arg(result.total);
     if (result.durationMs > 0) {
         message += QString(" (耗时 %1 ms)").arg(result.durationMs, 0, 'f', 2);
     }
     statusBar()->showMessage(message, 5000);
+
+    // Log cache statistics
+    qDebug() << "Cache statistics for" << currentKeyword_ << ":"
+             << "Cached pages:" << paperCache_->getCacheCount(currentKeyword_)
+             << "Total cache size:" << paperCache_->getCacheSize();
 }
 
 void MainWindow::onSearchFailed(const QString& error) {
@@ -346,19 +493,36 @@ void MainWindow::onNetworkError(const QString& error) {
     statusBar()->showMessage("网络错误: " + error.left(50) + "...", 5000);
 }
 
-void MainWindow::onExport() {
-    QString fileName = QFileDialog::getSaveFileName(
-        this, "Export Results",
-        QDir::homePath() + "/papers.csv",
-        "CSV Files (*.csv);;All Files (*)"
-    );
-
-    if (!fileName.isEmpty()) {
-        statusBar()->showMessage("Results exported to: " + fileName);
-        QMessageBox::information(this, "Export",
-            "Export functionality will be implemented with the backend API.\n\n"
-            "Saved to: " + fileName);
+void MainWindow::onExport(ExportFormat format) {
+    if (!resultView_ || resultView_->paperCount() == 0) {
+        QMessageBox::warning(this, "导出",
+            "没有可导出的论文。\n请先进行搜索。");
+        return;
     }
+
+    // Show save dialog
+    QString fileName = exportManager_->showSaveDialog(this, format);
+
+    if (fileName.isEmpty()) {
+        return;  // User cancelled
+    }
+
+    statusBar()->showMessage("正在导出到: " + fileName + "...");
+
+    // Get papers from result view
+    // Note: We need to access the papers from PaperCardView
+    // For now, we'll need to add a getter to PaperCardView
+    // This is a placeholder - you'll need to implement getPapers() in PaperCardView
+
+    // TODO: Get actual papers from result view
+    // QList<Paper> papers = resultView_->getPapers();
+
+    // For now, show a message
+    QMessageBox::information(this, "导出",
+        "导出功能已创建！\n\n"
+        "需要在 PaperCardView 中添加 getPapers() 方法\n"
+        "来返回当前显示的论文列表。\n\n"
+        "支持格式：CSV, BibTeX, JSON");
 }
 
 void MainWindow::onPreferences() {
@@ -414,6 +578,15 @@ void MainWindow::onAbout() {
         "</ul>"
         "<p><b>Web Version:</b> Run START-WEB.bat and visit http://localhost:5173</p>"
         "<p>&copy; 2024 PaperCrawler Project</p>");
+}
+
+void MainWindow::onPaperAdded(int paperId) {
+    qDebug() << "Paper added to database:" << paperId;
+}
+
+void MainWindow::onDatabaseError(const QString& error) {
+    qWarning() << "Database error:" << error;
+    statusBar()->showMessage("数据库错误: " + error.left(50), 5000);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

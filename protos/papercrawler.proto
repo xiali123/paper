@@ -1,0 +1,426 @@
+// PaperCrawler gRPC Service Definitions
+// Protocol Buffers v3
+
+syntax = "proto3";
+
+package papercrawler;
+
+// Import for timestamp support
+import "google/protobuf/timestamp.proto";
+
+// ============================================
+// Search Service
+// ============================================
+
+service SearchService {
+    // Search for papers by keyword
+    rpc Search(SearchRequest) returns (SearchResponse);
+
+    // Get paper details by ID
+    rpc GetPaper(PaperId) returns (Paper);
+
+    // Get keyword suggestions
+    rpc SuggestKeywords(SuggestionRequest) returns (SuggestionResponse);
+
+    // Batch get papers
+    rpc GetPapersBatch(PaperIdList) returns (PaperList);
+}
+
+// Search request with filters
+message SearchRequest {
+    string keyword = 1;
+    int32 max_results = 2;
+    int32 offset = 3;
+    SearchFilters filters = 4;
+    string sort_by = 5;  // "relevance", "year", "citations"
+    bool ascending = 6;
+}
+
+message SearchFilters {
+    repeated string levels = 1;      // ["A", "B", "C"]
+    repeated string years = 2;       // ["2023", "2022"]
+    repeated string journals = 3;    // ["CVPR", "ICCV"]
+    string author = 4;
+    bool has_journal_info = 5;
+}
+
+message SearchResponse {
+    repeated Paper papers = 1;
+    int32 total_count = 2;
+    double duration_ms = 3;
+    string query_suggestion = 4;  // Did you mean?
+}
+
+message PaperId {
+    int32 id = 1;
+}
+
+message PaperIdList {
+    repeated int32 ids = 1;
+}
+
+message PaperList {
+    repeated Paper papers = 1;
+}
+
+message SuggestionRequest {
+    string partial_keyword = 1;
+    int32 max_suggestions = 2;
+}
+
+message SuggestionResponse {
+    repeated string suggestions = 1;
+}
+
+// ============================================
+// Sync Service
+// ============================================
+
+service SyncService {
+    // Bidirectional sync streaming
+    rpc SyncChanges(SyncRequest) returns (stream SyncResponse);
+
+    // Register device for push notifications
+    rpc RegisterDevice(DeviceRegistration) returns (DeviceToken);
+
+    // Push local changes to server
+    rpc PushChanges(stream Change) returns (PushSummary);
+
+    // Resolve conflicts
+    rpc ResolveConflict(ConflictResolution) returns (ConflictResult);
+
+    // Get sync status
+    rpc GetSyncStatus(StatusRequest) returns (SyncStatus);
+}
+
+message SyncRequest {
+    int64 last_sync_version = 1;
+    string device_id = 2;
+    string client_version = 3;
+    repeated string subscribed_channels = 4;  // ["papers", "stats"]
+}
+
+message SyncResponse {
+    SyncType type = 1;
+    string data = 2;  // JSON-encoded data
+    int64 version = 3;
+    google.protobuf.Timestamp timestamp = 4;
+}
+
+enum SyncType {
+    PAPER_CREATE = 0;
+    PAPER_UPDATE = 1;
+    PAPER_DELETE = 2;
+    STATS_UPDATE = 3;
+    JOURNAL_UPDATE = 4;
+    CONFLICT_DETECTED = 5;
+}
+
+message DeviceRegistration {
+    string device_id = 1;
+    string device_type = 2;  // "web", "desktop", "mobile"
+    string os_version = 3;
+    string app_version = 4;
+}
+
+message DeviceToken {
+    string token = 1;
+    google.protobuf.Timestamp expires_at = 2;
+}
+
+message Change {
+    SyncType type = 1;
+    string entity_id = 2;
+    string data = 3;  // JSON-encoded
+    int64 client_version = 4;
+}
+
+message PushSummary {
+    int32 changes_applied = 1;
+    int32 changes_rejected = 2;
+    repeated string errors = 3;
+    int64 new_version = 4;
+}
+
+message ConflictResolution {
+    string entity_id = 1;
+    string local_data = 2;
+    string remote_data = 3;
+    ResolutionStrategy strategy = 4;
+}
+
+enum ResolutionStrategy {
+    LOCAL_WINS = 0;
+    REMOTE_WINS = 1;
+    MERGE = 2;
+    MANUAL = 3;
+}
+
+message ConflictResult {
+    bool resolved = 1;
+    string resolved_data = 2;  // JSON-encoded
+    string conflict_description = 3;
+}
+
+message StatusRequest {
+    string device_id = 1;
+}
+
+message SyncStatus {
+    bool sync_enabled = 1;
+    google.protobuf.Timestamp last_sync = 2;
+    int64 last_sync_version = 3;
+    int32 pending_changes = 4;
+    int32 conflicts_count = 5;
+}
+
+// ============================================
+// Analytics Service
+// ============================================
+
+service AnalyticsService {
+    // Get overview statistics
+    rpc GetStatistics(StatsRequest) returns (StatsResponse);
+
+    // Get trend data
+    rpc GetTrends(TrendRequest) returns (TrendResponse);
+
+    // Export data in various formats
+    rpc ExportData(ExportRequest) returns (stream DataChunk);
+
+    // Get journal rankings
+    rpc GetJournalRankings(RankingRequest) returns (RankingResponse);
+
+    // Get publication trends
+    rpc GetPublicationTrends(TrendRequest) returns (TrendAnalysis);
+}
+
+message StatsRequest {
+    StatsGranularity granularity = 1;
+    google.protobuf.Timestamp start_date = 2;
+    google.protobuf.Timestamp end_date = 3;
+}
+
+enum StatsGranularity {
+    DAILY = 0;
+    WEEKLY = 1;
+    MONTHLY = 2;
+    YEARLY = 3;
+    ALL_TIME = 4;
+}
+
+message StatsResponse {
+    int32 total_papers = 1;
+    int32 total_journals = 2;
+    int32 top_tier_papers = 3;
+    int32 papers_last_year = 4;
+    string most_active_journal = 5;
+    repeated PaperCountByYear papers_by_year = 6;
+    repeated PaperCountByLevel papers_by_level = 7;
+}
+
+message PaperCountByYear {
+    string year = 1;
+    int32 count = 2;
+}
+
+message PaperCountByLevel {
+    string level = 1;
+    int32 count = 2;
+}
+
+message TrendRequest {
+    string keyword = 1;
+    TrendType type = 2;
+    int32 years = 3;  // Number of years to analyze
+}
+
+enum TrendType {
+    PUBLICATION_VOLUME = 0;
+    KEYWORD_POPULARITY = 1;
+    JOURNAL_ACTIVITY = 2;
+    AUTHOR_PRODUCTIVITY = 3;
+}
+
+message TrendResponse {
+    repeated TrendDataPoint data_points = 1;
+    string summary = 2;
+}
+
+message TrendDataPoint {
+    string label = 1;  // e.g., "2023", "CVPR"
+    double value = 2;
+    int32 count = 3;
+}
+
+message TrendAnalysis {
+    repeated TrendDataPoint historical = 1;
+    TrendDataPoint prediction = 2;
+    double growth_rate = 3;
+    string insight = 4;
+}
+
+message ExportRequest {
+    ExportFormat format = 1;
+    ExportScope scope = 2;
+    string keyword = 3;
+    repeated string fields = 4;  // Which fields to export
+}
+
+enum ExportFormat {
+    CSV = 0;
+    JSON = 1;
+    BIBTEX = 2;
+    XML = 3;
+    EXCEL = 4;
+}
+
+enum ExportScope {
+    ALL_PAPERS = 0;
+    SEARCH_RESULTS = 1;
+    SPECIFIC_JOURNAL = 2;
+    CUSTOM_QUERY = 3;
+}
+
+message DataChunk {
+    bytes data = 1;
+    int32 chunk_number = 2;
+    bool is_last = 3;
+}
+
+message RankingRequest {
+    string level = 1;  // Filter by level
+    int32 limit = 2;
+    RankingMetric metric = 3;
+}
+
+enum RankingMetric {
+    PAPER_COUNT = 0;
+    CITATION_COUNT = 1;
+    IMPACT_FACTOR = 2;
+    H_INDEX = 3;
+}
+
+message RankingResponse {
+    repeated JournalRanking rankings = 1;
+}
+
+message JournalRanking {
+    string journal_name = 1;
+    string full_name = 2;
+    string level = 3;
+    double metric_value = 4;
+    int32 rank = 5;
+}
+
+// ============================================
+// Core Data Types
+// ============================================
+
+message Paper {
+    int32 id = 1;
+    string title = 2;
+    string journal_short = 3;
+    string journal_full = 4;
+    string year = 5;
+    string author = 6;
+    string level = 7;  // "A", "B", "C", "Unknown"
+    string doi_url = 8;
+    string journal_url = 9;
+    string info = 10;
+    int32 qkid = 11;
+    int64 version = 12;  // For conflict resolution
+    google.protobuf.Timestamp created_at = 13;
+    google.protobuf.Timestamp updated_at = 14;
+}
+
+message Journal {
+    int32 id = 1;
+    string name = 2;
+    string full_name = 3;
+    string level = 4;
+    string info = 5;
+    string url = 6;
+    google.protobuf.Timestamp created_at = 7;
+    google.protobuf.Timestamp updated_at = 8;
+}
+
+// ============================================
+// Health & Monitoring
+// ============================================
+
+service HealthService {
+    rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+    rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+    string service = 1;
+}
+
+message HealthCheckResponse {
+    enum ServingStatus {
+        UNKNOWN = 0;
+        SERVING = 1;
+        NOT_SERVING = 2;
+        SERVICE_UNKNOWN = 3;  // Used only by the Watch method.
+    }
+    ServingStatus status = 1;
+}
+
+// ============================================
+// Authentication (Future)
+// ============================================
+
+service AuthService {
+    rpc Login(LoginRequest) returns (LoginResponse);
+    rpc Logout(LogoutRequest) returns (LogoutResponse);
+    rpc RefreshToken(RefreshRequest) returns (RefreshResponse);
+    rpc ValidateToken(ValidateRequest) returns (ValidateResponse);
+}
+
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+    string device_id = 3;
+}
+
+message LoginResponse {
+    string access_token = 1;
+    string refresh_token = 2;
+    int32 expires_in = 3;  // seconds
+    User user = 4;
+}
+
+message LogoutRequest {
+    string refresh_token = 1;
+}
+
+message LogoutResponse {
+    bool success = 1;
+}
+
+message RefreshRequest {
+    string refresh_token = 1;
+}
+
+message RefreshResponse {
+    string access_token = 1;
+    int32 expires_in = 2;
+}
+
+message ValidateRequest {
+    string access_token = 1;
+}
+
+message ValidateResponse {
+    bool valid = 1;
+    User user = 2;
+}
+
+message User {
+    int32 id = 1;
+    string username = 2;
+    string email = 3;
+    repeated string roles = 4;
+}

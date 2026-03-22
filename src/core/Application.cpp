@@ -5,6 +5,7 @@
 #include "database/DatabaseManager.hpp"
 #include "database/PaperRepository.hpp"
 #include "database/JournalRepository.hpp"
+#include <iostream>
 #include <thread>
 #include <chrono>
 

@@ -1,39 +1,39 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
+import { createI18n } from 'vue-i18n'
 
 // Import translation files
-import zhCN from './locales/zh-CN.json';
-import enUS from './locales/en-US.json';
+import zhCN from './locales/zh-CN.json'
+import enUS from './locales/en-US.json'
 
-// Initialize i18next
-i18n
-  // Detect user language
-  .use(LanguageDetector)
-  // Pass i18n instance to react-i18next
-  .use(initReactI18next)
-  // Init i18next
-  .init({
-    resources: {
-      'zh-CN': {
-        translation: zhCN
-      },
-      'en-US': {
-        translation: enUS
-      }
-    },
-    fallbackLng: 'en-US',
-    debug: import.meta.env.DEV,
+// Get saved language or use browser language
+const getSavedLanguage = (): string => {
+  const saved = localStorage.getItem('papercrawler-language')
+  if (saved && (saved === 'zh-CN' || saved === 'en-US')) {
+    return saved
+  }
+  // Detect browser language
+  const browserLang = navigator.language
+  if (browserLang.startsWith('zh')) {
+    return 'zh-CN'
+  }
+  return 'en-US'
+}
 
-    interpolation: {
-      escapeValue: false // React already escapes values
-    },
+// Create i18n instance
+const i18n = createI18n({
+  legacy: false, // Use Composition API mode
+  locale: getSavedLanguage(),
+  fallbackLocale: 'en-US',
+  messages: {
+    'zh-CN': zhCN,
+    'en-US': enUS
+  },
+  globalInjection: true
+})
 
-    detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng',
-    }
-  });
+// Save language preference when it changes
+export const setLanguage = (lang: string) => {
+  i18n.global.locale.value = lang
+  localStorage.setItem('papercrawler-language', lang)
+}
 
-export default i18n;
+export default i18n

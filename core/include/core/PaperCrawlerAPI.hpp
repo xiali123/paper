@@ -6,6 +6,7 @@
 #include <vector>
 #include <future>
 #include <functional>
+#include <map>
 
 namespace PaperCrawler {
 

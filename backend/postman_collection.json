@@ -1,0 +1,220 @@
+{
+  "info": {
+    "name": "PaperCrawler API",
+    "description": "API collection for PaperCrawler academic paper database",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check API and database health status"
+      }
+    },
+    {
+      "name": "Search Papers",
+      "item": [
+        {
+          "name": "Basic Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/search?q=deep learning",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "deep learning"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search with Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/search?q=computer vision&year=2023&level=A&offset=0&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "computer vision"
+                },
+                {
+                  "key": "year",
+                  "value": "2023"
+                },
+                {
+                  "key": "level",
+                  "value": "A"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paper Operations",
+      "item": [
+        {
+          "name": "Get Paper by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/papers/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "papers", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Recent Papers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/papers/recent?limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "papers", "recent"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Batch Get Papers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [1, 2, 3, 45, 123]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/papers/batch",
+              "host": ["{{base_url}}"],
+              "path": ["api", "papers", "batch"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statistics",
+      "item": [
+        {
+          "name": "Overview Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stats/overview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "stats", "overview"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Export",
+      "item": [
+        {
+          "name": "Export to CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/export/csv?q=deep learning&limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["api", "export", "csv"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "deep learning"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Export to JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/export/json?q=machine learning&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "export", "json"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "machine learning"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Export to BibTeX",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/export/bibtex/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "export", "bibtex", "1"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}

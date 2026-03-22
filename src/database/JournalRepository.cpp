@@ -1,4 +1,5 @@
 #include "database/JournalRepository.hpp"
+#include "core/Logger.hpp"
 #include <sstream>
 
 namespace PaperCrawler {

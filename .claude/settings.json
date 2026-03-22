@@ -20,7 +20,26 @@
       "Bash(python3 -c \"import sys, json; data=json.load\\(sys.stdin\\); print\\(f''''Total papers: {data[\"\"total\"\"]}''''\\); print\\(f''''Returned papers: {len\\(data[\"\"papers\"\"]\\)}''''\\); print\\(f''''Keyword matched: {data[\"\"keyword\"\"]}''''\\); print\\(f''''Duration: {data[\"\"duration\"\"]}s''''\\); print\\(f''''All papers have required fields: {all\\(\"\"id\"\" in p and \"\"title\"\" in p and \"\"journal\"\" in p for p in data[\"\"papers\"\"]\\)}''''\\)\")",
       "Bash(curl -s \"http://localhost:8080/api/search?q=validation\")",
       "Read(//e/PaperCrawler/**)",
-      "Bash(ls -la *.sh *.bat)"
+      "Bash(ls -la *.sh *.bat)",
+      "Bash(git reset:*)",
+      "Bash(findstr \":5173\")",
+      "Bash(findstr \":8080\")",
+      "Read(//f/test_line/mui-demo-app/**)",
+      "Bash(npm list:*)",
+      "Bash(curl -s http://localhost:3005)",
+      "Bash(node -e \"console.log\\(JSON.parse\\(require\\(''fs''\\).readFileSync\\(''src/i18n/locales/zh-CN.json'', ''utf8''\\)\\)\\)\")",
+      "Bash(curl -s http://localhost:3006)",
+      "Bash(findstr \"5173\\\\|3006\")",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(findstr \"5173\\\\|3006\\\\|8080\")",
+      "Bash(findstr \"3000 3006 5173 8080\")",
+      "Bash(taskkill /F /PID 222132 /T)",
+      "Bash(taskkill /F /PID 243828 /T)",
+      "Bash(taskkill //F //PID 222132)",
+      "Bash(taskkill //F //PID 243828)"
+    ],
+    "additionalDirectories": [
+      "F:\\test_line\\mui-demo-app"
     ]
   }
 }

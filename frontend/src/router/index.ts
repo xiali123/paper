@@ -11,6 +11,17 @@ const routes: RouteRecordRaw[] = [
     path: '/search',
     name: 'Search',
     component: () => import('../views/Search.vue')
+  },
+  {
+    path: '/stats',
+    name: 'Stats',
+    component: () => import('../views/Stats.vue')
+  },
+  {
+    path: '/paper/:id',
+    name: 'paper-detail',
+    component: () => import('../views/PaperDetail.vue'),
+    props: true
   }
 ]
 

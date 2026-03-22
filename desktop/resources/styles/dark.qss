@@ -1,0 +1,237 @@
+/*
+ * PaperCrawler Desktop - Dark Theme
+ * Elegant dark mode matching web frontend
+ */
+
+/* Main Window - Gradient Background */
+QMainWindow {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #111827, stop:1 #1f2937);
+}
+
+/* Central Widget */
+QWidget {
+    background-color: transparent;
+    color: #f3f4f6;
+    font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+    font-size: 10pt;
+}
+
+/* Modern Card - Glass Morphism */
+.ModernCard {
+    background-color: rgba(31, 41, 55, 0.95);
+    border-radius: 15px;
+    border: 1px solid #374151;
+}
+
+/* Push Button - Gradient Style */
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #7c3aed, stop:1 #9333ea);
+    color: white;
+    border-radius: 10px;
+    border: none;
+    padding: 10px 24px;
+    font-weight: 600;
+    font-size: 11pt;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #9333ea, stop:1 #7c3aed);
+}
+
+QPushButton:pressed {
+    padding: 8px 22px;
+}
+
+/* Line Edit - Search Box */
+QLineEdit {
+    background-color: rgba(31, 41, 55, 0.95);
+    border: 2px solid #374151;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 11pt;
+    color: #f3f4f6;
+}
+
+QLineEdit:focus {
+    border: 2px solid #8b5cf6;
+    background-color: rgba(55, 65, 81, 0.95);
+}
+
+/* Table View - Results */
+QTableView {
+    background-color: rgba(31, 41, 55, 0.95);
+    alternate-background-color: #374151;
+    gridline-color: transparent;
+    border: none;
+    border-radius: 15px;
+    selection-background-color: rgba(139, 92, 246, 0.3);
+    selection-color: #f3f4f6;
+}
+
+QTableView::item {
+    border: none;
+    padding: 12px 8px;
+    border-bottom: 1px solid #4b5563;
+}
+
+QTableView::item:hover {
+    background-color: rgba(139, 92, 246, 0.1);
+}
+
+QTableView::item:selected {
+    background-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Header View */
+QHeaderView::section {
+    background-color: #374151;
+    color: #d1d5db;
+    padding: 16px 12px;
+    border: none;
+    border-bottom: 2px solid #4b5563;
+    font-weight: 700;
+    font-size: 10pt;
+}
+
+/* Scroll Bar */
+QScrollBar:vertical {
+    background-color: #374151;
+    width: 12px;
+    border-radius: 6px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #4b5563;
+    border-radius: 6px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #6b7280;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+/* Label */
+QLabel {
+    color: #d1d5db;
+    background: transparent;
+}
+
+/* Progress Bar */
+QProgressBar {
+    background-color: #374151;
+    border: none;
+    border-radius: 8px;
+    text-align: center;
+    color: #f3f4f6;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #7c3aed, stop:1 #9333ea);
+    border-radius: 8px;
+}
+
+/* Menu Bar */
+QMenuBar {
+    background-color: rgba(31, 41, 55, 0.95);
+    border: none;
+    color: #f3f4f6;
+}
+
+QMenuBar::item {
+    padding: 8px 16px;
+    border-radius: 6px;
+}
+
+QMenuBar::item:selected {
+    background-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Menu */
+QMenu {
+    background-color: rgba(31, 41, 55, 0.98);
+    border: 1px solid #4b5563;
+    border-radius: 10px;
+    padding: 8px;
+}
+
+QMenu::item {
+    padding: 8px 24px;
+    border-radius: 6px;
+}
+
+QMenu::item:selected {
+    background-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Status Bar */
+QStatusBar {
+    background-color: rgba(31, 41, 55, 0.95);
+    color: #d1d5db;
+    border: none;
+    border-top: 1px solid #4b5563;
+}
+
+/* Tool Bar */
+QToolBar {
+    background-color: rgba(31, 41, 55, 0.95);
+    border: none;
+    spacing: 8px;
+    padding: 8px;
+    border-radius: 10px;
+    margin: 4px;
+}
+
+QToolButton {
+    background-color: transparent;
+    border-radius: 8px;
+    padding: 8px 16px;
+}
+
+QToolButton:hover {
+    background-color: rgba(139, 92, 246, 0.2);
+}
+
+/* CCF Level Badges - Dark Mode */
+.level-a {
+    background-color: #b91c1c;
+    color: #fee2e2;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+.level-b {
+    background-color: #b45309;
+    color: #ffedd5;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+.level-c {
+    background-color: #4b5563;
+    color: #f3f4f6;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+/* Splitter */
+QSplitter::handle {
+    background-color: #374151;
+    width: 1px;
+}
+
+QSplitter::handle:hover {
+    background-color: #4b5563;
+}

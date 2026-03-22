@@ -1,6 +1,7 @@
 #include "database/ConnectionPool.hpp"
 #include "core/Exception.hpp"
-#include <mysql/mysql.h>
+#include "core/Logger.hpp"
+#include <mysql.h>
 #include <thread>
 #include <algorithm>
 

@@ -93,7 +93,7 @@ private:
      * @param key Configuration key
      * @return Pointer to JSON object, or nullptr if not found
      */
-    nlohmann::json* getByPath(const std::string& key);
+    const nlohmann::json* getByPath(const std::string& key) const;
 
     nlohmann::json config_;
     mutable std::mutex mutex_;

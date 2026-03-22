@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/styles">
+        <file>styles/modern.qss</file>
+        <file>styles/dark.qss</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file>icons/check.svg</file>
+        <file>icons/arrow-down.svg</file>
+        <file>icons/search.svg</file>
+        <file>icons/close.svg</file>
+        <file>icons/dock.svg</file>
+        <file>icons/undock.svg</file>
+    </qresource>
+</RCC>

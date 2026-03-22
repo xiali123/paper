@@ -189,6 +189,9 @@ void ApiManager::onSearchReply() {
     qDebug() << "Error String:" << reply->errorString();
     qDebug() << "HTTP Status:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 
+    // Prevent memory leaks - ensure we clean up
+    reply->deleteLater();
+
     if (reply->error() == QNetworkReply::NoError) {
         QByteArray data = reply->readAll();
         QJsonParseError parseError;
@@ -196,7 +199,6 @@ void ApiManager::onSearchReply() {
 
         if (parseError.error != QJsonParseError::NoError) {
             emit searchFailed("JSON解析错误: " + parseError.errorString());
-            reply->deleteLater();
             searchReply_ = nullptr;
             return;
         }
@@ -241,7 +243,6 @@ void ApiManager::onSearchReply() {
         emit searchFailed("网络错误: " + errorMsg);
     }
 
-    reply->deleteLater();
     searchReply_ = nullptr;
 }
 

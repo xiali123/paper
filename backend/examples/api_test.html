@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaperCrawler API Test Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .response {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .response pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .endpoint-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .endpoint-card {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .endpoint-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .endpoint-card.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .endpoint-card .method {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .endpoint-card .path {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 PaperCrawler API Test Console</h1>
+            <p>Interactive testing interface for the PaperCrawler REST API</p>
+        </div>
+
+        <div class="content">
+            <div id="status" class="status loading">
+                <span>⏳</span>
+                <span>Connecting to API...</span>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="section">
+                <h2 class="section-title">Quick Actions</h2>
+                <div class="endpoint-list">
+                    <div class="endpoint-card" onclick="testEndpoint('health')">
+                        <span class="method">GET</span>
+                        <div class="path">/health</div>
+                    </div>
+                    <div class="endpoint-card" onclick="testEndpoint('search')">
+                        <span class="method">GET</span>
+                        <div class="path">/api/search</div>
+                    </div>
+                    <div class="endpoint-card" onclick="testEndpoint('stats')">
+                        <span class="method">GET</span>
+                        <div class="path">/api/stats/overview</div>
+                    </div>
+                    <div class="endpoint-card" onclick="testEndpoint('recent')">
+                        <span class="method">GET</span>
+                        <div class="path">/api/papers/recent</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Form -->
+            <div class="section">
+                <h2 class="section-title">🔍 Search Papers</h2>
+                <div class="row">
+                    <div class="form-group">
+                        <label>Keyword</label>
+                        <input type="text" id="search-keyword" placeholder="e.g., deep learning">
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <input type="text" id="search-year" placeholder="e.g., 2023">
+                    </div>
+                    <div class="form-group">
+                        <label>Level</label>
+                        <select id="search-level">
+                            <option value="">All</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Limit</label>
+                        <input type="number" id="search-limit" value="10" min="1" max="100">
+                    </div>
+                </div>
+                <button onclick="searchPapers()">Search</button>
+            </div>
+
+            <!-- Get Paper -->
+            <div class="section">
+                <h2 class="section-title">📄 Get Paper by ID</h2>
+                <div class="row">
+                    <div class="form-group">
+                        <label>Paper ID</label>
+                        <input type="number" id="paper-id" value="1" min="1">
+                    </div>
+                </div>
+                <button onclick="getPaper()">Get Paper</button>
+            </div>
+
+            <!-- Statistics -->
+            <div class="section">
+                <h2 class="section-title">📊 Statistics</h2>
+                <button onclick="getStatistics()">Load Statistics</button>
+                <div id="stats-display" class="stats-grid" style="margin-top: 15px; display: none;"></div>
+            </div>
+
+            <!-- Export -->
+            <div class="section">
+                <h2 class="section-title">📥 Export Data</h2>
+                <div class="row">
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="export-format">
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Keyword</label>
+                        <input type="text" id="export-keyword" placeholder="e.g., machine learning">
+                    </div>
+                    <div class="form-group">
+                        <label>Limit</label>
+                        <input type="number" id="export-limit" value="100" min="1" max="10000">
+                    </div>
+                </div>
+                <button onclick="exportData()">Export</button>
+            </div>
+
+            <!-- Response Display -->
+            <div class="section">
+                <h2 class="section-title">📋 Response</h2>
+                <div class="response">
+                    <pre id="response-display">// Response will appear here...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+
+        // Update status
+        function updateStatus(type, message) {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+
+            const icons = {
+                success: '✅',
+                error: '❌',
+                loading: '⏳'
+            };
+
+            status.innerHTML = `<span>${icons[type]}</span><span>${message}</span>`;
+        }
+
+        // Display response
+        function displayResponse(data) {
+            const display = document.getElementById('response-display');
+            display.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // API call helper
+        async function apiCall(endpoint, options = {}) {
+            try {
+                updateStatus('loading', 'Loading...');
+
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+
+                if (data.success || data.status === 'healthy') {
+                    updateStatus('success', 'Request successful');
+                    return data;
+                } else {
+                    updateStatus('error', 'Request failed');
+                    return data;
+                }
+            } catch (error) {
+                updateStatus('error', `Error: ${error.message}`);
+                return { error: error.message };
+            }
+        }
+
+        // Test endpoints
+        async function testEndpoint(type) {
+            let endpoint;
+            switch(type) {
+                case 'health':
+                    endpoint = '/health';
+                    break;
+                case 'search':
+                    endpoint = '/api/search?q=deep+learning&limit=5';
+                    break;
+                case 'stats':
+                    endpoint = '/api/stats/overview';
+                    break;
+                case 'recent':
+                    endpoint = '/api/papers/recent?limit=5';
+                    break;
+            }
+
+            const data = await apiCall(endpoint);
+            displayResponse(data);
+        }
+
+        // Search papers
+        async function searchPapers() {
+            const keyword = document.getElementById('search-keyword').value;
+            const year = document.getElementById('search-year').value;
+            const level = document.getElementById('search-level').value;
+            const limit = document.getElementById('search-limit').value;
+
+            const params = new URLSearchParams({
+                q: keyword,
+                year,
+                level,
+                limit
+            });
+
+            const data = await apiCall(`/api/search?${params}`);
+            displayResponse(data);
+        }
+
+        // Get paper by ID
+        async function getPaper() {
+            const id = document.getElementById('paper-id').value;
+            const data = await apiCall(`/api/papers/${id}`);
+            displayResponse(data);
+        }
+
+        // Get statistics
+        async function getStatistics() {
+            const data = await apiCall('/api/stats/overview');
+            displayResponse(data);
+
+            if (data.data) {
+                const stats = data.data;
+                const display = document.getElementById('stats-display');
+                display.style.display = 'grid';
+                display.innerHTML = `
+                    <div class="stat-card">
+                        <div class="value">${stats.total_papers}</div>
+                        <div class="label">Total Papers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">${stats.total_journals}</div>
+                        <div class="label">Journals</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">${stats.top_tier_papers}</div>
+                        <div class="label">Top-tier Papers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">${stats.papers_last_year}</div>
+                        <div class="label">Last Year</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Export data
+        async function exportData() {
+            const format = document.getElementById('export-format').value;
+            const keyword = document.getElementById('export-keyword').value;
+            const limit = document.getElementById('export-limit').value;
+
+            const params = new URLSearchParams({
+                q: keyword,
+                limit
+            });
+
+            const url = `${API_BASE}/api/export/${format}?${params}`;
+
+            try {
+                updateStatus('loading', 'Downloading...');
+
+                const response = await fetch(url);
+                const blob = await response.blob();
+
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `papers.${format}`;
+                a.click();
+
+                updateStatus('success', 'Download complete');
+            } catch (error) {
+                updateStatus('error', `Download failed: ${error.message}`);
+            }
+        }
+
+        // Check health on load
+        window.addEventListener('DOMContentLoaded', () => {
+            testEndpoint('health');
+        });
+    </script>
+</body>
+</html>

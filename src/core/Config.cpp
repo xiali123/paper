@@ -29,7 +29,7 @@ void Config::load(const std::string& path) {
 std::string Config::get(const std::string& key, const std::string& defaultValue) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    nlohmann::json* value = getByPath(key);
+    const nlohmann::json* value = getByPath(key);
     if (value && value->is_string()) {
         return value->get<std::string>();
     }
@@ -39,7 +39,7 @@ std::string Config::get(const std::string& key, const std::string& defaultValue)
 int Config::getInt(const std::string& key, int defaultValue) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    nlohmann::json* value = getByPath(key);
+    const nlohmann::json* value = getByPath(key);
     if (value && value->is_number_integer()) {
         return value->get<int>();
     }
@@ -49,7 +49,7 @@ int Config::getInt(const std::string& key, int defaultValue) {
 bool Config::getBool(const std::string& key, bool defaultValue) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    nlohmann::json* value = getByPath(key);
+    const nlohmann::json* value = getByPath(key);
     if (value && value->is_boolean()) {
         return value->get<bool>();
     }
@@ -59,7 +59,7 @@ bool Config::getBool(const std::string& key, bool defaultValue) {
 double Config::getDouble(const std::string& key, double defaultValue) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    nlohmann::json* value = getByPath(key);
+    const nlohmann::json* value = getByPath(key);
     if (value && value->is_number()) {
         return value->get<double>();
     }
@@ -107,7 +107,7 @@ void Config::save(const std::string& path) {
     }
 }
 
-nlohmann::json* Config::getByPath(const std::string& key) {
+const nlohmann::json* Config::getByPath(const std::string& key) const {
     std::vector<std::string> parts;
     std::stringstream ss(key);
     std::string part;
@@ -116,7 +116,7 @@ nlohmann::json* Config::getByPath(const std::string& key) {
         parts.push_back(part);
     }
 
-    nlohmann::json* current = &config_;
+    const nlohmann::json* current = &config_;
     for (const auto& p : parts) {
         if (!current->contains(p)) {
             return nullptr;

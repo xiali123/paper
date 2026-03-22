@@ -4,7 +4,7 @@
       v-model="currentLanguage"
       @change="changeLanguage(currentLanguage)"
       class="language-select"
-      :title="$t('settings.language')"
+      title="Switch Language"
     >
       <option value="zh-CN">🇨🇳 中文</option>
       <option value="en-US">🇺🇸 English</option>
@@ -13,10 +13,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useTranslation } from '@/i18n/react-i18n';
+import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-const { currentLanguage, changeLanguage } = useTranslation();
+const { locale } = useI18n()
+const currentLanguage = ref(locale.value)
+
+// Watch for locale changes and update select
+watch(locale, (newLocale) => {
+  currentLanguage.value = newLocale
+  // Save to localStorage
+  localStorage.setItem('papercrawler-language', newLocale)
+})
+
+const changeLanguage = (lang: string) => {
+  locale.value = lang
+  localStorage.setItem('papercrawler-language', lang)
+}
 </script>
 
 <style scoped>
@@ -32,7 +45,7 @@ const { currentLanguage, changeLanguage } = useTranslation();
   color: var(--color-text-primary, #1f2937);
   font-size: 14px;
   cursor: pointer;
-  transition: all var(--transition-normal, 0.3s);
+  transition: all 0.3s;
 }
 
 .language-select:hover {

@@ -170,8 +170,16 @@ Paper PaperCrawlerAPI::getPaper(int id) {
 }
 
 std::vector<Paper> PaperCrawlerAPI::getPapers(const std::string& keyword, int offset, int limit) {
-    std::string sql = "SELECT * FROM cspaper WHERE type = '" +
-                      DatabaseManager::getInstance().escape(keyword) + "'";
+    std::string sql;
+
+    if (keyword.empty()) {
+        // If no keyword, return all papers (sorted by id)
+        sql = "SELECT * FROM cspaper ORDER BY id";
+    } else {
+        // Search in title field (using LIKE for partial matching)
+        std::string escapedKeyword = DatabaseManager::getInstance().escape(keyword);
+        sql = "SELECT * FROM cspaper WHERE title LIKE '%" + escapedKeyword + "%' ORDER BY id";
+    }
 
     if (limit > 0) {
         sql += " LIMIT " + std::to_string(limit);

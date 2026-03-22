@@ -1,0 +1,231 @@
+/**
+ * PaperCrawler Desktop Sync Manager
+ * Handles bidirectional synchronization between local SQLite and remote server
+ */
+
+#pragma once
+
+#include <QObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QTimer>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QQueue>
+#include <memory>
+// #include "storage/LocalDatabase.hpp" // TODO: Implement local database
+
+namespace PaperCrawler {
+namespace Desktop {
+
+/**
+ * @brief Sync operation types
+ */
+enum class SyncOperationType {
+    Create,
+    Update,
+    Delete
+};
+
+/**
+ * @brief Single sync operation
+ */
+struct SyncOperation {
+    SyncOperationType type;
+    QString entityType;  // "paper", "journal"
+    int entityId;
+    QJsonObject data;
+    qint64 version;
+    QDateTime timestamp;
+};
+
+/**
+ * @brief Sync status
+ */
+enum class SyncStatus {
+    Disconnected,
+    Connecting,
+    Connected,
+    Syncing,
+    Error
+};
+
+/**
+ * @brief Sync result
+ */
+struct SyncResult {
+    bool success;
+    QString errorMessage;
+    int papersCreated;
+    int papersUpdated;
+    int papersDeleted;
+    int conflictsDetected;
+    qint64 newVersion;
+};
+
+/**
+ * @brief Conflict resolution strategy
+ */
+enum class ConflictResolution {
+    LocalWins,      // Keep local version
+    RemoteWins,     // Use remote version
+    Manual,         // Ask user to decide
+    Merge           // Automatic merge (if possible)
+};
+
+/**
+ * @brief Synchronization manager for desktop application
+ *
+ * Manages bidirectional sync between local SQLite database and remote server.
+ * Handles conflict detection and resolution, offline queuing, and retry logic.
+ */
+class SyncManager : public QObject {
+    Q_OBJECT
+
+public:
+    explicit SyncManager(QObject* parent = nullptr);
+    virtual ~SyncManager();
+
+    /**
+     * @brief Initialize sync manager
+     * @param deviceId Unique device identifier
+     * @param apiUrl API base URL
+     */
+    void initialize(const QString& deviceId, const QString& apiUrl);
+
+    /**
+     * @brief Start synchronization
+     */
+    void startSync();
+
+    /**
+     * @brief Push local changes to server
+     */
+    void pushChanges();
+
+    /**
+     * @brief Check network connectivity
+     */
+    bool isOnline() const;
+
+    /**
+     * @brief Get current sync status
+     */
+    SyncStatus getStatus() const { return status_; }
+
+    /**
+     * @brief Get last sync time
+     */
+    QDateTime getLastSyncTime() const { return lastSyncTime_; }
+
+    /**
+     * @brief Get last sync version
+     */
+    qint64 getLastSyncVersion() const { return lastSyncVersion_; }
+
+    /**
+     * @brief Get pending changes count
+     */
+    int getPendingChangesCount() const { return syncQueue_.size(); }
+
+    /**
+     * @brief Enable/disable auto-sync
+     */
+    void setAutoSync(bool enabled);
+
+    /**
+     * @brief Set sync interval (milliseconds)
+     */
+    void setSyncInterval(int milliseconds);
+
+signals:
+    /**
+     * @brief Emitted when sync starts
+     */
+    void syncStarted();
+
+    /**
+     * @brief Emitted when sync completes
+     * @param result Sync result
+     */
+    void syncCompleted(const SyncResult& result);
+
+    /**
+     * @brief Emitted when sync fails
+     * @param error Error message
+     */
+    void syncFailed(const QString& error);
+
+    /**
+     * @brief Emitted when status changes
+     * @param status New status
+     */
+    void statusChanged(SyncStatus status);
+
+    /**
+     * @brief Emitted when conflict is detected
+     * @param conflictId Conflict identifier
+     * @param localData Local version data
+     * @param remoteData Remote version data
+     */
+    void conflictDetected(const QString& conflictId,
+                         const QJsonObject& localData,
+                         const QJsonObject& remoteData);
+
+    /**
+     * @brief Emitted when progress updates
+     * @param current Current value
+     * @param total Total value
+     * @param message Progress message
+     */
+    void progressUpdated(int current, int total, const QString& message);
+
+private slots:
+    void onSyncFinished(QNetworkReply* reply);
+    void onPushFinished(QNetworkReply* reply);
+    void onNetworkError(QNetworkReply::NetworkError error);
+    void onSyncTimer();
+    void onConnectivityChanged();
+
+private:
+    // Network
+    QNetworkAccessManager* networkManager_;
+    QString deviceId_;
+    QString apiUrl_;
+
+    // State
+    SyncStatus status_;
+    QDateTime lastSyncTime_;
+    qint64 lastSyncVersion_;
+    QQueue<SyncOperation> syncQueue_;
+
+    // Auto-sync
+    QTimer* syncTimer_;
+    bool autoSyncEnabled_;
+    int syncInterval_;
+
+    // Local database
+    // std::unique_ptr<LocalDatabase> localDb_; // TODO: Implement local database
+
+    // Helper methods
+    QNetworkRequest createRequest(const QString& endpoint);
+    void applyNewPapers(const QJsonArray& papers);
+    void applyUpdatedPapers(const QJsonArray& papers);
+    void applyDeletedPapers(const QJsonArray& paperIds);
+    void detectConflicts(const QJsonObject& remoteData);
+    void queueOperation(const SyncOperation& operation);
+    void setStatus(SyncStatus status);
+    void emitProgress(int current, int total, const QString& message);
+    void retryPendingOperations();
+
+    // JSON serialization
+    QJsonObject operationToJson(const SyncOperation& op) const;
+    SyncOperation operationFromJson(const QJsonObject& json) const;
+
+    // Conflict resolution
+    QJsonObject mergePapers(const QJsonObject& local, const QJsonObject& remote) const;
+    bool canAutoMerge(const QJsonObject& local, const QJsonObject& remote) const;
+};
+
+} // namespace Desktop
+} // namespace PaperCrawler

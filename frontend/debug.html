@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 3px solid #667eea;
+        }
+        h1 { color: #667eea; }
+        .success { color: green; font-weight: bold; font-size: 20px; }
+        .warning { color: orange; font-weight: bold; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 页面调试工具</h1>
+
+    <div class="test-section">
+        <h2>测试1: 静态HTML渲染</h2>
+        <p class="success">✅ 如果你能看到这段文字，说明浏览器可以正常渲染HTML</p>
+    </div>
+
+    <div class="test-section">
+        <h2>测试2: CSS样式加载</h2>
+        <p class="success" style="background: yellow; padding: 10px;">
+            ✅ 这段文字有黄色背景，说明CSS样式正常工作
+        </p>
+    </div>
+
+    <div class="test-section">
+        <h2>测试3: 中文显示</h2>
+        <p>学术论文检索平台 - 论文搜索 - 统计分析 - 数据导出 - 高性能</p>
+    </div>
+
+    <div class="test-section">
+        <h2>测试4: 功能卡片样式测试</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
+            <div style="background: #f9fafb; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #667eea;">
+                <div style="font-size: 48px;">🔍</div>
+                <h3 style="color: #1f2937;">论文搜索</h3>
+                <p style="color: #6b7280;">从DBLP数据库快速检索学术论文</p>
+            </div>
+            <div style="background: #f9fafb; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #667eea;">
+                <div style="font-size: 48px;">📊</div>
+                <h3 style="color: #1f2937;">统计分析</h3>
+                <p style="color: #6b7280;">期刊分布、年度趋势分析</p>
+            </div>
+            <div style="background: #f9fafb; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #667eea;">
+                <div style="font-size: 48px;">📥</div>
+                <h3 style="color: #1f2937;">数据导出</h3>
+                <p style="color: #6b7280;">支持CSV、JSON、BibTeX格式</p>
+            </div>
+            <div style="background: #f9fafb; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #667eea;">
+                <div style="font-size: 48px;">⚡</div>
+                <h3 style="color: #1f2937;">高性能</h3>
+                <p style="color: #6b7280;">C++实现，性能提升10-100倍</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>下一步操作</h2>
+        <ol>
+            <li>如果上面的内容都正常显示，说明浏览器和CSS都没问题</li>
+            <li>打开Vue应用: <a href="http://localhost:5177/" target="_blank" style="color: #667eea; font-weight: bold;">http://localhost:5177/</a></li>
+            <li>按F12打开开发者工具，查看控制台是否有错误</li>
+            <li>在Elements标签页中搜索"features-section"或"核心功能"</li>
+            <li>告诉我是否在DOM中找到了这些元素</li>
+        </ol>
+    </div>
+</body>
+</html>

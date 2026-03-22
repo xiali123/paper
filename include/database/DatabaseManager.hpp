@@ -67,7 +67,7 @@ public:
      */
     void connect(const std::string& host, const std::string& user,
                  const std::string& password, const std::string& database,
-                 int port = 3306, const PoolConfig& poolConfig = PoolConfig());
+                 int port = 3306, const PoolConfig& poolConfig = PoolConfig{2, 10, 30, 300});
 
     /**
      * @brief Disconnect from database

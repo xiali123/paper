@@ -10,6 +10,7 @@
 #include <QStandardItemModel>
 #include <memory>
 #include <QPointer>
+#include "PaperCardView.hpp"
 
 // Forward declarations
 class SearchWidget;
@@ -19,8 +20,10 @@ class FilterPanel;
 class ThemeManager;
 class HeroWidget;
 class FeatureCards;
-class PaperCardView;
 class ApiManager;
+class PaperCache;
+class LocalDatabase;
+class ExportManager;
 class QAction;
 class QMenu;
 class QToolBar;
@@ -30,6 +33,26 @@ class QPushButton;
 // Forward declarations for API types
 struct SearchResult;
 struct ApiPaper;
+
+// Forward declarations for database types
+struct DbPaper;
+struct DbSearchResult;
+
+// Export format enum
+enum class ExportFormat {
+    CSV,
+    BibTeX,
+    JSON,
+    PDF
+};
+
+// Forward declarations for API types
+struct SearchResult;
+struct ApiPaper;
+
+// Forward declarations for database types
+struct DbPaper;
+struct DbSearchResult;
 
 /**
  * @brief Main application window for PaperCrawler desktop client
@@ -55,7 +78,7 @@ protected:
 private slots:
     void onSearch(const QString& keyword);
     void onPaperSelected(int paperId);
-    void onExport();
+    void onExport(ExportFormat format = ExportFormat::CSV);
     void onPreferences();
     void onToggleTheme();
     void onShowStatistics();
@@ -67,6 +90,13 @@ private slots:
     void onHealthCheckSuccess(bool healthy, const QString& message);
     void onNetworkError(const QString& error);
 
+    // Pagination slot
+    void onPageChanged(int offset, int limit);
+
+    // Database slots
+    void onPaperAdded(int paperId);
+    void onDatabaseError(const QString& error);
+
 private:
     void setupUI();
     void createMenus();
@@ -76,7 +106,7 @@ private:
     void loadSettings();
     void saveSettings();
 
-    // UI Components
+    // UI Components (children of MainWindow, auto-deleted)
     HeroWidget* heroWidget_{nullptr};
     FeatureCards* featureCards_{nullptr};
     SearchWidget* searchWidget_{nullptr};
@@ -84,10 +114,13 @@ private:
     ResultView* tableView_{nullptr};
     ProgressView* progressView_{nullptr};
     FilterPanel* filterPanel_{nullptr};
-    QPointer<ThemeManager> themeManager_;
 
-    // API Manager
+    // Core managers (explicitly deleted in destructor)
+    ThemeManager* themeManager_{nullptr};
     ApiManager* apiManager_{nullptr};
+    PaperCache* paperCache_{nullptr};
+    LocalDatabase* localDb_{nullptr};
+    ExportManager* exportManager_{nullptr};
 
     // Actions
     QAction* searchAction_{nullptr};
@@ -99,4 +132,10 @@ private:
 
     // State
     bool darkMode_{false};
+
+    // Search & Pagination state
+    QString currentKeyword_;
+    int currentOffset_{0};
+    int currentLimit_{20};
+    int totalResults_{0};
 };

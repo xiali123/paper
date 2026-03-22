@@ -1,0 +1,431 @@
+/**
+ * PaperCrawler Desktop Sync Manager Implementation
+ */
+
+#include "SyncManager.hpp"
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QNetworkRequest>
+#include <QTimer>
+#include <QDateTime>
+#include <QSettings>
+#include <QDebug>
+
+namespace PaperCrawler {
+namespace Desktop {
+
+SyncManager::SyncManager(QObject* parent)
+    : QObject(parent)
+    , networkManager_(new QNetworkAccessManager(this))
+    , status_(SyncStatus::Disconnected)
+    , lastSyncVersion_(0)
+    , autoSyncEnabled_(true)
+    , syncInterval_(300000)  // 5 minutes
+    , syncTimer_(new QTimer(this))
+    , localDb_(std::make_unique<LocalDatabase>())
+{
+    // Connect signals
+    connect(networkManager_, &QNetworkAccessManager::finished,
+            this, &SyncManager::onSyncFinished);
+
+    connect(syncTimer_, &QTimer::timeout,
+            this, &SyncManager::onSyncTimer);
+
+    // Load last sync state from settings
+    QSettings settings;
+    lastSyncVersion_ = settings.value("sync/last_version", 0).toLongLong();
+    lastSyncTime_ = settings.value("sync/last_time").toDateTime();
+
+    qDebug() << "[Sync] Initialized with version:" << lastSyncVersion_;
+}
+
+SyncManager::~SyncManager() {
+    // Save state
+    QSettings settings;
+    settings.setValue("sync/last_version", lastSyncVersion_);
+    settings.setValue("sync/last_time", lastSyncTime_);
+
+    if (syncTimer_->isActive()) {
+        syncTimer_->stop();
+    }
+}
+
+void SyncManager::initialize(const QString& deviceId, const QString& apiUrl) {
+    deviceId_ = deviceId;
+    apiUrl_ = apiUrl;
+
+    // Open local database
+    if (!localDb_->open()) {
+        qWarning() << "[Sync] Failed to open local database";
+        return;
+    }
+
+    // Load pending operations from database
+    loadPendingOperations();
+
+    qDebug() << "[Sync] Initialized device:" << deviceId << "API:" << apiUrl;
+}
+
+void SyncManager::startSync() {
+    if (!isOnline()) {
+        qDebug() << "[Sync] Offline, skipping sync";
+        setStatus(SyncStatus::Disconnected);
+        return;
+    }
+
+    if (status_ == SyncStatus::Syncing) {
+        qDebug() << "[Sync] Already syncing";
+        return;
+    }
+
+    qDebug() << "[Sync] Starting sync from version:" << lastSyncVersion_;
+    setStatus(SyncStatus::Syncing);
+    emit syncStarted();
+
+    // Prepare sync request
+    QJsonObject payload;
+    payload["device_id"] = deviceId_;
+    payload["last_sync_version"] = static_cast<qint64>(lastSyncVersion_);
+    payload["client_version"] = "2.0.0";
+    payload["subscribed_channels"] = QJsonArray{"papers", "stats"};
+
+    QJsonDocument doc(payload);
+    QByteArray data = doc.toJson(QJsonDocument::Compact);
+
+    // Send request
+    QNetworkRequest request = createRequest("/api/v1/sync");
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QNetworkReply* reply = networkManager_->post(request, data);
+    connect(reply, &QNetworkReply::errorOccurred,
+            this, &SyncManager::onNetworkError);
+
+    emitProgress(0, 100, "Syncing with server...");
+}
+
+void SyncManager::pushChanges() {
+    if (syncQueue_.isEmpty()) {
+        qDebug() << "[Sync] No changes to push";
+        return;
+    }
+
+    qDebug() << "[Sync] Pushing" << syncQueue_.size() << "changes";
+
+    // Convert operations to JSON
+    QJsonArray operations;
+    for (const auto& op : syncQueue_) {
+        operations.append(operationToJson(op));
+    }
+
+    QJsonObject payload;
+    payload["device_id"] = deviceId_;
+    payload["changes"] = operations;
+    payload["client_version"] = static_cast<qint64>(lastSyncVersion_);
+
+    QJsonDocument doc(payload);
+    QByteArray data = doc.toJson(QJsonDocument::Compact);
+
+    // Send request
+    QNetworkRequest request = createRequest("/api/v1/sync/push");
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QNetworkReply* reply = networkManager_->post(request, data);
+    connect(reply, &QNetworkReply::errorOccurred,
+            this, &SyncManager::onNetworkError);
+}
+
+bool SyncManager::isOnline() const {
+    // Simple connectivity check
+    // In production, use QNetworkConfigurationManager
+    return true;  // Placeholder
+}
+
+void SyncManager::setAutoSync(bool enabled) {
+    autoSyncEnabled_ = enabled;
+
+    if (enabled && !syncTimer_->isActive()) {
+        syncTimer_->start(syncInterval_);
+    } else if (!enabled && syncTimer_->isActive()) {
+        syncTimer_->stop();
+    }
+
+    qDebug() << "[Sync] Auto-sync:" << (enabled ? "enabled" : "disabled");
+}
+
+void SyncManager::setSyncInterval(int milliseconds) {
+    syncInterval_ = milliseconds;
+
+    if (syncTimer_->isActive()) {
+        syncTimer_->setInterval(milliseconds);
+    }
+
+    qDebug() << "[Sync] Sync interval:" << milliseconds << "ms";
+}
+
+void SyncManager::onSyncFinished(QNetworkReply* reply) {
+    SyncResult result;
+    result.success = false;
+    result.papersCreated = 0;
+    result.papersUpdated = 0;
+    result.papersDeleted = 0;
+    result.conflictsDetected = 0;
+    result.newVersion = lastSyncVersion_;
+
+    if (reply->error() != QNetworkReply::NoError) {
+        result.errorMessage = reply->errorString();
+        qWarning() << "[Sync] Sync failed:" << result.errorMessage;
+
+        setStatus(SyncStatus::Error);
+        emit syncFailed(result.errorMessage);
+
+        // Retry if temporary error
+        if (reply->error() == QNetworkReply::TemporaryNetworkFailureError ||
+            reply->error() == QNetworkReply::NetworkSessionFailedError) {
+            QTimer::singleShot(5000, this, &SyncManager::startSync);
+        }
+
+        reply->deleteLater();
+        return;
+    }
+
+    // Parse response
+    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    if (!doc.isObject()) {
+        result.errorMessage = "Invalid response format";
+        qWarning() << "[Sync]" << result.errorMessage;
+
+        setStatus(SyncStatus::Error);
+        emit syncFailed(result.errorMessage);
+        reply->deleteLater();
+        return;
+    }
+
+    QJsonObject response = doc.object();
+
+    // Apply changes
+    applyNewPapers(response["new_papers"].toArray());
+    applyUpdatedPapers(response["updated_papers"].toArray());
+    applyDeletedPapers(response["deleted_ids"].toArray());
+
+    // Update version
+    lastSyncVersion_ = response["current_version"].toVariant().toLongLong();
+    lastSyncTime_ = QDateTime::currentDateTime();
+    result.newVersion = lastSyncVersion_;
+
+    result.success = true;
+    setStatus(SyncStatus::Connected);
+    emit syncCompleted(result);
+
+    // Push local changes
+    if (!syncQueue_.isEmpty()) {
+        pushChanges();
+    }
+
+    reply->deleteLater();
+}
+
+void SyncManager::onPushFinished(QNetworkReply* reply) {
+    if (reply->error() != QNetworkReply::NoError) {
+        qWarning() << "[Sync] Push failed:" << reply->errorString();
+        reply->deleteLater();
+        return;
+    }
+
+    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    QJsonObject response = doc.object();
+
+    int applied = response["changes_applied"].toInt();
+    int rejected = response["changes_rejected"].toInt();
+
+    qDebug() << "[Sync] Push result: applied=" << applied << "rejected=" << rejected;
+
+    // Clear applied operations
+    if (applied > 0) {
+        for (int i = 0; i < applied && !syncQueue_.isEmpty(); ++i) {
+            syncQueue_.dequeue();
+        }
+    }
+
+    lastSyncVersion_ = response["new_version"].toVariant().toLongLong();
+
+    reply->deleteLater();
+}
+
+void SyncManager::onNetworkError(QNetworkReply::NetworkError error) {
+    qWarning() << "[Sync] Network error:" << error;
+
+    if (error == QNetworkReply::ConnectionRefusedError ||
+        error == QNetworkReply::HostNotFoundError) {
+        setStatus(SyncStatus::Disconnected);
+    }
+}
+
+void SyncManager::onSyncTimer() {
+    if (autoSyncEnabled_ && isOnline()) {
+        startSync();
+    }
+}
+
+void SyncManager::applyNewPapers(const QJsonArray& papers) {
+    int count = 0;
+
+    for (const auto& value : papers) {
+        QJsonObject paper = value.toObject();
+        int id = paper["id"].toInt();
+
+        // Insert into local database
+        if (localDb_->insertPaper(paper)) {
+            count++;
+            qDebug() << "[Sync] New paper:" << id;
+        }
+    }
+
+    emitProgress(30, 100, QString("Added %1 new papers").arg(count));
+}
+
+void SyncManager::applyUpdatedPapers(const QJsonArray& papers) {
+    int count = 0;
+
+    for (const auto& value : papers) {
+        QJsonObject paper = value.toObject();
+        int id = paper["id"].toInt();
+        qint64 version = paper["version"].toVariant().toLongLong();
+
+        // Check for conflicts
+        auto localPaper = localDb_->getPaper(id);
+        if (localPaper.contains("version") &&
+            localPaper["version"].toVariant().toLongLong() >= version) {
+            // Conflict detected
+            detectConflicts(paper);
+            continue;
+        }
+
+        // Update local database
+        if (localDb_->updatePaper(paper)) {
+            count++;
+            qDebug() << "[Sync] Updated paper:" << id;
+        }
+    }
+
+    emitProgress(60, 100, QString("Updated %1 papers").arg(count));
+}
+
+void SyncManager::applyDeletedPapers(const QJsonArray& paperIds) {
+    int count = 0;
+
+    for (const auto& value : paperIds) {
+        int id = value.toInt();
+
+        if (localDb_->deletePaper(id)) {
+            count++;
+            qDebug() << "[Sync] Deleted paper:" << id;
+        }
+    }
+
+    emitProgress(90, 100, QString("Deleted %1 papers").arg(count));
+}
+
+void SyncManager::detectConflicts(const QJsonObject& remoteData) {
+    int id = remoteData["id"].toInt();
+    QString conflictId = QString("paper_%1_%2").arg(id).arg(QDateTime::currentMSecsSinceEpoch());
+
+    auto localData = localDb_->getPaper(id);
+
+    emit conflictDetected(conflictId, localData, remoteData);
+}
+
+void SyncManager::queueOperation(const SyncOperation& operation) {
+    syncQueue_.enqueue(operation);
+
+    // Save to database for persistence
+    localDb_->insertOperation(operation);
+
+    qDebug() << "[Sync] Queued operation:" << static_cast<int>(operation.type);
+}
+
+void SyncManager::setStatus(SyncStatus status) {
+    if (status_ != status) {
+        status_ = status;
+        emit statusChanged(status);
+    }
+}
+
+void SyncManager::emitProgress(int current, int total, const QString& message) {
+    emit progressUpdated(current, total, message);
+}
+
+QNetworkRequest SyncManager::createRequest(const QString& endpoint) {
+    QUrl url(apiUrl_ + endpoint);
+    QNetworkRequest request(url);
+
+    request.setHeader(QNetworkRequest::UserAgentHeader, "PaperCrawlerDesktop/2.0");
+    request.setRawHeader("Accept", "application/json");
+    request.setRawHeader("X-Device-ID", deviceId_.toUtf8());
+
+    return request;
+}
+
+QJsonObject SyncManager::operationToJson(const SyncOperation& op) const {
+    QJsonObject obj;
+
+    QString typeStr;
+    switch (op.type) {
+        case SyncOperationType::Create: typeStr = "create"; break;
+        case SyncOperationType::Update: typeStr = "update"; break;
+        case SyncOperationType::Delete: typeStr = "delete"; break;
+    }
+
+    obj["type"] = typeStr;
+    obj["entity_type"] = op.entityType;
+    obj["entity_id"] = op.entityId;
+    obj["data"] = op.data;
+    obj["version"] = static_cast<qint64>(op.version);
+    obj["timestamp"] = op.timestamp.toMSecsSinceEpoch();
+
+    return obj;
+}
+
+QJsonObject SyncManager::mergePapers(const QJsonObject& local, const QJsonObject& remote) const {
+    // Simple merge strategy: prefer non-null values from remote
+    QJsonObject merged = local;
+
+    for (auto it = remote.begin(); it != remote.end(); ++it) {
+        if (!it.value().isNull()) {
+            merged[it.key()] = it.value();
+        }
+    }
+
+    return merged;
+}
+
+bool SyncManager::canAutoMerge(const QJsonObject& local, const QJsonObject& remote) const {
+    // Check if merge is safe (no conflicting fields)
+    QStringList safeFields = {"doi_url", "journal_url", "info"};
+
+    for (const QString& field : safeFields) {
+        if (local.contains(field) && remote.contains(field)) {
+            if (local[field] != remote[field] &&
+                !local[field].isNull() &&
+                !remote[field].isNull()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+void SyncManager::loadPendingOperations() {
+    // Load from database
+    auto operations = localDb_->getPendingOperations();
+
+    for (const auto& op : operations) {
+        syncQueue_.enqueue(op);
+    }
+
+    qDebug() << "[Sync] Loaded" << operations.size() << "pending operations";
+}
+
+} // namespace Desktop
+} // namespace PaperCrawler

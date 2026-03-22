@@ -9,7 +9,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Charts Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Charts Network Sql)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -27,6 +27,10 @@ file(GLOB_RECURSE DESKTOP_HEADERS
     "${CMAKE_SOURCE_DIR}/include/*.h"
 )
 
+# Exclude build directory
+list(FILTER DESKTOP_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build/.*")
+list(FILTER DESKTOP_HEADERS EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build/.*")
+
 # Create executable
 add_executable(PaperCrawlerDesktop
     ${DESKTOP_SOURCES}
@@ -40,6 +44,7 @@ target_link_libraries(PaperCrawlerDesktop
         Qt6::Widgets
         Qt6::Charts
         Qt6::Network
+        Qt6::Sql
 )
 
 # Platform specific

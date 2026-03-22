@@ -1,6 +1,7 @@
 #include "PaperCardView.hpp"
 #include <QEvent>
 #include <QHBoxLayout>
+#include <QComboBox>
 #include <QGraphicsDropShadowEffect>
 
 PaperCardView::PaperCardView(QWidget* parent) : QWidget(parent) {
@@ -10,20 +11,21 @@ PaperCardView::PaperCardView(QWidget* parent) : QWidget(parent) {
 
 void PaperCardView::setupUI() {
     auto* mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(40, 20, 40, 40);
-    mainLayout->setSpacing(0);
+    mainLayout->setContentsMargins(40, 20, 40, 20);
+    mainLayout->setSpacing(12);
 
     // Scroll area for cards
     scrollArea_ = new QScrollArea(this);
     scrollArea_->setWidgetResizable(true);
     scrollArea_->setFrameShape(QFrame::NoFrame);
     scrollArea_->setObjectName("paperScrollArea");
+    scrollArea_->setMinimumHeight(500);  // More space for content
 
     // Scroll content
     scrollContent_ = new QWidget();
     cardsLayout_ = new QVBoxLayout(scrollContent_);
-    cardsLayout_->setContentsMargins(0, 0, 0, 0);
-    cardsLayout_->setSpacing(0);
+    cardsLayout_->setContentsMargins(20, 20, 20, 20);
+    cardsLayout_->setSpacing(15);
     cardsLayout_->setAlignment(Qt::AlignTop);
 
     scrollArea_->setWidget(scrollContent_);
@@ -34,15 +36,88 @@ void PaperCardView::setupUI() {
     emptyStateLabel_->setAlignment(Qt::AlignCenter);
     emptyStateLabel_->setVisible(false);
 
-    // Load more button
+    // Pagination bar
+    paginationBar_ = new QWidget(this);
+    paginationBar_->setObjectName("paginationBar");
+    paginationBar_->setVisible(false);
+
+    auto* paginationLayout = new QHBoxLayout(paginationBar_);
+    paginationLayout->setContentsMargins(0, 10, 0, 10);
+    paginationLayout->setSpacing(10);
+
+    // Page size selector
+    auto* pageSizeLabel = new QLabel("每页", paginationBar_);
+    pageSizeLabel->setObjectName("paginationLabel");
+
+    pageSizeCombo_ = new QComboBox(paginationBar_);
+    pageSizeCombo_->setObjectName("pageSizeCombo");
+    pageSizeCombo_->addItem("10", 10);
+    pageSizeCombo_->addItem("20", 20);
+    pageSizeCombo_->addItem("50", 50);
+    pageSizeCombo_->addItem("100", 100);
+    pageSizeCombo_->setCurrentIndex(1);  // Default to 20
+    pageSizeCombo_->setCursor(Qt::PointingHandCursor);
+    connect(pageSizeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &PaperCardView::onPageSizeChanged);
+
+    auto* pageSizeUnitLabel = new QLabel("条", paginationBar_);
+    pageSizeUnitLabel->setObjectName("paginationLabel");
+
+    // Page info
+    pageInfoLabel_ = new QLabel("1 / 1", paginationBar_);
+    pageInfoLabel_->setObjectName("pageInfoLabel");
+
+    paginationLayout->addWidget(pageSizeLabel);
+    paginationLayout->addWidget(pageSizeCombo_);
+    paginationLayout->addWidget(pageSizeUnitLabel);
+    paginationLayout->addSpacing(30);
+    paginationLayout->addWidget(pageInfoLabel_);
+    paginationLayout->addSpacing(20);
+
+    // Pagination buttons
+    firstPageBtn_ = new QPushButton("⏮", paginationBar_);
+    firstPageBtn_->setObjectName("paginationBtn");
+    firstPageBtn_->setToolTip("第一页");
+    firstPageBtn_->setCursor(Qt::PointingHandCursor);
+    firstPageBtn_->setEnabled(false);
+    connect(firstPageBtn_, &QPushButton::clicked, this, &PaperCardView::onFirstPage);
+
+    prevPageBtn_ = new QPushButton("◀", paginationBar_);
+    prevPageBtn_->setObjectName("paginationBtn");
+    prevPageBtn_->setToolTip("上一页");
+    prevPageBtn_->setCursor(Qt::PointingHandCursor);
+    prevPageBtn_->setEnabled(false);
+    connect(prevPageBtn_, &QPushButton::clicked, this, &PaperCardView::onPrevPage);
+
+    nextPageBtn_ = new QPushButton("▶", paginationBar_);
+    nextPageBtn_->setObjectName("paginationBtn");
+    nextPageBtn_->setToolTip("下一页");
+    nextPageBtn_->setCursor(Qt::PointingHandCursor);
+    nextPageBtn_->setEnabled(false);
+    connect(nextPageBtn_, &QPushButton::clicked, this, &PaperCardView::onNextPage);
+
+    lastPageBtn_ = new QPushButton("⏭", paginationBar_);
+    lastPageBtn_->setObjectName("paginationBtn");
+    lastPageBtn_->setToolTip("最后一页");
+    lastPageBtn_->setCursor(Qt::PointingHandCursor);
+    lastPageBtn_->setEnabled(false);
+    connect(lastPageBtn_, &QPushButton::clicked, this, &PaperCardView::onLastPage);
+
+    paginationLayout->addWidget(firstPageBtn_);
+    paginationLayout->addWidget(prevPageBtn_);
+    paginationLayout->addWidget(nextPageBtn_);
+    paginationLayout->addWidget(lastPageBtn_);
+
+    // Load more button (legacy, keep for compatibility but not used with pagination)
     loadMoreButton_ = new QPushButton("加载更多", this);
     loadMoreButton_->setObjectName("loadMoreButton");
     loadMoreButton_->setVisible(false);
     loadMoreButton_->setCursor(Qt::PointingHandCursor);
-    connect(loadMoreButton_, &QPushButton::clicked, this, &PaperCardView::onLoadMoreClicked);
+    // Not connected - pagination is used instead
 
     mainLayout->addWidget(scrollArea_);
     mainLayout->addWidget(emptyStateLabel_);
+    mainLayout->addWidget(paginationBar_);
     mainLayout->addWidget(loadMoreButton_);
 }
 
@@ -51,32 +126,115 @@ void PaperCardView::setupStyles() {
         "PaperCardView {"
         "  background: transparent;"
         "}"
+        "QWidget#paginationBar {"
+        "  background: rgba(255, 255, 255, 0.95);"
+        "  border-radius: 12px;"
+        "  padding: 12px 24px;"
+        "}"
+        "QLabel#paginationLabel {"
+        "  color: #6b7280;"
+        "  font-size: 9pt;"
+        "  padding: 6px 8px;"
+        "  font-weight: 500;"
+        "}"
+        "QLabel#pageInfoLabel {"
+        "  color: #4b5563;"
+        "  font-size: 9pt;"
+        "  padding: 6px 12px;"
+        "  font-weight: 600;"
+        "}"
+        "QComboBox#pageSizeCombo {"
+        "  background: white;"
+        "  border: 1px solid #e5e7eb;"
+        "  border-radius: 8px;"
+        "  padding: 6px 16px;"
+        "  min-width: 90px;"
+        "  max-width: 110px;"
+        "  font-size: 9pt;"
+        "  font-weight: 500;"
+        "}"
+        "QComboBox#pageSizeCombo:hover {"
+        "  border: 1px solid #6366f1;"
+        "  background: #f9fafb;"
+        "}"
+        "QComboBox#pageSizeCombo::drop-down {"
+        "  border: none;"
+        "  width: 20px;"
+        "}"
+        "QPushButton#paginationBtn {"
+        "  background: white;"
+        "  border: 1px solid #e5e7eb;"
+        "  border-radius: 8px;"
+        "  padding: 6px 10px;"
+        "  min-width: 32px;"
+        "  max-width: 32px;"
+        "  min-height: 32px;"
+        "  max-height: 32px;"
+        "  font-size: 10pt;"
+        "  color: #4b5563;"
+        "  font-weight: 600;"
+        "}"
+        "QPushButton#paginationBtn:hover {"
+        "  background: #f9fafb;"
+        "  border: 1px solid #6366f1;"
+        "  color: #6366f1;"
+        "}"
+        "QPushButton#paginationBtn:disabled {"
+        "  background: #f9fafb;"
+        "  color: #d1d5db;"
+        "  border: 1px solid #f3f4f6;"
+        "  font-weight: 400;"
+        "}"
     );
 }
 
-void PaperCardView::setPapers(const QList<Paper>& papers) {
-    clear();
+void PaperCardView::setPapers(const QList<Paper>& papers, int total, int currentPage) {
+    qDebug() << "=== setPapers called ===";
+    qDebug() << "Papers received:" << papers.count();
+    qDebug() << "Total from server:" << total;
+    qDebug() << "Current page parameter:" << currentPage;
+
+    // Clear only the paper cards, NOT the pagination state
+    clearPapersOnly();
+
     papers_ = papers;
-    displayedCount_ = 0;
+    totalCount_ = (total >= 0) ? total : papers.count();
+
+    // Update current page if provided (usually 1 for new searches)
+    if (currentPage >= 1) {
+        currentPage_ = currentPage;
+        currentOffset_ = (currentPage_ - 1) * currentPageSize_;
+    }
+
+    qDebug() << "totalCount_ set to:" << totalCount_;
+    qDebug() << "currentPageSize_:" << currentPageSize_;
+    qDebug() << "currentPage_:" << currentPage_;
+    qDebug() << "currentOffset_:" << currentOffset_;
 
     if (papers.isEmpty()) {
         emptyStateLabel_->setVisible(true);
         scrollArea_->setVisible(false);
+        paginationBar_->setVisible(false);
+        qDebug() << "No papers, showing empty state";
     } else {
         emptyStateLabel_->setVisible(false);
         scrollArea_->setVisible(true);
 
-        // Show first batch
-        int showCount = std::min(static_cast<qsizetype>(BATCH_SIZE), papers.count());
-        for (int i = 0; i < showCount; ++i) {
-            addPaper(papers[i]);
+        // Display all papers for this page
+        for (const auto& paper : papers) {
+            addPaper(paper);
         }
-        displayedCount_ = showCount;
 
-        // Show load more button if there are more papers
-        if (displayedCount_ < papers.count()) {
-            loadMoreButton_->setText(QString("加载更多 (剩余 %1 篇)").arg(papers.count() - displayedCount_));
-            loadMoreButton_->setVisible(true);
+        qDebug() << "Displayed" << papers.count() << "papers";
+
+        // Show pagination if total papers > current page size
+        if (totalCount_ > currentPageSize_) {
+            paginationBar_->setVisible(true);
+            updatePaginationControls();
+            qDebug() << "Pagination shown";
+        } else {
+            paginationBar_->setVisible(false);
+            qDebug() << "Pagination hidden (total=" << totalCount_ << "pageSize=" << currentPageSize_ << ")";
         }
     }
 }
@@ -86,8 +244,8 @@ void PaperCardView::addPaper(const Paper& paper) {
     cardsLayout_->addWidget(card);
 }
 
-void PaperCardView::clear() {
-    // Clear layout
+void PaperCardView::clearPapersOnly() {
+    // Clear only the paper cards, preserve pagination state
     while (cardsLayout_->count() > 0) {
         QLayoutItem* item = cardsLayout_->takeAt(0);
         if (item->widget()) {
@@ -96,7 +254,17 @@ void PaperCardView::clear() {
         delete item;
     }
     papers_.clear();
-    displayedCount_ = 0;
+    // Note: We DON'T reset totalCount_, currentPage_, or currentOffset_
+}
+
+void PaperCardView::clear() {
+    // Clear layout
+    clearPapersOnly();
+
+    // Reset all state
+    totalCount_ = 0;
+    currentPage_ = 1;
+    currentOffset_ = 0;
     loadMoreButton_->setVisible(false);
 }
 
@@ -105,6 +273,8 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
     card->setObjectName("paperCard");
     card->setCursor(Qt::PointingHandCursor);
     card->setProperty("paperId", paper.id);
+    card->setMaximumWidth(1200);  // Limit card width for better readability
+    card->setMinimumHeight(120);  // Ensure minimum height for content
 
     auto* layout = new QVBoxLayout(card);
     layout->setContentsMargins(30, 20, 30, 20);
@@ -282,19 +452,78 @@ bool PaperCardView::eventFilter(QObject* obj, QEvent* event) {
     return QWidget::eventFilter(obj, event);
 }
 
-void PaperCardView::onLoadMoreClicked() {
-    int remaining = papers_.count() - displayedCount_;
-    int loadCount = std::min(remaining, BATCH_SIZE);
+void PaperCardView::onPageSizeChanged(int index) {
+    int newSize = pageSizeCombo_->itemData(index).toInt();
+    qDebug() << "=== Page size changed ===";
+    qDebug() << "Old size:" << currentPageSize_ << "New size:" << newSize;
 
-    for (int i = 0; i < loadCount; ++i) {
-        addPaper(papers_[displayedCount_]);
-        displayedCount_++;
-    }
+    if (newSize != currentPageSize_) {
+        currentPageSize_ = newSize;
+        currentPage_ = 1;
+        currentOffset_ = 0;
 
-    // Update button text or hide
-    if (displayedCount_ >= papers_.count()) {
-        loadMoreButton_->setVisible(false);
-    } else {
-        loadMoreButton_->setText(QString("加载更多 (剩余 %1 篇)").arg(papers_.count() - displayedCount_));
+        qDebug() << "Emitting pageChanged with offset=" << currentOffset_ << "limit=" << currentPageSize_;
+        emit pageChanged(currentOffset_, currentPageSize_);
     }
+}
+
+void PaperCardView::onFirstPage() {
+    qDebug() << "=== First page clicked ===";
+    if (currentPage_ != 1) {
+        currentPage_ = 1;
+        currentOffset_ = 0;
+        qDebug() << "Emitting pageChanged with offset=" << currentOffset_ << "limit=" << currentPageSize_;
+        emit pageChanged(currentOffset_, currentPageSize_);
+    }
+}
+
+void PaperCardView::onPrevPage() {
+    qDebug() << "=== Previous page clicked ===";
+    if (currentPage_ > 1) {
+        currentPage_--;
+        currentOffset_ = (currentPage_ - 1) * currentPageSize_;
+        qDebug() << "Emitting pageChanged with offset=" << currentOffset_ << "limit=" << currentPageSize_;
+        emit pageChanged(currentOffset_, currentPageSize_);
+    }
+}
+
+void PaperCardView::onNextPage() {
+    qDebug() << "=== Next page clicked ===";
+    int totalPages = (totalCount_ + currentPageSize_ - 1) / currentPageSize_;
+    qDebug() << "Current page:" << currentPage_ << "Total pages:" << totalPages;
+    if (currentPage_ < totalPages) {
+        currentPage_++;
+        currentOffset_ = (currentPage_ - 1) * currentPageSize_;
+        qDebug() << "Emitting pageChanged with offset=" << currentOffset_ << "limit=" << currentPageSize_;
+        emit pageChanged(currentOffset_, currentPageSize_);
+    }
+}
+
+void PaperCardView::onLastPage() {
+    qDebug() << "=== Last page clicked ===";
+    int totalPages = (totalCount_ + currentPageSize_ - 1) / currentPageSize_;
+    if (currentPage_ != totalPages) {
+        currentPage_ = totalPages;
+        currentOffset_ = (currentPage_ - 1) * currentPageSize_;
+        qDebug() << "Emitting pageChanged with offset=" << currentOffset_ << "limit=" << currentPageSize_;
+        emit pageChanged(currentOffset_, currentPageSize_);
+    }
+}
+
+void PaperCardView::updatePaginationControls() {
+    int totalPages = (totalCount_ + currentPageSize_ - 1) / currentPageSize_;
+
+    // Update page info - more compact format
+    pageInfoLabel_->setText(QString("%1 / %2")
+                           .arg(currentPage_)
+                           .arg(totalPages));
+
+    // Update tooltip with full info
+    pageInfoLabel_->setToolTip(QString("共 %1 篇论文").arg(totalCount_));
+
+    // Update button states
+    firstPageBtn_->setEnabled(currentPage_ > 1);
+    prevPageBtn_->setEnabled(currentPage_ > 1);
+    nextPageBtn_->setEnabled(currentPage_ < totalPages);
+    lastPageBtn_->setEnabled(currentPage_ < totalPages);
 }

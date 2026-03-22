@@ -8,14 +8,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "axios": "^1.13.6",
     "chart.js": "^4.5.1",
     "i18next": "^25.10.0",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.2",
     "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "react-i18next": "^16.5.8",
+    "socket.io-client": "^4.8.3",
     "vue": "^3.4.21",
     "vue-chartjs": "^5.3.3",
+    "vue-i18n": "^9.14.5",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {

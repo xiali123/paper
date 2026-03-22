@@ -1,4 +1,5 @@
 #include "database/PaperRepository.hpp"
+#include "core/Logger.hpp"
 #include <sstream>
 
 namespace PaperCrawler {
