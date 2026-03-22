@@ -1,0 +1,389 @@
+/**
+ * Paper Management API Module
+ *
+ * Provides all paper-related API calls including:
+ * - Paper CRUD operations
+ * - Search and filtering
+ * - Bookmark management
+ * - Reading progress tracking
+ * - Statistics
+ *
+ * @module api/modules/papers
+ */
+
+import request from '@/utils/request'
+import type { ApiResponse } from '@/types'
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/**
+ * Paper data model
+ */
+export interface Paper {
+  id: number
+  userId: number
+  title: string
+  authors: string
+  abstract: string
+  keywords: string
+  doi: string
+  publication: string
+  year: string
+  volume: string
+  issue: string
+  pages: string
+  url: string
+  pdfPath: string
+  source: 'manual' | 'cnki' | 'ieee' | 'arxiv' | 'pubmed'
+  category: string
+  tags: string
+  citationCount: number
+  isRead: boolean
+  isBookmarked: boolean
+  readingProgress: number
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * Paper query parameters
+ */
+export interface PaperQuery {
+  keyword?: string
+  category?: string
+  tags?: string
+  source?: string
+  isRead?: boolean
+  isBookmarked?: boolean
+  orderBy?: string
+  order?: 'ASC' | 'DESC'
+  page?: number
+  pageSize?: number
+}
+
+/**
+ * Paper list response
+ */
+export interface PaperListResponse {
+  papers: Paper[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+/**
+ * Create paper request
+ */
+export interface CreatePaperRequest {
+  title: string
+  authors?: string
+  abstract?: string
+  keywords?: string
+  doi?: string
+  publication?: string
+  year?: string
+  volume?: string
+  issue?: string
+  pages?: string
+  url?: string
+  pdfPath?: string
+  source?: string
+  category?: string
+  tags?: string
+}
+
+/**
+ * Update paper request
+ */
+export interface UpdatePaperRequest {
+  title?: string
+  authors?: string
+  abstract?: string
+  keywords?: string
+  doi?: string
+  publication?: string
+  year?: string
+  volume?: string
+  issue?: string
+  pages?: string
+  url?: string
+  pdfPath?: string
+  source?: string
+  category?: string
+  tags?: string
+  citationCount?: number
+  isRead?: boolean
+  isBookmarked?: boolean
+  readingProgress?: number
+  notes?: string
+}
+
+/**
+ * Paper statistics
+ */
+export interface PaperStats {
+  totalPapers: number
+  readPapers: number
+  unreadPapers: number
+  bookmarkedPapers: number
+  papersBySource: number[]
+  papersByCategory: number[]
+}
+
+// ============================================================================
+// Paper API
+// ============================================================================
+
+/**
+ * Paper management API endpoints
+ */
+export const papersApi = {
+  /**
+   * Get paper list with pagination and filters
+   *
+   * @param params - Query parameters
+   * @returns Promise resolving to paginated paper list
+   *
+   * @example
+   * ```typescript
+   * const result = await papersApi.getPapers({
+   *   page: 1,
+   *   pageSize: 20,
+   *   category: 'AI',
+   *   orderBy: 'created_at',
+   *   order: 'DESC'
+   * })
+   * ```
+   */
+  async getPapers(params: PaperQuery = {}): Promise<PaperListResponse> {
+    return await request.get('/papers', { params })
+  },
+
+  /**
+   * Get single paper by ID
+   *
+   * @param id - Paper ID
+   * @returns Promise resolving to paper details
+   *
+   * @example
+   * ```typescript
+   * const paper = await papersApi.getPaper(123)
+   * ```
+   */
+  async getPaper(id: number): Promise<Paper> {
+    return await request.get(`/papers/${id}`)
+  },
+
+  /**
+   * Create new paper
+   *
+   * @param data - Paper data
+   * @returns Promise resolving to created paper
+   *
+   * @example
+   * ```typescript
+   * const newPaper = await papersApi.createPaper({
+   *   title: 'Deep Learning for NLP',
+   *   authors: 'John Doe',
+   *   abstract: 'This paper presents...'
+   * })
+   * ```
+   */
+  async createPaper(data: CreatePaperRequest): Promise<Paper> {
+    return await request.post('/papers', data)
+  },
+
+  /**
+   * Update existing paper
+   *
+   * @param id - Paper ID
+   * @param data - Updated paper data
+   * @returns Promise resolving to updated paper
+   *
+   * @example
+   * ```typescript
+   * const updated = await papersApi.updatePaper(123, {
+   *   title: 'Updated Title',
+   *   notes: 'My notes'
+   * })
+   * ```
+   */
+  async updatePaper(id: number, data: UpdatePaperRequest): Promise<Paper> {
+    return await request.put(`/papers/${id}`, data)
+  },
+
+  /**
+   * Delete paper
+   *
+   * @param id - Paper ID
+   * @returns Promise resolving to success message
+   *
+   * @example
+   * ```typescript
+   * await papersApi.deletePaper(123)
+   * ```
+   */
+  async deletePaper(id: number): Promise<{ message: string }> {
+    return await request.delete(`/papers/${id}`)
+  },
+
+  /**
+   * Toggle bookmark status
+   *
+   * @param id - Paper ID
+   * @returns Promise resolving to bookmark status
+   *
+   * @example
+   * ```typescript
+   * const result = await papersApi.toggleBookmark(123)
+   * console.log(result.isBookmarked) // true or false
+   * ```
+   */
+  async toggleBookmark(id: number): Promise<{ isBookmarked: boolean }> {
+    return await request.post(`/papers/${id}/bookmark`)
+  },
+
+  /**
+   * Mark paper as read/unread
+   *
+   * @param id - Paper ID
+   * @param isRead - Read status
+   * @returns Promise resolving to read status
+   *
+   * @example
+   * ```typescript
+   * await papersApi.markAsRead(123, true)
+   * ```
+   */
+  async markAsRead(id: number, isRead: boolean): Promise<{ isRead: boolean }> {
+    return await request.post(`/papers/${id}/read`, { isRead })
+  },
+
+  /**
+   * Update reading progress
+   *
+   * @param id - Paper ID
+   * @param progress - Progress value (0-100)
+   * @returns Promise resolving to progress value
+   *
+   * @example
+   * ```typescript
+   * await papersApi.updateProgress(123, 50)
+   * ```
+   */
+  async updateProgress(id: number, progress: number): Promise<{ readingProgress: number }> {
+    return await request.post(`/papers/${id}/progress`, { progress })
+  },
+
+  /**
+   * Get paper statistics
+   *
+   * @returns Promise resolving to statistics
+   *
+   * @example
+   * ```typescript
+   * const stats = await papersApi.getStats()
+   * console.log(stats.totalPapers)
+   * console.log(stats.readPapers)
+   * ```
+   */
+  async getStats(): Promise<PaperStats> {
+    return await request.get('/papers/stats')
+  },
+
+  /**
+   * Search papers
+   *
+   * @param query - Search query
+   * @param params - Additional query parameters
+   * @returns Promise resolving to search results
+   *
+   * @example
+   * ```typescript
+   * const results = await papersApi.search('machine learning', {
+   *   page: 1,
+   *   pageSize: 10
+   * })
+   * ```
+   */
+  async search(query: string, params: Pick<PaperQuery, 'page' | 'pageSize'> = {}): Promise<PaperListResponse> {
+    return await request.get('/papers/search', {
+      params: {
+        q: query,
+        ...params
+      }
+    })
+  },
+
+  /**
+   * Batch delete papers
+   *
+   * @param ids - Array of paper IDs to delete
+   * @returns Promise resolving to delete result
+   *
+   * @example
+   * ```typescript
+   * await papersApi.batchDelete([1, 2, 3])
+   * ```
+   */
+  async batchDelete(ids: number[]): Promise<{ message: string; deletedCount: number }> {
+    const promises = ids.map(id => request.delete(`/papers/${id}`))
+    await Promise.all(promises)
+    return {
+      message: 'Papers deleted successfully',
+      deletedCount: ids.length
+    }
+  },
+
+  /**
+   * Batch mark as read/unread
+   *
+   * @param ids - Array of paper IDs
+   * @param isRead - Read status
+   * @returns Promise resolving to update result
+   *
+   * @example
+   * ```typescript
+   * await papersApi.batchMarkAsRead([1, 2, 3], true)
+   * ```
+   */
+  async batchMarkAsRead(ids: number[], isRead: boolean): Promise<{ message: string; updatedCount: number }> {
+    const promises = ids.map(id => request.post(`/papers/${id}/read`, { isRead }))
+    await Promise.all(promises)
+    return {
+      message: 'Papers updated successfully',
+      updatedCount: ids.length
+    }
+  },
+
+  /**
+   * Batch toggle bookmark
+   *
+   * @param ids - Array of paper IDs
+   * @param bookmarked - Bookmark status
+   * @returns Promise resolving to update result
+   *
+   * @example
+   * ```typescript
+   * await papersApi.batchToggleBookmark([1, 2, 3], true)
+   * ```
+   */
+  async batchToggleBookmark(ids: number[], bookmarked: boolean): Promise<{ message: string; updatedCount: number }> {
+    const promises = ids.map(id => request.post(`/papers/${id}/bookmark`))
+    await Promise.all(promises)
+    return {
+      message: 'Bookmarks updated successfully',
+      updatedCount: ids.length
+    }
+  }
+}
+
+// ============================================================================
+// Default Export
+// ============================================================================
+
+export default papersApi
