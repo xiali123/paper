@@ -50,39 +50,92 @@
       </main>
 
       <!-- Enhanced Footer -->
-      <footer class="app-footer">
-        <div class="footer-content">
-          <div class="footer-main">
+      <footer class="app-footer" :class="footerClass">
+        <div class="footer-container">
+          <div class="footer-content">
+            <!-- Brand -->
             <div class="footer-brand">
-              <div class="footer-logo">
-                <span class="footer-logo-icon">📚</span>
-                <span class="footer-logo-text">PaperCrawler</span>
-              </div>
-              <p class="footer-description">高效的学术论文检索与分析平台</p>
+              <span class="footer-logo">📚</span>
+              <span class="footer-name">PaperCrawler</span>
             </div>
 
-            <div class="footer-links">
-              <div class="footer-link-group">
-                <h4 class="footer-link-title">功能</h4>
-                <a href="#search" class="footer-link">论文搜索</a>
-                <a href="#stats" class="footer-link">数据统计</a>
+            <!-- Links Container -->
+            <div class="footer-links-wrapper">
+              <!-- Features -->
+              <div class="footer-links-group">
+                <span class="footer-link-item">
+                  <span class="link-icon">🔍</span>
+                  <span>智能搜索</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">📊</span>
+                  <span>数据分析</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">⭐</span>
+                  <span>顶刊追踪</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">📈</span>
+                  <span>趋势洞察</span>
+                </span>
               </div>
-              <div class="footer-link-group">
-                <h4 class="footer-link-title">关于</h4>
-                <a href="#" class="footer-link">使用说明</a>
-                <a href="#" class="footer-link">技术支持</a>
-              </div>
-            </div>
-          </div>
 
-          <div class="footer-bottom">
-            <div class="footer-bottom-left">
-              <p class="footer-copyright">{{ $t('footer.copyright') }}</p>
-              <p class="footer-powered">{{ $t('footer.poweredBy') }}</p>
+              <div class="footer-group-divider"></div>
+
+              <!-- Community -->
+              <div class="footer-links-group">
+                <span class="footer-link-item">
+                  <span class="link-icon">📧</span>
+                  <span>联系我们</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">💬</span>
+                  <span>反馈建议</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">🌐</span>
+                  <span>GitHub</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">📖</span>
+                  <span>使用文档</span>
+                </span>
+              </div>
+
+              <div class="footer-group-divider"></div>
+
+              <!-- Legal -->
+              <div class="footer-links-group">
+                <span class="footer-link-item">
+                  <span class="link-icon">📜</span>
+                  <span>隐私政策</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">⚖️</span>
+                  <span>使用条款</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">❓</span>
+                  <span>帮助中心</span>
+                </span>
+                <span class="footer-link-item">
+                  <span class="link-icon">🔄</span>
+                  <span>更新日志</span>
+                </span>
+              </div>
             </div>
-            <div v-if="backendStatus" class="footer-status">
-              <span class="status-dot status-ok"></span>
-              <span class="status-text">{{ $t('backend.connected') }}</span>
+
+            <!-- Status & Copyright -->
+            <div class="footer-status-section">
+              <div class="footer-status">
+                <span class="status-indicator" :class="{ online: backendStatus }"></span>
+              </div>
+              <div class="footer-copyright">
+                <span>© 2024 PaperCrawler</span>
+                <span class="copyright-divider">•</span>
+                <span>Made with ❤️</span>
+              </div>
             </div>
           </div>
         </div>
@@ -92,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useTheme } from './composables/useTheme'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
 
@@ -100,10 +153,14 @@ const { theme, toggleTheme, isDark } = useTheme()
 const backendStatus = ref(false)
 const healthCheckInitialized = ref(false)
 
+// Computed class for footer to support dark mode
+const footerClass = computed(() => ({
+  'dark-mode': isDark.value
+}))
+
 const checkBackend = async () => {
   console.log('Checking backend health...')
   try {
-    // 使用代理路径 /api/health
     const response = await fetch('/api/health')
     console.log('Health check response:', response.status)
 
@@ -128,10 +185,8 @@ let healthCheckTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   console.log('App mounted, starting health check...')
-  // 延迟1秒后首次检查，确保页面完全加载
   setTimeout(() => {
     checkBackend()
-    // 每30秒检查一次
     healthCheckTimer = setInterval(checkBackend, 30000)
   }, 1000)
 })
@@ -151,25 +206,24 @@ onUnmounted(() => {
 
 .app-container {
   width: 100%;
-  max-width: 1400px;
+  max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-left: var(--space-5);
-  padding-right: var(--space-5);
+  padding: 0;
 }
 
 /* ===================================
    HEADER STYLES
    =================================== */
 .app-header {
-  background: var(--bg-overlay);
-  padding: var(--space-4) 0;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-primary);
+  background: rgba(248, 249, 250, 0.85);
+  padding: 16px 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
@@ -179,7 +233,10 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-8);
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* Logo Section */
@@ -190,119 +247,145 @@ onUnmounted(() => {
 .logo-wrapper {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .logo-icon {
-  font-size: var(--font-3xl);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  font-size: 32px;
+  filter: drop-shadow(0 2px 8px rgba(102, 126, 234, 0.3));
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
 
 .logo-text {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
 }
 
 .logo-title {
   margin: 0;
-  font-size: var(--font-2xl);
-  font-weight: var(--font-bold);
-  background: var(--bg-gradient-hero);
+  font-size: 24px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  line-height: 1;
-  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
 }
 
 .logo-subtitle {
   margin: 0;
-  font-size: var(--font-xs);
-  color: var(--text-secondary);
-  font-weight: var(--font-medium);
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 /* Navigation Section */
 .nav-section {
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: 16px;
+  flex: 1;
+  justify-content: center;
 }
 
 .nav-links {
   display: flex;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   text-decoration: none;
-  color: var(--text-primary);
-  font-weight: var(--font-semibold);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-  transition: all var(--duration-normal);
+  color: #374151;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  font-size: var(--font-sm);
+  font-size: 15px;
+  background: transparent;
+  border: 2px solid transparent;
 }
 
 .nav-icon {
-  font-size: var(--font-lg);
-  opacity: 0.7;
+  font-size: 18px;
+  transition: all 0.3s;
 }
 
 .nav-text {
-  font-size: var(--font-sm);
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .nav-link:hover {
-  background: var(--bg-tertiary);
-  color: var(--color-primary-600);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+  border-color: rgba(102, 126, 234, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.nav-link:hover .nav-icon {
+  transform: scale(1.15);
 }
 
 .nav-link.router-link-active {
-  background: var(--color-primary-600);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  box-shadow: var(--shadow-primary);
+  border-color: transparent;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+  transform: translateY(-1px);
 }
 
 .nav-link.router-link-active .nav-icon {
   opacity: 1;
+  filter: brightness(1.2);
 }
 
 /* Navigation Controls */
 .nav-controls {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .theme-toggle-btn {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary);
-  border: 2px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  font-size: var(--font-xl);
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: none;
+  border-radius: 50%;
+  font-size: 20px;
   cursor: pointer;
-  transition: all var(--duration-normal);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .theme-toggle-btn:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--color-primary-500);
-  transform: scale(1.05);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transform: scale(1.1) rotate(15deg);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.theme-toggle-btn:hover .theme-icon {
+  color: white;
 }
 
 .theme-icon {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+  transition: color 0.3s;
 }
 
 /* ===================================
@@ -310,160 +393,186 @@ onUnmounted(() => {
    =================================== */
 .app-main {
   flex: 1;
-  padding: var(--space-8) 0;
+  padding: var(--space-6) var(--space-5);
 }
 
 /* ===================================
    FOOTER STYLES
    =================================== */
 .app-footer {
-  background: var(--bg-overlay);
-  border-top: 1px solid var(--border-primary);
-  backdrop-filter: blur(20px);
+  --footer-bg: #f8f9fa;
+  --footer-border: #e9ecef;
+  --footer-text: #495057;
+  --footer-title: #212529;
+  --footer-text-muted: #6c757d;
+  --footer-accent: #667eea;
+  --footer-status-online: #10b981;
+  --footer-status-offline: #dc3545;
+  --status-text-color: #495057;
+
+  background: var(--footer-bg);
+  border-top: 1px solid var(--footer-border);
+  color: var(--footer-text);
   margin-top: auto;
+  transition: background-color 0.3s, color 0.3s;
 }
 
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 24px;
+}
+
+/* Footer Content - Compact Horizontal Layout */
 .footer-content {
-  padding: var(--space-8) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.footer-main {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-8);
-  margin-bottom: var(--space-6);
-}
-
-/* Footer Brand */
+/* Brand */
 .footer-brand {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .footer-logo {
+  font-size: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.2));
+}
+
+.footer-name {
+  font-size: 14px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Links Container */
+.footer-links-wrapper {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: center;
+  gap: 20px;
+  flex: 1;
+  flex-wrap: wrap;
 }
 
-.footer-logo-icon {
-  font-size: var(--font-size-2xl);
-}
-
-.footer-logo-text {
-  font-size: var(--font-lg);
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-}
-
-.footer-description {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  margin: 0;
-  max-width: var(--container-lg);
-  line-height: var(--leading-relaxed);
-}
-
-/* Footer Links */
-.footer-links {
+.footer-links-group {
   display: flex;
-  gap: var(--space-8);
-  justify-content: flex-end;
-}
-
-.footer-link-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.footer-link-title {
-  font-size: var(--font-sm);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.footer-link {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  text-decoration: none;
-  transition: all var(--duration-fast);
-}
-
-.footer-link:hover {
-  color: var(--color-primary-600);
-  transform: translateX(2px);
-}
-
-/* Footer Bottom */
-.footer-bottom {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--color-border-primary);
+  gap: 12px;
 }
 
-.footer-bottom-left {
+.footer-group-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--footer-border, #dee2e6);
+  flex-shrink: 0;
+}
+
+.footer-link-item {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--footer-text, #495057);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.footer-copyright,
-.footer-powered {
-  font-size: var(--font-xs);
-  color: var(--text-secondary);
-  margin: 0;
+.link-icon {
+  font-size: 12px;
+  transition: transform 0.2s;
 }
 
-.footer-powered {
-  opacity: 0.8;
+.footer-link-item:hover {
+  color: var(--footer-accent, #667eea);
+  transform: translateY(-2px);
+}
+
+.footer-link-item:hover .link-icon {
+  transform: scale(1.15);
+}
+
+/* Status Section */
+.footer-status-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .footer-status {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: rgba(16, 185, 129, 0.1);
-  border-radius: var(--radius-full);
+  gap: 6px;
+  padding-right: 12px;
+  border-right: 1px solid var(--footer-border, #dee2e6);
 }
 
-.status-dot {
-  width: var(--space-2);
-  height: var(--space-2);
+.status-indicator {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  background: var(--footer-status-offline, #dc3545);
+  transition: all 0.3s;
+}
+
+.status-indicator.online {
+  background: var(--footer-status-online, #10b981);
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
   animation: pulse 2s infinite;
 }
 
-.status-ok {
-  background: var(--color-success);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+.footer-copyright {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--footer-text-muted, #6c757d);
+  white-space: nowrap;
 }
 
-.status-error {
-  background: var(--color-error);
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-}
-
-.status-text {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-success);
+.copyright-divider {
+  color: var(--footer-text-muted, #adb5bd);
+  font-weight: 600;
 }
 
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0); }
+}
+
+/* Dark Mode Support */
+:deep(.dark) .app-footer {
+  --footer-bg: #1a1a1a;
+  --footer-border: #2d2d2d;
+  --footer-text: #e9ecef;
+  --footer-title: #f8f9fa;
+  --footer-text-muted: #adb5bd;
+  --footer-accent: #a78bfa;
+  --footer-status-online: #34d399;
+  --footer-status-offline: #f87171;
+  --status-text-color: #e9ecef;
+  background: #1a1a1a;
+  border-top-color: #2d2d2d;
+}
+
+:deep(.dark) .status-indicator.online {
+  background: #34d399;
+}
+
+:deep(.dark) .status-indicator:not(.online) {
+  background: #f87171;
 }
 
 /* ===================================
@@ -471,13 +580,13 @@ onUnmounted(() => {
    =================================== */
 @media (max-width: 1024px) {
   .app-container {
-    padding-left: var(--space-4);
-    padding-right: var(--space-4);
+    padding: 0;
   }
 
   .header-content {
     flex-direction: column;
-    gap: var(--space-4);
+    gap: 16px;
+    padding: 0 16px;
   }
 
   .nav-section {
@@ -491,17 +600,78 @@ onUnmounted(() => {
     justify-content: center;
   }
 
-  .footer-main {
-    grid-template-columns: 1fr;
-    gap: var(--space-6);
+  .app-main {
+    padding: 20px 16px;
   }
 
-  .footer-links {
+  .footer-container {
+    padding: 8px 16px;
+  }
+
+  .footer-content {
+    gap: 16px;
+  }
+
+  .footer-logo {
+    font-size: 20px;
+  }
+
+  .footer-name {
+    font-size: 14px;
+  }
+
+  .footer-links-group {
+    gap: 12px;
+  }
+
+  .footer-link-item {
+    font-size: 11px;
+  }
+
+  .link-icon {
+    font-size: 12px;
+  }
+
+  .status-text {
+    font-size: 11px;
+  }
+
+  .footer-copyright {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .footer-brand {
+    width: 100%;
+  }
+
+  .footer-links-group {
+    width: 100%;
     justify-content: flex-start;
+  }
+
+  .footer-status-section {
+    width: 100%;
+    align-items: flex-start;
   }
 }
 
 @media (max-width: 640px) {
+  .app-header {
+    padding: 12px 0;
+  }
+
+  .header-content {
+    gap: 12px;
+  }
+
   .nav-links {
     flex-wrap: wrap;
     justify-content: center;
@@ -511,10 +681,99 @@ onUnmounted(() => {
     display: none;
   }
 
-  .footer-bottom {
-    flex-direction: column;
-    gap: var(--space-4);
-    text-align: center;
+  .app-main {
+    padding: 16px 12px;
+  }
+
+  .footer-container {
+    padding: 8px 12px;
+  }
+
+  .footer-logo {
+    font-size: 18px;
+  }
+
+  .footer-name {
+    font-size: 13px;
+  }
+
+  .footer-links-group {
+    gap: 10px;
+  }
+
+  .footer-link-item {
+    font-size: 10px;
+  }
+
+  .link-icon {
+    font-size: 11px;
+  }
+
+  .status-text {
+    font-size: 10px;
+  }
+
+  .footer-copyright {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    padding: 12px 0;
+  }
+
+  .header-content {
+    gap: 12px;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .app-main {
+    padding: 16px 12px;
+  }
+
+  .footer-container {
+    padding: 10px 12px;
+  }
+
+  .footer-logo {
+    font-size: 18px;
+  }
+
+  .footer-brand-text {
+    gap: 1px;
+  }
+
+  .footer-name {
+    font-size: 13px;
+  }
+
+  .footer-tagline {
+    font-size: 10px;
+  }
+
+  .footer-link {
+    font-size: 11px;
+  }
+
+  .link-icon {
+    font-size: 11px;
+  }
+
+  .status-text {
+    font-size: 10px;
+  }
+
+  .footer-info {
+    font-size: 10px;
   }
 }
 </style>
