@@ -9,13 +9,23 @@ include_directories(${CMAKE_SOURCE_DIR}/../core/include)
 include_directories(${CMAKE_SOURCE_DIR}/../include)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# Use only simple API server for now (avoid complex dependencies)
-set(BACKEND_SOURCES "${CMAKE_SOURCE_DIR}/src/simple_api_server.cpp")
+# Collect source files
+file(GLOB_RECURSE BACKEND_SOURCES
+    "${CMAKE_SOURCE_DIR}/src/*.cpp"
+)
 
-# TODO: After implementing missing dependencies, switch to full server:
-# file(GLOB_RECURSE BACKEND_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
-# list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*test.*\\.cpp$")
-# list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*CMakeFiles/.*")
+# Exclude CMakeFiles (CMake compiler test files)
+list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*CMakeFiles/.*")
+
+# Exclude test files
+list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*test.*\\.cpp$")
+list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*_test\\.cpp$")
+
+# Exclude old/unused servers
+list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*standalone_server\\.cpp$")
+list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*api_server_optimized\\.cpp$")
+list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*websocket.*_test.*\\.cpp$")
+list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*simple_websocket_test\\.cpp$")
 
 # Use the main api_server.cpp
 if(EXISTS "${CMAKE_SOURCE_DIR}/src/api_server.cpp")

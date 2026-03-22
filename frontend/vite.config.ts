@@ -14,7 +14,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8082',  // Complete Mock API
+        target: 'http://localhost:8080',  // Real C++ Backend
         changeOrigin: true
       }
     }
