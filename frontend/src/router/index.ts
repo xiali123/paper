@@ -38,6 +38,21 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Home.vue'),
     meta: { title: 'Home' }
   },
+
+  // Paper Management routes
+  {
+    path: '/papers',
+    name: 'Papers',
+    component: () => import('../views/Papers.vue'),
+    meta: { title: 'My Papers' }
+  },
+  {
+    path: '/papers/:id',
+    name: 'PaperManageDetail',
+    component: () => import('../views/PaperManageDetail.vue'),
+    meta: { title: 'Paper Details' }
+  },
+
   {
     path: '/search',
     name: 'Search',
