@@ -9,14 +9,52 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/../core/include)
 
 # Source files
-set(SERVER_SOURCES
+set(FRAMEWORK_SOURCES
     src/server/PluginManager.cpp
     src/server/MessageBus.cpp
     src/server/Router.cpp
 )
 
+set(COMMUNICATION_SOURCES
+    src/communication/MessagePool.cpp
+    src/pool/PoolCoordinator.cpp
+)
+
+set(DATA_SOURCES
+    src/data/DatabaseModule.cpp
+    src/data/CacheModule.cpp
+    src/data/FileStorageModule.cpp
+)
+
+set(SYSTEM_SOURCES
+    src/modules/system/PoolModule.cpp
+    src/modules/system/FilterModule.cpp
+    src/modules/system/QueueModule.cpp
+)
+
+set(HANDLER_SOURCES
+    src/handler/ResponseHandlerModule.cpp
+)
+
+set(PERFORMANCE_SOURCES
+    src/performance/MultiLevelCacheModule.cpp
+    src/performance/CompressionModule.cpp
+    src/performance/AsyncTaskModule.cpp
+    src/performance/ZeroCopyModule.cpp
+)
+
+set(INFRASTRUCTURE_SOURCES
+    src/system/LoggingModule.cpp
+    src/monitoring/MetricsModule.cpp
+)
+
 set(MODULE_SOURCES
-    src/modules/gateway/ApiGatewayModule.cpp
+    ${COMMUNICATION_SOURCES}
+    ${DATA_SOURCES}
+    ${SYSTEM_SOURCES}
+    ${HANDLER_SOURCES}
+    ${PERFORMANCE_SOURCES}
+    ${INFRASTRUCTURE_SOURCES}
 )
 
 set(BACKEND_SOURCES
@@ -80,7 +118,12 @@ message(STATUS "Port: 8080")
 message(STATUS "Type: Modular Backend with Hot-Plug Support")
 message(STATUS "Architecture:")
 message(STATUS "  - Framework: IModule, MessageBus, Router, PluginManager")
-message(STATUS "  - Modules: ApiGatewayModule (with hot-plug APIs)")
+message(STATUS "  - Communication: MessagePool, PoolCoordinator")
+message(STATUS "  - Data Layer: DatabaseModule, CacheModule, FileStorageModule")
+message(STATUS "  - System: PoolModule, FilterModule, QueueModule")
+message(STATUS "  - Performance: MultiLevelCache, Compression, AsyncTask, ZeroCopy")
+message(STATUS "  - Infrastructure: LoggingModule, MetricsModule")
+message(STATUS "  - Handler: ResponseHandlerModule")
 message(STATUS "  - Module Types: SERVER (infrastructure), BUSINESS (API)")
 message(STATUS "============================================================")
 message(STATUS "")
