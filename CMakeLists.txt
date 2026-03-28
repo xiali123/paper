@@ -16,7 +16,10 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Find required packages
 find_package(Threads REQUIRED)
-find_package(OpenSSL REQUIRED)
+
+# OpenSSL is optional (temporarily disabled due to missing development files)
+# TODO: Install complete OpenSSL development package to enable
+# find_package(OpenSSL)
 
 # FetchContent for dependencies
 include(FetchContent)
@@ -73,9 +76,13 @@ target_link_libraries(${PROJECT_NAME}
         spdlog::spdlog
         gumbo
         Threads::Threads
-        OpenSSL::SSL
-        OpenSSL::Crypto
 )
+
+# Add OpenSSL if found
+if(OPENSSL_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_OPENSSL)
+endif()
 
 # Platform specific libraries
 if(WIN32)

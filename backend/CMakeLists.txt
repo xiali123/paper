@@ -5,59 +5,53 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Include directories
-include_directories(${CMAKE_SOURCE_DIR}/../core/include)
-include_directories(${CMAKE_SOURCE_DIR}/../include)
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/../core/include)
 
-# Use only simple API server for now (avoid complex dependencies)
-set(BACKEND_SOURCES "${CMAKE_SOURCE_DIR}/src/simple_api_server.cpp")
+# Source files
+set(SERVER_SOURCES
+    src/server/PluginManager.cpp
+    src/server/MessageBus.cpp
+    src/server/Router.cpp
+)
 
-# TODO: After implementing missing dependencies, switch to full server:
-# file(GLOB_RECURSE BACKEND_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
-# list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*test.*\\.cpp$")
-# list(FILTER BACKEND_SOURCES EXCLUDE REGEX ".*CMakeFiles/.*")
+set(MODULE_SOURCES
+    src/modules/gateway/ApiGatewayModule.cpp
+)
 
-# Use the main api_server.cpp
-if(EXISTS "${CMAKE_SOURCE_DIR}/src/api_server.cpp")
-    message(STATUS "Using api_server.cpp as main server")
-else()
-    message(FATAL_ERROR "api_server.cpp not found!")
-endif()
+set(BACKEND_SOURCES
+    src/main.cpp
+    ${SERVER_SOURCES}
+    ${MODULE_SOURCES}
+)
 
-# Print included sources
+# Print sources
 message(STATUS "Backend sources:")
 foreach(src ${BACKEND_SOURCES})
     message(STATUS "  - ${src}")
 endforeach()
 
 # Create executable
-add_executable(PaperCrawlerServer
-    ${BACKEND_SOURCES}
-)
+add_executable(PaperCrawlerServer ${BACKEND_SOURCES})
 
 # Find required packages
 find_package(Threads REQUIRED)
-find_package(OpenSSL)
 
 # Use local dependencies from core/external
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/../core/external)
-include_directories(${EXTERNAL_DIR})
 
-# Use local spdlog
-add_subdirectory(${EXTERNAL_DIR}/spdlog ${CMAKE_BINARY_DIR}/spdlog)
+# Use spdlog as header-only library
+include_directories(${EXTERNAL_DIR}/spdlog/include)
 
 # Link libraries
 target_link_libraries(PaperCrawlerServer
     PRIVATE
-        spdlog::spdlog
         Threads::Threads
 )
 
-# Add OpenSSL if found
-if(OPENSSL_FOUND)
-    target_link_libraries(PaperCrawlerServer PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-    target_compile_definitions(PaperCrawlerServer PRIVATE USE_OPENSSL)
-endif()
+# spdlog is header-only, no linking needed
+# but we need to compile with header-only mode
+target_compile_definitions(PaperCrawlerServer PRIVATE SPDLOG_COMPILED_LIB)
 
 # Platform specific
 if(WIN32)
@@ -83,7 +77,10 @@ message(STATUS "")
 message(STATUS "================== Backend Configuration ==================")
 message(STATUS "Executable: PaperCrawlerServer")
 message(STATUS "Port: 8080")
-message(STATUS "Type: REST API Server with Authentication")
-message(STATUS "Sources: ${BACKEND_SOURCES}")
+message(STATUS "Type: Modular Backend with Hot-Plug Support")
+message(STATUS "Architecture:")
+message(STATUS "  - Framework: IModule, MessageBus, Router, PluginManager")
+message(STATUS "  - Modules: ApiGatewayModule (with hot-plug APIs)")
+message(STATUS "  - Module Types: SERVER (infrastructure), BUSINESS (API)")
 message(STATUS "============================================================")
 message(STATUS "")
