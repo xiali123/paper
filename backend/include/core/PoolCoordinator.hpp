@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/ModuleExports.hpp"
-#include "core/MessagePool.hpp"
+#include "ModuleExports.hpp"
+#include "MessagePool.hpp"
 #include <memory>
 #include <future>
 #include <functional>

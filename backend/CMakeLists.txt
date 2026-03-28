@@ -42,16 +42,13 @@ set(NETWORK_SOURCES
 
 # 功能模块 - 基础设施
 set(INFRASTRUCTURE_SOURCES
-    src/features/infrastructure/PoolModule.cpp
+    src/core/PoolModule.cpp
+    src/core/QueueModule.cpp
     src/features/infrastructure/FilterModule.cpp
-    src/features/infrastructure/QueueModule.cpp
-    src/features/infrastructure/ResponseQueueModule.cpp
-    src/features/infrastructure/ResponseHandlerModule.cpp
     src/features/infrastructure/LoggingModule.cpp
     src/features/infrastructure/MetricsModule.cpp
     src/features/infrastructure/ConfigModule.cpp
     src/features/infrastructure/ApiGatewayModule.cpp
-    src/features/infrastructure/WatchdogModule.cpp
 )
 
 # 功能模块 - 性能优化
@@ -81,6 +78,8 @@ set(OPERATIONS_SOURCES
     src/features/operations/APIDocumentationModule.cpp
     src/features/operations/BackupModule.cpp
     src/features/operations/ProxyModule.cpp
+    src/features/operations/ResponseQueueModule.cpp
+    src/features/operations/ResponseHandlerModule.cpp
 )
 
 set(BUSINESS_SOURCES
