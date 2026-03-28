@@ -76,6 +76,15 @@ set(OPERATIONS_SOURCES
     src/proxy/ProxyModule.cpp
 )
 
+set(BUSINESS_SOURCES
+    src/business/PaperApiModule.cpp
+    src/business/AuthApiModule.cpp
+    src/business/StatsApiModule.cpp
+    src/business/UserApiModule.cpp
+    src/business/SearchApiModule.cpp
+    src/business/ExportApiModule.cpp
+)
+
 set(MODULE_SOURCES
     ${COMMUNICATION_SOURCES}
     ${DATA_SOURCES}
@@ -88,6 +97,7 @@ set(MODULE_SOURCES
     ${RESILIENCE_SOURCES}
     ${SCHEDULER_SOURCES}
     ${OPERATIONS_SOURCES}
+    ${BUSINESS_SOURCES}
 )
 
 set(BACKEND_SOURCES
