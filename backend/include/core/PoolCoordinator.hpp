@@ -5,6 +5,10 @@
 #include <memory>
 #include <future>
 #include <functional>
+#include <any>
+#include <map>
+#include <string>
+#include <chrono>
 
 namespace PaperCrawler {
 

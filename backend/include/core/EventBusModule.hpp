@@ -13,6 +13,7 @@
 #include <condition_variable>
 #include <thread>
 #include <chrono>
+#include <optional>
 
 namespace PaperCrawler {
 

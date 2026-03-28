@@ -101,7 +101,7 @@ private:
     MessagePoolConfig config_;
 
     std::vector<std::shared_ptr<PooledMessage>> messages_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::condition_variable condition_;
 
     // 负载均衡

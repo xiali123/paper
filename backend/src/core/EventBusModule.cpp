@@ -1,36 +1,90 @@
-#include "$(echo $file | sed 's|src/|include/|' | sed 's|\.cpp|\.hpp|')"
-#include <iostream>
+#include "core/EventBusModule.hpp"
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
-// 基础实现
-class $(basename $(echo $file | sed 's|Module.cpp||')))::Impl {
-public:
-    // TODO: 实现细节
-};
+EventBusModule::EventBusModule() = default;
+EventBusModule::~EventBusModule() = default;
 
-$(basename $(echo $file | sed 's|Module.cpp||'))::$(basename $(echo $file | sed 's|Module.cpp||'))()
-    : impl_(std::make_unique<Impl>()) {}
+std::string EventBusModule::getName() const {
+    return "EventBus";
+}
 
-$(basename $(echo $file | sed 's|Module.cpp||'))::~$(basename $(echo $file | sed 's|Module.cpp||'))() = default;
+std::string EventBusModule::getVersion() const {
+    return "1.0.0";
+}
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::initialize() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||'))::initialize" << std::endl;
+std::string EventBusModule::getDescription() const {
+    return "Event bus for publish-subscribe pattern";
+}
+
+ModuleType EventBusModule::getModuleType() const {
+    return ModuleType::SERVER;
+}
+
+bool EventBusModule::initialize() {
+    spdlog::info("EventBusModule initialized");
     return true;
 }
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::start() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||')) started" << std::endl;
+bool EventBusModule::start() {
+    spdlog::info("EventBusModule started");
     return true;
 }
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::stop() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||')) stopped" << std::endl;
+bool EventBusModule::stop() {
+    spdlog::info("EventBusModule stopped");
     return true;
 }
 
-void $(basename $(echo $file | sed 's|Module.cpp||'))::cleanup() {
-    // 清理资源
+void EventBusModule::cleanup() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    subscribers_.clear();
+    spdlog::info("EventBusModule cleaned up");
+}
+
+void EventBusModule::publish(const std::string& event, const std::any& data) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = subscribers_.find(event);
+    if (it != subscribers_.end()) {
+        spdlog::debug("Publishing event '{}' to {} subscribers", event, it->second.size());
+
+        for (const auto& handler : it->second) {
+            try {
+                handler(data);
+            } catch (const std::exception& e) {
+                spdlog::error("Error in event handler for '{}': {}", event, e.what());
+            }
+        }
+    }
+}
+
+void EventBusModule::subscribe(const std::string& event,
+                               std::function<void(const std::any&)> handler) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    size_t handlerId = nextHandlerId_++;
+    subscribers_[event].push_back({handlerId, handler});
+
+    spdlog::debug("Subscribed to event '{}' (handler ID: {})", event, handlerId);
+}
+
+void EventBusModule::unsubscribe(const std::string& event, size_t handlerId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = subscribers_.find(event);
+    if (it != subscribers_.end()) {
+        auto& handlers = it->second;
+        handlers.erase(
+            std::remove_if(handlers.begin(), handlers.end(),
+                [handlerId](const auto& pair) { return pair.first == handlerId; }
+            ),
+            handlers.end()
+        );
+
+        spdlog::debug("Unsubscribed from event '{}' (handler ID: {})", event, handlerId);
+    }
 }
 
 } // namespace PaperCrawler
