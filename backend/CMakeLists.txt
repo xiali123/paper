@@ -46,6 +46,34 @@ set(PERFORMANCE_SOURCES
 set(INFRASTRUCTURE_SOURCES
     src/system/LoggingModule.cpp
     src/monitoring/MetricsModule.cpp
+    src/system/ConfigModule.cpp
+)
+
+set(NETWORK_SOURCES
+    src/network/HttpServerModule.cpp
+    src/network/WebSocketModule.cpp
+)
+
+set(SECURITY_SOURCES
+    src/security/SecurityModule.cpp
+    src/security/SessionModule.cpp
+)
+
+set(RESILIENCE_SOURCES
+    src/resilience/CircuitBreakerModule.cpp
+    src/communication/EventBusModule.cpp
+)
+
+set(SCHEDULER_SOURCES
+    src/scheduler/SchedulerModule.cpp
+)
+
+set(OPERATIONS_SOURCES
+    src/notification/NotificationModule.cpp
+    src/validation/ValidationModule.cpp
+    src/documentation/APIDocumentationModule.cpp
+    src/backup/BackupModule.cpp
+    src/proxy/ProxyModule.cpp
 )
 
 set(MODULE_SOURCES
@@ -55,6 +83,11 @@ set(MODULE_SOURCES
     ${HANDLER_SOURCES}
     ${PERFORMANCE_SOURCES}
     ${INFRASTRUCTURE_SOURCES}
+    ${NETWORK_SOURCES}
+    ${SECURITY_SOURCES}
+    ${RESILIENCE_SOURCES}
+    ${SCHEDULER_SOURCES}
+    ${OPERATIONS_SOURCES}
 )
 
 set(BACKEND_SOURCES
