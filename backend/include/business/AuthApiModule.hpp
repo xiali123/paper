@@ -23,7 +23,18 @@ struct User {
     std::chrono::system_clock::time_point lastLoginAt;
     bool active{true};
 
-    std::string toJSON() const;
+    std::string toJSON() const {
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"id\": " << id << ",\n";
+        json << "  \"username\": \"" << username << "\",\n";
+        json << "  \"email\": \"" << email << "\",\n";
+        json << "  \"full_name\": \"" << fullName << "\",\n";
+        json << "  \"role\": \"" << role << "\",\n";
+        json << "  \"active\": " << (active ? "true" : "false") << "\n";
+        json << "}";
+        return json.str();
+    }
 };
 
 /**
@@ -46,7 +57,25 @@ struct LoginResponse {
     std::chrono::seconds expiresIn{3600};
     User user;
 
-    std::string toJSON() const;
+    std::string toJSON() const {
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"success\": " << (success ? "true" : "false") << ",\n";
+
+        if (!message.empty()) {
+            json << "  \"message\": \"" << message << "\",\n";
+        }
+
+        if (success) {
+            json << "  \"access_token\": \"" << accessToken << "\",\n";
+            json << "  \"refresh_token\": \"" << refreshToken << "\",\n";
+            json << "  \"expires_in\": " << expiresIn.count() << ",\n";
+            json << "  \"user\": " << user.toJSON() << "\n";
+        }
+
+        json << "}";
+        return json.str();
+    }
 };
 
 /**
@@ -64,6 +93,24 @@ struct RefreshTokenResponse {
     std::string message;
     std::string accessToken;
     std::chrono::seconds expiresIn{3600};
+
+    std::string toJSON() const {
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"success\": " << (success ? "true" : "false") << ",\n";
+
+        if (!message.empty()) {
+            json << "  \"message\": \"" << message << "\",\n";
+        }
+
+        if (success) {
+            json << "  \"access_token\": \"" << accessToken << "\",\n";
+            json << "  \"expires_in\": " << expiresIn.count() << "\n";
+        }
+
+        json << "}";
+        return json.str();
+    }
 };
 
 /**
