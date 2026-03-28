@@ -1,5 +1,5 @@
 #include "business/PaperApiModule.hpp"
-#include "handler/ResponseHandlerModule.hpp"
+#include "features/infrastructure/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <map>
 #include <algorithm>

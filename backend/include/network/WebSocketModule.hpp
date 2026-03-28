@@ -1,7 +1,7 @@
 #pragma once
 
-#include "framework/IModule.hpp"
-#include "framework/ModuleExports.hpp"
+#include "core/IModule.hpp"
+#include "core/ModuleExports.hpp"
 #include <string>
 #include <map>
 #include <vector>

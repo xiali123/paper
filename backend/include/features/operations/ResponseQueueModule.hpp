@@ -1,8 +1,8 @@
 #pragma once
 
-#include "framework/IModule.hpp"
-#include "framework/ModuleExports.hpp"
-#include "communication/UnifiedMessage.hpp"
+#include "core/IModule.hpp"
+#include "core/ModuleExports.hpp"
+#include "core/UnifiedMessage.hpp"
 #include <queue>
 #include <mutex>
 #include <condition_variable>

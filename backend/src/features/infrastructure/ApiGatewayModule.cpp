@@ -1,6 +1,6 @@
-#include "modules/ApiGatewayModule.hpp"
-#include "framework/Router.hpp"
-#include "framework/PluginManager.hpp"
+#include "features/infrastructure/ApiGatewayModule.hpp"
+#include "core/Router.hpp"
+#include "core/PluginManager.hpp"
 #include <spdlog/spdlog.h>
 #include <iostream>
 #include <sstream>

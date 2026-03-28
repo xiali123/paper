@@ -1,7 +1,7 @@
 #pragma once
 
-#include "framework/IModule.hpp"
-#include "framework/Router.hpp"
+#include "core/IModule.hpp"
+#include "core/Router.hpp"
 #include <memory>
 
 namespace PaperCrawler {

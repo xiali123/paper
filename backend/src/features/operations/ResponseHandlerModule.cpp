@@ -1,5 +1,5 @@
-#include "handler/ResponseHandlerModule.hpp"
-#include "queue/ResponseQueueModule.hpp"
+#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/infrastructure/ResponseQueueModule.hpp"
 #include <sstream>
 #include <thread>
 #include <chrono>

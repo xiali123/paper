@@ -1,4 +1,4 @@
-#include "communication/MessagePool.hpp"
+#include "core/MessagePool.hpp"
 #include <iostream>
 #include <algorithm>
 

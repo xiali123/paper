@@ -28,11 +28,11 @@
 #endif
 
 // 框架核心
-#include "framework/MessageBus.hpp"
-#include "framework/Router.hpp"
-#include "framework/PluginManager.hpp"
-#include "framework/ModuleRegistry.hpp"
-#include "framework/HotReloadManager.hpp"
+#include "core/MessageBus.hpp"
+#include "core/Router.hpp"
+#include "core/PluginManager.hpp"
+#include "core/ModuleRegistry.hpp"
+#include "core/HotReloadManager.hpp"
 
 #include <spdlog/spdlog.h>
 

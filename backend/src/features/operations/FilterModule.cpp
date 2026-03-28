@@ -1,4 +1,4 @@
-#include "filter/IFilterRule.hpp"
+#include "features/infrastructure/IFilterRule.hpp"
 #include <algorithm>
 
 namespace PaperCrawler {

@@ -1,6 +1,6 @@
-#include "framework/HotReloadManager.hpp"
-#include "framework/PluginManager.hpp"
-#include "framework/ModuleRegistry.hpp"
+#include "core/HotReloadManager.hpp"
+#include "core/PluginManager.hpp"
+#include "core/ModuleRegistry.hpp"
 #include <iostream>
 #include <filesystem>
 

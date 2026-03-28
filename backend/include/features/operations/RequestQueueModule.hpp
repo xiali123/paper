@@ -1,7 +1,7 @@
 #pragma once
 
-#include "framework/IModule.hpp"
-#include "framework/ModuleExports.hpp"
+#include "core/IModule.hpp"
+#include "core/ModuleExports.hpp"
 #include <queue>
 #include <mutex>
 #include <condition_variable>

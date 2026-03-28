@@ -1,4 +1,4 @@
-#include "framework/ModuleRegistry.hpp"
+#include "core/ModuleRegistry.hpp"
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>

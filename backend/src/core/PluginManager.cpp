@@ -1,4 +1,4 @@
-#include "framework/PluginManager.hpp"
+#include "core/PluginManager.hpp"
 #include <spdlog/spdlog.h>
 #include <iostream>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "framework/ModuleExports.hpp"
+#include "core/ModuleExports.hpp"
 #include <string>
 #include <vector>
 #include <memory>

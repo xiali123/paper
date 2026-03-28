@@ -1,5 +1,5 @@
-#include "framework/SmartUnloadStrategy.hpp"
-#include "framework/PluginManager.hpp"
+#include "core/SmartUnloadStrategy.hpp"
+#include "core/PluginManager.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>

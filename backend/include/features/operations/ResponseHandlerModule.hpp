@@ -1,9 +1,9 @@
 #pragma once
 
-#include "framework/IModule.hpp"
-#include "framework/ModuleExports.hpp"
-#include "queue/ResponseQueueModule.hpp"
-#include "communication/UnifiedMessage.hpp"
+#include "core/IModule.hpp"
+#include "core/ModuleExports.hpp"
+#include "features/infrastructure/ResponseQueueModule.hpp"
+#include "core/UnifiedMessage.hpp"
 #include <string>
 #include <thread>
 #include <vector>

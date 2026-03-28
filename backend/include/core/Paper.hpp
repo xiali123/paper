@@ -11,7 +11,7 @@
 #include <vector>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "database/DatabaseManager.hpp"
+#include "data/DatabaseManager.hpp"
 
 namespace PaperCrawler {
 

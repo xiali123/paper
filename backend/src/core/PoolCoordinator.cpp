@@ -1,5 +1,5 @@
-#include "pool/PoolCoordinator.hpp"
-#include "communication/MessagePool.hpp"
+#include "core/PoolCoordinator.hpp"
+#include "core/MessagePool.hpp"
 #include <iostream>
 
 namespace PaperCrawler {

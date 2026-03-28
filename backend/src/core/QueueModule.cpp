@@ -1,5 +1,5 @@
-#include "modules/system/QueueModule.hpp"
-#include "handler/ResponseHandlerModule.hpp"
+#include "core/QueueModule.hpp"
+#include "features/infrastructure/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <iomanip>
 #include <random>
