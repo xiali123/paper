@@ -37,7 +37,19 @@ struct Paper {
     std::string notes;
 
     // 序列化为JSON
-    std::string toJSON() const;
+    std::string toJSON() const {
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"id\": " << id << ",\n";
+        json << "  \"title\": \"" << title << "\",\n";
+        json << "  \"authors\": \"" << authors << "\",\n";
+        json << "  \"year\": " << year << ",\n";
+        json << "  \"citation_count\": " << citationCount << ",\n";
+        json << "  \"is_read\": " << (isRead ? "true" : "false") << ",\n";
+        json << "  \"is_favorite\": " << (isFavorite ? "true" : "false") << "\n";
+        json << "}";
+        return json.str();
+    }
 };
 
 /**

@@ -151,4 +151,104 @@ std::string ResponseHandlerModule::getStatusText(int statusCode) {
     }
 }
 
+// ============================================================================
+// 辅助函数（从 simple_api_server.cpp 提取）
+// ============================================================================
+
+/**
+ * @brief 构建简单JSON响应
+ * @param data 键值对数据
+ * @param statusCode HTTP状态码
+ * @return 完整HTTP响应字符串
+ */
+std::string ResponseHandlerModule::buildJsonResponse(const std::map<std::string, std::string>& data,
+                                                    int statusCode) {
+    std::ostringstream response;
+    response << "HTTP/1.1 " << statusCode;
+
+    switch (statusCode) {
+        case 200: response << " OK"; break;
+        case 201: response << " Created"; break;
+        case 400: response << " Bad Request"; break;
+        case 404: response << " Not Found"; break;
+        case 500: response << " Internal Server Error"; break;
+        default: response << " Unknown"; break;
+    }
+
+    response << "\r\n";
+    response << "Content-Type: application/json\r\n";
+    response << "Access-Control-Allow-Origin: *\r\n";
+    response << "Connection: close\r\n\r\n";
+
+    response << "{\n";
+    bool first = true;
+    for (const auto& pair : data) {
+        if (!first) response << ",\n";
+        first = false;
+        response << "  \"" << pair.first << "\": \"" << pair.second << "\"";
+    }
+    response << "\n}\n";
+
+    return response.str();
+}
+
+/**
+ * @brief 构建论文列表JSON响应
+ * @param papersJson 论文JSON数组
+ * @param total 总数
+ * @param page 当前页
+ * @param pageSize 每页大小
+ * @return 完整HTTP响应字符串
+ */
+std::string ResponseHandlerModule::buildPapersJsonResponse(const std::string& papersJson,
+                                                          int total, int page, int pageSize) {
+    std::ostringstream response;
+    response << "HTTP/1.1 200 OK\r\n";
+    response << "Content-Type: application/json\r\n";
+    response << "Access-Control-Allow-Origin: *\r\n";
+    response << "Connection: close\r\n\r\n";
+
+    response << "{\n";
+    response << "  \"success\": true,\n";
+    response << "  \"data\": {\n";
+    response << "    \"papers\": " << papersJson << ",\n";
+    response << "    \"total\": " << total << ",\n";
+    response << "    \"page\": " << page << ",\n";
+    response << "    \"pageSize\": " << pageSize << ",\n";
+    response << "    \"totalPages\": " << ((total + pageSize - 1) / pageSize) << "\n";
+    response << "  }\n";
+    response << "}\n";
+
+    return response.str();
+}
+
+/**
+ * @brief 构建统计信息JSON响应
+ * @param stats 统计数据键值对
+ * @return 完整HTTP响应字符串
+ */
+std::string ResponseHandlerModule::buildStatsJsonResponse(const std::map<std::string, std::string>& stats) {
+    std::ostringstream response;
+    response << "HTTP/1.1 200 OK\r\n";
+    response << "Content-Type: application/json\r\n";
+    response << "Access-Control-Allow-Origin: *\r\n";
+    response << "Connection: close\r\n\r\n";
+
+    response << "{\n";
+    response << "  \"success\": true,\n";
+    response << "  \"data\": {\n";
+
+    bool first = true;
+    for (const auto& pair : stats) {
+        if (!first) response << ",\n";
+        first = false;
+        response << "    \"" << pair.first << "\": " << pair.second;
+    }
+
+    response << "\n  }\n";
+    response << "}\n";
+
+    return response.str();
+}
+
 } // namespace PaperCrawler

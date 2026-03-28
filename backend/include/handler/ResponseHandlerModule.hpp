@@ -58,6 +58,27 @@ public:
      */
     std::string formatErrorResponse(const std::string& errorMessage, int statusCode);
 
+    // ============================================================================
+    // 辅助函数（从 simple_api_server.cpp 提取，供其他模块使用）
+    // ============================================================================
+
+    /**
+     * @brief 构建简单JSON响应
+     */
+    static std::string buildJsonResponse(const std::map<std::string, std::string>& data,
+                                         int statusCode = 200);
+
+    /**
+     * @brief 构建论文列表JSON响应
+     */
+    static std::string buildPapersJsonResponse(const std::string& papersJson,
+                                                int total, int page, int pageSize);
+
+    /**
+     * @brief 构建统计信息JSON响应
+     */
+    static std::string buildStatsJsonResponse(const std::map<std::string, std::string>& stats);
+
 private:
     // 工作线程（从返回队列获取响应）
     std::vector<std::thread> workerThreads_;
