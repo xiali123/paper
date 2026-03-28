@@ -6,6 +6,8 @@
 #include <chrono>
 #include <functional>
 #include <vector>
+#include <mutex>
+#include <atomic>
 
 namespace PaperCrawler {
 
@@ -92,20 +94,20 @@ struct UnifiedMessage {
         MessageOperation op,
         MessageTarget tgt,
         const std::string& tgtName
-    ) : operation(op),
+    ) : messageId(generateMessageId()),
+        operation(op),
         target(tgt),
         targetName(tgtName),
-        timestamp(std::chrono::system_clock::now()),
-        messageId(generateMessageId()) {}
+        timestamp(std::chrono::system_clock::now()) {}
 
     /**
      * @brief 默认构造函数
      */
     UnifiedMessage()
-        : operation(MessageOperation::CUSTOM),
+        : messageId(generateMessageId()),
+          operation(MessageOperation::CUSTOM),
           target(MessageTarget::SYSTEM),
-          timestamp(std::chrono::system_clock::now()),
-          messageId(generateMessageId()) {}
+          timestamp(std::chrono::system_clock::now()) {}
 
     /**
      * @brief 便捷方法：设置参数

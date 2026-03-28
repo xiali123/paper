@@ -6,6 +6,9 @@
 #include <vector>
 #include <map>
 #include <optional>
+#include <chrono>
+#include <mutex>
+#include <functional>
 
 namespace PaperCrawler {
 

@@ -4,7 +4,7 @@
 
 #ifdef _WIN32
     #include <windows.h>
-    #define LOAD_LIBRARY(path) LoadLibraryA(path)
+    #define LOAD_LIBRARY(path) reinterpret_cast<void*>(LoadLibraryA(path))
     #define FREE_LIBRARY(handle) FreeLibrary(reinterpret_cast<HMODULE>(handle))
     #define GET_SYMBOL(handle, name) GetProcAddress(reinterpret_cast<HMODULE>(handle), name)
 #else

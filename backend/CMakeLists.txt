@@ -24,6 +24,7 @@ set(CORE_SOURCES
     src/core/SmartUnloadStrategy.cpp
     src/core/HotReloadManager.cpp
     src/core/EventBusModule.cpp
+    src/core/WatchdogModule.cpp
     src/core/main.cpp
 )
 
@@ -145,6 +146,7 @@ if(WIN32)
         _CRT_SECURE_NO_WARNINGS
         _WINSOCK_DEPRECATED_NO_WARNINGS
     )
+    target_compile_options(PaperCrawlerServer PRIVATE /utf-8)
     target_link_libraries(PaperCrawlerServer
         PRIVATE
             ws2_32

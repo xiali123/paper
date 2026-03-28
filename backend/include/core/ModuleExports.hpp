@@ -3,14 +3,11 @@
 #include <string>
 #include <memory>
 
-// Windows platform forward declarations (avoid windows.h macro pollution)
+// Platform-specific module handle types
+// Use void* for all platforms to avoid header pollution
+// Type conversion will be handled in .cpp files
 #ifdef _WIN32
-    // Forward declare Windows types
-    struct HMODULE__;
-    struct HINSTANCE__;
-
-    // Use incomplete type aliases
-    using ModuleHandle = HMODULE__*;
+    using ModuleHandle = void*;
 #else
     // Linux/macOS use void*
     using ModuleHandle = void*;
