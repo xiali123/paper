@@ -6,10 +6,18 @@ import type {
   SearchParams,
   PaginatedResponse
 } from '@/types'
+import {
+  toFrontendPaper,
+  transformPaperList,
+  transformQueryParams,
+  transformPaginationParams
+} from '@/api/adapters/paperAdapter'
+import { transformPaginationResponse } from '@/api/adapters/paginationAdapter'
 
 /**
  * Paper API module
  * Provides methods for searching and retrieving paper data
+ * Uses paperAdapter for data transformation between frontend and backend formats
  */
 export const paperApi = {
   /**
@@ -18,7 +26,16 @@ export const paperApi = {
    * @returns Search results with papers array and metadata
    */
   async search(params: SearchParams): Promise<SearchResult> {
-    return await request.get('/search', { params })
+    const backendParams = transformQueryParams(params)
+    const backendResponse = await request.get('/search', { params: backendParams })
+
+    // Transform backend response to frontend format
+    return {
+      papers: transformPaperList(backendResponse.papers || backendResponse.data || []),
+      total: backendResponse.total || 0,
+      page: params.page || 1,
+      pageSize: params.pageSize || params.limit || 20
+    }
   },
 
   /**
@@ -27,7 +44,8 @@ export const paperApi = {
    * @returns Basic paper information
    */
   async getById(id: string | number): Promise<Paper> {
-    return await request.get(`/papers/${id}`)
+    const backendPaper = await request.get(`/papers/${id}`)
+    return toFrontendPaper(backendPaper)
   },
 
   /**
@@ -36,7 +54,12 @@ export const paperApi = {
    * @returns Extended paper details with citations, references, etc.
    */
   async getDetail(id: string | number): Promise<PaperDetail> {
-    return await request.get(`/papers/${id}/detail`)
+    const backendDetail = await request.get(`/papers/${id}/detail`)
+    // Transform paper data within detail
+    return {
+      ...backendDetail,
+      paper: toFrontendPaper(backendDetail.paper || backendDetail)
+    }
   },
 
   /**
@@ -45,7 +68,8 @@ export const paperApi = {
    * @returns Array of recent papers
    */
   async getRecent(limit: number = 20): Promise<Paper[]> {
-    return await request.get('/papers/recent', { params: { limit } })
+    const backendPapers = await request.get('/papers/recent', { params: { limit } })
+    return transformPaperList(backendPapers)
   },
 
   /**
@@ -55,16 +79,34 @@ export const paperApi = {
    * @returns Paginated paper list
    */
   async getPaged(page: number, pageSize: number = 20): Promise<PaginatedResponse<Paper>> {
-    return await request.get('/papers', { params: { page, pageSize } })
+    const backendParams = transformPaginationParams({ page, pageSize })
+    const backendResponse = await request.get('/papers', { params: backendParams })
+
+    return transformPaginationResponse({
+      items: transformPaperList(backendResponse.papers || backendResponse.data || []),
+      total: backendResponse.total || 0,
+      page: page,
+      pageSize: pageSize
+    })
   },
 
   /**
    * Get papers with offset-based pagination
    * @param offset - Number of items to skip
-   * @param limit - Maximum number of items to return
+   * @param limit - Maximum number of papers to return
    * @returns Paginated paper list
    */
   async getPagedOffset(offset: number, limit: number = 20): Promise<PaginatedResponse<Paper>> {
-    return await request.get('/papers', { params: { offset, limit } })
+    const backendParams = transformPaginationParams({ page: 1, pageSize: limit })
+    const backendResponse = await request.get('/papers', {
+      params: { ...backendParams, offset }
+    })
+
+    return transformPaginationResponse({
+      items: transformPaperList(backendResponse.papers || backendResponse.data || []),
+      total: backendResponse.total || 0,
+      page: Math.floor(offset / limit) + 1,
+      pageSize: limit
+    })
   }
 }
