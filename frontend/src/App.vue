@@ -248,8 +248,8 @@ const checkBackend = async () => {
     if (response.ok) {
       const result = await response.json()
       console.log('Health check result:', result)
-      // 后端返回格式：{ success: true, data: { status: "ok", message: "..." } }
-      backendStatus.value = result.success && result.data && result.data.status === 'ok'
+      // 后端返回格式：{ status: "ok", timestamp: "..." }
+      backendStatus.value = result.status === 'ok'
       healthCheckInitialized.value = true
     } else {
       console.warn('Health check failed with status:', response.status)
