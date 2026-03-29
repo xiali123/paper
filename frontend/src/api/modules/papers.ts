@@ -86,9 +86,13 @@ export const papersApi = {
     const backendParams = transformQueryParams(params)
     const response = await request.get<{ papers: BackendPaper[], total: number, page: number, pageSize: number }>('/papers', { params: backendParams })
 
+    // Debug logging
+    console.log('📦 [getPapers] Response:', response)
+    console.log('📦 [getPapers] response.papers:', response.papers)
+
     return {
       ...response,
-      papers: transformPaperList(response.papers)
+      papers: transformPaperList(response.papers || [])
     }
   },
 
