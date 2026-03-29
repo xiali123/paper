@@ -379,6 +379,60 @@ bool registerManagementAPIs() {
         return response;
     });
 
+    
+    // Search API
+    router.get("/api/search", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            std::string query = req.getQuery("q", "");
+            
+            if (query.empty()) {
+                response.statusCode = 400;
+                response.body = R"({"success":false,"error":"Query parameter 'q' is required"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 构建搜索SQL - 在标题和作者中搜索
+            std::ostringstream sql;
+            sql << "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE "
+                << "title LIKE '%" << g_dbConnection->escape(query) << "%' OR "
+                << "authors LIKE '%" << g_dbConnection->escape(query) << "%'";
+
+            auto papers = g_dbConnection->query(sql.str());
+
+            std::ostringstream json;
+            json << R"({"success":true,"papers":[)";
+
+            bool first = true;
+            for (const auto& paper : papers) {
+                if (!first) json << ",";
+                first = false;
+
+                json << R"({)"
+                     << R"("id":)" << paper.at("id") << R"(,)"
+                     << R"("title":")" << paper.at("title") << R"(",)"
+                     << R"("authors":")" << paper.at("authors") << R"(",)"
+                     << R"("year":)" << paper.at("year") << R"(,)"
+                     << R"("publication":")" << paper.at("publication") << R"(",)"
+                     << R"("citation_count":)" << paper.at("citation_count")
+                     << R"(})";
+            }
+
+            json << R"(,"total":)" << papers.size() << R"(,"query":")" << query << R"("})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
     router.get("/api/papers/:id", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
