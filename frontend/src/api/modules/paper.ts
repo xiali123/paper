@@ -9,10 +9,12 @@ import type {
 import {
   toFrontendPaper,
   transformPaperList,
-  transformQueryParams,
-  transformPaginationParams
+  transformQueryParams
 } from '@/api/adapters/paperAdapter'
-import { transformPaginationResponse } from '@/api/adapters/paginationAdapter'
+import {
+  transformPaginationParams,
+  transformPaginationResponse
+} from '@/api/adapters/paginationAdapter'
 
 /**
  * Paper API module
