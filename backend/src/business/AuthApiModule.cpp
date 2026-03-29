@@ -1,66 +1,13 @@
+#include <iostream>
 #include "business/AuthApiModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/SessionModule.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <map>
 #include <chrono>
 #include <iomanip>
 
 namespace PaperCrawler {
-
-// ============================================================================
-// User 结构体的 JSON 序列化
-// ============================================================================
-
-std::string User::toJSON() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"id\": " << id << ",\n";
-    json << "  \"username\": \"" << username << "\",\n";
-    json << "  \"email\": \"" << email << "\",\n";
-    json << "  \"full_name\": \"" << fullName << "\",\n";
-    json << "  \"role\": \"" << role << "\",\n";
-    json << "  \"active\": " << (active ? "true" : "false") << "\n";
-    json << "}";
-    return json.str();
-}
-
-std::string LoginResponse::toJSON() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": " << (success ? "true" : "false") << ",\n";
-
-    if (!message.empty()) {
-        json << "  \"message\": \"" << message << "\",\n";
-    }
-
-    if (success) {
-        json << "  \"access_token\": \"" << accessToken << "\",\n";
-        json << "  \"refresh_token\": \"" << refreshToken << "\",\n";
-        json << "  \"expires_in\": " << expiresIn.count() << ",\n";
-        json << "  \"user\": " << user.toJSON() << "\n";
-    }
-
-    json << "}";
-    return json.str();
-}
-
-std::string RefreshTokenResponse::toJSON() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": " << (success ? "true" : "false") << ",\n";
-
-    if (!message.empty()) {
-        json << "  \"message\": \"" << message << "\",\n";
-    }
-
-    if (success) {
-        json << "  \"access_token\": \"" << accessToken << "\",\n";
-        json << "  \"expires_in\": " << expiresIn.count() << "\n";
-    }
-
-    json << "}";
-    return json.str();
-}
 
 // ============================================================================
 // AuthApiModule 实现
@@ -148,26 +95,6 @@ AuthApiModule::AuthApiModule()
 }
 
 AuthApiModule::~AuthApiModule() = default;
-
-std::string AuthApiModule::getName() const {
-    return "AuthApi";
-}
-
-std::string AuthApiModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string AuthApiModule::getDescription() const {
-    return "Authentication and authorization API";
-}
-
-ModuleType AuthApiModule::getModuleType() const {
-    return ModuleType::BUSINESS;
-}
-
-std::string AuthApiModule::getRoutePrefix() const {
-    return "/api/auth";
-}
 
 bool AuthApiModule::initialize() {
     registerRoutes();
@@ -318,10 +245,10 @@ std::optional<User> AuthApiModule::registerUser(const RegisterRequest& request) 
     newUser.createdAt = std::chrono::system_clock::now();
 
     // 哈希密码
-    newUser.passwordHash = impl_->hashPassword(request.password);
+    std::string passwordHash = impl_->hashPassword(request.password);
+    impl_->passwordHashes_[request.username] = passwordHash;
 
     impl_->mockUsers_[newUser.id] = newUser;
-    impl_->passwordHashes_[request.username] = newUser.passwordHash;
 
     impl_->stats_.totalRegistrations++;
 
@@ -340,7 +267,8 @@ bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& requ
     }
 
     // 更新密码
-    it->second.passwordHash = impl_->hashPassword(request.newPassword);
+    std::string passwordHash = impl_->hashPassword(request.newPassword);
+    impl_->passwordHashes_[it->second.username] = passwordHash;
 
     return true;
 }

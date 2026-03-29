@@ -1,4 +1,4 @@
-#include "features/security/SecurityModule.hpp"
+#include "features/SecurityModule.hpp"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -343,7 +343,7 @@ std::string SecurityModule::generateJWT(const JWTClaims& claims,
     return impl_->generateJWT(claims, expiry);
 }
 
-SecurityModule::JWTVerifyResult SecurityModule::verifyJWT(const std::string& token) {
+JWTVerifyResult SecurityModule::verifyJWT(const std::string& token) {
     return impl_->verifyJWT(token);
 }
 
@@ -362,7 +362,7 @@ std::string SecurityModule::refreshJWT(const std::string& token) {
     return generateJWT(newClaims, defaultJWTExpiry_);
 }
 
-SecurityModule::PasswordHashResult SecurityModule::hashPassword(const std::string& password, int cost) {
+PasswordHashResult SecurityModule::hashPassword(const std::string& password, int cost) {
     return impl_->hashPassword(password, cost);
 }
 
@@ -370,15 +370,15 @@ bool SecurityModule::verifyPassword(const std::string& password, const std::stri
     return impl_->verifyPassword(password, hash);
 }
 
-SecurityModule::EncryptionResult SecurityModule::encrypt(const std::vector<uint8_t>& data,
-                                                        const std::vector<uint8_t>& key,
-                                                        const std::vector<uint8_t>& nonce) {
+EncryptionResult SecurityModule::encrypt(const std::vector<uint8_t>& data,
+                                             const std::vector<uint8_t>& key,
+                                             const std::vector<uint8_t>& nonce) {
     return impl_->encrypt(data, key, nonce);
 }
 
-SecurityModule::DecryptionResult SecurityModule::decrypt(const std::vector<uint8_t>& encryptedData,
-                                                        const std::vector<uint8_t>& key,
-                                                        const std::vector<uint8_t>& nonce) {
+DecryptionResult SecurityModule::decrypt(const std::vector<uint8_t>& encryptedData,
+                                           const std::vector<uint8_t>& key,
+                                           const std::vector<uint8_t>& nonce) {
     return impl_->decrypt(encryptedData, key, nonce);
 }
 

@@ -70,9 +70,10 @@ public:
     };
     CombinedStats getAllStats() const;
 
+    ~PoolCoordinator() = default;
+
 private:
     PoolCoordinator() = default;
-    ~PoolCoordinator() = default;
 
     bool initialized_{false};
     static std::unique_ptr<PoolCoordinator> instance_;

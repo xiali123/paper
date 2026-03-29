@@ -9,6 +9,7 @@
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <sstream>
 
 namespace PaperCrawler {
 

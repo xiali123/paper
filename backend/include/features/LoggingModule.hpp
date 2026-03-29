@@ -63,6 +63,9 @@ public:
     std::shared_ptr<spdlog::logger> getLogger() { return logger_; }
 
 private:
+    class Impl;
+    std::unique_ptr<Impl> impl_;
+
     std::shared_ptr<spdlog::logger> logger_;
     LogLevel minLevel_{LogLevel::INFO};
 };

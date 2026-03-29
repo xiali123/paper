@@ -1,35 +1,35 @@
-#include "$(echo $file | sed 's|src/|include/|' | sed 's|\.cpp|\.hpp|')"
+#include "features/ConfigModule.hpp"
 #include <iostream>
 
 namespace PaperCrawler {
 
 // 基础实现
-class $(basename $(echo $file | sed 's|Module.cpp||')))::Impl {
+class ConfigModule::Impl {
 public:
     // TODO: 实现细节
 };
 
-$(basename $(echo $file | sed 's|Module.cpp||'))::$(basename $(echo $file | sed 's|Module.cpp||'))()
+ConfigModule::ConfigModule()
     : impl_(std::make_unique<Impl>()) {}
 
-$(basename $(echo $file | sed 's|Module.cpp||'))::~$(basename $(echo $file | sed 's|Module.cpp||'))() = default;
+ConfigModule::~ConfigModule() = default;
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::initialize() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||'))::initialize" << std::endl;
+bool ConfigModule::initialize() {
+    std::cout << "ConfigModule::initialize" << std::endl;
     return true;
 }
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::start() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||')) started" << std::endl;
+bool ConfigModule::start() {
+    std::cout << "ConfigModule started" << std::endl;
     return true;
 }
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::stop() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||')) stopped" << std::endl;
+bool ConfigModule::stop() {
+    std::cout << "ConfigModule stopped" << std::endl;
     return true;
 }
 
-void $(basename $(echo $file | sed 's|Module.cpp||'))::cleanup() {
+void ConfigModule::cleanup() {
     // 清理资源
 }
 

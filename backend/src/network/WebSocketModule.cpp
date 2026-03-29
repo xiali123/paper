@@ -1,3 +1,4 @@
+#include <optional>
 #include "network/WebSocketModule.hpp"
 #include <iostream>
 #include <sstream>
@@ -400,7 +401,7 @@ void WebSocketModule::setCloseHandler(ConnectionHandler handler) {
     impl_->closeHandler_ = handler;
 }
 
-WebSocketModule::WebSocketStats WebSocketModule::getStats() const {
+WebSocketStats WebSocketModule::getStats() const {
     return impl_->getStats();
 }
 

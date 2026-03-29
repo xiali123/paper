@@ -1,5 +1,6 @@
+#include <iostream>
 #include "core/QueueModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -229,26 +230,6 @@ QueueModule::QueueModule(size_t maxSize)
 }
 
 QueueModule::~QueueModule() = default;
-
-std::string QueueModule::getName() const {
-    return "Queue";
-}
-
-std::string QueueModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string QueueModule::getDescription() const {
-    return "Request queue with priority support";
-}
-
-ModuleType QueueModule::getModuleType() const {
-    return ModuleType::SERVER;
-}
-
-std::string QueueModule::getRoutePrefix() const {
-    return "/api/queue";
-}
 
 bool QueueModule::initialize() {
     std::cout << "QueueModule::initialize (max_size: " << impl_->maxSize_ << ")" << std::endl;

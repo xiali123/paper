@@ -2,7 +2,7 @@
 
 #include "core/IModule.hpp"
 #include "core/ModuleExports.hpp"
-#include "features/infrastructure/ResponseQueueModule.hpp"
+#include "features/operations/ResponseQueueModule.hpp"
 #include "core/UnifiedMessage.hpp"
 #include <string>
 #include <thread>

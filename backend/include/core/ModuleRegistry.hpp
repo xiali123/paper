@@ -34,6 +34,44 @@ struct ModuleInfo {
     std::chrono::system_clock::time_point lastUsed;
     std::chrono::system_clock::time_point loadedAt;
     int reloadCount{0};
+
+    // 自定义拷贝操作（因为atomic不可拷贝）
+    ModuleInfo() = default;
+    ModuleInfo(const ModuleInfo& other)
+        : name(other.name),
+          libraryPath(other.libraryPath),
+          version(other.version),
+          type(other.type),
+          routePrefix(other.routePrefix),
+          dependencies(other.dependencies),
+          endpoints(other.endpoints),
+          state(other.state),
+          handle(other.handle),
+          instance(other.instance),
+          referenceCount(other.referenceCount.load()),
+          lastUsed(other.lastUsed),
+          loadedAt(other.loadedAt),
+          reloadCount(other.reloadCount) {}
+
+    ModuleInfo& operator=(const ModuleInfo& other) {
+        if (this != &other) {
+            name = other.name;
+            libraryPath = other.libraryPath;
+            version = other.version;
+            type = other.type;
+            routePrefix = other.routePrefix;
+            dependencies = other.dependencies;
+            endpoints = other.endpoints;
+            state = other.state;
+            handle = other.handle;
+            instance = other.instance;
+            referenceCount.store(other.referenceCount.load());
+            lastUsed = other.lastUsed;
+            loadedAt = other.loadedAt;
+            reloadCount = other.reloadCount;
+        }
+        return *this;
+    }
 };
 
 /**

@@ -7,6 +7,7 @@
 #include <map>
 #include <chrono>
 #include <functional>
+#include <optional>
 
 namespace PaperCrawler {
 

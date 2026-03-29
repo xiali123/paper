@@ -1,4 +1,4 @@
-#include "features/infrastructure/ResponseQueueModule.hpp"
+#include "features/operations/ResponseQueueModule.hpp"
 #include <iostream>
 
 namespace PaperCrawler {

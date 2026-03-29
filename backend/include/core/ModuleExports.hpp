@@ -19,19 +19,19 @@ namespace PaperCrawler {
  * @brief Module type enumeration
  */
 enum class ModuleType {
-    SERVER,     // Server module (infrastructure)
-    BUSINESS    // Business module (API handling)
+    SERVER,     // Infrastructure module
+    BUSINESS    // Business API module
 };
 
 /**
  * @brief Module lifecycle state
  */
 enum class ModuleState {
-    UNLOADED,   // Not loaded
-    LOADED,     // Loaded
-    STARTED,    // Started
-    STOPPED,    // Stopped
-    ERROR       // Error state
+    UNLOADED,   // Module not loaded
+    LOADED,     // Module loaded
+    STARTED,    // Module started
+    STOPPED,    // Module stopped
+    FAILED      // Error state
 };
 
 /**

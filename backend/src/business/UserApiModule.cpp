@@ -1,3 +1,4 @@
+#include <iostream>
 #include "business/UserApiModule.hpp"
 #include <sstream>
 #include <iomanip>

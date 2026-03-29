@@ -7,6 +7,9 @@
 #include <map>
 #include <vector>
 #include <chrono>
+#include <any>
+#include <mutex>
+#include <atomic>
 
 namespace PaperCrawler {
 
@@ -57,6 +60,10 @@ public:
 
     std::string submit(const std::string& name, std::function<void()> task, int priority = 0);
     bool cancel(const std::string& taskId);
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace PaperCrawler

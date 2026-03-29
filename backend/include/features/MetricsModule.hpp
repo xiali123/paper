@@ -28,6 +28,19 @@ enum class MetricType {
 struct HistogramBucket {
     double upperBound;
     std::atomic<uint64_t> count{0};
+
+    // 自定义拷贝操作（因为atomic不可拷贝）
+    HistogramBucket() = default;
+    HistogramBucket(const HistogramBucket& other)
+        : upperBound(other.upperBound), count(other.count.load()) {}
+
+    HistogramBucket& operator=(const HistogramBucket& other) {
+        if (this != &other) {
+            upperBound = other.upperBound;
+            count.store(other.count.load());
+        }
+        return *this;
+    }
 };
 
 /**
@@ -39,6 +52,26 @@ struct HistogramData {
     std::vector<HistogramBucket> buckets;
     std::atomic<uint64_t> sum{0};
     std::atomic<uint64_t> count{0};
+
+    // 自定义拷贝操作（因为atomic不可拷贝）
+    HistogramData() = default;
+    HistogramData(const HistogramData& other)
+        : name(other.name),
+          help(other.help),
+          buckets(other.buckets),
+          sum(other.sum.load()),
+          count(other.count.load()) {}
+
+    HistogramData& operator=(const HistogramData& other) {
+        if (this != &other) {
+            name = other.name;
+            help = other.help;
+            buckets = other.buckets;
+            sum.store(other.sum.load());
+            count.store(other.count.load());
+        }
+        return *this;
+    }
 
     void observe(double value) {
         count++;

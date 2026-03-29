@@ -86,7 +86,7 @@ public:
 
 private:
     std::priority_queue<ResponseQueueItem> queue_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::condition_variable condition_;
     size_t maxQueueSize_;
     std::atomic<bool> stop_{false};

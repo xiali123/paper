@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <functional>
 #include <vector>
+#include <chrono>
 
 namespace PaperCrawler {
 

@@ -1,5 +1,6 @@
+#include <iostream>
 #include "business/PaperApiModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <map>
 #include <algorithm>
@@ -128,26 +129,6 @@ PaperApiModule::PaperApiModule()
 }
 
 PaperApiModule::~PaperApiModule() = default;
-
-std::string PaperApiModule::getName() const {
-    return "PaperApi";
-}
-
-std::string PaperApiModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string PaperApiModule::getDescription() const {
-    return "Paper management API";
-}
-
-ModuleType PaperApiModule::getModuleType() const {
-    return ModuleType::BUSINESS;
-}
-
-std::string PaperApiModule::getRoutePrefix() const {
-    return "/api/papers";
-}
 
 bool PaperApiModule::initialize() {
     registerRoutes();

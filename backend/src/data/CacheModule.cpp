@@ -1,5 +1,6 @@
+#include <iostream>
 #include "data/CacheModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <algorithm>
 #include <thread>
@@ -394,26 +395,6 @@ CacheModule::CacheModule()
 }
 
 CacheModule::~CacheModule() = default;
-
-std::string CacheModule::getName() const {
-    return "Cache";
-}
-
-std::string CacheModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string CacheModule::getDescription() const {
-    return "Redis cache module with connection pooling";
-}
-
-ModuleType CacheModule::getModuleType() const {
-    return ModuleType::SERVER;
-}
-
-std::string CacheModule::getRoutePrefix() const {
-    return "/api/cache";
-}
 
 bool CacheModule::initialize() {
     std::cout << "CacheModule::initialize" << std::endl;
