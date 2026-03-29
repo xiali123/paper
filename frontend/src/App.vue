@@ -388,6 +388,7 @@ onUnmounted(() => {
 .nav-links {
   display: flex;
   gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .nav-link {
@@ -404,6 +405,7 @@ onUnmounted(() => {
   font-size: 15px;
   background: transparent;
   border: 2px solid transparent;
+  white-space: nowrap;
 }
 
 .nav-icon {
@@ -414,6 +416,7 @@ onUnmounted(() => {
 .nav-text {
   font-size: 15px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -988,6 +991,13 @@ onUnmounted(() => {
   .nav-links {
     flex: 1;
     justify-content: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .nav-link {
+    padding: 10px 16px;
+    font-size: 14px;
   }
 
   .app-main {
@@ -1063,8 +1073,9 @@ onUnmounted(() => {
   }
 
   .nav-links {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
+    gap: 6px;
   }
 
   .nav-text {
@@ -1118,8 +1129,9 @@ onUnmounted(() => {
   }
 
   .nav-links {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
+    gap: 6px;
   }
 
   .nav-text {
