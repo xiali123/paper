@@ -33,6 +33,10 @@
 #include "core/PluginManager.hpp"
 #include "core/ModuleRegistry.hpp"
 #include "core/HotReloadManager.hpp"
+#include "core/HttpTypes.hpp"
+
+// 网络模块
+#include "network/HttpServerModule.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -40,6 +44,9 @@ using namespace PaperCrawler;
 
 // 全局运行标志
 std::atomic<bool> g_running{true};
+
+// 全局HTTP服务器实例
+std::unique_ptr<HttpServerModule> g_httpServer;
 
 /**
  * @brief 信号处理函数
@@ -300,12 +307,26 @@ bool registerManagementAPIs() {
 bool startHTTPServer() {
     printStep("6/7", "Starting HTTP server");
 
-    // TODO: 启动HttpServerModule
-    // auto& httpServer = HttpServerModule::getInstance();
-    // if (!httpServer.start()) {
-    //     printError("Failed to start HTTP server");
-    //     return false;
-    // }
+    // 创建HTTP服务器实例
+    g_httpServer = std::make_unique<HttpServerModule>(8080);
+
+    // 初始化服务器
+    if (!g_httpServer->initialize()) {
+        printError("Failed to initialize HTTP server");
+        return false;
+    }
+
+    // 设置路由处理器 - 将Router连接到HttpServerModule
+    auto& router = Router::getInstance();
+    g_httpServer->setRouteHandler([&router](const HttpRequest& req) -> HttpResponse {
+        return router.route(req);
+    });
+
+    // 启动服务器
+    if (!g_httpServer->start()) {
+        printError("Failed to start HTTP server");
+        return false;
+    }
 
     printSuccess("HTTP server started on port 8080");
     return true;
@@ -315,14 +336,8 @@ bool startHTTPServer() {
  * @brief 打印已注册的路由
  */
 void printRegisteredRoutes() {
-    std::cout << "\n  Registered routes:" << std::endl;
-    std::cout << "    GET    /api/papers" << std::endl;
-    std::cout << "    GET    /api/papers/:id" << std::endl;
-    std::cout << "    POST   /api/papers" << std::endl;
-    std::cout << "    POST   /api/auth/login" << std::endl;
-    std::cout << "    GET    /api/auth/me" << std::endl;
-    std::cout << "    GET    /api/stats/system" << std::endl;
-    std::cout << "    ..." << std::endl;
+    auto& router = Router::getInstance();
+    router.printRoutes();
 }
 
 /**
@@ -344,9 +359,17 @@ void gracefulShutdown() {
     std::cout << "Shutting down..." << std::endl;
     std::cout << "========================================" << std::endl;
 
+    // 1. 停止HTTP服务器
+    std::cout << "  - Stopping HTTP server..." << std::endl;
+    if (g_httpServer) {
+        g_httpServer->stop();
+        g_httpServer->cleanup();
+        g_httpServer.reset();
+    }
+
     auto& pluginMgr = PluginManager::getInstance();
 
-    // 1. 卸载业务模块
+    // 2. 卸载业务模块
     std::cout << "  - Unloading business modules..." << std::endl;
     auto& registry = ModuleRegistry::getInstance();
     auto businessModules = registry.getModulesByType(ModuleType::BUSINESS);
@@ -359,7 +382,7 @@ void gracefulShutdown() {
         }
     }
 
-    // 2. 停止系统模块
+    // 3. 停止系统模块
     std::cout << "  - Stopping system modules..." << std::endl;
     pluginMgr.stopAllModules();
 
