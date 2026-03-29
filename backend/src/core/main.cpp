@@ -989,7 +989,139 @@ bool registerManagementAPIs() {
         return response;
     });
 
-    printSuccess("Registered 14 endpoints");
+    // Crawler API - Search arXiv (GET method for easy testing)
+    router.get("/api/crawler/arxiv", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            std::string query = req.getQuery("q", "");
+            int limit = std::stoi(req.getQuery("limit", "5"));
+
+            if (query.empty()) {
+                response.statusCode = 400;
+                response.body = "{\"success\":false,\"error\":\"Missing required parameter: q (search query)\"}";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            spdlog::info("[Crawler] GET request - Searching arXiv for: {}", query);
+
+            // Build arXiv API URL
+            std::string arxivQuery = query;
+            std::replace(arxivQuery.begin(), arxivQuery.end(), ' ', '+');
+            std::string arxivUrl = "http://export.arxiv.org/api/query?search_query=all:" + arxivQuery + "&max_results=" + std::to_string(limit);
+
+            // Make HTTP request
+            std::unique_ptr<Network::HttpClient> httpClient = std::make_unique<Network::HttpClient>();
+            httpClient->setDefaultHeader("User-Agent", "PaperCrawler/1.0");
+            httpClient->setTimeout(15);
+
+            Network::HttpClientResponse httpResp = httpClient->get(arxivUrl);
+
+            if (!httpResp.isSuccess()) {
+                spdlog::error("[Crawler] HTTP failed: {}", httpResp.statusCode);
+                response.statusCode = 500;
+                std::ostringstream err;
+                err << R"({"success":false,"error":"Failed to fetch from arXiv","status":)"
+                    << httpResp.statusCode << R"(,"message":")" << escapeJsonString(httpResp.errorMessage) << R"("})";
+                response.body = err.str();
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            spdlog::info("[Crawler] Received {} bytes from arXiv", httpResp.body.length());
+
+            // Parse XML and extract papers (simplified)
+            std::vector<std::map<std::string, std::string>> papers;
+            std::regex entryRegex("<entry>[\\s\\S]*?</entry>");
+            std::sregex_iterator it(httpResp.body.begin(), httpResp.body.end(), entryRegex);
+            std::sregex_iterator end;
+
+            int count = 0;
+            for (; it != end && count < limit; ++it) {
+                std::string entryXml = it->str(0);
+                std::map<std::string, std::string> paper;
+
+                std::regex titleRegex("<title>(.*?)</title>");
+                std::smatch titleMatch;
+                if (std::regex_search(entryXml, titleMatch, titleRegex)) {
+                    paper["title"] = titleMatch[1].str();
+                }
+
+                std::regex summaryRegex("<summary>(.*?)</summary>");
+                std::smatch summaryMatch;
+                if (std::regex_search(entryXml, summaryMatch, summaryRegex)) {
+                    paper["summary"] = summaryMatch[1].str();
+                }
+
+                std::regex authorRegex("<name>(.*?)</name>");
+                std::sregex_iterator authorIt(entryXml.begin(), entryXml.end(), authorRegex);
+                std::vector<std::string> authors;
+                for (; authorIt != std::sregex_iterator(); ++authorIt) {
+                    authors.push_back(authorIt->str(1));
+                }
+                paper["authors"] = "";
+                for (size_t i = 0; i < authors.size(); ++i) {
+                    if (i > 0) paper["authors"] += ", ";
+                    paper["authors"] += authors[i];
+                }
+
+                std::regex publishedRegex("<published>(\\d{4})");
+                std::smatch publishedMatch;
+                if (std::regex_search(entryXml, publishedMatch, publishedRegex)) {
+                    paper["year"] = publishedMatch[1].str();
+                }
+
+                std::regex idRegex("<id>(http://arxiv\\.org/abs/(\\d+\\.\\w+))</id>");
+                std::smatch idMatch;
+                if (std::regex_search(entryXml, idMatch, idRegex)) {
+                    paper["url"] = idMatch[1].str();
+                    paper["pdfUrl"] = idMatch[1].str() + ".pdf";
+                    paper["arxivId"] = idMatch[2].str();
+                }
+
+                papers.push_back(paper);
+                count++;
+            }
+
+            spdlog::info("[Crawler] Parsed {} papers from arXiv", papers.size());
+
+            // Build JSON response
+            std::ostringstream json;
+            json << R"({"success":true,"query":")" << escapeJsonString(query)
+                << R"(,"source":"arXiv","total":)" << papers.size()
+                << R"(,"papers":[)";
+
+            for (size_t i = 0; i < papers.size(); ++i) {
+                if (i > 0) json << ",";
+                json << "{"
+                    << R"("title":")" << escapeJsonString(papers[i]["title"]) << R"(",)"
+                    << R"("authors":")" << escapeJsonString(papers[i]["authors"]) << R"(",)"
+                    << R"("abstract":")" << escapeJsonString(papers[i]["summary"].substr(0, 200) + "...") << R"(",)"
+                    << R"("year":")" << papers[i]["year"] << R"(",)"
+                    << R"("url":")" << escapeJsonString(papers[i]["url"]) << R"(",)"
+                    << R"("pdfUrl":")" << escapeJsonString(papers[i]["pdfUrl"]) << R"(",)"
+                    << R"("arxivId":")" << escapeJsonString(papers[i]["arxivId"]) << R"(",)"
+                    << R"("source":"arXiv")"
+                    << "}";
+            }
+
+            json << R"(]})";
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            spdlog::error("[Crawler] Exception: {}", e.what());
+            response.statusCode = 500;
+            std::ostringstream err;
+            err << R"({"success":false,"error":")" << escapeJsonString(e.what()) << R"("})";
+            response.body = err.str();
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    printSuccess("Registered 15 endpoints");
     return true;
 }
 
