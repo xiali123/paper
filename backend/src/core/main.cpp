@@ -279,11 +279,17 @@ bool loadAndStartSystemModules() {
 
     printSuccess("Found modules directory: " + actualModulesDir);
 
+    // 注意：模块现在通过CMake静态链接，不再需要scanAndLoadModules()
+    // 模块会通过PluginManager::startAllModules()自动启动
+    // 下面的scanAndLoadModules()调用被禁用以避免死锁
+
+    /*
     // 扫描并加载所有模块
     if (!pluginMgr.scanAndLoadModules(actualModulesDir)) {
         printError("Some modules failed to load");
         // 继续执行，因为部分模块加载失败不应阻止系统启动
     }
+    */
 
     // 启动所有模块（PluginManager会按类型顺序启动）
     if (!pluginMgr.startAllModules()) {

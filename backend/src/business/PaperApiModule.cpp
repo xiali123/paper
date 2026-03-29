@@ -1,6 +1,9 @@
 #include <iostream>
 #include "business/PaperApiModule.hpp"
 #include "features/operations/ResponseHandlerModule.hpp"
+#include "core/Router.hpp"
+#include "core/HttpTypes.hpp"
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>
 #include <algorithm>

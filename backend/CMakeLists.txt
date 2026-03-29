@@ -88,12 +88,8 @@ set(OPERATIONS_SOURCES
 )
 
 set(BUSINESS_SOURCES
-    src/business/PaperApiModule.cpp
-    src/business/AuthApiModule.cpp
-    src/business/StatsApiModule.cpp
-    src/business/UserApiModule.cpp
-    src/business/SearchApiModule.cpp
-    src/business/ExportApiModule.cpp
+    # 业务模块现在通过add_business_module()函数单独添加
+    # 不再在这里列出，避免重复编译
 )
 
 # 所有模块源文件
@@ -292,112 +288,73 @@ message(STATUS "============================================================")
 message(STATUS "")
 
 # ============================================================================
-# 动态模块编译配置
+# 模块化编译配置（静态库架构）
 # ============================================================================
 
-# 设置模块输出目录
-set(MODULE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Release/modules")
-file(MAKE_DIRECTORY ${MODULE_OUTPUT_DIR})
-
-# 辅助函数：编译业务模块为动态库
+# 辅助函数：编译业务模块为对象库（用于静态链接）
 function(add_business_module MODULE_NAME SOURCES_LIST)
-    # 创建动态库目标
-    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+    # 创建对象库（OBJECT库，不会被链接成独立的.lib）
+    add_library(${MODULE_NAME} OBJECT ${SOURCES_LIST})
 
-    # 设置输出目录
+    # 设置为OBJECT库的属性
     set_target_properties(${MODULE_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${MODULE_OUTPUT_DIR}/business"
-        RUNTIME_OUTPUT_DIRECTORY "${MODULE_OUTPUT_DIR}/business"
-        PREFIX "lib"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules"
+        PREFIX ""
     )
 
-    # 链接必要的库
-    target_link_libraries(${MODULE_NAME}
-        PRIVATE
-            ${CURL_DIR}/lib/libcurl.dll.a
+    # 添加include目录
+    target_include_directories(${MODULE_NAME}
+        PUBLIC
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/../core/include
+            ${CURL_DIR}/include
+            ${EXTERNAL_DIR}/spdlog/include
     )
 
     # Windows特定设置
     if(WIN32)
-        target_compile_definitions(${MODULE_NAME} PRIVATE
+        target_compile_definitions(${MODULE_NAME} PUBLIC
             WIN32_LEAN_AND_MEAN
             NOMINMAX
             _CRT_SECURE_NO_WARNINGS
-            PAPERCRAWLER_MODULE_EXPORT
         )
-        target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+        target_compile_options(${MODULE_NAME} PUBLIC /utf-8)
     endif()
 
-    message(STATUS "  [Module] ${MODULE_NAME} -> ${MODULE_OUTPUT_DIR}/business/lib${MODULE_NAME}.dll")
+    # 将此模块的源文件添加到主可执行文件
+    target_sources(PaperCrawlerServer PRIVATE $<TARGET_OBJECTS:${MODULE_NAME}>)
+
+    message(STATUS "  [Module] ${MODULE_NAME} -> Linked into PaperCrawlerServer")
 endfunction()
 
 # 编译所有业务模块
 add_business_module(PaperApiModule
     src/business/PaperApiModule.cpp
-    src/business/PaperApiModuleExports.cpp
 )
 
 add_business_module(AuthApiModule
     src/business/AuthApiModule.cpp
-    src/business/AuthApiModuleExports.cpp
 )
 
 add_business_module(StatsApiModule
     src/business/StatsApiModule.cpp
-    src/business/StatsApiModuleExports.cpp
 )
 
 add_business_module(UserApiModule
     src/business/UserApiModule.cpp
-    src/business/UserApiModuleExports.cpp
 )
 
 add_business_module(SearchApiModule
     src/business/SearchApiModule.cpp
-    src/business/SearchApiModuleExports.cpp
 )
 
 add_business_module(ExportApiModule
     src/business/ExportApiModule.cpp
-    src/business/ExportApiModuleExports.cpp
 )
-
-# 添加自定义目标：编译所有模块
-add_custom_target(modules
-    DEPENDS
-        PaperApiModule
-        AuthApiModule
-        StatsApiModule
-        UserApiModule
-        SearchApiModule
-        ExportApiModule
-    COMMENT "Building all business modules"
-)
-
-# 添加单独编译目标
-add_custom_target(paper-api DEPENDS PaperApiModule COMMENT "Building PaperApiModule only")
-add_custom_target(auth-api DEPENDS AuthApiModule COMMENT "Building AuthApiModule only")
-add_custom_target(stats-api DEPENDS StatsApiModule COMMENT "Building StatsApiModule only")
-add_custom_target(user-api DEPENDS UserApiModule COMMENT "Building UserApiModule only")
-add_custom_target(search-api DEPENDS SearchApiModule COMMENT "Building SearchApiModule only")
-add_custom_target(export-api DEPENDS ExportApiModule COMMENT "Building ExportApiModule only")
 
 message(STATUS "")
 message(STATUS "================== Module Compilation ==================")
-message(STATUS "Module output directory: ${MODULE_OUTPUT_DIR}")
-message(STATUS "")
-message(STATUS "Build targets:")
-message(STATUS "  cmake --build . --target modules      - Build all business modules")
-message(STATUS "  cmake --build . --target paper-api    - Build PaperApiModule only")
-message(STATUS "  cmake --build . --target auth-api     - Build AuthApiModule only")
-message(STATUS "  cmake --build . --target stats-api    - Build StatsApiModule only")
-message(STATUS "  cmake --build . --target user-api     - Build UserApiModule only")
-message(STATUS "  cmake --build . --target search-api   - Build SearchApiModule only")
-message(STATUS "  cmake --build . --target export-api   - Build ExportApiModule only")
-message(STATUS "  cmake --build . --target PaperCrawlerServer - Build main executable")
-message(STATUS "")
-message(STATUS "Example usage:")
-message(STATUS "  cmake --build . --target modules")
-message(STATUS "  cmake --build . --target paper-api")
+message(STATUS "All business modules will be statically linked into PaperCrawlerServer")
+message(STATUS "Modules can still register routes dynamically through Router::getInstance()")
 message(STATUS "============================================================")
 message(STATUS "")
