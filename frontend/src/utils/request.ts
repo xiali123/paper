@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from '@/utils/notification'
+import { transformApiError, createUserFriendlyMessage, type ApiError } from '@/api/adapters/errorAdapter'
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -131,6 +132,7 @@ service.interceptors.response.use(
             return service(originalRequest)
           }
         } catch (refreshError) {
+          const apiError = transformApiError(refreshError)
           processQueue(refreshError, null)
           // Refresh failed, clear auth and redirect to login
           localStorage.removeItem('auth_tokens')
@@ -144,6 +146,7 @@ service.interceptors.response.use(
           isRefreshing = false
         }
       } else {
+        const apiError = transformApiError(new Error('No refresh token available'))
         // No refresh token, clear auth and redirect
         localStorage.removeItem('auth_tokens')
         if (typeof window !== 'undefined') {
@@ -155,6 +158,7 @@ service.interceptors.response.use(
     }
 
     // Handle other errors
+    const apiError: ApiError = transformApiError(error)
     if (import.meta.env.DEV) {
       console.error(`❌ API Error: ${apiError.config?.method?.toUpperCase()} ${apiError.config?.url} - ${duration}ms`)
       console.error('Type:', apiError.type, 'Code:', apiError.code, 'Status:', apiError.status)
