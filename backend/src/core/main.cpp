@@ -419,7 +419,7 @@ bool registerManagementAPIs() {
                      << R"(})";
             }
 
-            json << R"(,"total":)" << papers.size() << R"(,"page":1,"pageSize":20})";
+            json << R"(],"total":)" << papers.size() << R"(,"page":1,"pageSize":20})";
 
             response.body = json.str();
         } catch (const std::exception& e) {
