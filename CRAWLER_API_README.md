@@ -35,6 +35,20 @@ curl "http://localhost:8080/api/crawler/arxiv?q=deep+learning&limit=5"
 **参数**:
 - `q` (必需): 搜索关键词
 - `limit` (可选): 返回结果数量，默认5
+- `max_retries` (可选): 最大重试次数，默认3
+- `delay` (可选): 初始重试延迟（秒），默认2
+
+**重试机制**:
+- ✅ 自动指数退避重试（2秒 → 4秒 → 8秒...）
+- ✅ 支持所有网络错误和429速率限制
+- ✅ 自定义重试次数和延迟
+- ✅ 详细的日志记录每次重试
+
+**示例**：
+```bash
+# 使用自定义重试参数
+curl "http://localhost:8080/api/crawler/arxiv?q=machine+learning&limit=3&max_retries=5&delay=3"
+```
 
 **响应格式**:
 ```json
@@ -62,15 +76,30 @@ curl "http://localhost:8080/api/crawler/arxiv?q=deep+learning&limit=5"
 ```json
 {
   "success": false,
-  "error": "Failed to fetch from arXiv",
+  "error": "Rate limited by arXiv API",
   "status": 429,
-  "message": ""
+  "retries": 3,
+  "message": "Please wait a few minutes before trying again"
+}
+```
+
+**成功响应（包含重试信息）**:
+```json
+{
+  "success": true,
+  "query": "machine learning",
+  "source": "arXiv",
+  "total": 3,
+  "retries": 1,
+  "papers": [...]
 }
 ```
 
 **注意事项**:
 - ⚠️ arXiv API有速率限制（429错误）
-- 💡 建议每次请求间隔至少3秒
+- 💡 自动重试机制会处理所有网络错误
+- 💡 默认重试3次，每次延迟翻倍（2秒 → 4秒 → 8秒）
+- 💡 建议频繁请求时增加`delay`参数
 - 💡 避免短时间内重复查询相同关键词
 
 ### 3. 数据库表结构
@@ -182,15 +211,37 @@ std::regex idRegex("<id>(http://arxiv\\.org/abs/(\\d+\\.\\w+))</id>");
 **HTTP状态码**:
 - `200` - 成功
 - `400` - 缺少必需参数
-- `429` - arXiv速率限制
-- `500` - 服务器内部错误
+- `429` - arXiv速率限制（会自动重试）
+- `500` - 服务器内部错误或网络错误（会自动重试）
 
-**速率限制处理**:
+**自动重试机制**:
 ```cpp
-if (httpResp.statusCode == 429) {
-    spdlog::warn("[Crawler] Rate limited by arXiv, retry after delay");
-    // TODO: Implement exponential backoff
-}
+// 指数退避算法
+Attempt 1: 等待 2 秒 (delay)
+Attempt 2: 等待 4 秒 (delay * 2)
+Attempt 3: 等待 8 秒 (delay * 4)
+...
+```
+
+**重试触发条件**:
+- ✅ HTTP 429（速率限制）
+- ✅ 网络连接失败
+- ✅ DNS解析失败
+- ✅ 超时错误
+- ✅ 任何HTTP错误状态码
+
+**重试不触发的情况**:
+- ❌ 缺少必需参数（400错误）
+- ❌ JSON解析错误
+- ❌ 服务器内部逻辑错误
+
+**示例日志**:
+```
+[2026-03-29 18:07:34] [info] [Crawler] Attempt 1/3 - Fetching from arXiv
+[2026-03-29 18:07:38] [warning] [Crawler] Rate limited (429) by arXiv
+[2026-03-29 18:07:38] [info] [Crawler] Waiting 2 seconds before retry...
+[2026-03-29 18:07:40] [info] [Crawler] Attempt 2/3 - Fetching from arXiv
+[2026-03-29 18:07:44] [info] [Crawler] Success on attempt 2
 ```
 
 ## 🔨 开发状态

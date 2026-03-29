@@ -857,6 +857,8 @@ bool registerManagementAPIs() {
             auto bodyJson = json::parse(req.body);
             std::string query = bodyJson.value("query", "");
             int limit = bodyJson.value("limit", 10);
+            int maxRetries = bodyJson.value("max_retries", 3);
+            int initialDelay = bodyJson.value("delay", 2);
 
             if (query.empty()) {
                 response.statusCode = 400;
@@ -864,6 +866,8 @@ bool registerManagementAPIs() {
                 response.setHeader("Content-Type", "application/json");
                 return response;
             }
+
+            spdlog::info("[Crawler] POST request - Searching arXiv for: {}", query);
 
             // Build arXiv API URL
             std::string arxivQuery = query;
@@ -873,19 +877,71 @@ bool registerManagementAPIs() {
             std::string arxivUrl = "http://export.arxiv.org/api/query?search_query=all:" +
                                  arxivQuery + "&start=0&max_results=" + std::to_string(limit);
 
-            // Make HTTP request using SimpleHttpClient
+            // Create HTTP client
             std::unique_ptr<Network::HttpClient> httpClient = std::make_unique<Network::HttpClient>();
             httpClient->setDefaultHeader("User-Agent", "PaperCrawler/1.0");
+            httpClient->setTimeout(15);
 
-            Network::HttpClientResponse httpResp = httpClient->get(arxivUrl);
+            // Retry logic with exponential backoff
+            Network::HttpClientResponse httpResp;
+            int attempt = 0;
+            bool success = false;
+            int currentDelay = initialDelay;
+            bool wasRateLimited = false;
 
-            if (!httpResp.isSuccess()) {
-                response.statusCode = 500;
-                std::ostringstream jsonResponse;
-                jsonResponse << R"({"success":false,"error":"Failed to fetch from arXiv","status":)"
-                            << httpResp.statusCode << R"(,"message":")"
-                            << escapeJsonString(httpResp.errorMessage) << R"("})";
-                response.body = jsonResponse.str();
+            while (attempt < maxRetries && !success) {
+                attempt++;
+                spdlog::info("[Crawler] Attempt {}/{} - Fetching from arXiv", attempt, maxRetries);
+
+                httpResp = httpClient->get(arxivUrl);
+
+                // Check if request was successful
+                if (httpResp.isSuccess()) {
+                    success = true;
+                    spdlog::info("[Crawler] Success on attempt {}", attempt);
+                    break;
+                }
+
+                // Request failed - check if we should retry
+                if (httpResp.statusCode == 429) {
+                    wasRateLimited = true;
+                    spdlog::warn("[Crawler] Rate limited (429) by arXiv");
+                } else {
+                    spdlog::warn("[Crawler] Request failed (status: {}, error: {})",
+                                httpResp.statusCode, httpResp.errorMessage);
+                }
+
+                // Check if we should retry
+                if (attempt < maxRetries) {
+                    spdlog::info("[Crawler] Waiting {} seconds before retry...", currentDelay);
+
+                    #ifdef _WIN32
+                        Sleep(currentDelay * 1000);
+                    #else
+                        sleep(currentDelay);
+                    #endif
+
+                    // Exponential backoff: double the delay
+                    currentDelay *= 2;
+                    continue;
+                }
+            }
+
+            // Check if all retries exhausted
+            if (!success) {
+                spdlog::error("[Crawler] Max retries ({}) reached", maxRetries);
+                response.statusCode = wasRateLimited ? 429 : 500;
+                std::ostringstream err;
+                if (wasRateLimited) {
+                    err << R"({"success":false,"error":"Rate limited by arXiv API","status":429,"retries":)"
+                        << maxRetries << R"(,"message":"Please wait a few minutes before trying again"})";
+                } else {
+                    err << R"({"success":false,"error":"Failed to fetch from arXiv after )"
+                        << maxRetries << R"( retries","status":)"
+                        << httpResp.statusCode << R"(,"message":")"
+                        << escapeJsonString(httpResp.errorMessage) << R"("})";
+                }
+                response.body = err.str();
                 response.setHeader("Content-Type", "application/json");
                 return response;
             }
@@ -901,7 +957,7 @@ bool registerManagementAPIs() {
 
             int count = 0;
             for (; it != end && count < limit; ++it) {
-                std::string entryXml = it->str(1);
+                std::string entryXml = it->str(0);  // Fixed: was str(1), should be str(0)
 
                 std::map<std::string, std::string> paper;
 
@@ -958,10 +1014,13 @@ bool registerManagementAPIs() {
                 count++;
             }
 
+            spdlog::info("[Crawler] Parsed {} papers from arXiv", papers.size());
+
             // Build JSON response
             std::ostringstream jsonResponse;
             jsonResponse << R"({"success":true,"query":")" << escapeJsonString(query)
                         << R"(","total":)" << papers.size()
+                        << R"(,"retries":)" << (attempt - 1)
                         << R"(,"papers":[)";
 
             for (size_t i = 0; i < papers.size(); ++i) {
@@ -982,7 +1041,9 @@ bool registerManagementAPIs() {
             response.body = jsonResponse.str();
         } catch (const std::exception& e) {
             response.statusCode = 500;
-            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+            std::ostringstream err;
+            err << R"({"success":false,"error":")" << escapeJsonString(e.what()) << R"("})";
+            response.body = err.str();
         }
 
         response.setHeader("Content-Type", "application/json");
@@ -997,6 +1058,8 @@ bool registerManagementAPIs() {
         try {
             std::string query = req.getQuery("q", "");
             int limit = std::stoi(req.getQuery("limit", "5"));
+            int maxRetries = std::stoi(req.getQuery("max_retries", "3"));
+            int initialDelay = std::stoi(req.getQuery("delay", "2"));
 
             if (query.empty()) {
                 response.statusCode = 400;
@@ -1012,19 +1075,70 @@ bool registerManagementAPIs() {
             std::replace(arxivQuery.begin(), arxivQuery.end(), ' ', '+');
             std::string arxivUrl = "http://export.arxiv.org/api/query?search_query=all:" + arxivQuery + "&max_results=" + std::to_string(limit);
 
-            // Make HTTP request
+            // Create HTTP client
             std::unique_ptr<Network::HttpClient> httpClient = std::make_unique<Network::HttpClient>();
             httpClient->setDefaultHeader("User-Agent", "PaperCrawler/1.0");
             httpClient->setTimeout(15);
 
-            Network::HttpClientResponse httpResp = httpClient->get(arxivUrl);
+            // Retry logic with exponential backoff
+            Network::HttpClientResponse httpResp;
+            int attempt = 0;
+            bool success = false;
+            int currentDelay = initialDelay;
+            bool wasRateLimited = false;
 
-            if (!httpResp.isSuccess()) {
-                spdlog::error("[Crawler] HTTP failed: {}", httpResp.statusCode);
-                response.statusCode = 500;
+            while (attempt < maxRetries && !success) {
+                attempt++;
+                spdlog::info("[Crawler] Attempt {}/{} - Fetching from arXiv", attempt, maxRetries);
+
+                httpResp = httpClient->get(arxivUrl);
+
+                // Check if request was successful
+                if (httpResp.isSuccess()) {
+                    success = true;
+                    spdlog::info("[Crawler] Success on attempt {}", attempt);
+                    break;
+                }
+
+                // Request failed - check if we should retry
+                if (httpResp.statusCode == 429) {
+                    wasRateLimited = true;
+                    spdlog::warn("[Crawler] Rate limited (429) by arXiv");
+                } else {
+                    spdlog::warn("[Crawler] Request failed (status: {}, error: {})",
+                                httpResp.statusCode, httpResp.errorMessage);
+                }
+
+                // Check if we should retry
+                if (attempt < maxRetries) {
+                    spdlog::info("[Crawler] Waiting {} seconds before retry...", currentDelay);
+
+                    #ifdef _WIN32
+                        Sleep(currentDelay * 1000);
+                    #else
+                        sleep(currentDelay);
+                    #endif
+
+                    // Exponential backoff: double the delay
+                    currentDelay *= 2;
+                    continue;
+                }
+            }
+
+            // Check if all retries exhausted
+            if (!success) {
+                spdlog::error("[Crawler] Max retries ({}) reached", maxRetries);
+                response.statusCode = wasRateLimited ? 429 : 500;
                 std::ostringstream err;
-                err << R"({"success":false,"error":"Failed to fetch from arXiv","status":)"
-                    << httpResp.statusCode << R"(,"message":")" << escapeJsonString(httpResp.errorMessage) << R"("})";
+                if (wasRateLimited) {
+                    err << R"({"success":false,"error":"Rate limited by arXiv API","status":429,"retries":)"
+                        << maxRetries << R"(,"message":"Please wait a few minutes before trying again"})";
+                } else {
+                    err << R"({"success":false,"error":"Failed to fetch from arXiv after )"
+                        << maxRetries << R"( retries","status":)"
+                        << httpResp.statusCode << R"(,"message":")"
+                        << escapeJsonString(httpResp.errorMessage) << R"("})";
+                }
                 response.body = err.str();
                 response.setHeader("Content-Type", "application/json");
                 return response;
@@ -1090,7 +1204,8 @@ bool registerManagementAPIs() {
             // Build JSON response
             std::ostringstream json;
             json << R"({"success":true,"query":")" << escapeJsonString(query)
-                << R"(,"source":"arXiv","total":)" << papers.size()
+                << R"(","source":"arXiv","total":)" << papers.size()
+                << R"(,"retries":)" << (attempt - 1)
                 << R"(,"papers":[)";
 
             for (size_t i = 0; i < papers.size(); ++i) {
