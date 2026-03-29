@@ -297,7 +297,77 @@ bool registerManagementAPIs() {
         return response;
     });
 
-    printSuccess("Registered 6 management endpoints");
+    // Papers API
+    router.get("/api/papers", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        // TODO: 查询数据库获取论文列表
+        response.body = R"({"success":true,"papers":[],"total":0,"page":1,"pageSize":20})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    router.get("/api/papers/:id", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        // TODO: 根据ID查询论文
+        std::string paperId = req.getPathParam("id", "0");
+        response.body = R"({"success":true,"paper":{"id":)" + paperId + R"(}})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    router.get("/api/papers/search", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        std::string query = req.getQuery("q", "");
+        // TODO: 搜索论文
+        response.body = R"({"success":true,"papers":[],"total":0,"query":")" + query + R"("})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // Journals API
+    router.get("/api/journals", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        // TODO: 查询数据库获取期刊列表
+        response.body = R"({"success":true,"journals":[]})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // Authors API
+    router.get("/api/authors", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        // TODO: 查询数据库获取作者列表
+        response.body = R"({"success":true,"authors":[]})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // Collections API
+    router.get("/api/collections", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        // TODO: 查询数据库获取收藏集
+        response.body = R"({"success":true,"collections":[]})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // Statistics API
+    router.get("/api/stats", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        // TODO: 从数据库获取统计数据
+        response.body = R"({"success":true,"stats":{"totalPapers":0,"totalJournals":0,"totalAuthors":0}})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    printSuccess("Registered 13 endpoints");
     return true;
 }
 
