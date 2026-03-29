@@ -1236,7 +1236,71 @@ bool registerManagementAPIs() {
         return response;
     });
 
-    printSuccess("Registered 15 endpoints");
+    // PubMed Crawler API (Coming Soon)
+    router.get("/api/crawler/pubmed", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        std::string query = req.getQuery("q", "");
+        int limit = std::stoi(req.getQuery("limit", "5"));
+
+        if (query.empty()) {
+            response.statusCode = 400;
+            response.body = "{\"success\":false,\"error\":\"Missing required parameter: q (search query)\"}";
+            response.setHeader("Content-Type", "application/json");
+            return response;
+        }
+
+        spdlog::info("[Crawler] PubMed request - Searching for: {}", query);
+
+        // TODO: Implement PubMed API integration
+        // PubMed API: https://www.ncbi.nlm.nih.gov/books/NBK25501/
+        // Uses E-utilities API with JSON response format
+        // Example: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=science[journal]+AND+2024[dp]
+
+        response.statusCode = 501;  // Not Implemented
+        std::ostringstream json;
+        json << R"({"success":false,"message":"PubMed crawler is under development","source":"PubMed","query":")"
+            << escapeJsonString(query)
+            << R"(","info":{"api":"NCBI E-utilities","documentation":"https://www.ncbi.nlm.nih.gov/books/NBK25501/","status":"Implementation in progress"}})";
+        response.body = json.str();
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // Google Scholar Crawler API (Coming Soon)
+    router.get("/api/crawler/scholar", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        std::string query = req.getQuery("q", "");
+        int limit = std::stoi(req.getQuery("limit", "5"));
+
+        if (query.empty()) {
+            response.statusCode = 400;
+            response.body = "{\"success\":false,\"error\":\"Missing required parameter: q (search query)\"}";
+            response.setHeader("Content-Type", "application/json");
+            return response;
+        }
+
+        spdlog::info("[Crawler] Google Scholar request - Searching for: {}", query);
+
+        // TODO: Implement Google Scholar scraping
+        // Note: Google Scholar does not provide an official API
+        // Requires HTML parsing and rate limiting (strict anti-bot measures)
+        // Alternative: Use Google Scholar APIs (third-party services)
+
+        response.statusCode = 501;  // Not Implemented
+        std::ostringstream json;
+        json << R"({"success":false,"message":"Google Scholar crawler is under development","source":"Google Scholar","query":")"
+            << escapeJsonString(query)
+            << R"(","info":{"note":"Google Scholar does not provide an official API","alternatives":["Serpdog","SerpApi","ScraperAPI"],"status":"Implementation in progress"}})";
+        response.body = json.str();
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    printSuccess("Registered 17 endpoints");
     return true;
 }
 

@@ -5,11 +5,14 @@
 
 import { request } from '@/utils/request'
 
+export type CrawlerSource = 'arxiv' | 'pubmed' | 'scholar'
+
 export interface CrawlerSearchRequest {
   query: string
   limit?: number
   max_retries?: number
   delay?: number
+  source?: CrawlerSource
 }
 
 export interface Paper {
@@ -19,7 +22,8 @@ export interface Paper {
   year: string
   url: string
   pdfUrl: string
-  arxivId: string
+  arxivId?: string
+  pmid?: string
   source: string
 }
 
@@ -33,6 +37,13 @@ export interface CrawlerSearchResponse {
   error?: string
   status?: number
   message?: string
+  info?: {
+    api?: string
+    documentation?: string
+    note?: string
+    alternatives?: string[]
+    status: string
+  }
 }
 
 /**
@@ -46,6 +57,36 @@ export function searchArXiv(params: {
 }): Promise<CrawlerSearchResponse> {
   return request({
     url: '/api/crawler/arxiv',
+    method: 'GET',
+    params
+  })
+}
+
+/**
+ * Search PubMed for papers (GET method)
+ * Note: Currently under development
+ */
+export function searchPubMed(params: {
+  q: string
+  limit?: number
+}): Promise<CrawlerSearchResponse> {
+  return request({
+    url: '/api/crawler/pubmed',
+    method: 'GET',
+    params
+  })
+}
+
+/**
+ * Search Google Scholar for papers (GET method)
+ * Note: Currently under development (no official API available)
+ */
+export function searchScholar(params: {
+  q: string
+  limit?: number
+}): Promise<CrawlerSearchResponse> {
+  return request({
+    url: '/api/crawler/scholar',
     method: 'GET',
     params
   })
