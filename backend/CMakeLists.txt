@@ -42,7 +42,7 @@ set(DATA_SOURCES
 set(NETWORK_SOURCES
     src/network/HttpServerModule.cpp
     src/network/WebSocketModule.cpp
-    src/network/SimpleHttpClient.cpp
+    src/network/HttpClient.cpp
 )
 
 # 功能模块 - 基础设施
@@ -126,6 +126,21 @@ add_executable(PaperCrawlerServer ${BACKEND_SOURCES})
 # Find required packages
 find_package(Threads REQUIRED)
 
+# Use local libcurl from core/external
+set(CURL_DIR "${CMAKE_SOURCE_DIR}/../core/external/curl-8.19.0_4-win64-mingw")
+if(EXISTS ${CURL_DIR})
+    message(STATUS "  - curl: found in external dependencies")
+    message(STATUS "    Path: ${CURL_DIR}")
+
+    # Include directories
+    include_directories(${CURL_DIR}/include)
+
+    # Link libraries
+    set(CURL_FOUND TRUE)
+else()
+    message(FATAL_ERROR "libcurl not found in ${CURL_DIR}")
+endif()
+
 # Use local dependencies from PaperCrawler/core/external
 # Backend is at PaperCrawler/backend, so we go up one level to reach PaperCrawler/
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/../core/external)
@@ -175,6 +190,50 @@ target_link_libraries(PaperCrawlerServer
         Threads::Threads
 )
 
+# Link CURL library
+# Note: Using DLL import library for MSVC compatibility
+if(CURL_FOUND)
+    # For MSVC builds, we need the DLL import library
+    if(MSVC)
+        target_link_libraries(PaperCrawlerServer PRIVATE
+            ${CURL_DIR}/lib/libcurl.dll.a
+        )
+        # Copy curl DLL and certificate bundle to output directory
+        add_custom_command(TARGET PaperCrawlerServer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CURL_DIR}/bin/libcurl-x64.dll
+                $<TARGET_FILE_DIR:PaperCrawlerServer>/libcurl-x64.dll
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CURL_DIR}/bin/curl-ca-bundle.crt
+                $<TARGET_FILE_DIR:PaperCrawlerServer>/
+            COMMENT "Copying libcurl-x64.dll and certificates to output directory"
+        )
+    else()
+        # For MinGW/GCC, use static libraries
+        target_link_libraries(PaperCrawlerServer PRIVATE
+            # SSL/TLS (must come before curl)
+            ${CURL_DIR}/lib/libssl.a
+            ${CURL_DIR}/lib/libcrypto.a
+            # HTTP/2 and HTTP/3 support
+            ${CURL_DIR}/lib/libnghttp2.a
+            ${CURL_DIR}/lib/libnghttp3.a
+            ${CURL_DIR}/lib/libngtcp2.a
+            ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
+            # SSH support
+            ${CURL_DIR}/lib/libssh2.a
+            # Compression
+            ${CURL_DIR}/lib/libbrotlicommon.a
+            ${CURL_DIR}/lib/libbrotlidec.a
+            ${CURL_DIR}/lib/libz.a
+            ${CURL_DIR}/lib/libzstd.a
+            # Other dependencies
+            ${CURL_DIR}/lib/libpsl.a
+            # Main curl library MUST BE LAST
+            ${CURL_DIR}/lib/libcurl.a
+        )
+    endif()
+endif()
+
 # Platform specific
 if(WIN32)
     target_compile_definitions(PaperCrawlerServer PRIVATE
@@ -182,13 +241,14 @@ if(WIN32)
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
         _WINSOCK_DEPRECATED_NO_WARNINGS
+        CURL_STATIC
     )
     target_compile_options(PaperCrawlerServer PRIVATE /utf-8)
     target_link_libraries(PaperCrawlerServer
         PRIVATE
             ws2_32
             wsock32
-            wininet
+            crypt32
             "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
     )
 endif()
