@@ -41,7 +41,7 @@ export function useSearch() {
 
     try {
       const params: SearchParams = {
-        keyword: finalKeyword,
+        q: finalKeyword,
         ...searchParams.value
       }
 
