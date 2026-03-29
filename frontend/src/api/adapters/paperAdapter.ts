@@ -383,9 +383,10 @@ export function transformUpdateRequest(data: UpdatePaperRequest): BackendPaperRe
 export function transformQueryParams(params: PaperQueryParams): Record<string, any> {
   const backendParams: Record<string, any> = {}
 
-  // Transform keyword search
-  if (params.keyword !== undefined) {
-    backendParams.q = params.keyword
+  // Transform keyword search - support both 'keyword' and 'q' fields
+  const searchQuery = params.keyword ?? (params as any).q
+  if (searchQuery !== undefined) {
+    backendParams.q = searchQuery
   }
 
   // Transform basic filters
