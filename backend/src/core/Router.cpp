@@ -2,6 +2,8 @@
 #include "core/IModule.hpp"
 #include <spdlog/spdlog.h>
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 namespace PaperCrawler {
 
@@ -43,33 +45,80 @@ void Router::options(const std::string& path, RouteHandler handler) {
 bool Router::matchPattern(const std::string& pattern,
                          const std::string& path,
                          std::map<std::string, std::string>& pathParams) const {
-    // 简单实现：精确匹配
-    // TODO: 实现路径参数匹配（如 /papers/:id）
-    return pattern == path;
+    // 实现路径参数匹配（如 /api/papers/:id）
+
+    // 如果完全相同，直接匹配
+    if (pattern == path) {
+        return true;
+    }
+
+    // 分割pattern和path
+    std::vector<std::string> patternParts;
+    std::vector<std::string> pathParts;
+    std::stringstream ssPattern(pattern);
+    std::stringstream ssPath(path);
+    std::string item;
+
+    while (std::getline(ssPattern, item, '/')) {
+        if (!item.empty()) patternParts.push_back(item);
+    }
+    while (std::getline(ssPath, item, '/')) {
+        if (!item.empty()) pathParts.push_back(item);
+    }
+
+    // 段数必须相同
+    if (patternParts.size() != pathParts.size()) {
+        return false;
+    }
+
+    // 逐段比较
+    for (size_t i = 0; i < patternParts.size(); ++i) {
+        const std::string& patternPart = patternParts[i];
+        const std::string& pathPart = pathParts[i];
+
+        // 如果pattern段以 ":" 开头，这是一个路径参数
+        if (patternPart[0] == ':') {
+            // 提取参数名（去掉 ":" 前缀）
+            std::string paramName = patternPart.substr(1);
+            pathParams[paramName] = pathPart;
+        } else if (patternPart != pathPart) {
+            // 不是参数且不匹配
+            return false;
+        }
+    }
+
+    return true;
 }
 
 HttpResponse Router::route(const HttpRequest& request) {
     spdlog::info("Routing: {} {}", request.method, request.path);
 
-    // 首先尝试精确匹配
-    RouteKey key{request.method, request.path};
-    auto it = routes_.find(key);
+    // 尝试匹配所有路由（支持路径参数）
+    for (const auto& pair : routes_) {
+        if (pair.first.method == request.method) {
+            std::map<std::string, std::string> pathParams;
 
-    spdlog::info("Looking for route: {} {} - found: {}", key.method, key.pattern, (it != routes_.end()));
+            if (matchPattern(pair.first.pattern, request.path, pathParams)) {
+                spdlog::info("Route matched: {} {}", pair.first.method, pair.first.pattern);
 
-    if (it != routes_.end()) {
-        try {
-            return it->second(request);
-        } catch (const std::exception& e) {
-            spdlog::error("Route handler error for {} {}: {}",
-                request.method, request.path, e.what());
+                // 创建request副本并设置路径参数
+                HttpRequest requestWithParams = request;
+                requestWithParams.pathParams = pathParams;
 
-            HttpResponse errorResponse;
-            errorResponse.statusCode = 500;
-            errorResponse.statusText = "Internal Server Error";
-            errorResponse.headers["Content-Type"] = "application/json";
-            errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
-            return errorResponse;
+                try {
+                    return pair.second(requestWithParams);
+                } catch (const std::exception& e) {
+                    spdlog::error("Route handler error for {} {}: {}",
+                        pair.first.method, pair.first.pattern, e.what());
+
+                    HttpResponse errorResponse;
+                    errorResponse.statusCode = 500;
+                    errorResponse.statusText = "Internal Server Error";
+                    errorResponse.headers["Content-Type"] = "application/json";
+                    errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
+                    return errorResponse;
+                }
+            }
         }
     }
 

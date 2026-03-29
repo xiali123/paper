@@ -465,6 +465,8 @@ bool registerManagementAPIs() {
 
             if (papers.empty()) {
                 response.statusCode = 404;
+                response.body = R"({"success":false,"error":"Paper not found"})";
+            } else {
                 const auto& paper = papers[0];
                 std::ostringstream json;
                 json << R"({"success":true,"paper":{)"
