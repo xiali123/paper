@@ -319,7 +319,7 @@ bool registerManagementAPIs() {
         return response;
     });
 
-    // 健康检查API
+    // 健康检查API（保持 /health 路由用于直接访问）
     router.get("/health", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
@@ -331,6 +331,25 @@ bool registerManagementAPIs() {
     });
 
     router.get("/health/components", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"status":"ok","components":{"Pool":"HEALTHY","Database":"HEALTHY","Cache":"HEALTHY"}})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // 健康检查API（/api/health 路由用于前端代理访问）
+    router.get("/api/health", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"status":"ok","timestamp":")" +
+                       std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) +
+                       R"("})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    router.get("/api/health/components", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
         response.body = R"({"status":"ok","components":{"Pool":"HEALTHY","Database":"HEALTHY","Cache":"HEALTHY"}})";
