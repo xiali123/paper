@@ -29,7 +29,7 @@ export const paperApi = {
    */
   async search(params: SearchParams): Promise<SearchResult> {
     const backendParams = transformQueryParams(params)
-    const backendResponse = await request.get('/search', { params: backendParams })
+    const backendResponse = await request.get('/papers/search', { params: backendParams })
 
     // Transform backend response to frontend format
     return {
