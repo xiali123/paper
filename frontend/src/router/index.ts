@@ -71,6 +71,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Stats.vue'),
     meta: { title: 'Statistics' }
   },
+
+  // Crawler routes
+  {
+    path: '/crawler',
+    name: 'Crawler',
+    component: () => import('../views/Crawler.vue'),
+    meta: { title: 'Paper Crawler' }
+  },
   {
     path: '/paper/:id',
     name: 'paper-detail',

@@ -28,6 +28,10 @@
                 <span class="nav-icon">🔍</span>
                 <span class="nav-text">{{ $t('nav.search') }}</span>
               </router-link>
+              <router-link to="/crawler" class="nav-link">
+                <span class="nav-icon">🕷️</span>
+                <span class="nav-text">爬虫</span>
+              </router-link>
               <router-link to="/stats" class="nav-link">
                 <span class="nav-icon">📊</span>
                 <span class="nav-text">{{ $t('nav.stats') }}</span>
