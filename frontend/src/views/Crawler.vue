@@ -198,7 +198,7 @@
             </el-button>
             <el-button
               size="small"
-              :icon="Bookmark"
+              :icon="Star"
               @click="savePaper(paper)"
             >
               保存到数据库
@@ -253,7 +253,7 @@ import {
   Download,
   Delete,
   Document,
-  Bookmark,
+  Star,
   User,
   Refresh
 } from '@element-plus/icons-vue'
