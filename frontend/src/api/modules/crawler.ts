@@ -3,7 +3,7 @@
  * @brief Crawler API module for fetching papers from academic sources
  */
 
-import { request } from '@/utils/request'
+import request from '@/utils/request'
 
 export type CrawlerSource = 'arxiv' | 'pubmed' | 'scholar'
 
