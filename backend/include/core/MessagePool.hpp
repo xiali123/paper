@@ -94,9 +94,10 @@ public:
      */
     MessagePoolConfig getConfig() const { return config_; }
 
+    ~MessagePool();
+
 private:
     MessagePool() = default;
-    ~MessagePool();
 
     MessagePoolConfig config_;
 

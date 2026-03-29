@@ -1,5 +1,6 @@
+#include <iostream>
 #include "data/FileStorageModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <filesystem>
 #include <random>
@@ -259,8 +260,12 @@ public:
         info.url = getFileUrl(info.filename);
         info.size = std::filesystem::file_size(fullPath);
         info.contentType = getMimeType(info.filename);
-        info.createdAt = std::filesystem::last_write_time(fullPath);
-        info.modifiedAt = info.createdAt;
+
+        // 转换 file_time_type 到 system_clock::time_point
+        auto fileTime = std::filesystem::last_write_time(fullPath);
+        auto sysTime = std::chrono::system_clock::now() + (fileTime - std::filesystem::file_time_type::clock::now());
+        info.createdAt = sysTime;
+        info.modifiedAt = sysTime;
         info.isDirectory = std::filesystem::is_directory(fullPath);
         info.accessCount = 0;
 
@@ -293,8 +298,9 @@ public:
                 info.isDirectory = std::filesystem::is_directory(entry);
 
                 auto ftime = std::filesystem::last_write_time(entry);
-                info.modifiedAt = ftime;
-                info.createdAt = ftime;
+                auto sysTime = std::chrono::system_clock::now() + (ftime - std::filesystem::file_time_type::clock::now());
+                info.modifiedAt = sysTime;
+                info.createdAt = sysTime;
 
                 files.push_back(info);
             }
@@ -555,8 +561,10 @@ private:
                     info.size = std::filesystem::file_size(entry);
                     info.contentType = getMimeType(info.filename);
                     info.isDirectory = false;
-                    info.createdAt = std::filesystem::last_write_time(entry);
-                    info.modifiedAt = info.createdAt;
+                    auto ftime = std::filesystem::last_write_time(entry);
+                    auto sysTime = std::chrono::system_clock::now() + (ftime - std::filesystem::file_time_type::clock::now());
+                    info.createdAt = sysTime;
+                    info.modifiedAt = sysTime;
                     info.accessCount = 0;
 
                     fileIndex_[entry.path().string()] = info;
@@ -643,26 +651,6 @@ FileStorageModule::FileStorageModule()
 }
 
 FileStorageModule::~FileStorageModule() = default;
-
-std::string FileStorageModule::getName() const {
-    return "FileStorage";
-}
-
-std::string FileStorageModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string FileStorageModule::getDescription() const {
-    return "File storage abstraction layer";
-}
-
-ModuleType FileStorageModule::getModuleType() const {
-    return ModuleType::SERVER;
-}
-
-std::string FileStorageModule::getRoutePrefix() const {
-    return "/api/files";
-}
 
 bool FileStorageModule::initialize() {
     std::cout << "FileStorageModule::initialize" << std::endl;

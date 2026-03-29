@@ -6,6 +6,7 @@
 #include <map>
 #include <vector>
 #include <cstdint>
+#include <chrono>
 
 namespace PaperCrawler {
 
@@ -181,7 +182,7 @@ public:
     /**
      * @brief 设置默认过期时间
      */
-    voidsetDefaultJWTExpiry(std::chrono::seconds expiry);
+    void setDefaultJWTExpiry(std::chrono::seconds expiry);
 
     /**
      * @brief 安全统计

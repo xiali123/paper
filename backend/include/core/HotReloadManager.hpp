@@ -105,7 +105,7 @@ private:
     HotReloadManager& operator=(const HotReloadManager&) = delete;
 
     std::map<std::string, std::vector<ReloadHistory>> history_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 
     // 文件监控
     std::thread watcherThread_;

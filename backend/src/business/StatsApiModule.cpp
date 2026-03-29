@@ -1,5 +1,7 @@
+#include <iostream>
 #include "business/StatsApiModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "core/ModuleRegistry.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <map>
 #include <chrono>
@@ -84,34 +86,6 @@ std::string SystemUptime::toJSON() const {
     json << "  \"minutes\": " << minutes << ",\n";
     json << "  \"seconds\": " << seconds << ",\n";
     json << "  \"formatted\": \"" << format() << "\"\n";
-    json << "}";
-    return json.str();
-}
-
-// ============================================================================
-// ModuleInfo JSON 序列化
-// ============================================================================
-
-std::string ModuleInfo::toJSON() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"name\": \"" << name << "\",\n";
-    json << "  \"version\": \"" << version << "\",\n";
-    json << "  \"description\": \"" << description << "\",\n";
-    json << "  \"status\": \"";
-
-    switch (status) {
-        case ModuleStatus::UNLOADED: json << "UNLOADED"; break;
-        case ModuleStatus::LOADED: json << "LOADED"; break;
-        case ModuleStatus::STARTED: json << "STARTED"; break;
-        case ModuleStatus::STOPPED: json << "STOPPED"; break;
-        case ModuleStatus::ERROR: json << "ERROR"; break;
-    }
-
-    json << "\",\n";
-    json << "  \"total_requests\": " << totalRequests << ",\n";
-    json << "  \"failed_requests\": " << failedRequests << ",\n";
-    json << "  \"success_rate\": " << successRate << "\n";
     json << "}";
     return json.str();
 }
@@ -212,7 +186,12 @@ public:
         SYSTEM_INFO sysInfo;
         GetSystemInfo(&sysInfo);
         systemInfo.cpuCores = sysInfo.dwNumberOfProcessors;
-        systemInfo.totalMemory = sysInfo.ullTotalPhys;
+
+        // Get total memory using MEMORYSTATUSEX
+        MEMORYSTATUSEX memInfo;
+        memInfo.dwLength = sizeof(memInfo);
+        GlobalMemoryStatusEx(&memInfo);
+        systemInfo.totalMemory = memInfo.ullTotalPhys;
 
         // CPU架构
         systemInfo.osArchitecture = "x64";
@@ -305,26 +284,6 @@ StatsApiModule::StatsApiModule()
 
 StatsApiModule::~StatsApiModule() = default;
 
-std::string StatsApiModule::getName() const {
-    return "StatsApi";
-}
-
-std::string StatsApiModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string StatsApiModule::getDescription() const {
-    return "System statistics and monitoring API";
-}
-
-ModuleType StatsApiModule::getModuleType() const {
-    return ModuleType::BUSINESS;
-}
-
-std::string StatsApiModule::getRoutePrefix() const {
-    return "/api/stats";
-}
-
 bool StatsApiModule::initialize() {
     registerRoutes();
     std::cout << "StatsApiModule initialized" << std::endl;
@@ -376,21 +335,17 @@ std::vector<ModuleInfo> StatsApiModule::getAllModules() {
     ModuleInfo module1;
     module1.name = "HttpServer";
     module1.version = "1.0.0";
-    module1.description = "HTTP Server";
-    module1.status = ModuleStatus::STARTED;
-    module1.loadTime = std::chrono::microseconds(5000);
-    module1.totalRequests = 1000;
-    module1.successRate = 99.5;
+    module1.type = ModuleType::SERVER;
+    module1.state = ModuleState::STARTED;
+    module1.loadedAt = std::chrono::system_clock::now() - std::chrono::milliseconds(5000);
     modules.push_back(module1);
 
     ModuleInfo module2;
     module2.name = "PaperApi";
     module2.version = "1.0.0";
-    module2.description = "Paper API";
-    module2.status = ModuleStatus::STARTED;
-    module2.loadTime = std::chrono::microseconds(3000);
-    module2.totalRequests = 500;
-    module2.successRate = 98.0;
+    module2.type = ModuleType::BUSINESS;
+    module2.state = ModuleState::STARTED;
+    module2.loadedAt = std::chrono::system_clock::now() - std::chrono::milliseconds(3000);
     modules.push_back(module2);
 
     return modules;
@@ -515,9 +470,10 @@ std::string StatsApiModule::handleModules() {
         json << "{\n";
         json << "  \"name\": \"" << module.name << "\",\n";
         json << "  \"version\": \"" << module.version << "\",\n";
-        json << "  \"status\": \"" << (module.status == ModuleStatus::STARTED ? "STARTED" : "STOPPED") << "\",\n";
-        json << "  \"total_requests\": " << module.totalRequests << ",\n";
-        json << "  \"success_rate\": " << module.successRate << "\n";
+        json << "  \"type\": \"" << (module.type == ModuleType::SERVER ? "SERVER" : "BUSINESS") << "\",\n";
+        json << "  \"state\": \"" << (module.state == ModuleState::STARTED ? "STARTED" :
+                  module.state == ModuleState::STOPPED ? "STOPPED" : "UNLOADED") << "\",\n";
+        json << "  \"reference_count\": " << module.referenceCount.load() << "\n";
         json << "}";
     }
     json << "]";
@@ -536,11 +492,13 @@ std::string StatsApiModule::handleModule(const std::string& moduleName) {
     }
 
     std::map<std::string, std::string> data;
-    data["name"] = module->name;
-    data["version"] = module->version;
-    data["status"] = (module->status == ModuleStatus::STARTED ? "STARTED" : "STOPPED");
-    data["total_requests"] = std::to_string(module->totalRequests);
-    data["success_rate"] = std::to_string(module->successRate);
+    const ModuleInfo& info = module.value();
+    data["name"] = info.name;
+    data["version"] = info.version;
+    data["type"] = (info.type == ModuleType::SERVER ? "SERVER" : "BUSINESS");
+    data["state"] = (info.state == ModuleState::STARTED ? "STARTED" :
+                  info.state == ModuleState::STOPPED ? "STOPPED" : "UNLOADED");
+    data["reference_count"] = std::to_string(info.referenceCount.load());
 
     return ResponseHandlerModule::buildJsonResponse(data);
 }

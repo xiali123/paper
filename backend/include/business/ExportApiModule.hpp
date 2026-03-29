@@ -201,7 +201,7 @@ public:
     /**
      * @brief 创建自定义导出模板
      */
-    bool createExportTemplate(const std::string& name, const std::string& template);
+    bool createExportTemplate(const std::string& name, const std::string& templateContent);
 
     /**
      * @brief 批量导出

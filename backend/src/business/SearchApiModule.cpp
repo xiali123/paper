@@ -1,3 +1,4 @@
+#include <iostream>
 #include "business/SearchApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include <sstream>

@@ -212,8 +212,8 @@ public:
 // HttpServerModule Implementation
 // ============================================================================
 
-HttpServerModule::HttpServerModule()
-    : impl_(std::make_unique<Impl>()) {
+HttpServerModule::HttpServerModule(uint16_t port)
+    : impl_(std::make_unique<Impl>()), port_(port) {
 }
 
 HttpServerModule::~HttpServerModule() {
@@ -224,22 +224,6 @@ HttpServerModule::~HttpServerModule() {
         close(impl_->serverSocket_);
 #endif
     }
-}
-
-std::string HttpServerModule::getName() const {
-    return "HttpServer";
-}
-
-std::string HttpServerModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string HttpServerModule::getDescription() const {
-    return "HTTP server module";
-}
-
-ModuleType HttpServerModule::getModuleType() const {
-    return ModuleType::SERVER;
 }
 
 bool HttpServerModule::initialize() {
@@ -298,18 +282,6 @@ bool HttpServerModule::stop() {
 
 void HttpServerModule::cleanup() {
     impl_->cleanupWinsock();
-}
-
-void HttpServerModule::setPort(int port) {
-    impl_->port_ = port;
-}
-
-int HttpServerModule::getPort() const {
-    return impl_->port_;
-}
-
-bool HttpServerModule::isRunning() const {
-    return impl_->running_;
 }
 
 } // namespace PaperCrawler

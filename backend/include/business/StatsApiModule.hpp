@@ -2,12 +2,14 @@
 
 #include "core/IModule.hpp"
 #include "core/ModuleExports.hpp"
+#include "core/ModuleRegistry.hpp"
 #include <string>
 #include <map>
 #include <vector>
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <optional>
 
 namespace PaperCrawler {
 
@@ -75,24 +77,6 @@ enum class ModuleStatus {
     STARTED,
     STOPPED,
     ERROR
-};
-
-/**
- * @brief 模块信息
- */
-struct ModuleInfo {
-    std::string name;
-    std::string version;
-    std::string description;
-    ModuleStatus status{ModuleStatus::UNLOADED};
-    std::chrono::system_clock::time_point loadedAt;
-    std::chrono::microseconds loadTime{0};
-    uint64_t totalRequests{0};
-    uint64_t failedRequests{0};
-    double successRate{0.0};
-    std::string errorMessage;
-
-    std::string toJSON() const;
 };
 
 /**

@@ -1,36 +1,50 @@
-#include "$(echo $file | sed 's|src/|include/|' | sed 's|\.cpp|\.hpp|')"
+#include "features/operations/ValidationModule.hpp"
 #include <iostream>
+#include <regex>
+#include <mutex>
 
 namespace PaperCrawler {
 
-// 基础实现
-class $(basename $(echo $file | sed 's|Module.cpp||')))::Impl {
+class ValidationModule::Impl {
 public:
-    // TODO: 实现细节
+    std::map<std::string, std::shared_ptr<IValidationRule>> rules_;
+    mutable std::mutex mutex_;
 };
 
-$(basename $(echo $file | sed 's|Module.cpp||'))::$(basename $(echo $file | sed 's|Module.cpp||'))()
+ValidationModule::ValidationModule()
     : impl_(std::make_unique<Impl>()) {}
 
-$(basename $(echo $file | sed 's|Module.cpp||'))::~$(basename $(echo $file | sed 's|Module.cpp||'))() = default;
+ValidationModule::~ValidationModule() = default;
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::initialize() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||'))::initialize" << std::endl;
+bool ValidationModule::initialize() {
+    std::cout << "ValidationModule::initialize" << std::endl;
     return true;
 }
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::start() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||')) started" << std::endl;
+bool ValidationModule::start() {
+    std::cout << "ValidationModule started" << std::endl;
     return true;
 }
 
-bool $(basename $(echo $file | sed 's|Module.cpp||'))::stop() {
-    std::cout << "$(basename $(echo $file | sed 's|Module.cpp||')) stopped" << std::endl;
+bool ValidationModule::stop() {
+    std::cout << "ValidationModule stopped" << std::endl;
     return true;
 }
 
-void $(basename $(echo $file | sed 's|Module.cpp||'))::cleanup() {
-    // 清理资源
+void ValidationModule::cleanup() {
+    std::lock_guard<std::mutex> lock(impl_->mutex_);
+    impl_->rules_.clear();
+}
+
+void ValidationModule::addRule(const std::string& fieldName, std::shared_ptr<IValidationRule> rule) {
+    std::lock_guard<std::mutex> lock(impl_->mutex_);
+    impl_->rules_[fieldName] = rule;
+}
+
+std::vector<ValidationResult> ValidationModule::validateJSONSchema(const std::string& json, const std::string& schema) {
+    // TODO: 实现JSON Schema验证
+    std::vector<ValidationResult> results;
+    return results;
 }
 
 } // namespace PaperCrawler

@@ -228,38 +228,66 @@ bool registerManagementAPIs() {
     // 模块管理API
     router.get("/api/modules", [](const HttpRequest& req) {
         // TODO: 列出所有模块
-        return R"({"success":true,"modules":[]})";
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"success":true,"modules":[]})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
     });
 
     router.post("/api/modules/load", [](const HttpRequest& req) {
         // TODO: 动态加载模块
-        return R"({"success":true,"message":"Module loaded successfully"})";
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"success":true,"message":"Module loaded successfully"})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
     });
 
     router.post("/api/modules/unload", [](const HttpRequest& req) {
         // TODO: 智能卸载模块
-        return R"({"success":true,"message":"Module unloaded successfully"})";
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"success":true,"message":"Module unloaded successfully"})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
     });
 
     router.post("/api/modules/reload", [](const HttpRequest& req) {
         // TODO: 热重载模块
-        return R"({"success":true,"message":"Module reloaded successfully"})";
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"success":true,"message":"Module reloaded successfully"})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
     });
 
     router.get("/api/modules/:name/stats", [](const HttpRequest& req) {
         // TODO: 模块统计
-        return R"({"success":true,"stats":{}})";
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"success":true,"stats":{}})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
     });
 
     // 健康检查API
     router.get("/health", [](const HttpRequest& req) {
-        return R"({"status":"ok","timestamp":")" +
-               std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) +
-               R"("})";
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"status":"ok","timestamp":")" +
+                       std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) +
+                       R"("})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
     });
 
     router.get("/health/components", [](const HttpRequest& req) {
-        return R"({"status":"ok","components":{"Pool":"HEALTHY","Database":"HEALTHY","Cache":"HEALTHY"}})";
+        HttpResponse response;
+        response.statusCode = 200;
+        response.body = R"({"status":"ok","components":{"Pool":"HEALTHY","Database":"HEALTHY","Cache":"HEALTHY"}})";
+        response.setHeader("Content-Type", "application/json");
+        return response;
     });
 
     printSuccess("Registered 6 management endpoints");
@@ -327,21 +355,13 @@ void gracefulShutdown() {
         if (moduleInfo.state == ModuleState::STARTED) {
             std::cout << "    - Unloading " << moduleInfo.name << "..." << std::endl;
 
-            PluginManager::UnloadOptions options;
-            options.waitTimeoutSeconds = 10;
-            options.gracefulShutdown = true;
-
-            pluginMgr.unloadModule(moduleInfo.name, options);
+            pluginMgr.unloadModule(moduleInfo.name);
         }
     }
 
     // 2. 停止系统模块
     std::cout << "  - Stopping system modules..." << std::endl;
     pluginMgr.stopAllModules();
-
-    // 3. 清理资源
-    std::cout << "  - Cleanup..." << std::endl;
-    pluginMgr.cleanup();
 
     std::cout << "✓ Shutdown complete" << std::endl;
     std::cout << "========================================" << std::endl;

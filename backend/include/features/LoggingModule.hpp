@@ -19,7 +19,7 @@ enum class LogLevel {
     DEBUG = 1,
     INFO = 2,
     WARN = 3,
-    ERROR = 4,
+    ERR = 4,
     FATAL = 5
 };
 
@@ -63,6 +63,9 @@ public:
     std::shared_ptr<spdlog::logger> getLogger() { return logger_; }
 
 private:
+    class Impl;
+    std::unique_ptr<Impl> impl_;
+
     std::shared_ptr<spdlog::logger> logger_;
     LogLevel minLevel_{LogLevel::INFO};
 };

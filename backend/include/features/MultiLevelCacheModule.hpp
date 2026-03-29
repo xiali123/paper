@@ -8,6 +8,7 @@
 #include <any>
 #include <chrono>
 #include <vector>
+#include <mutex>
 
 namespace PaperCrawler {
 

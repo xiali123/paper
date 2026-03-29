@@ -1,79 +1,62 @@
 #include "core/PoolCoordinator.hpp"
 #include "core/MessagePool.hpp"
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
-// 简单的线程池占位符实现
-// TODO: 后续会被完整的ThreadPoolModule替代
-
-namespace {
-    std::map<int, size_t> globalThreadTaskCount_;
-    std::mutex globalThreadMutex_;
-}
-
-class ThreadPoolModule {
-public:
-    static ThreadPoolModule& getInstance() {
-        static ThreadPoolModule instance;
-        return instance;
-    }
-
-    // 简化版的enqueue实现
-    template<typename F>
-    auto enqueue(F&& task) -> std::future<decltype(task())> {
-        using ReturnType = decltype(task());
-
-        auto promise = std::make_shared<std::promise<ReturnType>>();
-        auto future = promise->get_future();
-
-        // 简单地在当前线程执行（临时实现）
-        // TODO: 实现真正的线程池
-        try {
-            if constexpr (std::is_void_v<ReturnType>) {
-                task();
-                promise->set_value();
-            } else {
-                promise->set_value(task());
-            }
-        } catch (...) {
-            promise->set_exception(std::current_exception());
-        }
-
-        return future;
-    }
-};
+// 静态成员初始化
+std::unique_ptr<PoolCoordinator> PoolCoordinator::instance_;
+std::mutex PoolCoordinator::instanceMutex_;
 
 PoolCoordinator& PoolCoordinator::getInstance() {
-    static PoolCoordinator instance;
-    return instance;
+    std::lock_guard<std::mutex> lock(instanceMutex_);
+
+    if (!instance_) {
+        instance_ = std::unique_ptr<PoolCoordinator>(new PoolCoordinator());
+    }
+
+    return *instance_;
 }
 
 bool PoolCoordinator::initialize() {
-    std::cout << "PoolCoordinator initialized" << std::endl;
+    spdlog::info("Initializing PoolCoordinator");
+
+    // 初始化消息池
+    MessagePoolConfig poolConfig;
+    poolConfig.poolSize = 100;
+    poolConfig.maxPoolSize = 1000;
+    poolConfig.messageBufferSize = 4096;
+
+    if (!MessagePool::getInstance().initialize(poolConfig)) {
+        spdlog::error("Failed to initialize MessagePool");
+        return false;
+    }
+
     initialized_ = true;
+    spdlog::info("PoolCoordinator initialized successfully");
     return true;
 }
 
 void PoolCoordinator::shutdown() {
-    std::cout << "PoolCoordinator shut down" << std::endl;
+    spdlog::info("Shutting down PoolCoordinator");
+
+    MessagePool::getInstance().shutdown();
+
     initialized_ = false;
+    spdlog::info("PoolCoordinator shut down");
 }
 
 PoolCoordinator::CombinedStats PoolCoordinator::getAllStats() const {
     CombinedStats stats{};
+
+    // 获取消息池统计
     stats.messagePool = MessagePool::getInstance().getStats();
+
     // TODO: 添加内存池和线程池统计
+    stats.memoryPoolAllocations = 0;
+    stats.threadPoolActiveThreads = 0;
+
     return stats;
-}
-
-void PoolCoordinator::rebalanceLoad() {
-    std::lock_guard<std::mutex> lock(threadTaskMutex_);
-
-    // 简单的负载均衡实现
-    // TODO: 实现更复杂的重平衡算法
-
-    std::cout << "Pool load rebalanced" << std::endl;
 }
 
 } // namespace PaperCrawler

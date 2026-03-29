@@ -1,5 +1,6 @@
+#include <iostream>
 #include "features/infrastructure/FilterModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <algorithm>
 #include <chrono>
@@ -127,26 +128,6 @@ FilterModule::FilterModule()
 }
 
 FilterModule::~FilterModule() = default;
-
-std::string FilterModule::getName() const {
-    return "Filter";
-}
-
-std::string FilterModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string FilterModule::getDescription() const {
-    return "Request filter chain manager";
-}
-
-ModuleType FilterModule::getModuleType() const {
-    return ModuleType::SERVER;
-}
-
-std::string FilterModule::getRoutePrefix() const {
-    return "/api/filters";
-}
 
 bool FilterModule::initialize() {
     std::cout << "FilterModule::initialize" << std::endl;

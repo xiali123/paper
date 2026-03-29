@@ -1,4 +1,5 @@
-#include "features/security/SessionModule.hpp"
+#include "features/SessionModule.hpp"
+#include <sstream>
 #include <iostream>
 #include <random>
 #include <algorithm>
@@ -225,7 +226,6 @@ public:
         return stats_;
     }
 
-private:
     std::string generateSessionId() {
         static std::atomic<uint64_t> counter{0};
         static std::random_device rd;
@@ -312,7 +312,7 @@ void SessionModule::clearAll() {
     impl_->clearAll();
 }
 
-SessionModule::SessionStats SessionModule::getStats() const {
+SessionStats SessionModule::getStats() const {
     return impl_->getStats();
 }
 

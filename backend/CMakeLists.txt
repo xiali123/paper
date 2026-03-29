@@ -122,21 +122,54 @@ add_executable(PaperCrawlerServer ${BACKEND_SOURCES})
 # Find required packages
 find_package(Threads REQUIRED)
 
-# Use local dependencies from core/external
+# Use local dependencies from PaperCrawler/core/external
+# Backend is at PaperCrawler/backend, so we go up one level to reach PaperCrawler/
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/../core/external)
 
-# Use spdlog as header-only library
-include_directories(${EXTERNAL_DIR}/spdlog/include)
+# Check if external directory exists
+if(EXISTS ${EXTERNAL_DIR})
+    message(STATUS "Using external dependencies from: ${EXTERNAL_DIR}")
+
+    # Use spdlog with bundled fmt
+    if(EXISTS ${EXTERNAL_DIR}/spdlog)
+        message(STATUS "  - spdlog: found (header-only with bundled fmt)")
+
+        # Include directories
+        include_directories(${EXTERNAL_DIR}/spdlog/include)
+
+        # Don't define SPDLOG_FMT_EXTERNAL - let it use bundled fmt by default
+        target_compile_definitions(PaperCrawlerServer PRIVATE
+            SPDLOG_HEADER_ONLY
+            SPDLOG_NO_EXCEPTIONS=0
+        )
+    else()
+        message(WARNING "spdlog not found in ${EXTERNAL_DIR}")
+    endif()
+else()
+    message(WARNING "External dependencies directory not found: ${EXTERNAL_DIR}")
+    message(STATUS "  Will try to use system packages...")
+
+    # Try to find system packages
+    find_package(spdlog QUIET)
+    if(spdlog_FOUND)
+        message(STATUS "  - spdlog: found system package")
+        target_link_libraries(PaperCrawlerServer PRIVATE spdlog::spdlog)
+    else()
+        message(FATAL_ERROR "Neither local nor system spdlog found. Please install spdlog.")
+    endif()
+
+    find_package(fmt QUIET)
+    if(fmt_FOUND)
+        message(STATUS "  - fmt: found system package")
+        target_link_libraries(PaperCrawlerServer PRIVATE fmt::fmt)
+    endif()
+endif()
 
 # Link libraries
 target_link_libraries(PaperCrawlerServer
     PRIVATE
         Threads::Threads
 )
-
-# spdlog is header-only, no linking needed
-# but we need to compile with header-only mode
-target_compile_definitions(PaperCrawlerServer PRIVATE SPDLOG_COMPILED_LIB)
 
 # Platform specific
 if(WIN32)

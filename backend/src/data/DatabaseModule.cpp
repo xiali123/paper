@@ -1,5 +1,6 @@
+#include <iostream>
 #include "data/DatabaseModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
 #include <sstream>
 #include <chrono>
 #include <thread>
@@ -367,26 +368,6 @@ DatabaseModule::DatabaseModule()
 }
 
 DatabaseModule::~DatabaseModule() = default;
-
-std::string DatabaseModule::getName() const {
-    return "Database";
-}
-
-std::string DatabaseModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string DatabaseModule::getDescription() const {
-    return "MySQL database access module with connection pooling";
-}
-
-ModuleType DatabaseModule::getModuleType() const {
-    return ModuleType::SERVER;
-}
-
-std::string DatabaseModule::getRoutePrefix() const {
-    return "/api/database";
-}
 
 bool DatabaseModule::initialize() {
     std::cout << "DatabaseModule::initialize" << std::endl;
