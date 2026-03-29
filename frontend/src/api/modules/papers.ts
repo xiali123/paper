@@ -12,57 +12,27 @@
  */
 
 import request from '@/utils/request'
-import type { ApiResponse } from '@/types'
+import {
+  toFrontendPaper,
+  transformPaperList,
+  transformCreateRequest,
+  transformUpdateRequest,
+  transformQueryParams,
+  type FrontendPaper,
+  type PaperQueryParams,
+  type CreatePaperRequest,
+  type UpdatePaperRequest,
+  type BackendPaper
+} from '@/api/adapters/paperAdapter'
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
 
-/**
- * Paper data model
- */
-export interface Paper {
-  id: number
-  userId: number
-  title: string
-  authors: string
-  abstract: string
-  keywords: string
-  doi: string
-  publication: string
-  year: string
-  volume: string
-  issue: string
-  pages: string
-  url: string
-  pdfPath: string
-  source: 'manual' | 'cnki' | 'ieee' | 'arxiv' | 'pubmed'
-  category: string
-  tags: string
-  citationCount: number
-  isRead: boolean
-  isBookmarked: boolean
-  readingProgress: number
-  notes: string
-  createdAt: string
-  updatedAt: string
-}
-
-/**
- * Paper query parameters
- */
-export interface PaperQuery {
-  keyword?: string
-  category?: string
-  tags?: string
-  source?: string
-  isRead?: boolean
-  isBookmarked?: boolean
-  orderBy?: string
-  order?: 'ASC' | 'DESC'
-  page?: number
-  pageSize?: number
-}
+// Re-export types from adapter for convenience
+export type Paper = FrontendPaper
+export type PaperQuery = PaperQueryParams
+export type { CreatePaperRequest, UpdatePaperRequest } from '@/api/adapters/paperAdapter'
 
 /**
  * Paper list response
@@ -73,53 +43,6 @@ export interface PaperListResponse {
   page: number
   pageSize: number
   totalPages: number
-}
-
-/**
- * Create paper request
- */
-export interface CreatePaperRequest {
-  title: string
-  authors?: string
-  abstract?: string
-  keywords?: string
-  doi?: string
-  publication?: string
-  year?: string
-  volume?: string
-  issue?: string
-  pages?: string
-  url?: string
-  pdfPath?: string
-  source?: string
-  category?: string
-  tags?: string
-}
-
-/**
- * Update paper request
- */
-export interface UpdatePaperRequest {
-  title?: string
-  authors?: string
-  abstract?: string
-  keywords?: string
-  doi?: string
-  publication?: string
-  year?: string
-  volume?: string
-  issue?: string
-  pages?: string
-  url?: string
-  pdfPath?: string
-  source?: string
-  category?: string
-  tags?: string
-  citationCount?: number
-  isRead?: boolean
-  isBookmarked?: boolean
-  readingProgress?: number
-  notes?: string
 }
 
 /**
@@ -160,7 +83,13 @@ export const papersApi = {
    * ```
    */
   async getPapers(params: PaperQuery = {}): Promise<PaperListResponse> {
-    return await request.get('/papers', { params })
+    const backendParams = transformQueryParams(params)
+    const response = await request.get<{ papers: BackendPaper[], total: number, page: number, pageSize: number }>('/papers', { params: backendParams })
+
+    return {
+      ...response,
+      papers: transformPaperList(response.papers)
+    }
   },
 
   /**
@@ -175,7 +104,8 @@ export const papersApi = {
    * ```
    */
   async getPaper(id: number): Promise<Paper> {
-    return await request.get(`/papers/${id}`)
+    const backendPaper = await request.get<BackendPaper>(`/papers/${id}`)
+    return toFrontendPaper(backendPaper)
   },
 
   /**
@@ -194,7 +124,9 @@ export const papersApi = {
    * ```
    */
   async createPaper(data: CreatePaperRequest): Promise<Paper> {
-    return await request.post('/papers', data)
+    const backendRequest = transformCreateRequest(data)
+    const backendPaper = await request.post<BackendPaper>('/papers', backendRequest)
+    return toFrontendPaper(backendPaper)
   },
 
   /**
@@ -213,7 +145,9 @@ export const papersApi = {
    * ```
    */
   async updatePaper(id: number, data: UpdatePaperRequest): Promise<Paper> {
-    return await request.put(`/papers/${id}`, data)
+    const backendRequest = transformUpdateRequest(data)
+    const backendPaper = await request.put<BackendPaper>(`/papers/${id}`, backendRequest)
+    return toFrontendPaper(backendPaper)
   },
 
   /**
@@ -311,12 +245,15 @@ export const papersApi = {
    * ```
    */
   async search(query: string, params: Pick<PaperQuery, 'page' | 'pageSize'> = {}): Promise<PaperListResponse> {
-    return await request.get('/papers/search', {
-      params: {
-        q: query,
-        ...params
-      }
+    const backendParams = transformQueryParams({ keyword: query, ...params })
+    const response = await request.get<{ papers: BackendPaper[], total: number, page: number, pageSize: number }>('/papers/search', {
+      params: backendParams
     })
+
+    return {
+      ...response,
+      papers: transformPaperList(response.papers)
+    }
   },
 
   /**
