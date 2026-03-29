@@ -22,6 +22,7 @@
 #include <thread>
 #include <chrono>
 #include <sstream>
+#include <regex>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -38,6 +39,7 @@
 
 // 网络模块
 #include "network/HttpServerModule.hpp"
+#include "network/HttpClient.hpp"
 
 // 数据模块
 #include "data/MySqlConnection.hpp"
@@ -842,6 +844,15 @@ bool registerManagementAPIs() {
         HttpResponse response;
         response.statusCode = 200;
 
+        // Debug log
+        if (req.body.empty()) {
+            spdlog::warn("[Crawler] Empty request body received");
+            response.statusCode = 400;
+            response.body = R"({"success":false,"error":"Empty request body. Make sure Content-Type header is set to application/json"})";
+            response.setHeader("Content-Type", "application/json");
+            return response;
+        }
+
         try {
             auto bodyJson = json::parse(req.body);
             std::string query = bodyJson.value("query", "");
@@ -854,13 +865,120 @@ bool registerManagementAPIs() {
                 return response;
             }
 
-            // TODO: Implement actual arXiv API call
-            // For now, return success with query info
+            // Build arXiv API URL
+            std::string arxivQuery = query;
+            // Replace spaces with + for URL encoding
+            std::replace(arxivQuery.begin(), arxivQuery.end(), ' ', '+');
+
+            std::string arxivUrl = "http://export.arxiv.org/api/query?search_query=all:" +
+                                 arxivQuery + "&start=0&max_results=" + std::to_string(limit);
+
+            // Make HTTP request using SimpleHttpClient
+            std::unique_ptr<Network::HttpClient> httpClient = std::make_unique<Network::HttpClient>();
+            httpClient->setDefaultHeader("User-Agent", "PaperCrawler/1.0");
+
+            Network::HttpClientResponse httpResp = httpClient->get(arxivUrl);
+
+            if (!httpResp.isSuccess()) {
+                response.statusCode = 500;
+                std::ostringstream jsonResponse;
+                jsonResponse << R"({"success":false,"error":"Failed to fetch from arXiv","status":)"
+                            << httpResp.statusCode << R"(,"message":")"
+                            << escapeJsonString(httpResp.errorMessage) << R"("})";
+                response.body = jsonResponse.str();
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // Parse arXiv XML response (simplified)
+            std::vector<std::map<std::string, std::string>> papers;
+            std::string xmlContent = httpResp.body;
+
+            // Extract entries between <entry> tags (Windows-compatible regex)
+            std::regex entryRegex("<entry>[\\s\\S]*?</entry>");
+            std::sregex_iterator it(xmlContent.begin(), xmlContent.end(), entryRegex);
+            std::sregex_iterator end;
+
+            int count = 0;
+            for (; it != end && count < limit; ++it) {
+                std::string entryXml = it->str(1);
+
+                std::map<std::string, std::string> paper;
+
+                // Extract title
+                std::regex titleRegex("<title>(.*?)</title>");
+                std::smatch titleMatch;
+                if (std::regex_search(entryXml, titleMatch, titleRegex)) {
+                    paper["title"] = titleMatch[1].str();
+                }
+
+                // Extract summary (abstract)
+                std::regex summaryRegex("<summary>(.*?)</summary>");
+                std::smatch summaryMatch;
+                if (std::regex_search(entryXml, summaryMatch, summaryRegex)) {
+                    paper["summary"] = summaryMatch[1].str();
+                }
+
+                // Extract authors
+                std::regex authorRegex("<name>(.*?)</name>");
+                std::sregex_iterator authorIt(entryXml.begin(), entryXml.end(), authorRegex);
+                std::sregex_iterator authorEnd;
+                std::vector<std::string> authors;
+                for (; authorIt != authorEnd; ++authorIt) {
+                    authors.push_back(authorIt->str(1));
+                }
+                paper["authors"] = "";
+                for (size_t i = 0; i < authors.size(); ++i) {
+                    if (i > 0) paper["authors"] += ", ";
+                    paper["authors"] += authors[i];
+                }
+
+                // Extract year from published date
+                std::regex publishedRegex("<published>(\\d{4})");
+                std::smatch publishedMatch;
+                if (std::regex_search(entryXml, publishedMatch, publishedRegex)) {
+                    paper["year"] = publishedMatch[1].str();
+                }
+
+                // Extract arXiv ID and URL
+                std::regex idRegex("<id>(http://arxiv\\.org/abs/\\d+\\.\\d+)</id>");
+                std::smatch idMatch;
+                if (std::regex_search(entryXml, idMatch, idRegex)) {
+                    paper["url"] = idMatch[1].str();
+                    paper["pdfUrl"] = idMatch[1].str() + ".pdf";
+
+                    // Extract ID from URL
+                    size_t lastSlash = idMatch[1].str().find_last_of('/');
+                    if (lastSlash != std::string::npos) {
+                        paper["arxivId"] = idMatch[1].str().substr(lastSlash + 1);
+                    }
+                }
+
+                papers.push_back(paper);
+                count++;
+            }
+
+            // Build JSON response
             std::ostringstream jsonResponse;
             jsonResponse << R"({"success":true,"query":")" << escapeJsonString(query)
-                        << R"(","limit":)" << limit
-                        << R"(,"papers":[],"message":"arXiv crawler API endpoint - implementation pending"})";
+                        << R"(","total":)" << papers.size()
+                        << R"(,"papers":[)";
 
+            for (size_t i = 0; i < papers.size(); ++i) {
+                if (i > 0) jsonResponse << ",";
+                jsonResponse << "{"
+                             << R"("title":")" << escapeJsonString(papers[i]["title"]) << R"(",)"
+                             << R"("authors":")" << escapeJsonString(papers[i]["authors"]) << R"(",)"
+                             << R"("abstract":")" << escapeJsonString(papers[i]["summary"]) << R"(",)"
+                             << R"("year":")" << papers[i]["year"] << R"(",)"
+                             << R"("url":")" << escapeJsonString(papers[i]["url"]) << R"(",)"
+                             << R"("pdfUrl":")" << escapeJsonString(papers[i]["pdfUrl"]) << R"(",)"
+                             << R"("arxivId":")" << escapeJsonString(papers[i]["arxivId"]) << R"(",)"
+                             << R"("source":"arXiv)"
+                             << "}";
+            }
+
+            jsonResponse << R"(]})";
             response.body = jsonResponse.str();
         } catch (const std::exception& e) {
             response.statusCode = 500;

@@ -42,6 +42,7 @@ set(DATA_SOURCES
 set(NETWORK_SOURCES
     src/network/HttpServerModule.cpp
     src/network/WebSocketModule.cpp
+    src/network/SimpleHttpClient.cpp
 )
 
 # 功能模块 - 基础设施
@@ -187,6 +188,7 @@ if(WIN32)
         PRIVATE
             ws2_32
             wsock32
+            wininet
             "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
     )
 endif()
