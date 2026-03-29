@@ -84,15 +84,22 @@ export const papersApi = {
    */
   async getPapers(params: PaperQuery = {}): Promise<PaperListResponse> {
     const backendParams = transformQueryParams(params)
-    const response = await request.get<{ papers: BackendPaper[], total: number, page: number, pageSize: number }>('/papers', { params: backendParams })
+    const response = await request.get('/papers', { params: backendParams })
 
     // Debug logging
     console.log('📦 [getPapers] Response:', response)
     console.log('📦 [getPapers] response.papers:', response.papers)
+    console.log('📦 [getPapers] response.data:', response.data)
+    console.log('📦 [getPapers] Keys:', Object.keys(response))
+
+    // Access papers from the correct location
+    const papersData = (response as any).papers || (response as any).data?.papers || []
 
     return {
-      ...response,
-      papers: transformPaperList(response.papers || [])
+      total: (response as any).total || 0,
+      page: (response as any).page || 1,
+      pageSize: (response as any).pageSize || 20,
+      papers: transformPaperList(papersData)
     }
   },
 
