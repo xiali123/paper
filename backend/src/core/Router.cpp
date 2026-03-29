@@ -93,30 +93,59 @@ bool Router::matchPattern(const std::string& pattern,
 HttpResponse Router::route(const HttpRequest& request) {
     spdlog::info("Routing: {} {}", request.method, request.path);
 
-    // 尝试匹配所有路由（支持路径参数）
+    // 第一轮：优先匹配精确路径（不包含路径参数的路由）
     for (const auto& pair : routes_) {
         if (pair.first.method == request.method) {
-            std::map<std::string, std::string> pathParams;
+            // 检查是否是精确匹配路由（pattern 中不包含 ':'）
+            if (pair.first.pattern.find(':') == std::string::npos) {
+                if (pair.first.pattern == request.path) {
+                    spdlog::info("Exact route matched: {} {}", pair.first.method, pair.first.pattern);
 
-            if (matchPattern(pair.first.pattern, request.path, pathParams)) {
-                spdlog::info("Route matched: {} {}", pair.first.method, pair.first.pattern);
+                    try {
+                        return pair.second(request);
+                    } catch (const std::exception& e) {
+                        spdlog::error("Route handler error for {} {}: {}",
+                            pair.first.method, pair.first.pattern, e.what());
 
-                // 创建request副本并设置路径参数
-                HttpRequest requestWithParams = request;
-                requestWithParams.pathParams = pathParams;
+                        HttpResponse errorResponse;
+                        errorResponse.statusCode = 500;
+                        errorResponse.statusText = "Internal Server Error";
+                        errorResponse.headers["Content-Type"] = "application/json";
+                        errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
+                        return errorResponse;
+                    }
+                }
+            }
+        }
+    }
 
-                try {
-                    return pair.second(requestWithParams);
-                } catch (const std::exception& e) {
-                    spdlog::error("Route handler error for {} {}: {}",
-                        pair.first.method, pair.first.pattern, e.what());
+    // 第二轮：尝试匹配包含路径参数的路由
+    for (const auto& pair : routes_) {
+        if (pair.first.method == request.method) {
+            // 只处理包含路径参数的路由
+            if (pair.first.pattern.find(':') != std::string::npos) {
+                std::map<std::string, std::string> pathParams;
 
-                    HttpResponse errorResponse;
-                    errorResponse.statusCode = 500;
-                    errorResponse.statusText = "Internal Server Error";
-                    errorResponse.headers["Content-Type"] = "application/json";
-                    errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
-                    return errorResponse;
+                if (matchPattern(pair.first.pattern, request.path, pathParams)) {
+                    spdlog::info("Parameter route matched: {} {}", pair.first.method, pair.first.pattern);
+
+                    // 创建request副本并设置路径参数
+                    HttpRequest requestWithParams = request;
+                    requestWithParams.pathParams = pathParams;
+
+                    try {
+                        return pair.second(requestWithParams);
+                    } catch (const std::exception& e) {
+                        spdlog::error("Route handler error for {} {}: {}",
+                            pair.first.method, pair.first.pattern, e.what());
+
+                        HttpResponse errorResponse;
+                        errorResponse.statusCode = 500;
+                        errorResponse.statusText = "Internal Server Error";
+                        errorResponse.headers["Content-Type"] = "application/json";
+                        errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
+                        return errorResponse;
+                    }
                 }
             }
         }
