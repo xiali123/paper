@@ -1,5 +1,13 @@
 import request from '@/utils/request'
 import type { SearchParams } from '@/types'
+import {
+  transformExportFormat,
+  transformExportStatus,
+  transformExportOptions,
+  transformSearchParams,
+  type ExportStatusResponse,
+  type BackendExportTask
+} from '@/api/adapters/exportAdapter'
 
 /**
  * Export format types
@@ -17,7 +25,8 @@ export const exportApi = {
    * @returns Blob containing CSV data
    */
   async exportToCSV(params: SearchParams): Promise<Blob> {
-    return await request.get('/export/csv', { params, responseType: 'blob' })
+    const backendParams = transformSearchParams(params)
+    return await request.get('/api/export/csv', { params: backendParams, responseType: 'blob' })
   },
 
   /**
@@ -62,12 +71,8 @@ export const exportApi = {
    * @param exportId - Export job identifier
    * @returns Export status information
    */
-  async getExportStatus(exportId: string): Promise<{
-    status: 'pending' | 'processing' | 'completed' | 'failed'
-    progress: number
-    downloadUrl?: string
-    error?: string
-  }> {
-    return await request.get(`/export/status/${exportId}`)
+  async getExportStatus(exportId: string): Promise<ExportStatusResponse> {
+    const backendTask: BackendExportTask = await request.get(`/api/export/${exportId}`)
+    return transformExportStatus(backendTask)
   }
 }
