@@ -257,7 +257,7 @@ import {
   User,
   Refresh
 } from '@element-plus/icons-vue'
-import { searchArXiv, type Paper } from '@/api/modules/crawler'
+import { searchArXiv, savePapers, type Paper } from '@/api/modules/crawler'
 
 // State
 const loading = ref(false)
@@ -325,10 +325,11 @@ const handleSearch = async () => {
         total: response.total || 0
       }
 
+      const retryText = response.retries > 0 ? `，重试了 ${response.retries} 次` : ''
       statusMessage.value = {
         title: '搜索成功！',
         type: 'success',
-        description: `找到 ${response.total} 篇论文${response.retries > 0 ? `，重试了 ${response.retries} 次` : ''}`
+        description: `找到 ${response.total} 篇论文${retryText}`
       }
 
       // Add to history
@@ -400,9 +401,19 @@ const downloadPaper = (url: string) => {
   ElMessage.info('PDF下载已开始')
 }
 
-const savePaper = (paper: Paper) => {
-  // TODO: Implement save to database
-  ElMessage.info('保存功能即将推出')
+const savePaper = async (paper: Paper) => {
+  try {
+    ElMessage.info('正在保存到数据库...')
+    const result = await savePapers([paper])
+
+    if (result.success) {
+      ElMessage.success(`成功保存论文！新增: ${result.saved}, 更新: ${result.updated}`)
+    } else {
+      ElMessage.error('保存失败: ' + result.message)
+    }
+  } catch (error: any) {
+    ElMessage.error('保存失败: ' + error.message)
+  }
 }
 
 const useHistory = (item: { query: string; timestamp: number }) => {

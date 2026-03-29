@@ -1300,7 +1300,126 @@ bool registerManagementAPIs() {
         return response;
     });
 
-    printSuccess("Registered 17 endpoints");
+    // Save crawled papers to database
+    router.post("/api/crawler/save", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        if (req.body.empty()) {
+            spdlog::warn("[Crawler] Empty request body for save");
+            response.statusCode = 400;
+            response.body = "{\"success\":false,\"error\":\"Empty request body\"}";
+            response.setHeader("Content-Type", "application/json");
+            return response;
+        }
+
+        try {
+            auto bodyJson = json::parse(req.body);
+            auto papersJson = bodyJson["papers"];
+
+            if (!papersJson.is_array()) {
+                response.statusCode = 400;
+                response.body = "{\"success\":false,\"error\":\"papers must be an array\"}";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            spdlog::info("[Crawler] Saving {} papers to database", papersJson.size());
+
+            int saved = 0;
+            int updated = 0;
+            int failed = 0;
+
+            for (const auto& paperJson : papersJson) {
+                try {
+                    std::string title = paperJson.value("title", "");
+                    std::string authors = paperJson.value("authors", "");
+                    std::string yearStr = paperJson.value("year", "");
+                    std::string abstract = paperJson.value("abstract", "");
+                    std::string url = paperJson.value("url", "");
+                    std::string arxivId = paperJson.value("arxivId", "");
+                    std::string source = paperJson.value("source", "arXiv");
+
+                    if (title.empty()) {
+                        spdlog::warn("[Crawler] Skipping paper with empty title");
+                        failed++;
+                        continue;
+                    }
+
+                    // Convert year string to integer
+                    int year = 0;
+                    if (!yearStr.empty()) {
+                        try {
+                            year = std::stoi(yearStr);
+                        } catch (...) {
+                            spdlog::warn("[Crawler] Invalid year: {}", yearStr);
+                        }
+                    }
+
+                    // Check if paper already exists
+                    std::string checkQuery = "SELECT id, title FROM papers WHERE title = '"
+                                          + g_dbConnection->escape(title)
+                                          + "' LIMIT 1";
+
+                    auto checkResult = g_dbConnection->query(checkQuery);
+
+                    if (checkResult.size() > 0) {
+                        // Update existing paper
+                        std::string updateQuery = "UPDATE papers SET "
+                                                + std::string("authors = '") + g_dbConnection->escape(authors) + "', "
+                                                + "year = " + std::to_string(year) + ", "
+                                                + "abstract = '" + g_dbConnection->escape(abstract) + "', "
+                                                + "publication = '" + g_dbConnection->escape(source) + "', "
+                                                + "updated_at = NOW() "
+                                                + "WHERE id = " + checkResult[0]["id"];
+
+                        g_dbConnection->execute(updateQuery);
+                        updated++;
+                        spdlog::info("[Crawler] Updated paper: {}", title);
+                    } else {
+                        // Insert new paper
+                        std::string insertQuery =
+                            "INSERT INTO papers (title, authors, year, abstract, publication, is_favorite, is_read, created_at, updated_at) "
+                            "VALUES ('"
+                            + g_dbConnection->escape(title) + "', '"
+                            + g_dbConnection->escape(authors) + "', "
+                            + std::to_string(year) + ", '"
+                            + g_dbConnection->escape(abstract) + "', '"
+                            + g_dbConnection->escape(source) + "', "
+                            "0, 0, NOW(), NOW())";
+
+                        g_dbConnection->execute(insertQuery);
+                        saved++;
+                        spdlog::info("[Crawler] Saved paper: {}", title);
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::error("[Crawler] Error saving paper: {}", e.what());
+                    failed++;
+                }
+            }
+
+            std::ostringstream jsonResponse;
+            jsonResponse << R"({"success":true,"message":"Papers saved to database",)"
+                        << R"("saved":)" << saved
+                        << R"(,"updated":)" << updated
+                        << R"(,"failed":)" << failed
+                        << R"(,"total":)" << papersJson.size()
+                        << R"(,"source":"Crawler"})";
+            response.body = jsonResponse.str();
+
+        } catch (const std::exception& e) {
+            spdlog::error("[Crawler] Exception in save: {}", e.what());
+            response.statusCode = 500;
+            std::ostringstream err;
+            err << R"({"success":false,"error":")" << escapeJsonString(e.what()) << R"("})";
+            response.body = err.str();
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    printSuccess("Registered 18 endpoints");
     return true;
 }
 

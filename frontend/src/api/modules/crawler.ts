@@ -112,3 +112,37 @@ export function getCrawlerStatus(): Promise<{ status: string; timestamp: string 
     method: 'GET'
   })
 }
+
+/**
+ * Save crawled papers to database
+ */
+export function savePapers(papers: Paper[]): Promise<{
+  success: boolean
+  message: string
+  saved: number
+  updated: number
+  failed: number
+  total: number
+  source: string
+}> {
+  return request({
+    url: '/api/crawler/save',
+    method: 'POST',
+    data: { papers }
+  })
+}
+
+/**
+ * Save single paper to database
+ */
+export function savePaper(paper: Paper): Promise<{
+  success: boolean
+  message: string
+  saved: number
+  updated: number
+  failed: number
+  total: number
+  source: string
+}> {
+  return savePapers([paper])
+}
