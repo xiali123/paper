@@ -23,8 +23,8 @@ export const statsApi = {
    * @returns Overview statistics including total papers, journals, etc.
    */
   async getOverview(): Promise<Statistics> {
-    const backendStats: BackendPaperStats = await request.get('/stats')
-    return transformOverviewStats(backendStats)
+    const response: { success: boolean; stats: BackendPaperStats } = await request.get('/stats')
+    return transformOverviewStats(response.stats)
   },
 
   /**
@@ -32,8 +32,8 @@ export const statsApi = {
    * @returns Array of journal statistics sorted by paper count
    */
   async getJournalStats(): Promise<JournalStats[]> {
-    const backendStats: BackendPaperStats = await request.get('/stats')
-    return transformJournalStats(backendStats)
+    const response: { success: boolean; stats: BackendPaperStats } = await request.get('/stats')
+    return transformJournalStats(response.stats)
   },
 
   /**
@@ -41,8 +41,8 @@ export const statsApi = {
    * @returns Array of yearly publication statistics
    */
   async getYearStats(): Promise<YearStats[]> {
-    const backendStats: BackendPaperStats = await request.get('/stats')
-    return transformYearStats(backendStats)
+    const response: { success: boolean; stats: BackendPaperStats } = await request.get('/stats')
+    return transformYearStats(response.stats)
   },
 
   /**
@@ -51,8 +51,8 @@ export const statsApi = {
    * @returns Array of author statistics
    */
   async getAuthorStats(limit: number = 50): Promise<AuthorStats[]> {
-    const backendStats: BackendPaperStats = await request.get('/stats')
-    return transformAuthorStats(backendStats, limit)
+    const response: { success: boolean; stats: BackendPaperStats } = await request.get('/stats')
+    return transformAuthorStats(response.stats, limit)
   },
 
   /**

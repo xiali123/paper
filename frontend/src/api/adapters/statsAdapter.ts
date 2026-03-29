@@ -72,16 +72,19 @@ interface BackendPerformanceMetrics {
 
 /**
  * Backend paper statistics
+ * 后端只返回部分字段，其他字段为可选
  */
 interface BackendPaperStats {
-  totalPapers: number
-  readPapers: number
-  unreadPapers: number
-  favoritePapers: number
-  papersByYear: Record<number, number>
-  papersByJournal: Record<string, number>
-  papersByAuthor: Record<string, number>
-  papersByTag: Record<string, number>
+  totalPapers?: number
+  totalJournals?: number
+  totalAuthors?: number
+  readPapers?: number
+  unreadPapers?: number
+  favoritePapers?: number
+  papersByYear?: Record<number, number>
+  papersByJournal?: Record<string, number>
+  papersByAuthor?: Record<string, number>
+  papersByTag?: Record<string, number>
 }
 
 // ============================================================================
@@ -137,38 +140,43 @@ export interface AuthorStats {
  * Transform backend paper statistics to frontend overview statistics
  */
 export const transformOverviewStats = (backendStats: BackendPaperStats): Statistics => {
+  // 后端只返回基本统计，需要处理缺失的字段
   const currentYear = new Date().getFullYear()
-  const lastYearPapers = backendStats.papersByYear[currentYear - 1] || 0
+  const lastYearPapers = backendStats.papersByYear?.[currentYear - 1] || 0
 
   // Find most active journal
   let mostActiveJournal = ''
   let maxCount = 0
-  for (const [journal, count] of Object.entries(backendStats.papersByJournal)) {
-    if (count > maxCount) {
-      maxCount = count
-      mostActiveJournal = journal
+  if (backendStats.papersByJournal) {
+    for (const [journal, count] of Object.entries(backendStats.papersByJournal)) {
+      if (count > maxCount) {
+        maxCount = count
+        mostActiveJournal = journal
+      }
     }
   }
 
   // Calculate year range
-  const years = Object.keys(backendStats.papersByYear).map(Number).sort((a, b) => a - b)
+  const years = backendStats.papersByYear
+    ? Object.keys(backendStats.papersByYear).map(Number).sort((a, b) => a - b)
+    : []
   const yearRange = years.length > 0
     ? `${Math.min(...years)}-${Math.max(...years)}`
-    : ''
+    : undefined
 
   // Calculate average papers per year
   const totalYears = years.length || 1
   const averagePapersPerYear = Math.round(backendStats.totalPapers / totalYears)
 
   return {
-    totalPapers: backendStats.totalPapers,
-    totalJournals: Object.keys(backendStats.papersByJournal).length,
-    topTierPapers: backendStats.favoritePapers, // Using favorite as proxy for top-tier
+    totalPapers: backendStats.totalPapers || 0,
+    totalJournals: backendStats.totalJournals || 0,
+    topTierPapers: backendStats.favoritePapers || 0,
     papersLastYear: lastYearPapers,
-    mostActiveJournal,
+    mostActiveJournal: mostActiveJournal || 'N/A',
     averagePapersPerYear,
-    latestUpdate: new Date().toISOString(),
-    yearRange
+    yearRange,
+    latestUpdate: new Date().toISOString()
   }
 }
 
@@ -177,8 +185,9 @@ export const transformOverviewStats = (backendStats: BackendPaperStats): Statist
  */
 export const transformJournalStats = (backendStats: BackendPaperStats): JournalStats[] => {
   const total = backendStats.totalPapers || 1
+  const papersByJournal = backendStats.papersByJournal || {}
 
-  return Object.entries(backendStats.papersByJournal)
+  return Object.entries(papersByJournal)
     .map(([journal, count]) => ({
       journal,
       count,
@@ -192,10 +201,11 @@ export const transformJournalStats = (backendStats: BackendPaperStats): JournalS
  */
 export const transformYearStats = (backendStats: BackendPaperStats): YearStats[] => {
   const total = backendStats.totalPapers || 1
+  const papersByYear = backendStats.papersByYear || {}
 
-  return Object.entries(backendStats.papersByYear)
+  return Object.entries(papersByYear)
     .map(([year, count]) => ({
-      year: parseInt(year, 10),
+      year: Number.parseInt(year, 10),
       count,
       percentage: Math.round((count / total) * 100 * 100) / 100
     }))
@@ -210,8 +220,9 @@ export const transformAuthorStats = (
   limit: number = 50
 ): AuthorStats[] => {
   const total = backendStats.totalPapers || 1
+  const papersByAuthor = backendStats.papersByAuthor || {}
 
-  return Object.entries(backendStats.papersByAuthor)
+  return Object.entries(papersByAuthor)
     .map(([author, count]) => ({
       author,
       count,
