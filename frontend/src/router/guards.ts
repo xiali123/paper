@@ -15,7 +15,7 @@ import { ElMessage } from '@/utils/notification'
 /**
  * Public routes that don't require authentication
  */
-const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password']
+const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/crawler']
 
 /**
  * Check if route is public
