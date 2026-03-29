@@ -385,7 +385,7 @@ export function transformQueryParams(params: PaperQueryParams): Record<string, a
 
   // Transform keyword search
   if (params.keyword !== undefined) {
-    backendParams.query = params.keyword
+    backendParams.q = params.keyword
   }
 
   // Transform basic filters
