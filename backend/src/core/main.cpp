@@ -473,7 +473,7 @@ bool registerManagementAPIs() {
                      << R"(})";
             }
 
-            json << R"(,"total":)" << papers.size() << R"(,"query":")" << escapeJsonString(query) << R"("})";
+            json << R"(],"total":)" << papers.size() << R"(,"query":")" << escapeJsonString(query) << R"("})";
 
             response.body = json.str();
         } catch (const std::exception& e) {
