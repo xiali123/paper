@@ -49,9 +49,13 @@ bool Router::matchPattern(const std::string& pattern,
 }
 
 HttpResponse Router::route(const HttpRequest& request) {
+    spdlog::info("Routing: {} {}", request.method, request.path);
+
     // 首先尝试精确匹配
     RouteKey key{request.method, request.path};
     auto it = routes_.find(key);
+
+    spdlog::info("Looking for route: {} {} - found: {}", key.method, key.pattern, (it != routes_.end()));
 
     if (it != routes_.end()) {
         try {

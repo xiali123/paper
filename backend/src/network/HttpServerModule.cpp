@@ -115,9 +115,15 @@ public:
             buffer[bytesRead] = '\0';
             stats_.totalBytesReceived += bytesRead;
 
+            // Debug: Log raw request
+            spdlog::debug("Raw request:\n{}", std::string(buffer, bytesRead));
+
             // Parse HTTP request
             std::string requestStr(buffer);
             HttpRequest request = parseRequest(requestStr);
+
+            // Debug: Log parsed request
+            spdlog::info("Request: {} {}", request.method, request.path);
 
             // Set client info
             char clientIP[INET_ADDRSTRLEN];
@@ -172,6 +178,7 @@ public:
         if (std::getline(iss, line)) {
             std::istringstream lineStream(line);
             lineStream >> request.method >> request.path >> request.version;
+            spdlog::info("Parsed request: {} {} {}", request.method, request.path, request.version);
         }
 
         // Parse headers
