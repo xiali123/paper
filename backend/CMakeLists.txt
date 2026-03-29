@@ -290,3 +290,114 @@ message(STATUS "  - Business: 6 API modules (Paper, Auth, Stats, User, Search, E
 message(STATUS "  - Total: 29 modules (23 system + 6 business)")
 message(STATUS "============================================================")
 message(STATUS "")
+
+# ============================================================================
+# 动态模块编译配置
+# ============================================================================
+
+# 设置模块输出目录
+set(MODULE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Release/modules")
+file(MAKE_DIRECTORY ${MODULE_OUTPUT_DIR})
+
+# 辅助函数：编译业务模块为动态库
+function(add_business_module MODULE_NAME SOURCES_LIST)
+    # 创建动态库目标
+    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+
+    # 设置输出目录
+    set_target_properties(${MODULE_NAME} PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${MODULE_OUTPUT_DIR}/business"
+        RUNTIME_OUTPUT_DIRECTORY "${MODULE_OUTPUT_DIR}/business"
+        PREFIX "lib"
+    )
+
+    # 链接必要的库
+    target_link_libraries(${MODULE_NAME}
+        PRIVATE
+            ${CURL_DIR}/lib/libcurl.dll.a
+    )
+
+    # Windows特定设置
+    if(WIN32)
+        target_compile_definitions(${MODULE_NAME} PRIVATE
+            WIN32_LEAN_AND_MEAN
+            NOMINMAX
+            _CRT_SECURE_NO_WARNINGS
+            PAPERCRAWLER_MODULE_EXPORT
+        )
+        target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+    endif()
+
+    message(STATUS "  [Module] ${MODULE_NAME} -> ${MODULE_OUTPUT_DIR}/business/lib${MODULE_NAME}.dll")
+endfunction()
+
+# 编译所有业务模块
+add_business_module(PaperApiModule
+    src/business/PaperApiModule.cpp
+    src/business/PaperApiModuleExports.cpp
+)
+
+add_business_module(AuthApiModule
+    src/business/AuthApiModule.cpp
+    src/business/AuthApiModuleExports.cpp
+)
+
+add_business_module(StatsApiModule
+    src/business/StatsApiModule.cpp
+    src/business/StatsApiModuleExports.cpp
+)
+
+add_business_module(UserApiModule
+    src/business/UserApiModule.cpp
+    src/business/UserApiModuleExports.cpp
+)
+
+add_business_module(SearchApiModule
+    src/business/SearchApiModule.cpp
+    src/business/SearchApiModuleExports.cpp
+)
+
+add_business_module(ExportApiModule
+    src/business/ExportApiModule.cpp
+    src/business/ExportApiModuleExports.cpp
+)
+
+# 添加自定义目标：编译所有模块
+add_custom_target(modules
+    DEPENDS
+        PaperApiModule
+        AuthApiModule
+        StatsApiModule
+        UserApiModule
+        SearchApiModule
+        ExportApiModule
+    COMMENT "Building all business modules"
+)
+
+# 添加单独编译目标
+add_custom_target(paper-api DEPENDS PaperApiModule COMMENT "Building PaperApiModule only")
+add_custom_target(auth-api DEPENDS AuthApiModule COMMENT "Building AuthApiModule only")
+add_custom_target(stats-api DEPENDS StatsApiModule COMMENT "Building StatsApiModule only")
+add_custom_target(user-api DEPENDS UserApiModule COMMENT "Building UserApiModule only")
+add_custom_target(search-api DEPENDS SearchApiModule COMMENT "Building SearchApiModule only")
+add_custom_target(export-api DEPENDS ExportApiModule COMMENT "Building ExportApiModule only")
+
+message(STATUS "")
+message(STATUS "================== Module Compilation ==================")
+message(STATUS "Module output directory: ${MODULE_OUTPUT_DIR}")
+message(STATUS "")
+message(STATUS "Build targets:")
+message(STATUS "  cmake --build . --target modules      - Build all business modules")
+message(STATUS "  cmake --build . --target paper-api    - Build PaperApiModule only")
+message(STATUS "  cmake --build . --target auth-api     - Build AuthApiModule only")
+message(STATUS "  cmake --build . --target stats-api    - Build StatsApiModule only")
+message(STATUS "  cmake --build . --target user-api     - Build UserApiModule only")
+message(STATUS "  cmake --build . --target search-api   - Build SearchApiModule only")
+message(STATUS "  cmake --build . --target export-api   - Build ExportApiModule only")
+message(STATUS "  cmake --build . --target PaperCrawlerServer - Build main executable")
+message(STATUS "")
+message(STATUS "Example usage:")
+message(STATUS "  cmake --build . --target modules")
+message(STATUS "  cmake --build . --target paper-api")
+message(STATUS "============================================================")
+message(STATUS "")

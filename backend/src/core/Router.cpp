@@ -163,7 +163,24 @@ HttpResponse Router::route(const HttpRequest& request) {
 }
 
 void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
-    spdlog::info("Registered module routes with prefix: {}", prefix);
+    if (!module) {
+        spdlog::error("Cannot register routes for null module with prefix: {}", prefix);
+        return;
+    }
+
+    // 获取模块的路由前缀
+    std::string routePrefix = module->getRoutePrefix();
+    if (routePrefix.empty()) {
+        spdlog::warn("Module {} has empty route prefix", module->getName());
+        return;
+    }
+
+    spdlog::info("Module {} is registering routes with prefix: {}",
+                 module->getName(), routePrefix);
+
+    // 注意：实际的路由注册逻辑将由模块在start()方法中直接调用
+    // Router::getInstance().get/post/put/delete() 完成
+    // 此方法主要用于日志记录和验证
 }
 
 void Router::printRoutes() const {

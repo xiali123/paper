@@ -392,10 +392,107 @@ std::map<std::string, std::vector<Paper>> PaperApiModule::groupByTag(const std::
 // ============================================================================
 
 void PaperApiModule::registerRoutes() {
-    // TODO: 注册路由到 Router
-    // 示例：
-    // auto& router = Router::getInstance();
-    // router.get("/api/papers", [this](auto& req) { return this->handleListPapers(req); });
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/papers"
+
+    spdlog::info("[PaperApiModule] Registering routes with prefix: {}", prefix);
+
+    // GET /api/papers - 论文列表
+    router.get(prefix, [this](const HttpRequest& req) {
+        // 将查询参数转换为map
+        std::map<std::string, std::string> params;
+        for (const auto& pair : req.queryParams) {
+            params[pair.first] = pair.second;
+        }
+
+        std::string jsonResult = handleListPapers(params);
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // GET /api/papers/:id - 论文详情
+    router.get(prefix + "/:id", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+
+        std::string jsonResult = handleGetPaper(params);
+
+        HttpResponse response;
+        // handleGetPaper返回的JSON可能是error或success
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            response.statusCode = 404;
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/papers - 创建论文
+    router.post(prefix, [this](const HttpRequest& req) {
+        std::string jsonResult = handleCreatePaper(req.body);
+
+        HttpResponse response;
+        response.statusCode = 201;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // PUT /api/papers/:id - 更新论文
+    router.put(prefix + "/:id", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+
+        std::string jsonResult = handleUpdatePaper(params, req.body);
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // DELETE /api/papers/:id - 删除论文
+    router.del(prefix + "/:id", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+
+        std::string jsonResult = handleDeletePaper(params);
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // GET /api/papers/search - 搜索论文
+    router.get(prefix + "/search", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        for (const auto& pair : req.queryParams) {
+            params[pair.first] = pair.second;
+        }
+
+        std::string jsonResult = handleSearch(params);
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // GET /api/papers/stats - 统计信息
+    router.get(prefix + "/stats", [this](const HttpRequest& req) {
+        std::string jsonResult = handleStats();
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    spdlog::info("[PaperApiModule] Registered 7 routes");
 }
 
 std::string PaperApiModule::handleListPapers(const std::map<std::string, std::string>& params) {

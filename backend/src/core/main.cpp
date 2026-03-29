@@ -23,6 +23,7 @@
 #include <chrono>
 #include <sstream>
 #include <regex>
+#include <filesystem>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -248,31 +249,50 @@ bool loadModuleConfiguration() {
 bool loadAndStartSystemModules() {
     printStep("3/7", "Loading and starting system modules");
 
-    auto& registry = ModuleRegistry::getInstance();
     auto& pluginMgr = PluginManager::getInstance();
 
-    // 按优先级排序（这里简化处理，实际应该按照priority字段排序）
-    auto systemModules = registry.getModulesByType(ModuleType::SERVER);
+    // 扫描并加载所有模块（包括SERVER和BUSINESS）
+    namespace fs = std::filesystem;
+    std::string modulesDir = "./modules";
 
-    size_t loadedCount = 0;
-    for (const auto& moduleInfo : systemModules) {
-        std::cout << "  - Loading " << moduleInfo.name << "..." << std::endl;
+    // 检查是否存在modules目录
+    std::vector<std::string> searchPaths = {
+        "./modules",
+        "../modules",
+        "./build/Release/modules",
+        "../build/Release/modules"
+    };
 
-        if (!pluginMgr.loadModule(moduleInfo.name, moduleInfo.libraryPath)) {
-            printError("Failed to load " + moduleInfo.name);
-            continue;
+    std::string actualModulesDir;
+    for (const auto& path : searchPaths) {
+        if (fs::exists(path)) {
+            actualModulesDir = path;
+            break;
         }
-
-        loadedCount++;
     }
 
-    // 启动所有模块
+    if (actualModulesDir.empty()) {
+        printError("Modules directory not found");
+        spdlog::warn("Searched paths: ./modules, ../modules, ./build/Release/modules, ../build/Release/modules");
+        return false;
+    }
+
+    printSuccess("Found modules directory: " + actualModulesDir);
+
+    // 扫描并加载所有模块
+    if (!pluginMgr.scanAndLoadModules(actualModulesDir)) {
+        printError("Some modules failed to load");
+        // 继续执行，因为部分模块加载失败不应阻止系统启动
+    }
+
+    // 启动所有模块（PluginManager会按类型顺序启动）
     if (!pluginMgr.startAllModules()) {
         printError("Failed to start some modules");
         return false;
     }
 
-    printSuccess("Loaded and started " + std::to_string(loadedCount) + " system modules");
+    auto allModules = pluginMgr.getAllModules();
+    printSuccess("Loaded and started " + std::to_string(allModules.size()) + " modules");
     return true;
 }
 
@@ -280,27 +300,15 @@ bool loadAndStartSystemModules() {
  * @brief 加载业务模块
  */
 bool loadBusinessModules() {
-    printStep("4/7", "Loading business modules");
+    printStep("4/7", "Business modules already loaded");
 
-    auto& registry = ModuleRegistry::getInstance();
+    // 业务模块已在 loadAndStartSystemModules() 中通过 scanAndLoadModules() 加载
+    // 此函数保留用于向后兼容
+
     auto& pluginMgr = PluginManager::getInstance();
+    auto businessModules = pluginMgr.getBusinessModules();
 
-    auto businessModules = registry.getModulesByType(ModuleType::BUSINESS);
-    size_t loadedCount = 0;
-
-    for (const auto& moduleInfo : businessModules) {
-        std::cout << "  - Loading " << moduleInfo.name
-                  << " (v" << moduleInfo.version << ")..." << std::endl;
-
-        if (!pluginMgr.loadModule(moduleInfo.name, moduleInfo.libraryPath)) {
-            printError("Warning: Failed to load " + moduleInfo.name);
-            continue;
-        }
-
-        loadedCount++;
-    }
-
-    printSuccess("Loaded " + std::to_string(loadedCount) + " business modules");
+    printSuccess("Loaded " + std::to_string(businessModules.size()) + " business modules");
     return true;
 }
 

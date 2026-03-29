@@ -1,6 +1,7 @@
 #include "core/PluginManager.hpp"
 #include <spdlog/spdlog.h>
 #include <iostream>
+#include <filesystem>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -213,6 +214,77 @@ std::vector<std::string> PluginManager::getLoadedModules() const {
         result.push_back(pair.first);
     }
     return result;
+}
+
+bool PluginManager::scanAndLoadModules(const std::string& modulesDir) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    spdlog::info("Scanning modules directory: {}", modulesDir);
+
+    // 检查目录是否存在
+    namespace fs = std::filesystem;
+    if (!fs::exists(modulesDir)) {
+        spdlog::warn("Modules directory does not exist: {}", modulesDir);
+        return false;
+    }
+
+    size_t loadedCount = 0;
+    size_t failedCount = 0;
+
+    // 递归扫描所有子目录
+    for (const auto& entry : fs::recursive_directory_iterator(modulesDir)) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+
+        std::string path = entry.path().string();
+        std::string filename = entry.path().filename().string();
+
+        // 检查文件扩展名
+        #ifdef _WIN32
+            if (filename.find(".dll") == std::string::npos) {
+                continue;
+            }
+        #else
+            if (filename.find(".so") == std::string::npos) {
+                continue;
+            }
+        #endif
+
+        // 从文件名提取模块名
+        // 例如：libpaperapi.dll → PaperApi
+        std::string moduleName = filename;
+
+        // 移除lib前缀
+        if (moduleName.find("lib") == 0) {
+            moduleName = moduleName.substr(3);
+        }
+
+        // 移除扩展名
+        size_t dotPos = moduleName.find('.');
+        if (dotPos != std::string::npos) {
+            moduleName = moduleName.substr(0, dotPos);
+        }
+
+        // 首字母大写
+        if (!moduleName.empty()) {
+            moduleName[0] = std::toupper(moduleName[0]);
+        }
+
+        spdlog::info("Found module library: {} -> {}", filename, moduleName);
+
+        // 加载模块
+        if (loadModule(moduleName, path)) {
+            loadedCount++;
+        } else {
+            failedCount++;
+        }
+    }
+
+    spdlog::info("Module scan complete: {} loaded, {} failed",
+                 loadedCount, failedCount);
+
+    return (failedCount == 0);
 }
 
 PluginManager::~PluginManager() {
