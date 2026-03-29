@@ -1,6 +1,7 @@
 #include "core/Router.hpp"
+#include "core/IModule.hpp"
 #include <spdlog/spdlog.h>
-#include <sstream>
+#include <iostream>
 
 namespace PaperCrawler {
 
@@ -29,10 +30,29 @@ void Router::del(const std::string& path, RouteHandler handler) {
     spdlog::debug("Registered DELETE route: {}", path);
 }
 
-HttpResponse Router::route(const HttpRequest& request) {
-    RouteKey key{request.method, request.path};
+void Router::patch(const std::string& path, RouteHandler handler) {
+    routes_[RouteKey{"PATCH", path}] = handler;
+    spdlog::debug("Registered PATCH route: {}", path);
+}
 
+void Router::options(const std::string& path, RouteHandler handler) {
+    routes_[RouteKey{"OPTIONS", path}] = handler;
+    spdlog::debug("Registered OPTIONS route: {}", path);
+}
+
+bool Router::matchPattern(const std::string& pattern,
+                         const std::string& path,
+                         std::map<std::string, std::string>& pathParams) const {
+    // 简单实现：精确匹配
+    // TODO: 实现路径参数匹配（如 /papers/:id）
+    return pattern == path;
+}
+
+HttpResponse Router::route(const HttpRequest& request) {
+    // 首先尝试精确匹配
+    RouteKey key{request.method, request.path};
     auto it = routes_.find(key);
+
     if (it != routes_.end()) {
         try {
             return it->second(request);
@@ -43,6 +63,7 @@ HttpResponse Router::route(const HttpRequest& request) {
             HttpResponse errorResponse;
             errorResponse.statusCode = 500;
             errorResponse.statusText = "Internal Server Error";
+            errorResponse.headers["Content-Type"] = "application/json";
             errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
             return errorResponse;
         }
@@ -54,14 +75,20 @@ HttpResponse Router::route(const HttpRequest& request) {
     HttpResponse notFoundResponse;
     notFoundResponse.statusCode = 404;
     notFoundResponse.statusText = "Not Found";
+    notFoundResponse.headers["Content-Type"] = "application/json";
     notFoundResponse.body = "{\"error\":\"Route not found\"}";
     return notFoundResponse;
 }
 
 void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
-    // 这个方法可以用于自动注册BUSINESS模块的路由
-    // 具体实现取决于模块的路由注册方式
     spdlog::info("Registered module routes with prefix: {}", prefix);
+}
+
+void Router::printRoutes() const {
+    std::cout << "\n  Registered routes:" << std::endl;
+    for (const auto& pair : routes_) {
+        std::cout << "    " << pair.first.method << "    " << pair.first.pattern << std::endl;
+    }
 }
 
 } // namespace PaperCrawler
