@@ -42,9 +42,13 @@
 // 数据模块
 #include "data/MySqlConnection.hpp"
 
+// JSON library
+#include "../../core/external/nlohmann/json.hpp"
+
 #include <spdlog/spdlog.h>
 
 using namespace PaperCrawler;
+using json = nlohmann::json;
 
 // 全局运行标志
 std::atomic<bool> g_running{true};
@@ -833,7 +837,41 @@ bool registerManagementAPIs() {
         return response;
     });
 
-    printSuccess("Registered 13 endpoints");
+    // Crawler API - Search arXiv
+    router.post("/api/crawler/search", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            auto bodyJson = json::parse(req.body);
+            std::string query = bodyJson.value("query", "");
+            int limit = bodyJson.value("limit", 10);
+
+            if (query.empty()) {
+                response.statusCode = 400;
+                response.body = R"({"success":false,"error":"Missing required parameter: query"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // TODO: Implement actual arXiv API call
+            // For now, return success with query info
+            std::ostringstream jsonResponse;
+            jsonResponse << R"({"success":true,"query":")" << escapeJsonString(query)
+                        << R"(","limit":)" << limit
+                        << R"(,"papers":[],"message":"arXiv crawler API endpoint - implementation pending"})";
+
+            response.body = jsonResponse.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    printSuccess("Registered 14 endpoints");
     return true;
 }
 
