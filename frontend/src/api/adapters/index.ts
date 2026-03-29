@@ -23,3 +23,9 @@ export * from './errorAdapter'
 
 // Validation adapters
 export * from './validationAdapter'
+
+// Statistics adapters
+export * from './statsAdapter'
+
+// Export adapters
+export * from './exportAdapter'

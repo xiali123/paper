@@ -5,6 +5,13 @@ import type {
   YearStats,
   AuthorStats
 } from '@/types'
+import {
+  transformOverviewStats,
+  transformJournalStats,
+  transformYearStats,
+  transformAuthorStats,
+  type BackendPaperStats
+} from '@/api/adapters/statsAdapter'
 
 /**
  * Statistics API module
@@ -16,7 +23,8 @@ export const statsApi = {
    * @returns Overview statistics including total papers, journals, etc.
    */
   async getOverview(): Promise<Statistics> {
-    return await request.get('/stats/overview')
+    const backendStats: BackendPaperStats = await request.get('/api/papers/stats')
+    return transformOverviewStats(backendStats)
   },
 
   /**
@@ -24,7 +32,8 @@ export const statsApi = {
    * @returns Array of journal statistics sorted by paper count
    */
   async getJournalStats(): Promise<JournalStats[]> {
-    return await request.get('/stats/journals')
+    const backendStats: BackendPaperStats = await request.get('/api/papers/stats')
+    return transformJournalStats(backendStats)
   },
 
   /**
@@ -32,7 +41,8 @@ export const statsApi = {
    * @returns Array of yearly publication statistics
    */
   async getYearStats(): Promise<YearStats[]> {
-    return await request.get('/stats/years')
+    const backendStats: BackendPaperStats = await request.get('/api/papers/stats')
+    return transformYearStats(backendStats)
   },
 
   /**
@@ -41,7 +51,8 @@ export const statsApi = {
    * @returns Array of author statistics
    */
   async getAuthorStats(limit: number = 50): Promise<AuthorStats[]> {
-    return await request.get('/stats/authors', { params: { limit } })
+    const backendStats: BackendPaperStats = await request.get('/api/papers/stats')
+    return transformAuthorStats(backendStats, limit)
   },
 
   /**
