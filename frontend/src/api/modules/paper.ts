@@ -70,8 +70,9 @@ export const paperApi = {
    * @returns Array of recent papers
    */
   async getRecent(limit: number = 20): Promise<Paper[]> {
-    const backendPapers = await request.get('/papers/recent', { params: { limit } })
-    return transformPaperList(backendPapers)
+    // 后端没有 /papers/recent 路由，使用 /papers 并限制返回数量
+    const backendPapers = await request.get('/papers', { params: { limit, pageSize: limit } })
+    return transformPaperList(backendPapers.papers || backendPapers.data || [])
   },
 
   /**

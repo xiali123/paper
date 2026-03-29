@@ -26,7 +26,7 @@ export const exportApi = {
    */
   async exportToCSV(params: SearchParams): Promise<Blob> {
     const backendParams = transformSearchParams(params)
-    return await request.get('/api/export/csv', { params: backendParams, responseType: 'blob' })
+    return await request.get('/export/csv', { params: backendParams, responseType: 'blob' })
   },
 
   /**
@@ -72,7 +72,7 @@ export const exportApi = {
    * @returns Export status information
    */
   async getExportStatus(exportId: string): Promise<ExportStatusResponse> {
-    const backendTask: BackendExportTask = await request.get(`/api/export/${exportId}`)
+    const backendTask: BackendExportTask = await request.get(`/export/${exportId}`)
     return transformExportStatus(backendTask)
   }
 }

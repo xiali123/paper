@@ -226,7 +226,7 @@ export const papersApi = {
    * ```
    */
   async getStats(): Promise<PaperStats> {
-    return await request.get('/papers/stats')
+    return await request.get('/stats')
   },
 
   /**
