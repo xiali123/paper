@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/../core/include)
+include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories("C:/Program Files/MySQL/MySQL Server 8.0/include")
 
 # ============================================================================
 # 源文件定义（新目录结构）
@@ -33,6 +35,7 @@ set(DATA_SOURCES
     src/data/DatabaseModule.cpp
     src/data/CacheModule.cpp
     src/data/FileStorageModule.cpp
+    src/data/MySqlConnection.cpp
 )
 
 # 网络层源文件
@@ -184,6 +187,7 @@ if(WIN32)
         PRIVATE
             ws2_32
             wsock32
+            "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
     )
 endif()
 

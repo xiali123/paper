@@ -21,6 +21,7 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <sstream>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -38,6 +39,9 @@
 // 网络模块
 #include "network/HttpServerModule.hpp"
 
+// 数据模块
+#include "data/MySqlConnection.hpp"
+
 #include <spdlog/spdlog.h>
 
 using namespace PaperCrawler;
@@ -47,6 +51,14 @@ std::atomic<bool> g_running{true};
 
 // 全局HTTP服务器实例
 std::unique_ptr<HttpServerModule> g_httpServer;
+
+// 全局MySQL连接实例
+std::unique_ptr<MySqlConnection> g_dbConnection;
+
+// 前向声明辅助函数
+void printStep(const std::string& step, const std::string& details);
+void printSuccess(const std::string& message);
+void printError(const std::string& message);
 
 /**
  * @brief 信号处理函数
@@ -65,6 +77,35 @@ void setupSignalHandlers() {
 #ifdef SIGQUIT
     std::signal(SIGQUIT, signalHandler);  // 退出信号
 #endif
+}
+
+/**
+ * @brief 初始化数据库连接
+ */
+bool initializeDatabase() {
+    printStep("Init", "Connecting to MySQL database");
+
+    try {
+        // 创建MySQL连接实例 - 使用配置的凭证
+        g_dbConnection = std::make_unique<MySqlConnection>(
+            "localhost",  // host
+            3306,         // port
+            "root",       // user
+            "123456",     // password
+            "papercrawler" // database
+        );
+
+        if (!g_dbConnection->isConnected()) {
+            printError("Failed to connect to MySQL database");
+            return false;
+        }
+
+        printSuccess("Connected to MySQL database: papercrawler");
+        return true;
+    } catch (const std::exception& e) {
+        printError(std::string("Database initialization failed: ") + e.what());
+        return false;
+    }
 }
 
 /**
@@ -301,8 +342,39 @@ bool registerManagementAPIs() {
     router.get("/api/papers", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
-        // TODO: 查询数据库获取论文列表
-        response.body = R"({"success":true,"papers":[],"total":0,"page":1,"pageSize":20})";
+
+        try {
+            // 从MySQL数据库查询论文
+            std::string sql = "SELECT id, title, authors, year, publication, citation_count FROM papers";
+
+            auto papers = g_dbConnection->query(sql);
+
+            std::ostringstream json;
+            json << R"({"success":true,"papers":[)";
+
+            bool first = true;
+            for (const auto& paper : papers) {
+                if (!first) json << ",";
+                first = false;
+
+                json << R"({)"
+                     << R"("id":)" << paper.at("id") << R"(,)"
+                     << R"("title":")" << paper.at("title") << R"(",)"
+                     << R"("authors":")" << paper.at("authors") << R"(",)"
+                     << R"("year":)" << paper.at("year") << R"(,)"
+                     << R"("publication":")" << paper.at("publication") << R"(",)"
+                     << R"("citation_count":)" << paper.at("citation_count")
+                     << R"(})";
+            }
+
+            json << R"(,"total":)" << papers.size() << R"(,"page":1,"pageSize":20})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
         response.setHeader("Content-Type", "application/json");
         return response;
     });
@@ -310,9 +382,173 @@ bool registerManagementAPIs() {
     router.get("/api/papers/:id", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
-        // TODO: 根据ID查询论文
-        std::string paperId = req.getPathParam("id", "0");
-        response.body = R"({"success":true,"paper":{"id":)" + paperId + R"(}})";
+
+        try {
+            std::string paperId = req.getPathParam("id", "0");
+            std::string sql = "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE id = " +
+                            g_dbConnection->escape(paperId);
+
+            auto papers = g_dbConnection->query(sql);
+
+            if (papers.empty()) {
+                response.statusCode = 404;
+                const auto& paper = papers[0];
+                std::ostringstream json;
+                json << R"({"success":true,"paper":{)"
+                     << R"("id":)" << paper.at("id") << R"(,)"
+                     << R"("title":")" << paper.at("title") << R"(",)"
+                     << R"("authors":")" << paper.at("authors") << R"(",)"
+                     << R"("year":)" << paper.at("year") << R"(,)"
+                     << R"("publication":")" << paper.at("publication") << R"(",)"
+                     << R"("citation_count":)" << paper.at("citation_count")
+                     << R"(}})";
+                response.body = json.str();
+            }
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // POST - 创建新论文
+    router.post("/api/papers", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 201;
+
+        try {
+            // 解析请求体（简化版，实际应使用JSON解析器）
+            std::string title = req.getQuery("title", "");
+            std::string authors = req.getQuery("authors", "");
+            std::string year = req.getQuery("year", "0");
+            std::string publication = req.getQuery("publication", "");
+            std::string citationCount = req.getQuery("citation_count", "0");
+
+            if (title.empty()) {
+                response.statusCode = 400;
+                response.body = R"({"success":false,"error":"Title is required"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            std::string sql = "INSERT INTO papers (title, authors, year, publication, citation_count) VALUES ('"
+                            + g_dbConnection->escape(title) + "', '"
+                            + g_dbConnection->escape(authors) + "', "
+                            + year + ", '"
+                            + g_dbConnection->escape(publication) + "', "
+                            + citationCount + ")";
+
+            if (g_dbConnection->execute(sql)) {
+                uint64_t newId = g_dbConnection->getLastInsertId();
+                response.body = R"({"success":true,"message":"Paper created","id":)" + std::to_string(newId) + R"(})";
+            } else {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Failed to create paper"})";
+            }
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // PUT - 更新论文
+    router.put("/api/papers/:id", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            std::string paperId = req.getPathParam("id", "0");
+
+            // 检查论文是否存在
+            std::string checkSql = "SELECT id FROM papers WHERE id = " + g_dbConnection->escape(paperId);
+            auto existing = g_dbConnection->query(checkSql);
+
+            if (existing.empty()) {
+                response.statusCode = 404;
+                response.body = R"({"success":false,"error":"Paper not found"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 构建更新SQL
+            std::vector<std::string> updates;
+            std::string title = req.getQuery("title", "");
+            std::string authors = req.getQuery("authors", "");
+            std::string year = req.getQuery("year", "");
+            std::string publication = req.getQuery("publication", "");
+            std::string citationCount = req.getQuery("citation_count", "");
+
+            if (!title.empty()) updates.push_back("title = '" + g_dbConnection->escape(title) + "'");
+            if (!authors.empty()) updates.push_back("authors = '" + g_dbConnection->escape(authors) + "'");
+            if (!year.empty()) updates.push_back("year = " + year);
+            if (!publication.empty()) updates.push_back("publication = '" + g_dbConnection->escape(publication) + "'");
+            if (!citationCount.empty()) updates.push_back("citation_count = " + citationCount);
+
+            if (updates.empty()) {
+                response.statusCode = 400;
+                response.body = R"({"success":false,"error":"No fields to update"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            std::string sql = "UPDATE papers SET " + updates[0];
+            for (size_t i = 1; i < updates.size(); ++i) {
+                sql += ", " + updates[i];
+            }
+            sql += " WHERE id = " + g_dbConnection->escape(paperId);
+
+            if (g_dbConnection->execute(sql)) {
+                response.body = R"({"success":true,"message":"Paper updated","id":)" + paperId + R"(})";
+            } else {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Failed to update paper"})";
+            }
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // DELETE - 删除论文
+    router.del("/api/papers/:id", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            std::string paperId = req.getPathParam("id", "0");
+
+            // 检查论文是否存在
+            std::string checkSql = "SELECT id FROM papers WHERE id = " + g_dbConnection->escape(paperId);
+            auto existing = g_dbConnection->query(checkSql);
+
+            if (existing.empty()) {
+                response.statusCode = 404;
+                response.body = R"({"success":false,"error":"Paper not found"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            std::string sql = "DELETE FROM papers WHERE id = " + g_dbConnection->escape(paperId);
+
+            if (g_dbConnection->execute(sql)) {
+                response.body = R"({"success":true,"message":"Paper deleted","id":)" + paperId + R"(})";
+            } else {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Failed to delete paper"})";
+            }
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
         response.setHeader("Content-Type", "application/json");
         return response;
     });
@@ -331,8 +567,36 @@ bool registerManagementAPIs() {
     router.get("/api/journals", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
-        // TODO: 查询数据库获取期刊列表
-        response.body = R"({"success":true,"journals":[]})";
+
+        try {
+            // 从MySQL数据库查询期刊
+            std::string sql = "SELECT name, tier, impact_factor FROM journals";
+
+            auto journals = g_dbConnection->query(sql);
+
+            std::ostringstream json;
+            json << R"({"success":true,"journals":[)";
+
+            bool first = true;
+            for (const auto& journal : journals) {
+                if (!first) json << ",";
+                first = false;
+
+                json << R"({)"
+                     << R"("name":")" << journal.at("name") << R"(",)"
+                     << R"("tier":")" << journal.at("tier") << R"(",)"
+                     << R"("impact_factor":)" << journal.at("impact_factor")
+                     << R"(})";
+            }
+
+            json << R"(]})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
         response.setHeader("Content-Type", "application/json");
         return response;
     });
@@ -341,8 +605,38 @@ bool registerManagementAPIs() {
     router.get("/api/authors", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
-        // TODO: 查询数据库获取作者列表
-        response.body = R"({"success":true,"authors":[]})";
+
+        try {
+            // 从MySQL数据库查询作者
+            std::string sql = "SELECT id, name, email, affiliation, h_index FROM authors";
+
+            auto authors = g_dbConnection->query(sql);
+
+            std::ostringstream json;
+            json << R"({"success":true,"authors":[)";
+
+            bool first = true;
+            for (const auto& author : authors) {
+                if (!first) json << ",";
+                first = false;
+
+                json << R"({)"
+                     << R"("id":)" << author.at("id") << R"(,)"
+                     << R"("name":")" << author.at("name") << R"(",)"
+                     << R"("email":")" << author.at("email") << R"(",)"
+                     << R"("affiliation":")" << author.at("affiliation") << R"(",)"
+                     << R"("h_index":)" << author.at("h_index")
+                     << R"(})";
+            }
+
+            json << R"(]})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
         response.setHeader("Content-Type", "application/json");
         return response;
     });
@@ -361,8 +655,30 @@ bool registerManagementAPIs() {
     router.get("/api/stats", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
-        // TODO: 从数据库获取统计数据
-        response.body = R"({"success":true,"stats":{"totalPapers":0,"totalJournals":0,"totalAuthors":0}})";
+
+        try {
+            // 从MySQL数据库查询统计数据
+            auto papers = g_dbConnection->query("SELECT COUNT(*) as count FROM papers");
+            auto journals = g_dbConnection->query("SELECT COUNT(*) as count FROM journals");
+            auto authors = g_dbConnection->query("SELECT COUNT(*) as count FROM authors");
+
+            size_t totalPapers = papers.empty() ? 0 : std::stoul(papers[0].at("count"));
+            size_t totalJournals = journals.empty() ? 0 : std::stoul(journals[0].at("count"));
+            size_t totalAuthors = authors.empty() ? 0 : std::stoul(authors[0].at("count"));
+
+            std::ostringstream json;
+            json << R"({"success":true,"stats":{)"
+                 << R"("totalPapers":)" << totalPapers << R"(,)"
+                 << R"("totalJournals":)" << totalJournals << R"(,)"
+                 << R"("totalAuthors":)" << totalAuthors
+                 << R"(}})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
         response.setHeader("Content-Type", "application/json");
         return response;
     });
@@ -437,6 +753,13 @@ void gracefulShutdown() {
         g_httpServer.reset();
     }
 
+    // 2. 关闭数据库连接
+    std::cout << "  - Closing database connection..." << std::endl;
+    if (g_dbConnection) {
+        g_dbConnection->close();
+        g_dbConnection.reset();
+    }
+
     auto& pluginMgr = PluginManager::getInstance();
 
     // 2. 卸载业务模块
@@ -488,27 +811,32 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        // 2. 加载模块配置
+        // 2. 初始化数据库连接
+        if (!initializeDatabase()) {
+            return 1;
+        }
+
+        // 3. 加载模块配置
         if (!loadModuleConfiguration()) {
             return 1;
         }
 
-        // 3. 加载和启动系统模块
+        // 4. 加载和启动系统模块
         if (!loadAndStartSystemModules()) {
             return 1;
         }
 
-        // 4. 加载业务模块
+        // 5. 加载业务模块
         if (!loadBusinessModules()) {
             return 1;
         }
 
-        // 5. 注册管理API
+        // 6. 注册管理API
         if (!registerManagementAPIs()) {
             return 1;
         }
 
-        // 6. 启动HTTP服务器
+        // 7. 启动HTTP服务器
         if (!startHTTPServer()) {
             return 1;
         }
@@ -519,10 +847,10 @@ int main(int argc, char* argv[]) {
         // 打印就绪信息
         printReady(8080);
 
-        // 7. 主循环
+        // 8. 主循环
         mainLoop();
 
-        // 8. 优雅关闭
+        // 9. 优雅关闭
         gracefulShutdown();
 
     } catch (const std::exception& e) {
