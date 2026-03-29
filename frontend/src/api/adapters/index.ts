@@ -29,3 +29,6 @@ export * from './statsAdapter'
 
 // Export adapters
 export * from './exportAdapter'
+
+// Admin adapters
+export * from './adminAdapter'
