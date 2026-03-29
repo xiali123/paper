@@ -25,7 +25,7 @@ namespace {
             case LogLevel::DEBUG: return "DEBUG";
             case LogLevel::INFO:  return "INFO ";
             case LogLevel::WARN:  return "WARN ";
-            case LogLevel::ERROR: return "ERROR";
+            case LogLevel::ERR: return "ERROR";
             case LogLevel::FATAL: return "FATAL";
             default: return "UNKNOWN";
         }
@@ -191,7 +191,7 @@ void LoggingModule::log(LogLevel level, const std::string& logger,
             case LogLevel::WARN:
                 logger_->warn("[{}] {}", logger, message);
                 break;
-            case LogLevel::ERROR:
+            case LogLevel::ERR:
                 logger_->error("[{}] {}", logger, message);
                 break;
             case LogLevel::FATAL:
@@ -221,7 +221,7 @@ void LoggingModule::warn(const std::string& logger, const std::string& msg) {
 }
 
 void LoggingModule::error(const std::string& logger, const std::string& msg) {
-    log(LogLevel::ERROR, logger, msg);
+    log(LogLevel::ERR, logger, msg);
 }
 
 void LoggingModule::fatal(const std::string& logger, const std::string& msg) {
@@ -247,7 +247,7 @@ void LoggingModule::setLogLevel(LogLevel level) {
             case LogLevel::WARN:
                 logger_->set_level(spdlog::level::warn);
                 break;
-            case LogLevel::ERROR:
+            case LogLevel::ERR:
                 logger_->set_level(spdlog::level::err);
                 break;
             case LogLevel::FATAL:
