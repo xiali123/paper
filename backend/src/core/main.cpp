@@ -61,6 +61,39 @@ void printSuccess(const std::string& message);
 void printError(const std::string& message);
 
 /**
+ * @brief 转义JSON字符串中的特殊字符
+ * @param str - 原始字符串
+ * @return 转义后的JSON字符串
+ */
+std::string escapeJsonString(const std::string& str) {
+  std::string escaped;
+  escaped.reserve(str.size() * 2);
+
+  for (char c : str) {
+    switch (c) {
+      case '"':  escaped += "\\\""; break;
+      case '\\': escaped += "\\\\"; break;
+      case '\b': escaped += "\\b"; break;
+      case '\f': escaped += "\\f"; break;
+      case '\n': escaped += "\\n"; break;
+      case '\r': escaped += "\\r"; break;
+      case '\t': escaped += "\\t"; break;
+      default:
+        if (c < ' ') {
+          // 控制字符转义为 \uXXXX 格式
+          char buf[7];
+          snprintf(buf, sizeof(buf), "\\u%04X", static_cast<unsigned char>(c));
+          escaped += buf;
+        } else {
+          escaped += c;
+        }
+    }
+  }
+
+  return escaped;
+}
+
+/**
  * @brief 信号处理函数
  */
 void signalHandler(int signal) {
@@ -378,10 +411,10 @@ bool registerManagementAPIs() {
 
                 json << R"({)"
                      << R"("id":)" << paper.at("id") << R"(,)"
-                     << R"("title":")" << paper.at("title") << R"(",)"
-                     << R"("authors":")" << paper.at("authors") << R"(",)"
+                     << R"("title":")" << escapeJsonString(paper.at("title")) << R"(",)"
+                     << R"("authors":")" << escapeJsonString(paper.at("authors")) << R"(",)"
                      << R"("year":)" << paper.at("year") << R"(,)"
-                     << R"("publication":")" << paper.at("publication") << R"(",)"
+                     << R"("publication":")" << escapeJsonString(paper.at("publication")) << R"(",)"
                      << R"("citation_count":)" << paper.at("citation_count")
                      << R"(})";
             }
@@ -432,15 +465,15 @@ bool registerManagementAPIs() {
 
                 json << R"({)"
                      << R"("id":)" << paper.at("id") << R"(,)"
-                     << R"("title":")" << paper.at("title") << R"(",)"
-                     << R"("authors":")" << paper.at("authors") << R"(",)"
+                     << R"("title":")" << escapeJsonString(paper.at("title")) << R"(",)"
+                     << R"("authors":")" << escapeJsonString(paper.at("authors")) << R"(",)"
                      << R"("year":)" << paper.at("year") << R"(,)"
-                     << R"("publication":")" << paper.at("publication") << R"(",)"
+                     << R"("publication":")" << escapeJsonString(paper.at("publication")) << R"(",)"
                      << R"("citation_count":)" << paper.at("citation_count")
                      << R"(})";
             }
 
-            json << R"(,"total":)" << papers.size() << R"(,"query":")" << query << R"("})";
+            json << R"(,"total":)" << papers.size() << R"(,"query":")" << escapeJsonString(query) << R"("})";
 
             response.body = json.str();
         } catch (const std::exception& e) {
@@ -485,15 +518,15 @@ bool registerManagementAPIs() {
 
                 json << R"({)"
                      << R"("id":)" << paper.at("id") << R"(,)"
-                     << R"("title":")" << paper.at("title") << R"(",)"
-                     << R"("authors":")" << paper.at("authors") << R"(",)"
+                     << R"("title":")" << escapeJsonString(paper.at("title")) << R"(",)"
+                     << R"("authors":")" << escapeJsonString(paper.at("authors")) << R"(",)"
                      << R"("year":)" << paper.at("year") << R"(,)"
-                     << R"("publication":")" << paper.at("publication") << R"(",)"
+                     << R"("publication":")" << escapeJsonString(paper.at("publication")) << R"(",)"
                      << R"("citation_count":)" << paper.at("citation_count")
                      << R"(})";
             }
 
-            json << R"(],"total":)" << papers.size() << R"(,"query":")" << query << R"("})";
+            json << R"(],"total":)" << papers.size() << R"(,"query":")" << escapeJsonString(query) << R"("})";
             response.body = json.str();
         } catch (const std::exception& e) {
             response.statusCode = 500;
@@ -523,10 +556,10 @@ bool registerManagementAPIs() {
                 std::ostringstream json;
                 json << R"({"success":true,"paper":{)"
                      << R"("id":)" << paper.at("id") << R"(,)"
-                     << R"("title":")" << paper.at("title") << R"(",)"
-                     << R"("authors":")" << paper.at("authors") << R"(",)"
+                     << R"("title":")" << escapeJsonString(paper.at("title")) << R"(",)"
+                     << R"("authors":")" << escapeJsonString(paper.at("authors")) << R"(",)"
                      << R"("year":)" << paper.at("year") << R"(,)"
-                     << R"("publication":")" << paper.at("publication") << R"(",)"
+                     << R"("publication":")" << escapeJsonString(paper.at("publication")) << R"(",)"
                      << R"("citation_count":)" << paper.at("citation_count")
                      << R"(}})";
                 response.body = json.str();
