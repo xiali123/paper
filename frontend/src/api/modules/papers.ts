@@ -86,19 +86,18 @@ export const papersApi = {
     const backendParams = transformQueryParams(params)
     const response = await request.get('/papers', { params: backendParams })
 
-    // Debug logging
-    console.log('📦 [getPapers] Response:', response)
-    console.log('📦 [getPapers] response.papers:', response.papers)
-    console.log('📦 [getPapers] response.data:', response.data)
-    console.log('📦 [getPapers] Keys:', Object.keys(response))
+    // Parse JSON string to object
+    const data = typeof response === 'string' ? JSON.parse(response) : response
 
-    // Access papers from the correct location
-    const papersData = (response as any).papers || (response as any).data?.papers || []
+    console.log('📦 [getPapers] Parsed data:', data)
+
+    // Access papers from parsed object
+    const papersData = data.papers || []
 
     return {
-      total: (response as any).total || 0,
-      page: (response as any).page || 1,
-      pageSize: (response as any).pageSize || 20,
+      total: data.total || 0,
+      page: data.page || 1,
+      pageSize: data.pageSize || 20,
       papers: transformPaperList(papersData)
     }
   },
