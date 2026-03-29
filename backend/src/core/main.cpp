@@ -395,11 +395,11 @@ bool registerManagementAPIs() {
                 return response;
             }
 
-            // 构建搜索SQL - 在标题和作者中搜索
+            // 构建搜索SQL - 在标题和作者中搜索（大小写不敏感）
             std::ostringstream sql;
             sql << "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE "
-                << "title LIKE '%" << g_dbConnection->escape(query) << "%' OR "
-                << "authors LIKE '%" << g_dbConnection->escape(query) << "%'";
+                << "LOWER(title) LIKE '%" << g_dbConnection->escape(query) << "%' OR "
+                << "LOWER(authors) LIKE '%" << g_dbConnection->escape(query) << "%'";
 
             auto papers = g_dbConnection->query(sql.str());
 
