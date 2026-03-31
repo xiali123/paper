@@ -1,10 +1,12 @@
 #pragma once
 
 #include "data/DatabaseModule.hpp"
+#include "database/PreparedStatement.hpp"
 #include <string>
 #include <vector>
 #include <map>
 #include <mysql.h>
+#include <memory>
 
 namespace PaperCrawler {
 
@@ -29,6 +31,13 @@ public:
     bool isConnected() override;
     void close() override;
     bool ping() override;
+
+    /**
+     * @brief 创建预处理语句
+     * @param sql SQL模板（使用?作为参数占位符）
+     * @return 预处理语句对象
+     */
+    std::shared_ptr<PreparedStatement> prepare(const std::string& sql);
 
 private:
     MYSQL* mysql_{nullptr};

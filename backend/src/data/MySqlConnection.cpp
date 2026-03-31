@@ -1,4 +1,5 @@
 #include "data/MySqlConnection.hpp"
+#include "database/PreparedStatement.hpp"
 #include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
@@ -156,6 +157,15 @@ bool MySqlConnection::ping() {
     }
 
     return mysql_ping(mysql_) == 0;
+}
+
+std::shared_ptr<PreparedStatement> MySqlConnection::prepare(const std::string& sql) {
+    if (!connected_) {
+        spdlog::error("[MySQL] Cannot prepare statement: not connected");
+        return nullptr;
+    }
+
+    return std::make_shared<PreparedStatement>(mysql_, sql);
 }
 
 } // namespace PaperCrawler

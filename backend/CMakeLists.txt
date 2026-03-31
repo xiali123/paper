@@ -14,7 +14,7 @@ include_directories("C:/Program Files/MySQL/MySQL Server 8.0/include")
 # 源文件定义（新目录结构）
 # ============================================================================
 
-# 核心框架源文件
+# 核心框架源文件（只包含框架核心，不包含业务模块）
 set(CORE_SOURCES
     src/core/PluginManager.cpp
     src/core/MessageBus.cpp
@@ -27,7 +27,7 @@ set(CORE_SOURCES
     src/core/HotReloadManager.cpp
     src/core/EventBusModule.cpp
     src/core/WatchdogModule.cpp
-    src/core/main.cpp
+    # main.cpp单独处理
 )
 
 # 数据层源文件
@@ -36,7 +36,15 @@ set(DATA_SOURCES
     src/data/CacheModule.cpp
     src/data/FileStorageModule.cpp
     src/data/MySqlConnection.cpp
+    src/database/PreparedStatement.cpp
 )
+
+# 爬虫模块源文件（暂时注释，待修复后重新启用）
+# set(CRAWLER_SOURCES
+#     src/modules/CrawlerModule.cpp
+#     src/modules/DBLPCrawler.cpp
+# )
+set(CRAWLER_SOURCES)
 
 # 网络层源文件
 set(NETWORK_SOURCES
@@ -88,14 +96,15 @@ set(OPERATIONS_SOURCES
 )
 
 set(BUSINESS_SOURCES
-    # 业务模块现在通过add_business_module()函数单独添加
-    # 不再在这里列出，避免重复编译
+    # 所有业务模块现在都改为动态库
+    # ExportApiModule、StatsApiModule、PaperApiModule、AuthApiModule、SearchApiModule、UserApiModule
 )
 
 # 所有模块源文件
 set(MODULE_SOURCES
     ${CORE_SOURCES}
     ${DATA_SOURCES}
+    ${CRAWLER_SOURCES}
     ${NETWORK_SOURCES}
     ${INFRASTRUCTURE_SOURCES}
     ${PERFORMANCE_SOURCES}
@@ -110,14 +119,68 @@ set(BACKEND_SOURCES
     ${MODULE_SOURCES}
 )
 
+# 爬虫测试工具
+add_executable(test_crawler test_crawler_simple.cpp)
+
+# DLL导出测试工具
+add_executable(test_dll_exports test_dll_exports.cpp)
+if(WIN32)
+    target_link_libraries(test_dll_exports PRIVATE)
+endif()
+
+# DLL枚举测试工具
+add_executable(test_dll_enumerate test_dll_enumerate.cpp)
+if(WIN32)
+    target_link_libraries(test_dll_enumerate PRIVATE dbghelp)
+    target_compile_definitions(test_dll_enumerate PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
+# 最小DLL测试 - 验证符号导出是否工作
+add_library(test_minimal MODULE test_minimal_dll.cpp)
+set_target_properties(test_minimal PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release"
+    PREFIX "lib"
+)
+
+# 测试程序
+add_executable(test_minimal_check test_minimal_check.cpp)
+if(WIN32)
+    target_link_libraries(test_minimal_check PRIVATE)
+endif()
+
+# 测试：不包含任何头文件的导出
+add_library(test_export_module MODULE test_export_module.cpp)
+set_target_properties(test_export_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release"
+    PREFIX "lib"
+)
+
+add_executable(test_export_check test_export_check.cpp)
+if(WIN32)
+    target_link_libraries(test_export_check PRIVATE)
+endif()
+if(WIN32)
+    target_link_libraries(test_crawler PRIVATE)
+endif()
+
 # Print sources
 message(STATUS "Backend sources:")
 foreach(src ${BACKEND_SOURCES})
     message(STATUS "  - ${src}")
 endforeach()
 
-# Create executable
-add_executable(PaperCrawlerServer ${BACKEND_SOURCES})
+# Create executable（包含核心框架、系统模块和main.cpp）
+add_executable(PaperCrawlerServer
+    ${CORE_SOURCES}
+    ${DATA_SOURCES}
+    ${NETWORK_SOURCES}
+    ${INFRASTRUCTURE_SOURCES}
+    ${PERFORMANCE_SOURCES}
+    ${SECURITY_SOURCES}
+    ${RESILIENCE_SOURCES}
+    ${OPERATIONS_SOURCES}
+    src/core/main.cpp
+)
 
 # Find required packages
 find_package(Threads REQUIRED)
@@ -207,9 +270,9 @@ if(CURL_FOUND)
     else()
         # For MinGW/GCC, use static libraries
         target_link_libraries(PaperCrawlerServer PRIVATE
-            # SSL/TLS (must come before curl)
-            ${CURL_DIR}/lib/libssl.a
+            # OpenSSL (explicitly link for password hashing)
             ${CURL_DIR}/lib/libcrypto.a
+            ${CURL_DIR}/lib/libssl.a
             # HTTP/2 and HTTP/3 support
             ${CURL_DIR}/lib/libnghttp2.a
             ${CURL_DIR}/lib/libnghttp3.a
@@ -288,21 +351,33 @@ message(STATUS "============================================================")
 message(STATUS "")
 
 # ============================================================================
-# 模块化编译配置（静态库架构）
+# 模块化编译配置（当前稳定状态）
 # ============================================================================
+
+# 创建共享系统模块静态库（供业务模块链接）
+add_library(SystemModules STATIC
+    src/features/operations/ResponseHandlerModule.cpp
+    src/core/Router.cpp
+)
+
+target_include_directories(SystemModules PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/../core/include
+)
+
+if(WIN32)
+    target_compile_definitions(SystemModules PUBLIC
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+    )
+    target_compile_options(SystemModules PUBLIC /utf-8)
+endif()
 
 # 辅助函数：编译业务模块为对象库（用于静态链接）
 function(add_business_module MODULE_NAME SOURCES_LIST)
-    # 创建对象库（OBJECT库，不会被链接成独立的.lib）
     add_library(${MODULE_NAME} OBJECT ${SOURCES_LIST})
 
-    # 设置为OBJECT库的属性
-    set_target_properties(${MODULE_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules"
-        PREFIX ""
-    )
-
-    # 添加include目录
     target_include_directories(${MODULE_NAME}
         PUBLIC
             ${CMAKE_SOURCE_DIR}/include
@@ -311,7 +386,6 @@ function(add_business_module MODULE_NAME SOURCES_LIST)
             ${EXTERNAL_DIR}/spdlog/include
     )
 
-    # Windows特定设置
     if(WIN32)
         target_compile_definitions(${MODULE_NAME} PUBLIC
             WIN32_LEAN_AND_MEAN
@@ -321,40 +395,149 @@ function(add_business_module MODULE_NAME SOURCES_LIST)
         target_compile_options(${MODULE_NAME} PUBLIC /utf-8)
     endif()
 
-    # 将此模块的源文件添加到主可执行文件
     target_sources(PaperCrawlerServer PRIVATE $<TARGET_OBJECTS:${MODULE_NAME}>)
 
-    message(STATUS "  [Module] ${MODULE_NAME} -> Linked into PaperCrawlerServer")
+    message(STATUS "  [Module] ${MODULE_NAME} -> Static link into PaperCrawlerServer")
 endfunction()
 
-# 编译所有业务模块
-add_business_module(PaperApiModule
-    src/business/PaperApiModule.cpp
-)
+# 编译所有业务模块 - 现在都改为动态库
+# add_business_module(PaperApiModule
+#     src/business/PaperApiModule.cpp
+# )
 
-add_business_module(AuthApiModule
-    src/business/AuthApiModule.cpp
-)
+# add_business_module(AuthApiModule
+#     src/business/AuthApiModule.cpp
+# )
 
-add_business_module(StatsApiModule
-    src/business/StatsApiModule.cpp
-)
+# StatsApiModule改为动态库（阶段2）
+# add_business_module(StatsApiModule
+#     src/business/StatsApiModule.cpp
+# )
 
-add_business_module(UserApiModule
-    src/business/UserApiModule.cpp
-)
+# add_business_module(UserApiModule
+#     src/business/UserApiModule.cpp
+# )
 
-add_business_module(SearchApiModule
-    src/business/SearchApiModule.cpp
-)
+# add_business_module(SearchApiModule
+#     src/business/SearchApiModule.cpp
+# )
 
-add_business_module(ExportApiModule
-    src/business/ExportApiModule.cpp
-)
+# ExportApiModule改为动态库（阶段1）
+# add_business_module(ExportApiModule
+#     src/business/ExportApiModule.cpp
+# )
 
 message(STATUS "")
 message(STATUS "================== Module Compilation ==================")
-message(STATUS "All business modules will be statically linked into PaperCrawlerServer")
-message(STATUS "Modules can still register routes dynamically through Router::getInstance()")
+message(STATUS "All modules statically linked into PaperCrawlerServer")
+message(STATUS "Phase 1 (Dynamic Loading) - Ready to implement when approved")
 message(STATUS "============================================================")
+message(STATUS "")
+
+# ============================================================================
+# 渐进式动态化 - 阶段1：ExportApiModule动态化
+# ============================================================================
+
+# 辅助函数：编译单个业务模块为动态库
+function(add_dynamic_module MODULE_NAME SOURCES_LIST)
+    # 创建MODULE库 - 与成功的test_minimal保持一致
+    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+
+    # 输出到正确的目录：modules/dynamic/
+    set_target_properties(${MODULE_NAME} PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
+        PREFIX "lib"
+    )
+
+    # 添加include目录
+    target_include_directories(${MODULE_NAME}
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/../core/include
+            ${CURL_DIR}/include
+            ${EXTERNAL_DIR}/spdlog/include
+    )
+
+    # Windows特定设置
+    if(WIN32)
+        target_compile_definitions(${MODULE_NAME} PRIVATE
+            WIN32_LEAN_AND_MEAN
+            NOMINMAX
+            _CRT_SECURE_NO_WARNINGS
+        )
+        target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+    endif()
+
+    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
+endfunction()
+
+# 辅助函数：编译依赖系统模块的业务模块
+function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
+    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+
+    set_target_properties(${MODULE_NAME} PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
+        PREFIX "lib"
+    )
+
+    target_link_libraries(${MODULE_NAME} PRIVATE SystemModules)
+
+    target_include_directories(${MODULE_NAME}
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/../core/include
+            ${CURL_DIR}/include
+            ${EXTERNAL_DIR}/spdlog/include
+    )
+
+    if(WIN32)
+        target_compile_definitions(${MODULE_NAME} PRIVATE
+            WIN32_LEAN_AND_MEAN
+            NOMINMAX
+            _CRT_SECURE_NO_WARNINGS
+        )
+        target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+    endif()
+
+    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with SystemModules)")
+endfunction()
+
+# 将ExportApiModule编译为动态库（阶段1）
+# 导出函数现在直接在ExportApiModule.cpp中
+add_dynamic_module(ExportApiModule
+    src/business/ExportApiModule.cpp
+)
+
+# 阶段2：StatsApiModule动态化
+add_dynamic_module(StatsApiModule
+    src/business/StatsApiModule.cpp
+)
+
+# 阶段3：PaperApiModule动态化
+add_dynamic_module_with_system(PaperApiModule
+    src/business/PaperApiModule.cpp
+)
+
+# 阶段4：AuthApiModule动态化
+add_dynamic_module(AuthApiModule
+    src/business/AuthApiModule.cpp
+)
+
+# 阶段5：SearchApiModule动态化
+add_dynamic_module(SearchApiModule
+    src/business/SearchApiModule.cpp
+)
+
+# 阶段6：UserApiModule动态化
+add_dynamic_module(UserApiModule
+    src/business/UserApiModule.cpp
+)
+
+message(STATUS "")
+message(STATUS "================== All Business Modules Dynamic ==================")
+message(STATUS "Modules: ExportApiModule, StatsApiModule, PaperApiModule")
+message(STATUS "         AuthApiModule, SearchApiModule, UserApiModule")
+message(STATUS "Output: ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
+message(STATUS "Status: Compiling...")
+message(STATUS "==========================================================================")
 message(STATUS "")

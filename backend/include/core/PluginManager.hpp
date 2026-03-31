@@ -92,7 +92,7 @@ private:
 
     std::map<std::string, std::unique_ptr<IModule>> modules_;
     std::map<std::string, ModuleHandle> handles_;
-    mutable std::mutex mutex_;
+    mutable std::recursive_mutex mutex_;
 };
 
 } // namespace PaperCrawler

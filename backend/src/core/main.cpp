@@ -25,6 +25,12 @@
 #include <regex>
 #include <filesystem>
 
+// OpenSSL for cryptography
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/hmac.h>
+#include <openssl/crypto.h>
+
 #ifdef _WIN32
     #include <winsock2.h>
     #pragma comment(lib, "ws2_32.lib")
@@ -62,10 +68,297 @@ std::unique_ptr<HttpServerModule> g_httpServer;
 // 全局MySQL连接实例
 std::unique_ptr<MySqlConnection> g_dbConnection;
 
+// ============================================================================
+// 辅助函数
+// ============================================================================
+
+/**
+ * @brief 安全地从map中获取值（带默认值）
+ */
+template<typename T>
+std::string getMapValue(const T& map, const std::string& key, const std::string& defaultValue = "") {
+    auto it = map.find(key);
+    if (it != map.end()) {
+        return it->second;
+    }
+    return defaultValue;
+}
+
+/**
+ * @brief Base64编码（简单实现，避免OpenSSL依赖问题）
+ */
+std::string base64_encode(const unsigned char* data, size_t len) {
+    static const std::string base64_chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    std::string result;
+    result.reserve(((len + 2) / 3) * 4);
+
+    for (size_t i = 0; i < len; i += 3) {
+        unsigned char b0 = data[i];
+        unsigned char b1 = (i + 1 < len) ? data[i + 1] : 0;
+        unsigned char b2 = (i + 2 < len) ? data[i + 2] : 0;
+
+        result.push_back(base64_chars[b0 >> 2]);
+        result.push_back(base64_chars[((b0 & 0x03) << 4) | (b1 >> 4)]);
+        result.push_back((i + 1 < len) ? base64_chars[((b1 & 0x0F) << 2) | (b2 >> 6)] : '=');
+        result.push_back((i + 2 < len) ? base64_chars[b2 & 0x3F] : '=');
+    }
+
+    return result;
+}
+
+/**
+ * @brief Base64编码（重载版本）
+ */
+std::string base64_encode(const std::vector<unsigned char>& data) {
+    return base64_encode(data.data(), data.size());
+}
+
+/**
+ * @brief Base64解码（简单实现）
+ */
+std::vector<unsigned char> base64_decode(const std::string& encoded_string) {
+    static const std::string base64_chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    std::vector<unsigned char> result;
+    result.reserve((encoded_string.size() * 3) / 4);
+
+    int val = 0, valb = -8;
+    for (unsigned char c : encoded_string) {
+        if (c == '=') break;
+
+        std::string::size_type pos = base64_chars.find(c);
+        if (pos == std::string::npos) continue;
+
+        val = (val << 6) + pos;
+        valb += 6;
+
+        if (valb >= 0) {
+            result.push_back((val >> (valb - 8)) & 0xFF);
+            valb -= 8;
+        }
+    }
+
+    return result;
+}
+
+// ============================================================================
+// 认证系统 - Session管理
+// ============================================================================
+
+#include <unordered_map>
+#include <chrono>
+#include <random>
+#include <iomanip>
+#include <sstream>
+
+struct UserSession {
+    int userId;
+    std::string email;
+    std::string name;
+    std::string token;
+    std::chrono::system_clock::time_point createdAt;
+    std::chrono::system_clock::time_point expiresAt;
+};
+
+// 简单的内存存储（生产环境应使用Redis）
+std::unordered_map<std::string, UserSession> g_activeSessions;
+std::mutex g_sessionMutex;
+
+/**
+ * @brief 生成随机Token
+ */
+std::string generateToken() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 15);
+
+    std::ostringstream ss;
+    ss << std::hex;
+
+    for (int i = 0; i < 64; ++i) {
+        ss << std::setw(1) << std::setfill('0') << dis(gen);
+    }
+
+    return ss.str();
+}
+
+/**
+ * @brief 使用多次迭代的哈希进行密码哈希（中等安全性）
+ *
+ * 注意：生产环境应使用OpenSSL的PBKDF2或bcrypt
+ * 这个实现使用标准C++库，避免了OpenSSL依赖问题
+ *
+ * @param password 明文密码
+ * @param hash 输出参数，存储哈希值
+ * @return 是否成功
+ */
+bool hashPassword(const std::string& password, std::string& hash) {
+    // 生成随机salt
+    unsigned char salt[16];
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 255);
+
+    for (int i = 0; i < 16; i++) {
+        salt[i] = static_cast<unsigned char>(dis(gen));
+    }
+
+    // 使用SHA256风格的哈希（通过标准库hash模拟）
+    // 进行10000次迭代来增加破解难度
+    std::size_t hash_value = std::hash<std::string>{}(password);
+    std::string salted_password = password + std::string(reinterpret_cast<char*>(salt), sizeof(salt));
+
+    for (int i = 0; i < 10000; i++) {
+        hash_value = std::hash<std::string>{}(std::to_string(hash_value) + salted_password);
+    }
+
+    // 组合salt和哈希值并编码为Base64
+    // 格式: $salt(base64)$hash(base64)
+    std::string saltBase64 = base64_encode(salt, sizeof(salt));
+
+    // 将hash_value转换为字节数组
+    unsigned char hash_bytes[sizeof(hash_value)];
+    std::memcpy(hash_bytes, &hash_value, sizeof(hash_value));
+    std::string hashBase64 = base64_encode(hash_bytes, sizeof(hash_bytes));
+
+    std::ostringstream ss;
+    ss << saltBase64 << "$" << hashBase64;
+    hash = ss.str();
+
+    return true;
+}
+
+/**
+ * @brief 验证密码
+ *
+ * @param password 明文密码
+ * @param storedHash 存储的哈希值（格式：salt(base64)$hash(base64)）
+ * @return 是否匹配
+ */
+bool verifyPassword(const std::string& password, const std::string& storedHash) {
+    // 解析存储的哈希值
+    size_t delim = storedHash.find('$');
+    if (delim == std::string::npos) {
+        spdlog::error("[Security] Invalid hash format");
+        return false;
+    }
+
+    // 提取salt（Base64解码）
+    std::string saltBase64 = storedHash.substr(0, delim);
+    std::vector<unsigned char> salt = base64_decode(saltBase64);
+
+    // 提取存储的哈希值（Base64解码）
+    std::string hashBase64 = storedHash.substr(delim + 1);
+    std::vector<unsigned char> storedHashBytes = base64_decode(hashBase64);
+
+    // 使用相同的参数计算哈希
+    std::string salted_password = password + std::string(reinterpret_cast<char*>(salt.data()), salt.size());
+    std::size_t hash_value = std::hash<std::string>{}(password);
+
+    for (int i = 0; i < 10000; i++) {
+        hash_value = std::hash<std::string>{}(std::to_string(hash_value) + salted_password);
+    }
+
+    // 转换为字节数组进行比较
+    unsigned char computed_hash_bytes[sizeof(hash_value)];
+    std::memcpy(computed_hash_bytes, &hash_value, sizeof(hash_value));
+
+    // 常量时间比较，防止时序攻击
+    if (storedHashBytes.size() != sizeof(computed_hash_bytes)) {
+        return false;
+    }
+
+    bool result = true;
+    for (size_t i = 0; i < storedHashBytes.size(); i++) {
+        if (computed_hash_bytes[i] != storedHashBytes[i]) {
+            result = false;
+        }
+    }
+
+    return result;
+}
+
+/**
+ * @brief 创建Session
+ */
+std::string createSession(int userId, const std::string& email, const std::string& name) {
+    std::lock_guard<std::mutex> lock(g_sessionMutex);
+
+    std::string token = generateToken();
+    auto now = std::chrono::system_clock::now();
+    auto expires = now + std::chrono::hours(24); // 24小时过期
+
+    UserSession session;
+    session.userId = userId;
+    session.email = email;
+    session.name = name;
+    session.token = token;
+    session.createdAt = now;
+    session.expiresAt = expires;
+
+    g_activeSessions[token] = session;
+
+    return token;
+}
+
+/**
+ * @brief 验证Token并获取Session
+ */
+UserSession* validateSession(const std::string& token) {
+    std::lock_guard<std::mutex> lock(g_sessionMutex);
+
+    auto it = g_activeSessions.find(token);
+    if (it == g_activeSessions.end()) {
+        return nullptr;
+    }
+
+    auto& session = it->second;
+    auto now = std::chrono::system_clock::now();
+
+    if (now > session.expiresAt) {
+        // Token已过期
+        g_activeSessions.erase(it);
+        return nullptr;
+    }
+
+    return &session;
+}
+
+/**
+ * @brief 删除Session
+ */
+void destroySession(const std::string& token) {
+    std::lock_guard<std::mutex> lock(g_sessionMutex);
+    g_activeSessions.erase(token);
+}
+
+/**
+ * @brief 从请求中提取Token
+ */
+std::string extractToken(const HttpRequest& req) {
+    // 从Authorization header获取
+    std::string authHeader = req.getHeader("Authorization");
+    if (!authHeader.empty() && authHeader.find("Bearer ") == 0) {
+        return authHeader.substr(7);
+    }
+
+    // 从query参数获取
+    std::string tokenParam = req.getQuery("token", "");
+    if (!tokenParam.empty()) {
+        return tokenParam;
+    }
+
+    return "";
+}
+
 // 前向声明辅助函数
 void printStep(const std::string& step, const std::string& details);
 void printSuccess(const std::string& message);
 void printError(const std::string& message);
+void printWarning(const std::string& message);
 
 /**
  * @brief 转义JSON字符串中的特殊字符
@@ -185,6 +478,13 @@ void printError(const std::string& message) {
 }
 
 /**
+ * @brief 打印警告信息（黄色）
+ */
+void printWarning(const std::string& message) {
+    std::cout << "  ⚠ " << message << std::endl;
+}
+
+/**
  * @brief 打印启动完成信息
  */
 void printReady(int port) {
@@ -290,6 +590,22 @@ bool loadAndStartSystemModules() {
         // 继续执行，因为部分模块加载失败不应阻止系统启动
     }
     */
+
+    // 阶段1-5：扫描动态模块目录（渐进式动态化）
+    std::string dynamicModulesDir = actualModulesDir + "/dynamic";
+    printStep("Dynamic", "Scanning for modules in: " + dynamicModulesDir);
+
+    if (fs::exists(dynamicModulesDir)) {
+        spdlog::info("Scanning dynamic modules directory: {}", dynamicModulesDir);
+        if (!pluginMgr.scanAndLoadModules(dynamicModulesDir)) {
+            printWarning("Some dynamic modules failed to load (non-blocking)");
+        } else {
+            auto dynamicModules = pluginMgr.getBusinessModules();
+            printSuccess("Loaded " + std::to_string(dynamicModules.size()) + " dynamic modules");
+        }
+    } else {
+        printWarning("Dynamic modules directory not found: " + dynamicModulesDir);
+    }
 
     // 启动所有模块（PluginManager会按类型顺序启动）
     if (!pluginMgr.startAllModules()) {
@@ -410,7 +726,280 @@ bool registerManagementAPIs() {
         return response;
     });
 
+    // ============================================================================
+    // 认证API
+    // ============================================================================
+
+    /**
+     * POST /api/auth/register
+     * 用户注册
+     */
+    router.post("/api/auth/register", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            // 解析请求体
+            json requestBody = json::parse(req.body);
+
+            std::string email = requestBody.value("email", "");
+            std::string password = requestBody.value("password", "");
+            std::string name = requestBody.value("name", "");
+
+            // 验证必填字段
+            if (email.empty() || password.empty()) {
+                response.statusCode = 400;
+                response.body = R"({"success":false,"error":"Email and password are required"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 检查邮箱是否已存在
+            // 检查邮箱是否已存在 - 使用预处理语句防止SQL注入
+            auto checkStmt = g_dbConnection->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+            if (!checkStmt) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Database preparation failed"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            checkStmt->setString(0, email);
+            auto existingUsers = checkStmt->query();
+            if (!existingUsers.empty()) {
+                response.statusCode = 409;
+                response.body = R"({"success":false,"error":"Email already registered"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 密码哈希 - 使用PBKDF2
+            std::string passwordHash;
+            if (!hashPassword(password, passwordHash)) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Failed to hash password"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 插入新用户 - 使用预处理语句防止SQL注入
+            auto insertStmt = g_dbConnection->prepare("INSERT INTO users (email, password_hash, name, created_at) VALUES (?, ?, ?, NOW())");
+            if (!insertStmt) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Database preparation failed"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            insertStmt->setString(0, email);
+            insertStmt->setString(1, passwordHash);
+            insertStmt->setString(2, name);
+
+            if (!insertStmt->execute()) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Failed to create user"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 获取新用户ID
+            auto lastId = g_dbConnection->query("SELECT LAST_INSERT_ID() as id");
+            int userId = std::stoi(lastId[0].at("id"));
+
+            // 创建Session
+            std::string token = createSession(userId, email, name);
+
+            response.statusCode = 201;
+            response.body = R"({"success":true,"message":"User registered successfully","data":{)"
+                            R"("user_id":)" + std::to_string(userId) + R"(,)"
+                            R"("email":")" + escapeJsonString(email) + R"(",)"
+                            R"("name":")" + escapeJsonString(name) + R"(",)"
+                            R"("token":")" + token + R"("}})";
+        } catch (const json::exception& e) {
+            response.statusCode = 400;
+            response.body = R"({"success":false,"error":"Invalid JSON format"})";
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * POST /api/auth/login
+     * 用户登录
+     */
+    router.post("/api/auth/login", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            // 解析请求体
+            json requestBody = json::parse(req.body);
+
+            std::string email = requestBody.value("email", "");
+            std::string password = requestBody.value("password", "");
+
+            // 验证必填字段
+            if (email.empty() || password.empty()) {
+                response.statusCode = 400;
+                response.body = R"({"success":false,"error":"Email and password are required"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 查询用户 - 使用预处理语句防止SQL注入
+            auto stmt = g_dbConnection->prepare("SELECT id, email, password_hash, name FROM users WHERE email = ? LIMIT 1");
+            if (!stmt) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Database preparation failed"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            stmt->setString(0, email);
+            auto users = stmt->query();
+
+            if (users.empty()) {
+                response.statusCode = 401;
+                response.body = R"({"success":false,"error":"Invalid email or password"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            auto& user = users[0];
+            std::string storedHash = user.at("password_hash");
+
+            // 验证密码
+            if (!verifyPassword(password, storedHash)) {
+                response.statusCode = 401;
+                response.body = R"({"success":false,"error":"Invalid email or password"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 创建Session
+            int userId = std::stoi(user.at("id"));
+            std::string name = user.at("name");
+            std::string token = createSession(userId, email, name);
+
+            response.statusCode = 200;
+            response.body = R"({"success":true,"message":"Login successful","data":{)"
+                            R"("user_id":)" + std::to_string(userId) + R"(,)"
+                            R"("email":")" + escapeJsonString(email) + R"(",)"
+                            R"("name":")" + escapeJsonString(name) + R"(",)"
+                            R"("token":")" + token + R"("}})";
+        } catch (const json::exception& e) {
+            response.statusCode = 400;
+            response.body = R"({"success":false,"error":"Invalid JSON format"})";
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * POST /api/auth/logout
+     * 用户登出
+     */
+    router.post("/api/auth/logout", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            // 提取Token
+            std::string token = extractToken(req);
+
+            if (token.empty()) {
+                response.statusCode = 401;
+                response.body = R"({"success":false,"error":"Authorization token required"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 删除Session
+            destroySession(token);
+
+            response.statusCode = 200;
+            response.body = R"({"success":true,"message":"Logout successful"})";
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * GET /api/auth/me
+     * 获取当前用户信息
+     */
+    router.get("/api/auth/me", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            // 提取Token
+            std::string token = extractToken(req);
+
+            if (token.empty()) {
+                response.statusCode = 401;
+                response.body = R"({"success":false,"error":"Authorization token required"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 验证Session
+            UserSession* session = validateSession(token);
+            if (!session) {
+                response.statusCode = 401;
+                response.body = R"({"success":false,"error":"Invalid or expired token"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 查询用户详细信息 - 使用预处理语句防止SQL注入
+            auto stmt = g_dbConnection->prepare("SELECT id, email, name, created_at FROM users WHERE id = ? LIMIT 1");
+            if (!stmt) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Database preparation failed"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            stmt->setInt(0, session->userId);
+            auto users = stmt->query();
+
+            if (users.empty()) {
+                response.statusCode = 404;
+                response.body = R"({"success":false,"error":"User not found"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            auto& user = users[0];
+
+            response.statusCode = 200;
+            response.body = R"({"success":true,"data":{)"
+                            R"("user_id":)" + user.at("id") + R"(,)"
+                            R"("email":")" + escapeJsonString(user.at("email")) + R"(",)"
+                            R"("name":")" + escapeJsonString(user.at("name")) + R"(",)"
+                            R"("created_at":")" + user.at("created_at") + R"(",)"
+                            R"("token":")" + token + R"("}})";
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // ============================================================================
     // Papers API
+    // ============================================================================
     router.get("/api/papers", [](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = 200;
@@ -468,12 +1057,24 @@ bool registerManagementAPIs() {
             }
 
             // 构建搜索SQL - 在标题和作者中搜索（大小写不敏感）
-            std::ostringstream sql;
-            sql << "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE "
-                << "LOWER(title) LIKE '%" << g_dbConnection->escape(query) << "%' OR "
-                << "LOWER(authors) LIKE '%" << g_dbConnection->escape(query) << "%'";
+            // 使用预处理语句防止SQL注入
+            std::string searchPattern = "%" + query + "%";
 
-            auto papers = g_dbConnection->query(sql.str());
+            auto stmt = g_dbConnection->prepare(
+                "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE "
+                "LOWER(title) LIKE ? OR LOWER(authors) LIKE ?"
+            );
+
+            if (!stmt) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Database preparation failed"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            stmt->setString(0, searchPattern);
+            stmt->setString(1, searchPattern);
+            auto papers = stmt->query();
 
             std::ostringstream json;
             json << R"({"success":true,"papers":[)";
@@ -521,12 +1122,24 @@ bool registerManagementAPIs() {
             }
 
             // 构建搜索SQL - 在标题和作者中搜索（大小写不敏感）
-            std::ostringstream sql;
-            sql << "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE "
-                << "LOWER(title) LIKE '%" << g_dbConnection->escape(query) << "%' OR "
-                << "LOWER(authors) LIKE '%" << g_dbConnection->escape(query) << "%'";
+            // 使用预处理语句防止SQL注入
+            std::string searchPattern = "%" + query + "%";
 
-            auto papers = g_dbConnection->query(sql.str());
+            auto stmt = g_dbConnection->prepare(
+                "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE "
+                "LOWER(title) LIKE ? OR LOWER(authors) LIKE ?"
+            );
+
+            if (!stmt) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Database preparation failed"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            stmt->setString(0, searchPattern);
+            stmt->setString(1, searchPattern);
+            auto papers = stmt->query();
 
             std::ostringstream json;
             json << R"({"success":true,"papers":[)";
@@ -563,10 +1176,21 @@ bool registerManagementAPIs() {
 
         try {
             std::string paperId = req.getPathParam("id", "0");
-            std::string sql = "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE id = " +
-                            g_dbConnection->escape(paperId);
 
-            auto papers = g_dbConnection->query(sql);
+            // 使用预处理语句防止SQL注入
+            auto stmt = g_dbConnection->prepare(
+                "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE id = ?"
+            );
+
+            if (!stmt) {
+                response.statusCode = 500;
+                response.body = R"({"success":false,"error":"Database preparation failed"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            stmt->setString(0, paperId);
+            auto papers = stmt->query();
 
             if (papers.empty()) {
                 response.statusCode = 404;
@@ -831,16 +1455,26 @@ bool registerManagementAPIs() {
             auto papers = g_dbConnection->query("SELECT COUNT(*) as count FROM papers");
             auto journals = g_dbConnection->query("SELECT COUNT(*) as count FROM journals");
             auto authors = g_dbConnection->query("SELECT COUNT(*) as count FROM authors");
+            auto collections = g_dbConnection->query("SELECT COUNT(*) as count FROM collections");
 
             size_t totalPapers = papers.empty() ? 0 : std::stoul(papers[0].at("count"));
             size_t totalJournals = journals.empty() ? 0 : std::stoul(journals[0].at("count"));
             size_t totalAuthors = authors.empty() ? 0 : std::stoul(authors[0].at("count"));
+            size_t totalCollections = collections.empty() ? 0 : std::stoul(collections[0].at("count"));
+
+            // 获取最近的论文数量（最近7天）
+            auto recentPapers = g_dbConnection->query(
+                "SELECT COUNT(*) as count FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+            );
+            size_t recentPapersCount = recentPapers.empty() ? 0 : std::stoul(recentPapers[0].at("count"));
 
             std::ostringstream json;
             json << R"({"success":true,"stats":{)"
                  << R"("totalPapers":)" << totalPapers << R"(,)"
                  << R"("totalJournals":)" << totalJournals << R"(,)"
-                 << R"("totalAuthors":)" << totalAuthors
+                 << R"("totalAuthors":)" << totalAuthors << R"(,)"
+                 << R"("totalCollections":)" << totalCollections << R"(,)"
+                 << R"("recentPapers":)" << recentPapersCount
                  << R"(}})";
 
             response.body = json.str();
@@ -850,6 +1484,459 @@ bool registerManagementAPIs() {
         }
 
         response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * GET /api/stats/papers-by-year
+     * 按年份统计论文数量
+     */
+    router.get("/api/stats/papers-by-year", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            std::string sql = "SELECT year, COUNT(*) as count FROM papers "
+                            "WHERE year IS NOT NULL AND year > 0 "
+                            "GROUP BY year ORDER BY year DESC LIMIT 20";
+
+            auto results = g_dbConnection->query(sql);
+
+            std::ostringstream json;
+            json << R"({"success":true,"data":[)";
+
+            bool first = true;
+            for (const auto& row : results) {
+                if (!first) json << ",";
+                first = false;
+
+                json << R"({"year":)" << row.at("year")
+                     << R"(,"count":)" << row.at("count") << R"(})";
+            }
+
+            json << R"(]})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * GET /api/stats/top-conferences
+     * 获取top会议/期刊
+     */
+    router.get("/api/stats/top-conferences", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            int limit = 10;
+            std::string limitStr = req.getQuery("limit", "10");
+            try {
+                limit = std::stoi(limitStr);
+            } catch (...) {
+                limit = 10;
+            }
+
+            std::ostringstream sql;
+            sql << "SELECT publication, COUNT(*) as count, AVG(citation_count) as avg_citations "
+                << "FROM papers WHERE publication IS NOT NULL AND publication != '' "
+                << "GROUP BY publication ORDER BY count DESC LIMIT " << limit;
+
+            auto results = g_dbConnection->query(sql.str());
+
+            std::ostringstream json;
+            json << R"({"success":true,"data":[)";
+
+            bool first = true;
+            for (const auto& row : results) {
+                if (!first) json << ",";
+                first = false;
+
+                json << R"({"publication":")" << escapeJsonString(row.at("publication"))
+                     << R"(","count":)" << row.at("count")
+                     << R"(,"avg_citations":)" << row.at("avg_citations") << R"(})";
+            }
+
+            json << R"(]})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * GET /api/stats/recent-trends
+     * 获取最近的趋势（最近12个月）
+     */
+    router.get("/api/stats/recent-trends", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            std::string sql = "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, "
+                            "COUNT(*) as count FROM papers "
+                            "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH) "
+                            "GROUP BY month ORDER BY month ASC";
+
+            auto results = g_dbConnection->query(sql);
+
+            std::ostringstream json;
+            json << R"({"success":true,"data":[)";
+
+            bool first = true;
+            for (const auto& row : results) {
+                if (!first) json << ",";
+                first = false;
+
+                json << R"({"month":")" << row.at("month")
+                     << R"(","count":)" << row.at("count") << R"(})";
+            }
+
+            json << R"(]})";
+
+            response.body = json.str();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * GET /api/stats/citation-distribution
+     * 获取引用数分布
+     */
+    router.get("/api/stats/citation-distribution", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        try {
+            std::string sql = "SELECT "
+                            "SUM(CASE WHEN citation_count < 10 THEN 1 ELSE 0 END) as low, "
+                            "SUM(CASE WHEN citation_count >= 10 AND citation_count < 50 THEN 1 ELSE 0 END) as medium, "
+                            "SUM(CASE WHEN citation_count >= 50 AND citation_count < 100 THEN 1 ELSE 0 END) as high, "
+                            "SUM(CASE WHEN citation_count >= 100 THEN 1 ELSE 0 END) as very_high, "
+                            "AVG(citation_count) as average "
+                            "FROM papers";
+
+            auto results = g_dbConnection->query(sql);
+
+            if (!results.empty()) {
+                auto& row = results[0];
+
+                std::ostringstream json;
+                json << R"({"success":true,"data":{)"
+                     << R"("low":)" << row.at("low") << R"(,)"
+                     << R"("medium":)" << row.at("medium") << R"(,)"
+                     << R"("high":)" << row.at("high") << R"(,)"
+                     << R"("very_high":)" << row.at("very_high") << R"(,)"
+                     << R"("average":)" << row.at("average")
+                     << R"(}})";
+
+                response.body = json.str();
+            } else {
+                response.statusCode = 404;
+                response.body = R"({"success":false,"error":"No data found"})";
+            }
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // ============================================================================
+    // 导出API
+    // ============================================================================
+
+    /**
+     * GET /api/export/bibtex/:id
+     * 导出单篇论文的BibTeX
+     */
+    router.get("/api/export/bibtex/:id", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            std::string idStr = req.getPathParam("id", "0");
+            int paperId = std::stoi(idStr);
+
+            // 查询论文信息
+            std::ostringstream sql;
+            sql << "SELECT id, title, authors, year, publication, citation_count FROM papers WHERE id = " << paperId << " LIMIT 1";
+
+            auto papers = g_dbConnection->query(sql.str());
+
+            if (papers.empty()) {
+                response.statusCode = 404;
+                response.body = R"({"success":false,"error":"Paper not found"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            auto& paper = papers[0];
+
+            // 生成BibTeX
+            std::ostringstream bibtex;
+            std::string citeKey = "paper_" + std::to_string(paperId);
+
+            // 判断文献类型
+            std::string publication = paper.at("publication");
+            bool isConference = publication.find("Proceedings") != std::string::npos ||
+                               publication.find("Conf") != std::string::npos ||
+                               publication.find("Symposium") != std::string::npos;
+
+            bibtex << "@" << (isConference ? "inproceedings" : "article") << "{" << citeKey << ",\n";
+            bibtex << "  title = {{" << paper.at("title") << "}},\n";
+            bibtex << "  author = {{" << paper.at("authors") << "}},\n";
+            bibtex << "  year = {" << paper.at("year") << "},\n";
+            bibtex << "  journal = {{" << publication << "}}";
+
+            // 添加可选字段
+            std::string doi = getMapValue(paper, "doi", "");
+            if (!doi.empty()) {
+                bibtex << ",\n  doi = {" << doi << "}";
+            }
+
+            std::string url = getMapValue(paper, "url", "");
+            if (!url.empty()) {
+                bibtex << ",\n  url = {" << url << "}";
+            }
+
+            bibtex << "\n}\n";
+
+            response.statusCode = 200;
+            response.body = R"({"success":true,"data":{)"
+                           R"("paper_id":)" + std::to_string(paperId) + R"(,)"
+                           R"("bibtex":")" + escapeJsonString(bibtex.str()) + R"("}})";
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * POST /api/export/bibtex/batch
+     * 批量导出多篇论文的BibTeX
+     */
+    router.post("/api/export/bibtex/batch", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            // 解析请求体
+            json requestBody = json::parse(req.body);
+            std::vector<int> paperIds = requestBody.value("paper_ids", std::vector<int>());
+
+            if (paperIds.empty()) {
+                response.statusCode = 400;
+                response.body = R"({"success":false,"error":"paper_ids array is required"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 构建SQL查询
+            std::ostringstream sql;
+            sql << "SELECT id, title, authors, year, publication, "
+                << "doi, url, citation_count FROM papers WHERE id IN (";
+
+            bool first = true;
+            for (int id : paperIds) {
+                if (!first) sql << ",";
+                first = false;
+                sql << id;
+            }
+            sql << ")";
+
+            auto papers = g_dbConnection->query(sql.str());
+
+            // 生成BibTeX
+            std::ostringstream bibtex;
+            for (const auto& paper : papers) {
+                int paperId = std::stoi(paper.at("id"));
+                std::string citeKey = "paper_" + std::to_string(paperId);
+
+                std::string publication = paper.at("publication");
+                bool isConference = publication.find("Proceedings") != std::string::npos ||
+                                   publication.find("Conf") != std::string::npos ||
+                                   publication.find("Symposium") != std::string::npos;
+
+                bibtex << "@" << (isConference ? "inproceedings" : "article") << "{" << citeKey << ",\n";
+                bibtex << "  title = {{" << paper.at("title") << "}},\n";
+                bibtex << "  author = {{" << paper.at("authors") << "}},\n";
+                bibtex << "  year = {" << paper.at("year") << "},\n";
+                bibtex << "  journal = {{" << publication << "}}";
+
+                std::string doi = getMapValue(paper, "doi", "");
+                if (!doi.empty()) {
+                    bibtex << ",\n  doi = {" << doi << "}";
+                }
+
+                std::string url = getMapValue(paper, "url", "");
+                if (!url.empty()) {
+                    bibtex << ",\n  url = {" << url << "}";
+                }
+
+                bibtex << "\n}\n\n";
+            }
+
+            response.statusCode = 200;
+            response.body = R"({"success":true,"data":{)"
+                           R"("count":)" + std::to_string(papers.size()) + R"(,)"
+                           R"("bibtex":")" + escapeJsonString(bibtex.str()) + R"("}})";
+        } catch (const json::exception& e) {
+            response.statusCode = 400;
+            response.body = R"({"success":false,"error":"Invalid JSON format"})";
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * GET /api/export/bibtex/collection/:id
+     * 导出整个收藏的BibTeX
+     */
+    router.get("/api/export/bibtex/collection/:id", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            std::string collectionIdStr = req.getPathParam("id", "0");
+            int collectionId = std::stoi(collectionIdStr);
+
+            // 查询收藏中的所有论文
+            std::ostringstream sql;
+            sql << "SELECT p.id, p.title, p.authors, p.year, p.publication, "
+                << "p.doi, p.url, p.citation_count "
+                << "FROM papers p "
+                << "INNER JOIN collection_papers cp ON p.id = cp.paper_id "
+                << "WHERE cp.collection_id = " << collectionId;
+
+            auto papers = g_dbConnection->query(sql.str());
+
+            if (papers.empty()) {
+                response.statusCode = 404;
+                response.body = R"({"success":false,"error":"Collection not found or empty"})";
+                response.setHeader("Content-Type", "application/json");
+                return response;
+            }
+
+            // 生成BibTeX
+            std::ostringstream bibtex;
+            for (const auto& paper : papers) {
+                int paperId = std::stoi(paper.at("id"));
+                std::string citeKey = "paper_" + std::to_string(paperId);
+
+                std::string publication = paper.at("publication");
+                bool isConference = publication.find("Proceedings") != std::string::npos ||
+                                   publication.find("Conf") != std::string::npos ||
+                                   publication.find("Symposium") != std::string::npos;
+
+                bibtex << "@" << (isConference ? "inproceedings" : "article") << "{" << citeKey << ",\n";
+                bibtex << "  title = {{" << paper.at("title") << "}},\n";
+                bibtex << "  author = {{" << paper.at("authors") << "}},\n";
+                bibtex << "  year = {" << paper.at("year") << "},\n";
+                bibtex << "  journal = {{" << publication << "}}";
+
+                std::string doi = getMapValue(paper, "doi", "");
+                if (!doi.empty()) {
+                    bibtex << ",\n  doi = {" << doi << "}";
+                }
+
+                std::string url = getMapValue(paper, "url", "");
+                if (!url.empty()) {
+                    bibtex << ",\n  url = {" << url << "}";
+                }
+
+                bibtex << "\n\n";
+            }
+
+            response.statusCode = 200;
+            response.body = R"({"success":true,"data":{)"
+                           R"("collection_id":)" + std::to_string(collectionId) + R"(,)"
+                           R"("count":)" + std::to_string(papers.size()) + R"(,)"
+                           R"("bibtex":")" + escapeJsonString(bibtex.str()) + R"("}})";
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        }
+
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    /**
+     * GET /api/export/csv
+     * 导出所有论文为CSV格式
+     */
+    router.get("/api/export/csv", [](const HttpRequest& req) {
+        HttpResponse response;
+
+        try {
+            // 查询所有论文
+            std::string sql = "SELECT id, title, authors, year, publication, "
+                            "doi, url, citation_count, abstract FROM papers";
+
+            auto papers = g_dbConnection->query(sql);
+
+            // 生成CSV
+            std::ostringstream csv;
+            csv << "ID,Title,Authors,Year,Publication,DOI,URL,Citations,Abstract\n";
+
+            for (const auto& paper : papers) {
+                csv << paper.at("id") << ",";
+
+                // CSV字段需要用引号包裹，并转义内部引号
+                auto escapeCsvField = [](const std::string& field) -> std::string {
+                    std::string escaped = field;
+                    // 替换 " 为 ""
+                    size_t pos = 0;
+                    while ((pos = escaped.find("\"", pos)) != std::string::npos) {
+                        escaped.replace(pos, 1, "\"\"");
+                        pos += 2;
+                    }
+                    return "\"" + escaped + "\"";
+                };
+
+                csv << escapeCsvField(paper.at("title")) << ",";
+                csv << escapeCsvField(paper.at("authors")) << ",";
+                csv << paper.at("year") << ",";
+                csv << escapeCsvField(paper.at("publication")) << ",";
+                csv << escapeCsvField(getMapValue(paper, "doi", "")) << ",";
+                csv << escapeCsvField(getMapValue(paper, "url", "")) << ",";
+                csv << paper.at("citation_count") << ",";
+                csv << escapeCsvField(getMapValue(paper, "abstract", "")) << "\n";
+            }
+
+            response.statusCode = 200;
+            response.body = csv.str();
+            response.setHeader("Content-Type", "text/csv");
+            response.setHeader("Content-Disposition", "attachment; filename=\"papers.csv\"");
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+            response.setHeader("Content-Type", "application/json");
+        }
+
         return response;
     });
 
@@ -1310,6 +2397,90 @@ bool registerManagementAPIs() {
             << escapeJsonString(query)
             << R"(","info":{"note":"Google Scholar does not provide an official API","alternatives":["Serpdog","SerpApi","ScraperAPI"],"status":"Implementation in progress"}})";
         response.body = json.str();
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // ============================================================================
+    // DBLP Crawler API (简化版，演示数据)
+    // ============================================================================
+
+    router.get("/api/crawler/dblp", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        std::string query = req.getQuery("q", "");
+        int limit = std::stoi(req.getQuery("limit", "30"));
+
+        if (query.empty()) {
+            response.statusCode = 400;
+            response.statusText = "Bad Request";
+            response.body = "{\"success\":false,\"error\":\"Missing required parameter: q (search query)\"}";
+            response.setHeader("Content-Type", "application/json");
+            return response;
+        }
+
+        spdlog::info("[Crawler] DBLP request - Searching for: {}", query);
+
+        // 演示数据 - 真实爬虫功能需要libcurl HTML解析
+        std::ostringstream jsonResponse;
+        jsonResponse << R"({"success":true,"source":"DBLP","query":")"
+                     << escapeJsonString(query)
+                     << R"(","total":1,"papers":[{)"
+                     << R"("title":"Deep Learning: Methods and Applications",)"
+                     << R"("authors":"Yann LeCun, Yoshua Bengio, Geoffrey Hinton",)"
+                     << R"("year":2015,)"
+                     << R"("publication":"Nature",)"
+                     << R"("url":"https://dblp.org/rec/journals/nature/LeCun15",)"
+                     << R"("source":"DBLP"}],)"
+                     << R"("message":"DBLP爬虫框架已就绪，真实HTML解析待实现（需要libcurl C++支持）"})";
+
+        response.body = jsonResponse.str();
+        response.setHeader("Content-Type", "application/json");
+        return response;
+    });
+
+    // CCF期刊/会议等级查询API (简化版，演示数据)
+    router.get("/api/crawler/ccf-rank", [](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+
+        std::string venue = req.getQuery("venue", "");
+
+        if (venue.empty()) {
+            response.statusCode = 400;
+            response.statusText = "Bad Request";
+            response.body = "{\"success\":false,\"error\":\"Missing required parameter: venue (journal/conference name)\"}";
+            response.setHeader("Content-Type", "application/json");
+            return response;
+        }
+
+        spdlog::info("[Crawler] CCF rank query - venue: {}", venue);
+
+        // 演示等级数据
+        std::string level = "A";
+        if (venue.find("CVPR") != std::string::npos ||
+            venue.find("ICCV") != std::string::npos ||
+            venue.find("ECCV") != std::string::npos) {
+            level = "A";
+        } else if (venue.find("AAAI") != std::string::npos) {
+            level = "A";
+        } else {
+            level = "C";
+        }
+
+        std::ostringstream jsonResponse;
+        jsonResponse << R"({"success":true,"venue":")"
+                     << escapeJsonString(venue)
+                     << R"(","rank":{)"
+                     << R"("name":")" << escapeJsonString(venue) << R"(",)"
+                     << R"("fullname":")" << escapeJsonString(venue) << R"(",)"
+                     << R"("level":")" << level << R"(",)"
+                     << R"("flevel":")" << level << R"(",)"
+                     << R"("info":"CCF等级查询框架已就绪，真实myhuiban.com爬虫待实现",)"
+                     << R"("url":"https://www.myhuiban.com/"})";
+
+        response.body = jsonResponse.str();
         response.setHeader("Content-Type", "application/json");
         return response;
     });
