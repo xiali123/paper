@@ -1,6 +1,6 @@
 #include <iostream>
 #include "business/PaperApiModule.hpp"
-#include "features/operations/ResponseHandlerModule.hpp"
+#include "business/JsonHelper.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
 #include <spdlog/spdlog.h>
@@ -525,23 +525,23 @@ std::string PaperApiModule::handleListPapers(const std::map<std::string, std::st
     }
     json << "]";
 
-    return ResponseHandlerModule::buildPapersJsonResponse(json.str(), impl_->mockPapers_.size(), page, limit);
+    return JsonHelper::buildPapersJsonResponse(json.str(), impl_->mockPapers_.size(), page, limit);
 }
 
 std::string PaperApiModule::handleGetPaper(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return ResponseHandlerModule::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     }
 
     int id = std::stoi(idIt->second);
     auto paper = getPaper(id);
 
     if (!paper.has_value()) {
-        return ResponseHandlerModule::buildJsonResponse({{"error", "Paper not found"}}, 404);
+        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
     }
 
-    return ResponseHandlerModule::buildPapersJsonResponse("[" + paper->toJSON() + "]", 1, 1, 1);
+    return JsonHelper::buildPapersJsonResponse("[" + paper->toJSON() + "]", 1, 1, 1);
 }
 
 std::string PaperApiModule::handleCreatePaper(const std::string& body) {
@@ -550,20 +550,20 @@ std::string PaperApiModule::handleCreatePaper(const std::string& body) {
     auto newPaper = createPaper(paper);
 
     if (newPaper.has_value()) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "true"},
             {"message", "Paper created"},
             {"id", std::to_string(newPaper->id)}
         }, 201);
     }
 
-    return ResponseHandlerModule::buildJsonResponse({{"error", "Failed to create paper"}}, 500);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to create paper"}}, 500);
 }
 
 std::string PaperApiModule::handleUpdatePaper(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return ResponseHandlerModule::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     }
 
     int id = std::stoi(idIt->second);
@@ -572,31 +572,31 @@ std::string PaperApiModule::handleUpdatePaper(const std::map<std::string, std::s
     Paper paper;
 
     if (updatePaper(id, paper)) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "true"},
             {"message", "Paper updated"}
         });
     }
 
-    return ResponseHandlerModule::buildJsonResponse({{"error", "Failed to update paper"}}, 500);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to update paper"}}, 500);
 }
 
 std::string PaperApiModule::handleDeletePaper(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return ResponseHandlerModule::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     }
 
     int id = std::stoi(idIt->second);
 
     if (deletePaper(id)) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "true"},
             {"message", "Paper deleted"}
         });
     }
 
-    return ResponseHandlerModule::buildJsonResponse({{"error", "Failed to delete paper"}}, 500);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to delete paper"}}, 500);
 }
 
 std::string PaperApiModule::handleSearch(const std::map<std::string, std::string>& params) {
@@ -638,7 +638,7 @@ std::string PaperApiModule::handleSearch(const std::map<std::string, std::string
     }
     json << "]";
 
-    return ResponseHandlerModule::buildPapersJsonResponse(json.str(), papers.size(), page, limit);
+    return JsonHelper::buildPapersJsonResponse(json.str(), papers.size(), page, limit);
 }
 
 std::string PaperApiModule::handleStats() {
@@ -650,7 +650,30 @@ std::string PaperApiModule::handleStats() {
     statsMap["unreadPapers"] = std::to_string(stats.unreadPapers);
     statsMap["favoritePapers"] = std::to_string(stats.favoritePapers);
 
-    return ResponseHandlerModule::buildStatsJsonResponse(statsMap);
+    return JsonHelper::buildStatsJsonResponse(statsMap);
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::PaperApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::PaperApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+

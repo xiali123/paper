@@ -619,3 +619,26 @@ std::vector<TrendingSearch> SearchApiModule::calculateTrendingSearches() {
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::SearchApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::SearchApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+

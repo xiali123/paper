@@ -1,7 +1,7 @@
 #include <iostream>
 #include "business/StatsApiModule.hpp"
 #include "core/ModuleRegistry.hpp"
-#include "features/operations/ResponseHandlerModule.hpp"
+#include "business/JsonHelper.hpp"
 #include <sstream>
 #include <map>
 #include <chrono>
@@ -432,14 +432,14 @@ void StatsApiModule::registerRoutes() {
 
 std::string StatsApiModule::handleSystemInfo() {
     auto info = getSystemInfo();
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"system_info", info.toJSON()}
     });
 }
 
 std::string StatsApiModule::handleResources() {
     auto resources = getResources();
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"resources", resources.toJSON()}
     });
 }
@@ -454,7 +454,7 @@ std::string StatsApiModule::handleUptime() {
     data["seconds"] = std::to_string(uptime.seconds);
     data["formatted"] = uptime.format();
 
-    return ResponseHandlerModule::buildJsonResponse(data);
+    return JsonHelper::buildJsonResponse(data);
 }
 
 std::string StatsApiModule::handleModules() {
@@ -478,7 +478,7 @@ std::string StatsApiModule::handleModules() {
     }
     json << "]";
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"modules", json.str()}
     });
 }
@@ -486,7 +486,7 @@ std::string StatsApiModule::handleModules() {
 std::string StatsApiModule::handleModule(const std::string& moduleName) {
     auto module = getModule(moduleName);
     if (!module.has_value()) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"error", "Module not found"}
         }, 404);
     }
@@ -500,7 +500,7 @@ std::string StatsApiModule::handleModule(const std::string& moduleName) {
                   info.state == ModuleState::STOPPED ? "STOPPED" : "UNLOADED");
     data["reference_count"] = std::to_string(info.referenceCount.load());
 
-    return ResponseHandlerModule::buildJsonResponse(data);
+    return JsonHelper::buildJsonResponse(data);
 }
 
 std::string StatsApiModule::handlePerformance() {
@@ -530,13 +530,13 @@ std::string StatsApiModule::handlePerformance() {
     json << "\n  }\n";
     json << "}";
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"performance_metrics", json.str()}
     });
 }
 
 std::string StatsApiModule::handleRealtime() {
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"realtime_stats", getRealtimeStats()}
     });
 }
@@ -549,3 +549,26 @@ void StatsApiModule::monitorLoop() {
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::StatsApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::StatsApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+

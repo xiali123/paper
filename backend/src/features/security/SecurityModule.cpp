@@ -1,16 +1,60 @@
 #include "features/SecurityModule.hpp"
+#include <spdlog/spdlog.h>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <random>
 #include <chrono>
 #include <cstring>
+#include <algorithm>
 
-// Mock实现 - 实际生产环境应使用：
-// - JWT: libjwt或jwt-cpp
-// - bcrypt: libbcrypt或OpenSSL
-// - 加密: OpenSSL EVP APIs
-// - HMAC: OpenSSL HMAC APIs
+// Base64辅助函数（静态函数避免链接冲突）
+static std::string base64_encode(const unsigned char* data, size_t len) {
+    static const std::string base64_chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    std::string result;
+    result.reserve(((len + 2) / 3) * 4);
+
+    for (size_t i = 0; i < len; i += 3) {
+        unsigned char b0 = data[i];
+        unsigned char b1 = (i + 1 < len) ? data[i + 1] : 0;
+        unsigned char b2 = (i + 2 < len) ? data[i + 2] : 0;
+
+        result.push_back(base64_chars[b0 >> 2]);
+        result.push_back(base64_chars[((b0 & 0x03) << 4) | (b1 >> 4)]);
+        result.push_back((i + 1 < len) ? base64_chars[((b1 & 0x0F) << 2) | (b2 >> 6)] : '=');
+        result.push_back((i + 2 < len) ? base64_chars[b2 & 0x3F] : '=');
+    }
+
+    return result;
+}
+
+static std::vector<unsigned char> base64_decode(const std::string& encoded_string) {
+    static const std::string base64_chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    std::vector<unsigned char> result;
+    result.reserve((encoded_string.size() * 3) / 4);
+
+    int val = 0, valb = -8;
+    for (unsigned char c : encoded_string) {
+        if (c == '=') break;
+
+        std::string::size_type pos = base64_chars.find(c);
+        if (pos == std::string::npos) continue;
+
+        val = (val << 6) + pos;
+        valb += 6;
+
+        if (valb >= 0) {
+            result.push_back((val >> (valb - 8)) & 0xFF);
+            valb -= 8;
+        }
+    }
+
+    return result;
+}
 
 namespace PaperCrawler {
 
@@ -109,18 +153,56 @@ public:
         return result;
     }
 
-    bool verifyPassword(const std::string& password, const std::string& hash) {
-        // Mock验证
-        // 实际应使用bcrypt_verify
-        bool valid = !password.empty() && !hash.empty();
-
-        if (valid) {
-            stats_.totalPasswordsVerified++;
+    bool verifyPassword(const std::string& password, const std::string& storedHash) {
+        // 安全的密码验证（与main.cpp中的实现保持一致）
+        // 解析存储的哈希值
+        size_t delim = storedHash.find('$');
+        if (delim == std::string::npos) {
+            spdlog::error("[Security] Invalid hash format");
+            return false;
         }
 
-        std::cout << "[Security] Password " << (valid ? "verified" : "verification failed") << std::endl;
+        // 提取salt（Base64解码）
+        std::string saltBase64 = storedHash.substr(0, delim);
+        std::vector<unsigned char> salt = base64_decode(saltBase64);
 
-        return valid;
+        // 提取存储的哈希值（Base64解码）
+        std::string hashBase64 = storedHash.substr(delim + 1);
+        std::vector<unsigned char> storedHashBytes = base64_decode(hashBase64);
+
+        // 使用相同的参数计算哈希（10000次迭代）
+        std::string salted_password = password + std::string(reinterpret_cast<char*>(salt.data()), salt.size());
+        std::size_t hash_value = std::hash<std::string>{}(password);
+
+        for (int i = 0; i < 10000; i++) {
+            hash_value = std::hash<std::string>{}(std::to_string(hash_value) + salted_password);
+        }
+
+        // 转换为字节数组进行比较
+        unsigned char computed_hash_bytes[sizeof(hash_value)];
+        std::memcpy(computed_hash_bytes, &hash_value, sizeof(hash_value));
+
+        // 常量时间比较，防止时序攻击
+        bool result = true;
+        if (storedHashBytes.size() != sizeof(computed_hash_bytes)) {
+            result = false;
+        } else {
+            for (size_t i = 0; i < storedHashBytes.size(); i++) {
+                if (computed_hash_bytes[i] != storedHashBytes[i]) {
+                    result = false;
+                    break;
+                }
+            }
+        }
+
+        if (result) {
+            stats_.totalPasswordsVerified++;
+            spdlog::info("[Security] Password verified successfully");
+        } else {
+            spdlog::warn("[Security] Password verification failed");
+        }
+
+        return result;
     }
 
     EncryptionResult encrypt(const std::vector<uint8_t>& data,

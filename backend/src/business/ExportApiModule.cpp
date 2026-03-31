@@ -562,3 +562,26 @@ void ExportApiModule::updateStats(ExportFormat format, bool success, int bytes) 
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数（全局命名空间）
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::ExportApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::ExportApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+

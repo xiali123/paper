@@ -474,3 +474,26 @@ std::string UserApiModule::hashPassword(const std::string& password) {
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::UserApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::UserApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+

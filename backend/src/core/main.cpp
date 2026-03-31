@@ -43,6 +43,7 @@
 #include "core/ModuleRegistry.hpp"
 #include "core/HotReloadManager.hpp"
 #include "core/HttpTypes.hpp"
+#include "core/ConfigManager.hpp"
 
 // 网络模块
 #include "network/HttpServerModule.hpp"
@@ -419,21 +420,48 @@ bool initializeDatabase() {
     printStep("Init", "Connecting to MySQL database");
 
     try {
-        // 创建MySQL连接实例 - 使用配置的凭证
+        // 使用ConfigManager加载配置
+        auto& config = ConfigManager::getInstance();
+
+        // 尝试从配置文件加载
+        config.loadFromFile("./config/config.json");
+
+        // 从环境变量加载（优先级更高）
+        config.loadFromEnvironment();
+
+        // 获取数据库配置
+        std::string host = config.getString("database.host", "localhost");
+        int port = config.getInt("database.port", 3306);
+        std::string user = config.getString("database.user", "root");
+        std::string password = config.getString("database.password");
+        std::string database = config.getString("database.name", "papercrawler");
+
+        // 验证密码配置
+        if (password.empty()) {
+            printError("Database password not configured (set DB_PASSWORD environment variable)");
+            spdlog::error("[Config] Database password not configured (set DB_PASSWORD environment variable)");
+            return false;
+        }
+
+        // 创建MySQL连接实例
         g_dbConnection = std::make_unique<MySqlConnection>(
-            "localhost",  // host
-            3306,         // port
-            "root",       // user
-            "123456",     // password
-            "papercrawler" // database
+            host,
+            port,
+            user,
+            password,
+            database
         );
 
         if (!g_dbConnection->isConnected()) {
             printError("Failed to connect to MySQL database");
+            spdlog::error("[Database] Connection failed - host:{}, port:{}, user:{}, db:{}",
+                         host, port, user, database);
             return false;
         }
 
         printSuccess("Connected to MySQL database: papercrawler");
+        spdlog::info("[Database] Successfully connected - host:{}, port:{}, user:{}, db:{}",
+                     host, port, user, database);
         return true;
     } catch (const std::exception& e) {
         printError(std::string("Database initialization failed: ") + e.what());
@@ -1237,15 +1265,28 @@ bool registerManagementAPIs() {
                 return response;
             }
 
-            std::string sql = "INSERT INTO papers (title, authors, year, publication, citation_count) VALUES ('"
-                            + g_dbConnection->escape(title) + "', '"
-                            + g_dbConnection->escape(authors) + "', "
-                            + year + ", '"
-                            + g_dbConnection->escape(publication) + "', "
-                            + citationCount + ")";
+            // Convert year and citation_count to integers
+            int yearValue = 0;
+            int citationCountValue = 0;
+            try {
+                yearValue = std::stoi(year);
+                citationCountValue = std::stoi(citationCount);
+            } catch (...) {
+                // Use default value 0 if conversion fails
+            }
 
-            if (g_dbConnection->execute(sql)) {
-                uint64_t newId = g_dbConnection->getLastInsertId();
+            // Use prepared statement to prevent SQL injection
+            auto stmt = g_dbConnection->prepare(
+                "INSERT INTO papers (title, authors, year, publication, citation_count) VALUES (?, ?, ?, ?, ?)"
+            );
+            stmt->setString(0, title);
+            stmt->setString(1, authors);
+            stmt->setInt(2, yearValue);
+            stmt->setString(3, publication);
+            stmt->setInt(4, citationCountValue);
+
+            if (stmt->execute()) {
+                uint64_t newId = stmt->getLastInsertId();
                 response.body = R"({"success":true,"message":"Paper created","id":)" + std::to_string(newId) + R"(})";
             } else {
                 response.statusCode = 500;
@@ -1269,8 +1310,9 @@ bool registerManagementAPIs() {
             std::string paperId = req.getPathParam("id", "0");
 
             // 检查论文是否存在
-            std::string checkSql = "SELECT id FROM papers WHERE id = " + g_dbConnection->escape(paperId);
-            auto existing = g_dbConnection->query(checkSql);
+            auto checkStmt = g_dbConnection->prepare("SELECT id FROM papers WHERE id = ?");
+            checkStmt->setUInt64(0, std::stoull(paperId));
+            auto existing = checkStmt->query();
 
             if (existing.empty()) {
                 response.statusCode = 404;
@@ -1279,34 +1321,68 @@ bool registerManagementAPIs() {
                 return response;
             }
 
-            // 构建更新SQL
-            std::vector<std::string> updates;
+            // 构建更新SQL - 使用prepared statement
             std::string title = req.getQuery("title", "");
             std::string authors = req.getQuery("authors", "");
             std::string year = req.getQuery("year", "");
             std::string publication = req.getQuery("publication", "");
             std::string citationCount = req.getQuery("citation_count", "");
 
-            if (!title.empty()) updates.push_back("title = '" + g_dbConnection->escape(title) + "'");
-            if (!authors.empty()) updates.push_back("authors = '" + g_dbConnection->escape(authors) + "'");
-            if (!year.empty()) updates.push_back("year = " + year);
-            if (!publication.empty()) updates.push_back("publication = '" + g_dbConnection->escape(publication) + "'");
-            if (!citationCount.empty()) updates.push_back("citation_count = " + citationCount);
+            // 构建SET子句和参数
+            std::vector<std::string> setParts;
+            std::vector<std::string> params;
+            int paramIndex = 0;
 
-            if (updates.empty()) {
+            if (!title.empty()) {
+                setParts.push_back("title = ?");
+                params.push_back(title);
+            }
+            if (!authors.empty()) {
+                setParts.push_back("authors = ?");
+                params.push_back(authors);
+            }
+            if (!year.empty()) {
+                setParts.push_back("year = ?");
+                params.push_back(year);
+            }
+            if (!publication.empty()) {
+                setParts.push_back("publication = ?");
+                params.push_back(publication);
+            }
+            if (!citationCount.empty()) {
+                setParts.push_back("citation_count = ?");
+                params.push_back(citationCount);
+            }
+
+            if (setParts.empty()) {
                 response.statusCode = 400;
                 response.body = R"({"success":false,"error":"No fields to update"})";
                 response.setHeader("Content-Type", "application/json");
                 return response;
             }
 
-            std::string sql = "UPDATE papers SET " + updates[0];
-            for (size_t i = 1; i < updates.size(); ++i) {
-                sql += ", " + updates[i];
+            // 构建完整的SQL语句
+            std::string sql = "UPDATE papers SET ";
+            for (size_t i = 0; i < setParts.size(); ++i) {
+                if (i > 0) sql += ", ";
+                sql += setParts[i];
             }
-            sql += " WHERE id = " + g_dbConnection->escape(paperId);
+            sql += " WHERE id = ?";
+            params.push_back(paperId);
 
-            if (g_dbConnection->execute(sql)) {
+            // 创建prepared statement并绑定参数
+            auto stmt = g_dbConnection->prepare(sql);
+            for (size_t i = 0; i < params.size(); ++i) {
+                // 尝试解析为数字，如果是数字则用setInt，否则用setString
+                try {
+                    int value = std::stoi(params[i]);
+                    stmt->setInt(i, value);
+                } catch (...) {
+                    stmt->setString(i, params[i]);
+                }
+            }
+
+            if (stmt->execute()) {
                 response.body = R"({"success":true,"message":"Paper updated","id":)" + paperId + R"(})";
             } else {
                 response.statusCode = 500;
@@ -1330,8 +1406,9 @@ bool registerManagementAPIs() {
             std::string paperId = req.getPathParam("id", "0");
 
             // 检查论文是否存在
-            std::string checkSql = "SELECT id FROM papers WHERE id = " + g_dbConnection->escape(paperId);
-            auto existing = g_dbConnection->query(checkSql);
+            auto checkStmt = g_dbConnection->prepare("SELECT id FROM papers WHERE id = ?");
+            checkStmt->setUInt64(0, std::stoull(paperId));
+            auto existing = checkStmt->query();
 
             if (existing.empty()) {
                 response.statusCode = 404;
@@ -1340,9 +1417,11 @@ bool registerManagementAPIs() {
                 return response;
             }
 
-            std::string sql = "DELETE FROM papers WHERE id = " + g_dbConnection->escape(paperId);
+            // Use prepared statement for DELETE
+            auto stmt = g_dbConnection->prepare("DELETE FROM papers WHERE id = ?");
+            stmt->setUInt64(0, std::stoull(paperId));
 
-            if (g_dbConnection->execute(sql)) {
+            if (stmt->execute()) {
                 response.body = R"({"success":true,"message":"Paper deleted","id":)" + paperId + R"(})";
             } else {
                 response.statusCode = 500;
@@ -2542,38 +2621,35 @@ bool registerManagementAPIs() {
                     }
 
                     // Check if paper already exists
-                    std::string checkQuery = "SELECT id, title FROM papers WHERE title = '"
-                                          + g_dbConnection->escape(title)
-                                          + "' LIMIT 1";
-
-                    auto checkResult = g_dbConnection->query(checkQuery);
+                    auto checkStmt = g_dbConnection->prepare("SELECT id, title FROM papers WHERE title = ? LIMIT 1");
+                    checkStmt->setString(0, title);
+                    auto checkResult = checkStmt->query();
 
                     if (checkResult.size() > 0) {
                         // Update existing paper
-                        std::string updateQuery = "UPDATE papers SET "
-                                                + std::string("authors = '") + g_dbConnection->escape(authors) + "', "
-                                                + "year = " + std::to_string(year) + ", "
-                                                + "abstract = '" + g_dbConnection->escape(abstract) + "', "
-                                                + "publication = '" + g_dbConnection->escape(source) + "', "
-                                                + "updated_at = NOW() "
-                                                + "WHERE id = " + checkResult[0]["id"];
-
-                        g_dbConnection->execute(updateQuery);
+                        auto updateStmt = g_dbConnection->prepare(
+                            "UPDATE papers SET authors = ?, year = ?, abstract = ?, publication = ?, updated_at = NOW() WHERE id = ?"
+                        );
+                        updateStmt->setString(0, authors);
+                        updateStmt->setInt(1, year);
+                        updateStmt->setString(2, abstract);
+                        updateStmt->setString(3, source);
+                        updateStmt->setUInt64(4, std::stoull(checkResult[0]["id"]));
+                        updateStmt->execute();
                         updated++;
                         spdlog::info("[Crawler] Updated paper: {}", title);
                     } else {
                         // Insert new paper
-                        std::string insertQuery =
+                        auto insertStmt = g_dbConnection->prepare(
                             "INSERT INTO papers (title, authors, year, abstract, publication, is_favorite, is_read, created_at, updated_at) "
-                            "VALUES ('"
-                            + g_dbConnection->escape(title) + "', '"
-                            + g_dbConnection->escape(authors) + "', "
-                            + std::to_string(year) + ", '"
-                            + g_dbConnection->escape(abstract) + "', '"
-                            + g_dbConnection->escape(source) + "', "
-                            "0, 0, NOW(), NOW())";
-
-                        g_dbConnection->execute(insertQuery);
+                            "VALUES (?, ?, ?, ?, ?, 0, 0, NOW(), NOW())"
+                        );
+                        insertStmt->setString(0, title);
+                        insertStmt->setString(1, authors);
+                        insertStmt->setInt(2, year);
+                        insertStmt->setString(3, abstract);
+                        insertStmt->setString(4, source);
+                        insertStmt->execute();
                         saved++;
                         spdlog::info("[Crawler] Saved paper: {}", title);
                     }
@@ -2700,8 +2776,9 @@ bool registerManagementAPIs() {
                 int expiresIn = 3600;
 
                 // Update last login
-                std::string updateQuery = "UPDATE users SET last_login = NOW() WHERE id = " + user["id"];
-                g_dbConnection->execute(updateQuery);
+                auto updateStmt = g_dbConnection->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+                updateStmt->setUInt64(0, std::stoull(user["id"]));
+                updateStmt->execute();
 
                 std::ostringstream jsonResponse;
                 jsonResponse << R"({"success":true,"message":"Login successful",)"
@@ -2765,11 +2842,10 @@ bool registerManagementAPIs() {
             spdlog::info("[Auth] Registration attempt for: {}", username);
 
             // Check if user exists
-            std::string checkQuery = "SELECT id FROM users WHERE username = '"
-                                    + g_dbConnection->escape(username) + "' OR email = '"
-                                    + g_dbConnection->escape(email) + "' LIMIT 1";
-
-            auto existingUsers = g_dbConnection->query(checkQuery);
+            auto checkStmt = g_dbConnection->prepare("SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1");
+            checkStmt->setString(0, username);
+            checkStmt->setString(1, email);
+            auto existingUsers = checkStmt->query();
 
             if (!existingUsers.empty()) {
                 response.statusCode = 409;
@@ -2778,18 +2854,18 @@ bool registerManagementAPIs() {
                 return response;
             }
 
-            // Insert new user (using fake hash for now)
-            std::string insertQuery =
+            // Insert new user
+            auto insertStmt = g_dbConnection->prepare(
                 "INSERT INTO users (username, email, password_hash, full_name, role, is_active, is_verified, created_at, updated_at) "
-                "VALUES ('"
-                + g_dbConnection->escape(username) + "', '"
-                + g_dbConnection->escape(email) + "', '"
-                + "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', "  // Hash for 'test123456'
-                + "'"
-                + g_dbConnection->escape(fullName) + "', 'user', 1, 1, NOW(), NOW())";
+                "VALUES (?, ?, ?, ?, 'user', 1, 1, NOW(), NOW())"
+            );
+            insertStmt->setString(0, username);
+            insertStmt->setString(1, email);
+            insertStmt->setString(2, "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");  // Hash for 'test123456'
+            insertStmt->setString(3, fullName);
 
-            if (g_dbConnection->execute(insertQuery)) {
-                uint64_t newId = g_dbConnection->getLastInsertId();
+            if (insertStmt->execute()) {
+                uint64_t newId = insertStmt->getLastInsertId();
 
                 // Generate tokens
                 std::string accessToken = "fake_access_token_" + std::to_string(std::time(nullptr));

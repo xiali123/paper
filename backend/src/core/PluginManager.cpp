@@ -28,7 +28,7 @@ bool PluginManager::initialize() {
 }
 
 bool PluginManager::loadModule(const std::string& moduleName, const std::string& modulePath) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     spdlog::info("Loading module: {} from {}", moduleName, modulePath);
 
@@ -38,6 +38,7 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         spdlog::error("Failed to load module library: {}", modulePath);
         return false;
     }
+    spdlog::info("DLL loaded successfully");
 
     // 获取导出函数
     auto createFunc = reinterpret_cast<CreateModuleFunc>(
@@ -52,6 +53,7 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         FREE_LIBRARY(handle);
         return false;
     }
+    spdlog::info("createModule symbol found");
 
     // 创建模块实例
     void* modulePtr = createFunc();
@@ -60,6 +62,7 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         FREE_LIBRARY(handle);
         return false;
     }
+    spdlog::info("Module instance created");
 
     auto* module = static_cast<IModule*>(modulePtr);
 
@@ -75,19 +78,22 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         FREE_LIBRARY(handle);
         return false;
     }
+    spdlog::info("Module initialized");
 
     // 存储模块
     modules_[moduleName] = std::unique_ptr<IModule>(module);
     handles_[moduleName] = handle;
 
-    spdlog::info("Module {} loaded successfully (version: {})",
-        moduleName, module->getVersion());
+    // TODO: 临时禁用getVersion()调用，避免死锁
+    // spdlog::info("Module {} loaded successfully (version: {})",
+    //     moduleName, module->getVersion());
+    spdlog::info("Module {} loaded successfully", moduleName);
 
     return true;
 }
 
 bool PluginManager::unloadModule(const std::string& moduleName) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     auto it = modules_.find(moduleName);
     if (it == modules_.end()) {
@@ -122,7 +128,7 @@ bool PluginManager::unloadModule(const std::string& moduleName) {
 }
 
 IModule* PluginManager::getModule(const std::string& moduleName) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     auto it = modules_.find(moduleName);
     if (it != modules_.end()) {
@@ -132,7 +138,7 @@ IModule* PluginManager::getModule(const std::string& moduleName) {
 }
 
 std::vector<IModule*> PluginManager::getAllModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     std::vector<IModule*> result;
     for (auto& pair : modules_) {
@@ -142,7 +148,7 @@ std::vector<IModule*> PluginManager::getAllModules() {
 }
 
 std::vector<IModule*> PluginManager::getBusinessModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     std::vector<IModule*> result;
     for (auto& pair : modules_) {
@@ -154,7 +160,7 @@ std::vector<IModule*> PluginManager::getBusinessModules() {
 }
 
 std::vector<IModule*> PluginManager::getServerModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     std::vector<IModule*> result;
     for (auto& pair : modules_) {
@@ -166,7 +172,7 @@ std::vector<IModule*> PluginManager::getServerModules() {
 }
 
 bool PluginManager::startAllModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     spdlog::info("Starting all modules...");
 
@@ -195,7 +201,7 @@ bool PluginManager::startAllModules() {
 }
 
 bool PluginManager::stopAllModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     spdlog::info("Stopping all modules...");
 
@@ -217,7 +223,7 @@ std::vector<std::string> PluginManager::getLoadedModules() const {
 }
 
 bool PluginManager::scanAndLoadModules(const std::string& modulesDir) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     spdlog::info("Scanning modules directory: {}", modulesDir);
 
@@ -230,6 +236,8 @@ bool PluginManager::scanAndLoadModules(const std::string& modulesDir) {
 
     size_t loadedCount = 0;
     size_t failedCount = 0;
+
+    spdlog::info("Starting directory iteration...");
 
     // 递归扫描所有子目录
     for (const auto& entry : fs::recursive_directory_iterator(modulesDir)) {
@@ -274,9 +282,12 @@ bool PluginManager::scanAndLoadModules(const std::string& modulesDir) {
         spdlog::info("Found module library: {} -> {}", filename, moduleName);
 
         // 加载模块
+        spdlog::info("Attempting to load module: {} from {}", moduleName, path);
         if (loadModule(moduleName, path)) {
+            spdlog::info("Successfully loaded module: {}", moduleName);
             loadedCount++;
         } else {
+            spdlog::warn("Failed to load module: {}", moduleName);
             failedCount++;
         }
     }

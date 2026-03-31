@@ -56,7 +56,7 @@ export function searchArXiv(params: {
   delay?: number
 }): Promise<CrawlerSearchResponse> {
   return request({
-    url: '/api/crawler/arxiv',
+    url: '/crawler/arxiv',
     method: 'GET',
     params
   })
@@ -71,7 +71,7 @@ export function searchPubMed(params: {
   limit?: number
 }): Promise<CrawlerSearchResponse> {
   return request({
-    url: '/api/crawler/pubmed',
+    url: '/crawler/pubmed',
     method: 'GET',
     params
   })
@@ -86,7 +86,7 @@ export function searchScholar(params: {
   limit?: number
 }): Promise<CrawlerSearchResponse> {
   return request({
-    url: '/api/crawler/scholar',
+    url: '/crawler/scholar',
     method: 'GET',
     params
   })
@@ -97,7 +97,7 @@ export function searchScholar(params: {
  */
 export function searchCrawler(data: CrawlerSearchRequest): Promise<CrawlerSearchResponse> {
   return request({
-    url: '/api/crawler/search',
+    url: '/crawler/search',
     method: 'POST',
     data
   })
@@ -108,7 +108,7 @@ export function searchCrawler(data: CrawlerSearchRequest): Promise<CrawlerSearch
  */
 export function getCrawlerStatus(): Promise<{ status: string; timestamp: string }> {
   return request({
-    url: '/api/health',
+    url: '/health',
     method: 'GET'
   })
 }
@@ -126,7 +126,7 @@ export function savePapers(papers: Paper[]): Promise<{
   source: string
 }> {
   return request({
-    url: '/api/crawler/save',
+    url: '/crawler/save',
     method: 'POST',
     data: { papers }
   })

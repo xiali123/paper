@@ -19,7 +19,7 @@
 #ifndef BACKEND_MODULES_CRAWLER_MODULE_HPP
 #define BACKEND_MODULES_CRAWLER_MODULE_HPP
 
-#include "core/Module.hpp"
+#include "core/IModule.hpp"
 #include "core/MessageBus.hpp"
 #include "network/HttpClient.hpp"
 #include <memory>
@@ -329,80 +329,115 @@ private:
 };
 
 // ============================================================================
-// Crawler Module
+// DBLP Crawler (HTML-based)
 // ============================================================================
 
-class CrawlerModule : public Module {
+class DBLPCrawler : public ICrawler {
 public:
-    CrawlerModule();
-    ~CrawlerModule() override;
+    explicit DBLPCrawler(const CrawlerSource& source);
 
-    // Module interface
-    bool initialize(Core::MessageBus* bus) override;
-    void shutdown() override;
-    std::string getName() const override { return "CrawlerModule"; }
-    std::string getVersion() const override { return "1.0.0"; }
-    std::string getDescription() const override;
+    std::vector<CrawledPaper> fetchPapers(
+        const std::string& query,
+        const std::map<std::string, std::string>& params
+    ) override;
 
-    // Task management
-    int createTask(
-        int sourceId,
-        TaskType type,
-        const std::string& parameters,
-        TaskPriority priority = TaskPriority::NORMAL
-    );
+    std::optional<CrawledPaper> fetchPaper(const std::string& id) override;
 
-    bool startTask(int taskId);
-    bool cancelTask(int taskId);
-    std::vector<CrawlerTask> getActiveTasks();
-    CrawlerTask getTask(int taskId);
+    bool checkAvailability() override;
 
-    // Source management
-    std::vector<CrawlerSource> getSources();
-    CrawlerSource getSource(int sourceId);
-    bool addSource(const CrawlerSource& source);
-    bool updateSource(const CrawlerSource& source);
-    bool removeSource(int sourceId);
+    std::string getName() const override { return "DBLP"; }
 
-    // Statistics
-    std::map<std::string, int> getStatistics();
+    /**
+     * 获取期刊/会议的完整信息
+     */
+    std::map<std::string, std::string> fetchVenueInfo(const std::string& venueName);
 
 private:
-    // Worker thread
-    void workerThread();
-    void processTask(const CrawlerTask& task);
+    std::string buildSearchUrl(
+        const std::string& query,
+        int page = 0,
+        int batchSize = 30
+    );
 
-    // Rate limiting
-    bool checkRateLimit(int sourceId);
-    void recordRateLimitHit(int sourceId);
+    std::vector<CrawledPaper> parseDBLPHtml(const std::string& html);
 
-    // Database operations
-    void loadSources();
-    void saveTask(const CrawlerTask& task);
-    void updateTaskStatus(int taskId, TaskStatus status);
-    void logToDatabase(const CrawlerLog& log);
-    void saveError(const CrawlerError& error);
+    /**
+     * 从论文条目中提取信息
+     * 对应Python代码第145行的正则表达式
+     */
+    CrawledPaper parseEntry(const std::string& entryHtml);
 
-    // Crawler factory
-    std::unique_ptr<ICrawler> createCrawler(const CrawlerSource& source);
+    /**
+     * 获取搜索结果总数
+     */
+    int getTotalResults(const std::string& html);
+};
 
-    // Member variables
-    Core::MessageBus* messageBus_;
+// ============================================================================
+// CCF Journal/Conference Rank Query (myhuiban.com)
+// ============================================================================
+
+/**
+ * 期刊/会议等级信息
+ */
+struct VenueRankInfo {
+    std::string name;           // 期刊/会议简称
+    std::string fullname;       // 期刊/会议全称
+    std::string level;          // CCF等级: A, B, C, T(未知)
+    std::string flevel;         // 领域等级
+    std::string info;           // 额外信息
+    std::string url;            // URL
+};
+
+class CCFRankQuerier {
+public:
+    explicit CCFRankQuerier(std::shared_ptr<Network::HttpClient> client);
+
+    /**
+     * 从myhuiban.com查询期刊/会议等级
+     * @param venueName 期刊/会议名称
+     * @return 等级信息
+     */
+    std::optional<VenueRankInfo> queryVenueRank(const std::string& venueName);
+
+    /**
+     * 批量查询期刊/会议等级
+     */
+    std::map<std::string, VenueRankInfo> queryVenueRanks(
+        const std::vector<std::string>& venueNames
+    );
+
+private:
     std::shared_ptr<Network::HttpClient> httpClient_;
 
-    std::thread workerThread_;
-    std::mutex queueMutex_;
-    std::condition_variable queueCondition_;
-    std::queue<int> taskQueue_;
-    bool shouldStop_;
+    /**
+     * 构建查询URL
+     * 对应Python代码第248行
+     */
+    std::string buildQueryUrl(const std::string& venueName);
 
-    std::map<int, CrawlerSource> sources_;
-    std::map<int, std::chrono::system_clock::time_point> rateLimitTracker_;
-    std::mutex rateLimitMutex_;
+    /**
+     * 解析HTML响应获取等级信息
+     * 对应Python代码第272-273行的正则表达式
+     */
+    std::vector<std::vector<std::string>> parseRankHtml(const std::string& html);
 
-    std::mutex taskMutex_;
-    std::map<int, CrawlerTask> activeTasks_;
+    /**
+     * 确定期刊/会议的最终等级
+     * 对应Python代码第294-303行逻辑
+     */
+    std::string determineLevel(
+        const std::vector<std::vector<std::string>>& rankData,
+        const std::string& venueName
+    );
 };
+
+// ============================================================================
+// Crawler Module (简化版，仅用于接口定义)
+// ============================================================================
+
+// 注意：完整的CrawlerModule类暂未实现
+// 目前仅提供DBLP和CCF爬虫功能
 
 } // namespace PaperCrawler::Modules
 

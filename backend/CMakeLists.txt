@@ -27,6 +27,7 @@ set(CORE_SOURCES
     src/core/HotReloadManager.cpp
     src/core/EventBusModule.cpp
     src/core/WatchdogModule.cpp
+    src/core/ConfigManager.cpp
     # main.cpp单独处理
 )
 

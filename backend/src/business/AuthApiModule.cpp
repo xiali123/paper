@@ -1,7 +1,7 @@
 #include <iostream>
 #include "business/AuthApiModule.hpp"
 #include "features/SessionModule.hpp"
-#include "features/operations/ResponseHandlerModule.hpp"
+#include "business/JsonHelper.hpp"
 #include <sstream>
 #include <map>
 #include <chrono>
@@ -367,7 +367,7 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
 
     auto response = login(request);
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"success", response.success ? "true" : "false"},
         {"message", response.message},
         {"access_token", response.accessToken},
@@ -378,7 +378,7 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
 std::string AuthApiModule::handleLogout(const std::map<std::string, std::string>& headers) {
     auto authIt = headers.find("Authorization");
     if (authIt == headers.end()) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "false"},
             {"error", "Missing authorization header"}
         }, 401);
@@ -390,13 +390,13 @@ std::string AuthApiModule::handleLogout(const std::map<std::string, std::string>
     }
 
     if (logout(token)) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "true"},
             {"message", "Logged out successfully"}
         });
     }
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"success", "false"},
         {"error", "Invalid token"}
     }, 401);
@@ -409,7 +409,7 @@ std::string AuthApiModule::handleRefreshToken(const std::string& body) {
 
     auto response = refreshToken(request);
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"success", response.success ? "true" : "false"},
         {"message", response.message},
         {"access_token", response.accessToken},
@@ -420,7 +420,7 @@ std::string AuthApiModule::handleRefreshToken(const std::string& body) {
 std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std::string>& headers) {
     auto authIt = headers.find("Authorization");
     if (authIt == headers.end()) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "false"},
             {"error", "Missing authorization header"}
         }, 401);
@@ -433,13 +433,13 @@ std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std:
 
     auto user = getCurrentUser(token);
     if (!user.has_value()) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "false"},
             {"error", "Invalid or expired token"}
         }, 401);
     }
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"success", "true"},
         {"user", user->toJSON()}
     });
@@ -448,7 +448,7 @@ std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std:
 std::string AuthApiModule::handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers) {
     auto authIt = headers.find("Authorization");
     if (authIt == headers.end()) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "false"},
             {"error", "Missing authorization header"}
         }, 401);
@@ -461,7 +461,7 @@ std::string AuthApiModule::handleChangePassword(const std::string& body, const s
 
     int userId;
     if (!validateAccessToken(token, userId)) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "false"},
             {"error", "Invalid token"}
         }, 401);
@@ -473,13 +473,13 @@ std::string AuthApiModule::handleChangePassword(const std::string& body, const s
     request.newPassword = "new_password";
 
     if (changePassword(userId, request)) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "true"},
             {"message", "Password changed successfully"}
         });
     }
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"success", "false"},
         {"error", "Failed to change password"}
     }, 400);
@@ -490,13 +490,13 @@ std::string AuthApiModule::handleInitiatePasswordReset(const std::string& body) 
     std::string email = "user@example.com";
 
     if (initiatePasswordReset(email)) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "true"},
             {"message", "Password reset email sent"}
         });
     }
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"success", "false"},
         {"error", "User not found"}
     }, 404);
@@ -508,16 +508,39 @@ std::string AuthApiModule::handleCompletePasswordReset(const std::string& body) 
     std::string newPassword = "new_password";
 
     if (completePasswordReset(token, newPassword)) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"success", "true"},
             {"message", "Password reset successfully"}
         });
     }
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"success", "false"},
         {"error", "Invalid or expired reset token"}
     }, 400);
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::AuthApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::AuthApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+
