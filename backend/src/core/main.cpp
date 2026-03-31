@@ -51,6 +51,8 @@
 
 // 数据模块
 #include "data/MySqlConnection.hpp"
+#include "data/DatabaseModule.hpp"
+#include "data/PooledConnection.hpp"
 
 // JSON library
 #include "../../core/external/nlohmann/json.hpp"
@@ -66,8 +68,11 @@ std::atomic<bool> g_running{true};
 // 全局HTTP服务器实例
 std::unique_ptr<HttpServerModule> g_httpServer;
 
-// 全局MySQL连接实例
-std::unique_ptr<MySqlConnection> g_dbConnection;
+// 全局数据库模块（连接池）
+std::unique_ptr<DatabaseModule> g_databaseModule;
+
+// 全局MySQL连接实例（保持向后兼容，实际使用连接池）
+std::unique_ptr<PooledConnection> g_dbConnection;
 
 // ============================================================================
 // 辅助函数
@@ -414,10 +419,10 @@ void setupSignalHandlers() {
 }
 
 /**
- * @brief 初始化数据库连接
+ * @brief 初始化数据库连接池
  */
 bool initializeDatabase() {
-    printStep("Init", "Connecting to MySQL database");
+    printStep("Init", "Connecting to MySQL database with connection pool");
 
     try {
         // 使用ConfigManager加载配置
@@ -435,6 +440,7 @@ bool initializeDatabase() {
         std::string user = config.getString("database.user", "root");
         std::string password = config.getString("database.password");
         std::string database = config.getString("database.name", "papercrawler");
+        size_t poolSize = config.getInt("database.pool_size", 20);
 
         // 验证密码配置
         if (password.empty()) {
@@ -443,13 +449,49 @@ bool initializeDatabase() {
             return false;
         }
 
-        // 创建MySQL连接实例
-        g_dbConnection = std::make_unique<MySqlConnection>(
-            host,
-            port,
-            user,
-            password,
-            database
+        // 创建DatabaseModule实例
+        g_databaseModule = std::make_unique<DatabaseModule>();
+
+        // 配置连接池
+        DatabaseConfig dbConfig;
+        dbConfig.host = host;
+        dbConfig.port = port;
+        dbConfig.username = user;
+        dbConfig.password = password;
+        dbConfig.database = database;
+        dbConfig.poolSize = poolSize;        // 初始连接数
+        dbConfig.maxPoolSize = poolSize * 2; // 最大连接数
+        dbConfig.connectTimeoutSeconds = 5;
+        dbConfig.queryTimeoutSeconds = 30;
+        dbConfig.autoReconnect = true;
+
+        g_databaseModule->setConfig(dbConfig);
+
+        // 初始化连接池
+        if (!g_databaseModule->initialize()) {
+            printError("Failed to initialize DatabaseModule connection pool");
+            return false;
+        }
+
+        // 启动DatabaseModule
+        if (!g_databaseModule->start()) {
+            printError("Failed to start DatabaseModule");
+            return false;
+        }
+
+        // 获取一个连接作为全局默认连接（向后兼容）
+        auto connection = g_databaseModule->getConnection();
+        if (!connection) {
+            printError("Failed to get connection from pool");
+            return false;
+        }
+
+        // 创建PooledConnection包装器（析构时自动归还）
+        g_dbConnection = std::make_unique<PooledConnection>(
+            connection,
+            [dbModule = g_databaseModule.get()](std::shared_ptr<DatabaseConnection> conn) {
+                dbModule->returnConnection(conn);
+            }
         );
 
         if (!g_dbConnection->isConnected()) {
@@ -459,9 +501,14 @@ bool initializeDatabase() {
             return false;
         }
 
-        printSuccess("Connected to MySQL database: papercrawler");
+        // 显示连接池状态
+        auto poolStats = g_databaseModule->getPoolStats();
+        printSuccess("Connected to MySQL database with connection pool");
         spdlog::info("[Database] Successfully connected - host:{}, port:{}, user:{}, db:{}",
                      host, port, user, database);
+        spdlog::info("[Database] Connection pool initialized - size:{}, max_size:{}, active:{}",
+                     poolStats.totalConnections, dbConfig.maxPoolSize, poolStats.activeConnections);
+
         return true;
     } catch (const std::exception& e) {
         printError(std::string("Database initialization failed: ") + e.what());
@@ -3015,11 +3062,17 @@ void gracefulShutdown() {
         g_httpServer.reset();
     }
 
-    // 2. 关闭数据库连接
-    std::cout << "  - Closing database connection..." << std::endl;
+    // 2. 关闭数据库连接池
+    std::cout << "  - Closing database connection pool..." << std::endl;
     if (g_dbConnection) {
-        g_dbConnection->close();
+        // PooledConnection析构时会自动归还连接
         g_dbConnection.reset();
+    }
+    if (g_databaseModule) {
+        // 停止DatabaseModule（关闭所有连接）
+        g_databaseModule->stop();
+        g_databaseModule->cleanup();
+        g_databaseModule.reset();
     }
 
     auto& pluginMgr = PluginManager::getInstance();

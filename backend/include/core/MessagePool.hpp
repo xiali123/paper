@@ -16,7 +16,7 @@ namespace PaperCrawler {
  * @brief 预分配的消息对象
  */
 struct PooledMessage {
-    void* buffer{nullptr};              // 预分配的内存缓冲区
+    std::unique_ptr<uint8_t[]> buffer; // 智能指针管理的内存缓冲区
     size_t bufferSize{0};               // 缓冲区大小
     size_t usedSize{0};                 // 已使用大小
     std::atomic<bool> inUse{false};    // 是否正在使用
