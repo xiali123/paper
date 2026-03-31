@@ -369,20 +369,28 @@ DatabaseModule::DatabaseModule()
 
 DatabaseModule::~DatabaseModule() = default;
 
-bool DatabaseModule::initialize() {
+// 模板方法：只需实现具体逻辑，状态管理由ServerModuleBase处理
+bool DatabaseModule::onInitialize() {
     std::cout << "DatabaseModule::initialize" << std::endl;
 
     // 使用默认配置初始化
     DatabaseConfig defaultConfig;
-    return impl_->initializePool(defaultConfig);
+    bool success = impl_->initializePool(defaultConfig);
+
+    // 基类会自动设置state_为INITIALIZED
+
+    return success;
 }
 
-bool DatabaseModule::start() {
+bool DatabaseModule::onStart() {
     std::cout << "DatabaseModule started" << std::endl;
+
+    // 基类会自动设置state_为STARTED
+
     return true;
 }
 
-bool DatabaseModule::stop() {
+bool DatabaseModule::onStop() {
     std::cout << "DatabaseModule stopped" << std::endl;
 
     // 清理所有连接
@@ -396,11 +404,14 @@ bool DatabaseModule::stop() {
 
     impl_->totalConnections_ = 0;
 
+    // 基类会自动设置state_为STOPPED
+
     return true;
 }
 
-void DatabaseModule::cleanup() {
+void DatabaseModule::onCleanup() {
     // 清理资源
+    // 基类会自动设置state_为UNLOADED
 }
 
 void DatabaseModule::setConfig(const DatabaseConfig& config) {
@@ -416,6 +427,8 @@ std::vector<std::map<std::string, std::string>> DatabaseModule::query(const std:
 
     auto connection = getConnection();
     if (!connection) {
+        // 使用基类的性能监控
+        incrementErrorCount();
         impl_->totalErrors_++;
         return {};
     }

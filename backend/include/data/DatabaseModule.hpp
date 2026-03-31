@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include <string>
 #include <vector>
@@ -119,24 +119,35 @@ struct ConnectionPoolStats {
  * 4. 连接生命周期管理
  * 5. 查询性能统计
  * 6. 自动重连
+ *
+ * 架构改进：
+ * - 继承ServerModuleBase获得生命周期管理
+ * - 内置性能监控和指标收集
+ * - 标准化健康检查接口
  */
-class DatabaseModule : public IModule {
+class DatabaseModule : public ServerModuleBase {
 public:
     DatabaseModule();
     ~DatabaseModule() override;
+
+    // 基类提供了以下功能（无需重复实现）：
+    // - getName(), getVersion(), getDescription()
+    // - initialize(), start(), stop(), cleanup() 的模板方法
+    // - getMetrics(), isHealthy(), getUptimeSeconds()
+    // - incrementRequestCount(), incrementErrorCount()
 
     std::string getName() const override { return "Database"; }
     std::string getVersion() const override { return "1.0.0"; }
     std::string getDescription() const override {
         return "MySQL database access module with connection pooling";
     }
-    ModuleType getModuleType() const override { return ModuleType::SERVER; }
-    std::string getRoutePrefix() const override { return "/api/database"; }
 
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
+    // 模板方法：只需实现具体逻辑，状态管理由基类处理
+protected:
+    bool onInitialize() override;
+    bool onStart() override;
+    bool onStop() override;
+    void onCleanup() override;
 
     /**
      * @brief 设置数据库配置

@@ -2,11 +2,14 @@
 
 #include "core/IModule.hpp"
 #include "core/Router.hpp"
+#include "core/ModuleExports.hpp"
 #include <map>
 #include <memory>
 #include <functional>
 #include <atomic>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
 
 namespace PaperCrawler {
 
