@@ -556,10 +556,10 @@ add_dynamic_module(ExportApiModule
 #     src/business/PaperApiModule.cpp
 # )
 
-# 阶段4：AuthApiModule动态化（暂时禁用，有编译错误待修复）
-# add_dynamic_module(AuthApiModule
-#     src/business/AuthApiModule.cpp
-# )
+# 阶段4：AuthApiModule动态化
+add_dynamic_module(AuthApiModule
+    src/business/AuthApiModule.cpp
+)
 
 # 阶段5：SearchApiModule动态化（临时注释 - 有编译错误）
 # add_dynamic_module(SearchApiModule

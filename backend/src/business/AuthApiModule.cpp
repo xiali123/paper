@@ -9,6 +9,12 @@
 
 namespace PaperCrawler {
 
+// 默认构造函数实现
+AuthApiModule::AuthApiModule()
+    : AuthApiModule(nullptr) {
+    std::cout << "[Auth] AuthApiModule default constructor (database=nullptr)" << std::endl;
+}
+
 // 简单JSON构建辅助函数
 namespace {
     std::string buildJsonResponse(const std::map<std::string, std::string>& data, int statusCode = 200) {
@@ -249,11 +255,20 @@ void AuthApiModule::registerRoutes() {
 std::string AuthApiModule::handleLogin(const std::string& body) {
     impl_->stats_.totalLogins++;
 
+    // TODO: 解析JSON body
+    LoginRequest request;
+    request.username = "admin";
+    request.password = "password";
+    request.rememberMe = false;
+
     // 从数据库查询用户
     auto userOpt = impl_->getUserByUsername(request.username);
     if (!userOpt) {
         impl_->stats_.failedLogins++;
-        return LoginResponse{false, "User not found"};
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "User not found"}
+        }, 404);
     }
 
     User user = *userOpt;
@@ -261,13 +276,19 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     // 检查用户是否激活
     if (!user.active) {
         impl_->stats_.failedLogins++;
-        return LoginResponse{false, "User account is inactive"};
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "User account is inactive"}
+        }, 403);
     }
 
     // 验证密码
     if (!impl_->verifyPassword(request.username, request.password)) {
         impl_->stats_.failedLogins++;
-        return LoginResponse{false, "Invalid username or password"};
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid username or password"}
+        }, 401);
     }
 
     // 生成令牌
@@ -278,7 +299,10 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     if (!impl_->storeSession(user.id, accessToken, refreshToken, impl_->config_.accessTokenExpiry)) {
         std::cerr << "[Auth] Failed to store session in database" << std::endl;
         impl_->stats_.failedLogins++;
-        return LoginResponse{false, "Failed to create session"};
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Failed to create session"}
+        }, 500);
     }
 
     // 更新最后登录时间
@@ -291,15 +315,21 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     impl_->stats_.successfulLogins++;
     impl_->stats_.lastLoginTime = std::chrono::system_clock::now();
 
-    LoginResponse response;
-    response.success = true;
-    response.message = "Login successful";
-    response.accessToken = accessToken;
-    response.refreshToken = refreshToken;
-    response.expiresIn = impl_->config_.accessTokenExpiry;
-    response.user = user;
+    LoginResponse loginResponse;
+    loginResponse.success = true;
+    loginResponse.message = "Login successful";
+    loginResponse.accessToken = accessToken;
+    loginResponse.refreshToken = refreshToken;
+    loginResponse.expiresIn = impl_->config_.accessTokenExpiry;
+    loginResponse.user = user;
 
-    return response;
+    // 转换为JSON响应
+    return buildJsonResponse({
+        {"success", "true"},
+        {"message", loginResponse.message},
+        {"access_token", loginResponse.accessToken},
+        {"refresh_token", loginResponse.refreshToken}
+    });
 }
 
 bool AuthApiModule::logout(const std::string& accessToken) {
@@ -512,21 +542,6 @@ void AuthApiModule::setConfig(const AuthConfig& config) {
 // ============================================================================
 // 路由处理
 // ============================================================================
-    // TODO: 解析JSON body
-    LoginRequest request;
-    request.username = "admin";
-    request.password = "password";
-    request.rememberMe = false;
-
-    auto response = login(request);
-
-    return buildJsonResponse({
-        {"success", response.success ? "true" : "false"},
-        {"message", response.message},
-        {"access_token", response.accessToken},
-        {"refresh_token", response.refreshToken}
-    }, response.success ? 200 : 401);
-}
 
 std::string AuthApiModule::handleLogout(const std::map<std::string, std::string>& headers) {
     auto authIt = headers.find("Authorization");
