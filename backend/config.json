@@ -1,11 +1,11 @@
 {
   "database": {
-    "type": "sqlite",
+    "type": "mysql",
     "host": "localhost",
     "port": 3306,
     "name": "papercrawler",
     "user": "root",
-    "password": "",
+    "password": "123456",
     "sqlite_path": "papercrawler.db",
     "charset": "utf8mb4",
     "connection_pool_size": 10,

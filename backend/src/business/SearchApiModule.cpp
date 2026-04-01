@@ -1,6 +1,7 @@
 #include <iostream>
 #include "business/SearchApiModule.hpp"
 #include "business/PaperApiModule.hpp"
+#include "network/HttpClient.hpp"
 #include <sstream>
 #include <algorithm>
 #include <regex>
@@ -72,25 +73,66 @@ std::string TrendingSearch::toJson() const {
 
 class SearchApiModule::Impl {
 public:
-    Impl() {
-        // 初始化
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
+
+    // 构造函数：接受数据库依赖
+    explicit Impl(std::shared_ptr<IDatabase> database)
+        : database_(database) {
+        // 不再加载Mock数据
     }
 
-    // Mock论文数据（与PaperApiModule共享）
-    std::map<int, Paper> mockPapers;
+    // 从数据库搜索论文
+    std::vector<Paper> searchPapersFromDatabase(const std::string& query, int page, int limit) {
+        std::vector<Paper> papers;
+        try {
+            int offset = (page - 1) * limit;
 
-    void loadMockPapers() {
-        // 模拟数据加载
-        Paper paper1;
-        paper1.id = 1;
-        paper1.title = "Attention Is All You Need";
-        paper1.authors = "Ashish Vaswani et al.";
-        paper1.year = 2023;
-        paper1.abstract = "The dominant sequence transduction models...";
-        paper1.keywords = {"attention", "transformer", "neural networks"};
-        paper1.citationCount = 150;
+            // 使用LIKE进行简单搜索（生产环境应使用全文索引或Meilisearch）
+            std::string sql = "SELECT * FROM papers WHERE "
+                           "title LIKE '%" + query + "%' OR "
+                           "authors LIKE '%" + query + "%' OR "
+                           "abstract LIKE '%" + query + "%' OR "
+                           "keywords LIKE '%" + query + "%' "
+                           "ORDER BY citation_count DESC "
+                           "LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
 
-        mockPapers[1] = paper1;
+            auto results = database_->query(sql);
+
+            for (const auto& row : results) {
+                Paper paper;
+                paper.id = std::stoi(row.at("id"));
+                paper.title = row.at("title");
+                paper.authors = row.at("authors");
+                paper.year = std::stoi(row.at("year"));
+                paper.abstract = row.count("abstract") ? row.at("abstract") : "";
+                paper.journal = row.count("journal") ? row.at("journal") : "";
+                paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                papers.push_back(paper);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[SearchAPI] Failed to search papers: " << e.what() << std::endl;
+        }
+        return papers;
+    }
+
+    // 计算总数
+    int getTotalCount(const std::string& query) {
+        try {
+            std::string sql = "SELECT COUNT(*) as count FROM papers WHERE "
+                           "title LIKE '%" + query + "%' OR "
+                           "authors LIKE '%" + query + "%' OR "
+                           "abstract LIKE '%" + query + "%' OR "
+                           "keywords LIKE '%" + query + "%'";
+
+            auto results = database_->query(sql);
+            if (!results.empty()) {
+                return std::stoi(results[0]["count"]);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[SearchAPI] Failed to get total count: " << e.what() << std::endl;
+        }
+        return 0;
     }
 };
 
@@ -98,20 +140,17 @@ public:
 // SearchApiModule
 // ============================================================================
 
-SearchApiModule::SearchApiModule()
-    : impl_(std::make_unique<Impl>()) {
-    stats_.totalSearches = 0;
-    stats_.todaySearches = 0;
-    stats_.uniqueQueries = 0;
-    stats_.averageResultsPerSearch = 0;
-    stats_.averageSearchTimeMs = 0;
+SearchApiModule::SearchApiModule(std::shared_ptr<HttpClient> httpClient)
+    : httpClient_(httpClient ? httpClient : std::make_shared<HttpClient>()),
+      impl_(std::make_unique<Impl>(nullptr)) {  // 临时：暂时传入nullptr
+    // TODO: 修改构造函数接受IDatabase参数
 }
 
 SearchApiModule::~SearchApiModule() = default;
 
 bool SearchApiModule::initialize() {
     std::cout << "SearchApiModule initialized" << std::endl;
-    impl_->loadMockPapers();
+    // 不再加载Mock数据
     return true;
 }
 
@@ -143,99 +182,35 @@ SearchResult SearchApiModule::search(const std::string& query, SearchType type, 
     result.page = page;
     result.limit = limit;
 
-    std::lock_guard<std::mutex> lock(mutex_);
+    // 如果有数据库连接，使用数据库搜索
+    if (impl_->database_) {
+        // 从数据库搜索论文
+        auto papers = impl_->searchPapersFromDatabase(query, page, limit);
 
-    // 模拟搜索
-    std::vector<int> paperIds;
-
-    // 根据搜索类型选择不同的索引
-    switch (type) {
-        case SearchType::PAPERS:
-            // 在标题索引中搜索
-            for (const auto& pair : titleIndex_) {
-                if (pair.first.find(query) != std::string::npos) {
-                    paperIds.insert(paperIds.end(), pair.second.begin(), pair.second.end());
-                }
-            }
-            break;
-
-        case SearchType::AUTHORS:
-            // 在作者索引中搜索
-            for (const auto& pair : authorIndex_) {
-                if (pair.first.find(query) != std::string::npos) {
-                    paperIds.insert(paperIds.end(), pair.second.begin(), pair.second.end());
-                }
-            }
-            break;
-
-        case SearchType::KEYWORDS:
-            // 在关键词索引中搜索
-            for (const auto& pair : keywordIndex_) {
-                if (pair.first.find(query) != std::string::npos) {
-                    paperIds.insert(paperIds.end(), pair.second.begin(), pair.second.end());
-                }
-            }
-            break;
-
-        default:
-            // 全文搜索（简化）
-            break;
-    }
-
-    // 去重
-    std::sort(paperIds.begin(), paperIds.end());
-    paperIds.erase(std::unique(paperIds.begin(), paperIds.end()), paperIds.end());
-
-    // 计算相关度并构建结果
-    for (int paperId : paperIds) {
-        auto it = impl_->mockPapers.find(paperId);
-        if (it != impl_->mockPapers.end()) {
-            const Paper& paper = it->second;
-
+        // 转换为搜索结果项
+        for (const auto& paper : papers) {
             SearchResultItem item;
             item.id = paper.id;
             item.type = "paper";
             item.title = paper.title;
             item.description = paper.abstract;
-            item.relevanceScore = calculateRelevance(paper, query);
+            item.relevanceScore = 0.8;  // 简化：固定相关度分数
             item.url = "/api/papers/" + std::to_string(paper.id);
-            item.highlights["title"] = highlightText(paper.title, query);
-
             result.items.push_back(item);
         }
-    }
 
-    // 按相关度排序
-    std::sort(result.items.begin(), result.items.end(),
-        [](const SearchResultItem& a, const SearchResultItem& b) {
-            return a.relevanceScore > b.relevanceScore;
-        });
-
-    // 分页
-    result.total = result.items.size();
-    result.totalPages = (result.total + limit - 1) / limit;
-
-    size_t start = (page - 1) * limit;
-    size_t end = std::min(start + limit, result.items.size());
-
-    if (start < result.items.size()) {
-        result.items = std::vector<SearchResultItem>(
-            result.items.begin() + start,
-            result.items.begin() + end
-        );
+        // 获取总数
+        result.total = impl_->getTotalCount(query);
+        result.totalPages = (result.total + limit - 1) / limit;
     } else {
-        result.items.clear();
+        std::cerr << "[SearchAPI] Warning: No database connection, returning empty results" << std::endl;
+        result.total = 0;
+        result.totalPages = 0;
     }
 
-    // 计算搜索时间
     auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
-    result.searchTimeMs = duration.count() / 1000.0;
-
-    // 更新统计
-    updateQueryFrequency(query);
-    stats_.totalSearches++;
-    stats_.todaySearches++;
+    double searchTime = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+    result.searchTimeMs = searchTime;
 
     return result;
 }

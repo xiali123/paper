@@ -27,11 +27,12 @@ enum class ModuleType {
  * @brief Module lifecycle state
  */
 enum class ModuleState {
-    UNLOADED,   // Module not loaded
-    LOADED,     // Module loaded
-    STARTED,    // Module started
-    STOPPED,    // Module stopped
-    FAILED      // Error state
+    UNLOADED,    // Module not loaded
+    LOADED,      // Module loaded
+    INITIALIZED, // Module initialized
+    STARTED,     // Module started
+    STOPPED,     // Module stopped
+    FAILED       // Error state
 };
 
 /**

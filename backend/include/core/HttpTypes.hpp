@@ -4,6 +4,7 @@
 #include <map>
 #include <functional>
 #include <vector>
+#include <cstdint>
 
 namespace PaperCrawler {
 

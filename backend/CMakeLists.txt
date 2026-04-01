@@ -253,45 +253,24 @@ target_link_libraries(PaperCrawlerServer
 # Link CURL library
 # Note: Using DLL import library for MSVC compatibility
 if(CURL_FOUND)
-    # For MSVC builds, we need the DLL import library
-    if(MSVC)
-        target_link_libraries(PaperCrawlerServer PRIVATE
-            ${CURL_DIR}/lib/libcurl.dll.a
-        )
-        # Copy curl DLL and certificate bundle to output directory
-        add_custom_command(TARGET PaperCrawlerServer POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CURL_DIR}/bin/libcurl-x64.dll
-                $<TARGET_FILE_DIR:PaperCrawlerServer>/libcurl-x64.dll
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${CURL_DIR}/bin/curl-ca-bundle.crt
-                $<TARGET_FILE_DIR:PaperCrawlerServer>/
-            COMMENT "Copying libcurl-x64.dll and certificates to output directory"
-        )
-    else()
-        # For MinGW/GCC, use static libraries
-        target_link_libraries(PaperCrawlerServer PRIVATE
-            # OpenSSL (explicitly link for password hashing)
-            ${CURL_DIR}/lib/libcrypto.a
-            ${CURL_DIR}/lib/libssl.a
-            # HTTP/2 and HTTP/3 support
-            ${CURL_DIR}/lib/libnghttp2.a
-            ${CURL_DIR}/lib/libnghttp3.a
-            ${CURL_DIR}/lib/libngtcp2.a
-            ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
-            # SSH support
-            ${CURL_DIR}/lib/libssh2.a
-            # Compression
-            ${CURL_DIR}/lib/libbrotlicommon.a
-            ${CURL_DIR}/lib/libbrotlidec.a
-            ${CURL_DIR}/lib/libz.a
-            ${CURL_DIR}/lib/libzstd.a
-            # Other dependencies
-            ${CURL_DIR}/lib/libpsl.a
-            # Main curl library MUST BE LAST
-            ${CURL_DIR}/lib/libcurl.a
-        )
-    endif()
+    # For MinGW/GCC, use DLL import library
+    target_link_libraries(PaperCrawlerServer PRIVATE
+        # DLL import library for curl
+        ${CURL_DIR}/lib/libcurl.dll.a
+        # Dependencies for static linking
+        ${CURL_DIR}/lib/libcrypto.a
+        ${CURL_DIR}/lib/libssl.a
+        ${CURL_DIR}/lib/libnghttp2.a
+        ${CURL_DIR}/lib/libnghttp3.a
+        ${CURL_DIR}/lib/libngtcp2.a
+        ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
+        ${CURL_DIR}/lib/libssh2.a
+        ${CURL_DIR}/lib/libbrotlicommon.a
+        ${CURL_DIR}/lib/libbrotlidec.a
+        ${CURL_DIR}/lib/libz.a
+        ${CURL_DIR}/lib/libzstd.a
+        ${CURL_DIR}/lib/libpsl.a
+    )
 endif()
 
 # Platform specific
@@ -303,12 +282,17 @@ if(WIN32)
         _WINSOCK_DEPRECATED_NO_WARNINGS
         CURL_STATIC
     )
-    target_compile_options(PaperCrawlerServer PRIVATE /utf-8)
+    if(MSVC)
+        target_compile_options(PaperCrawlerServer PRIVATE /utf-8)
+    else()
+        # MinGW/GCC默认使用UTF-8，不需要特殊标志
+    endif()
     target_link_libraries(PaperCrawlerServer
         PRIVATE
             ws2_32
             wsock32
             crypt32
+            ucrt
             "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
     )
 endif()
@@ -372,7 +356,11 @@ if(WIN32)
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
     )
-    target_compile_options(SystemModules PUBLIC /utf-8)
+    if(MSVC)
+        target_compile_options(SystemModules PUBLIC /utf-8)
+    else()
+        # MinGW/GCC默认使用UTF-8，不需要特殊标志
+    endif()
 endif()
 
 # 辅助函数：编译业务模块为对象库（用于静态链接）
@@ -393,7 +381,11 @@ function(add_business_module MODULE_NAME SOURCES_LIST)
             NOMINMAX
             _CRT_SECURE_NO_WARNINGS
         )
-        target_compile_options(${MODULE_NAME} PUBLIC /utf-8)
+        if(MSVC)
+            target_compile_options(${MODULE_NAME} PUBLIC /utf-8)
+        else()
+            # MinGW/GCC默认使用UTF-8，不需要特殊标志
+        endif()
     endif()
 
     target_sources(PaperCrawlerServer PRIVATE $<TARGET_OBJECTS:${MODULE_NAME}>)
@@ -466,7 +458,11 @@ function(add_dynamic_module MODULE_NAME SOURCES_LIST)
             NOMINMAX
             _CRT_SECURE_NO_WARNINGS
         )
-        target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+        if(MSVC)
+            target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+        else()
+            # MinGW/GCC默认使用UTF-8，不需要特殊标志
+        endif()
     endif()
 
     message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
@@ -497,7 +493,11 @@ function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
             NOMINMAX
             _CRT_SECURE_NO_WARNINGS
         )
-        target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+        if(MSVC)
+            target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
+        else()
+            # MinGW/GCC默认使用UTF-8，不需要特殊标志
+        endif()
     endif()
 
     message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with SystemModules)")

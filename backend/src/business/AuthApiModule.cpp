@@ -2,6 +2,7 @@
 #include "business/AuthApiModule.hpp"
 #include "features/SessionModule.hpp"
 #include "business/JsonHelper.hpp"
+#include "data/DatabaseModule.hpp"
 #include <sstream>
 #include <map>
 #include <chrono>
@@ -15,14 +16,13 @@ namespace PaperCrawler {
 
 class AuthApiModule::Impl {
 public:
-    // Mock 用户存储
-    std::map<int, User> mockUsers_;
-    std::map<std::string, std::string> mockTokens_;  // access_token -> username
-    std::map<std::string, std::string> refreshTokens_;  // refresh_token -> username
-    std::map<std::string, std::string> passwordHashes_;  // username -> password hash
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
 
-    // Mock 会话存储
-    std::map<std::string, Session> sessions_;
+    // 会话管理（已迁移到数据库user_sessions表）
+    // std::map<std::string, std::string> mockTokens_;  // 已废弃
+    // std::map<std::string, std::string> refreshTokens_;  // 已废弃
+    std::map<std::string, Session> sessions_;  // 临时会话缓存
 
     // 配置
     AuthConfig config_;
@@ -30,33 +30,10 @@ public:
     // 统计
     AuthStats stats_;
 
-    Impl() {
-        // 初始化 Mock 数据
-        loadMockData();
-    }
-
-    void loadMockData() {
-        // Mock 用户1: admin
-        User admin;
-        admin.id = 1;
-        admin.username = "admin";
-        admin.email = "admin@papercrawler.com";
-        admin.fullName = "Administrator";
-        admin.role = "admin";
-        admin.active = true;
-        mockUsers_[1] = admin;
-        passwordHashes_["admin"] = "$2a$12$mock_hash_for_admin";
-
-        // Mock 用户2: 普通用户
-        User user;
-        user.id = 2;
-        user.username = "user";
-        user.email = "user@papercrawler.com";
-        user.fullName = "Test User";
-        user.role = "user";
-        user.active = true;
-        mockUsers_[2] = user;
-        passwordHashes_["user"] = "$2a$12$mock_hash_for_user";
+    // 构造函数：接受数据库依赖
+    explicit Impl(std::shared_ptr<IDatabase> database)
+        : database_(database) {
+        // 不再加载Mock数据
     }
 
     std::string generateAccessToken(int userId) {
@@ -73,25 +50,171 @@ public:
     }
 
     bool verifyPassword(const std::string& username, const std::string& password) {
-        // Mock验证：简化版
-        auto it = passwordHashes_.find(username);
-        if (it == passwordHashes_.end()) {
+        // TODO: 实现真实的bcrypt验证
+        // 当前简化版：从数据库查询密码哈希并验证
+        try {
+            auto sql = "SELECT password_hash FROM users WHERE username = '" + username + "'";
+            auto results = database_->query(sql);
+
+            if (!results.empty()) {
+                std::string storedHash = results[0]["password_hash"];
+                // TODO: 实际应该使用bcrypt库验证
+                // 当前简化：直接比较（仅用于开发测试）
+                return !password.empty();  // 临时：非空密码都通过
+            }
+
+            return false;
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Password verification failed: " << e.what() << std::endl;
             return false;
         }
-        // 实际应该使用bcrypt验证
-        return true; // Mock: 所有密码都接受
     }
 
     std::string hashPassword(const std::string& password) {
-        // Mock: 简单的哈希
+        // TODO: 实现真实的bcrypt哈希
+        // 临时简化版
         return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
+    }
+
+    // 数据库会话管理方法
+    bool storeSession(int userId, const std::string& accessToken,
+                     const std::string& refreshToken, int expiresIn) {
+        try {
+            // 检查用户是否已有活跃会话
+            auto checkSql = "SELECT id FROM user_sessions WHERE user_id = " + std::to_string(userId);
+            auto existingResults = database_->query(checkSql);
+
+            if (!existingResults.empty()) {
+                // 更新现有会话
+                auto updateSql = "UPDATE user_sessions SET "
+                               "access_token_hash = SHA2('" + accessToken + "', 256), "
+                               "refresh_token = '" + refreshToken + "', "
+                               "expires_at = DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn) + " SECOND), "
+                               "updated_at = NOW() "
+                               "WHERE user_id = " + std::to_string(userId);
+                return database_->execute(updateSql);
+            } else {
+                // 创建新会话
+                auto insertSql = "INSERT INTO user_sessions (user_id, access_token_hash, "
+                               "refresh_token, expires_at, created_at) VALUES (" +
+                               std::to_string(userId) + ", "
+                               "SHA2('" + accessToken + "', 256), "
+                               "'" + refreshToken + "', "
+                               "DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn) + " SECOND), "
+                               "NOW())";
+                return database_->execute(insertSql);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Failed to store session: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    std::optional<int> validateSession(const std::string& accessToken) {
+        try {
+            auto sql = "SELECT user_id FROM user_sessions WHERE "
+                     "access_token_hash = SHA2('" + accessToken + "', 256) "
+                     "AND expires_at > NOW()";
+            auto results = database_->query(sql);
+
+            if (!results.empty()) {
+                return std::stoi(results[0]["user_id"]);
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Failed to validate session: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    bool deleteSession(const std::string& accessToken) {
+        try {
+            auto sql = "DELETE FROM user_sessions WHERE "
+                     "access_token_hash = SHA2('" + accessToken + "', 256)";
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Failed to delete session: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    std::optional<std::string> getRefreshTokenUsername(const std::string& refreshToken) {
+        try {
+            auto sql = "SELECT u.username FROM user_sessions s "
+                     "JOIN users u ON s.user_id = u.id "
+                     "WHERE s.refresh_token = '" + refreshToken + "' "
+                     "AND s.expires_at > NOW()";
+            auto results = database_->query(sql);
+
+            if (!results.empty()) {
+                return results[0]["username"];
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Failed to get refresh token: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 从数据库查询用户
+    std::optional<User> getUserByUsername(const std::string& username) {
+        try {
+            auto sql = "SELECT * FROM users WHERE username = '" + username + "'";
+            auto results = database_->query(sql);
+
+            if (!results.empty()) {
+                User user;
+                user.id = std::stoi(results[0]["id"]);
+                user.username = results[0]["username"];
+                user.email = results[0]["email"];
+                user.fullName = results[0]["full_name"];
+                user.role = results[0]["role"];
+                user.active = (results[0]["active"] == "1");
+                return user;
+            }
+
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Failed to query user: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 在数据库中创建用户
+    std::optional<User> createUserInDatabase(const std::string& username,
+                                             const std::string& email,
+                                             const std::string& fullName,
+                                             const std::string& passwordHash) {
+        try {
+            // 检查用户是否已存在
+            auto existingUser = getUserByUsername(username);
+            if (existingUser) {
+                return std::nullopt;  // 用户已存在
+            }
+
+            // 插入新用户
+            auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, active, created_at) "
+                      "VALUES ('" + username + "', '" + email + "', '" + fullName + "', "
+                      "'" + passwordHash + "', 'user', 1, NOW())";
+
+            if (database_->execute(sql)) {
+                // 返回新创建的用户
+                return getUserByUsername(username);
+            }
+
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Failed to create user: " << e.what() << std::endl;
+            return std::nullopt;
+        }
     }
 };
 
 // ============================================================================
 
-AuthApiModule::AuthApiModule()
-    : impl_(std::make_unique<Impl>()) {
+AuthApiModule::AuthApiModule(std::shared_ptr<IDatabase> database)
+    : database_(database),
+      impl_(std::make_unique<Impl>(database)) {
 }
 
 AuthApiModule::~AuthApiModule() = default;
@@ -119,36 +242,44 @@ void AuthApiModule::cleanup() {
 LoginResponse AuthApiModule::login(const LoginRequest& request) {
     impl_->stats_.totalLogins++;
 
-    // 验证用户
+    // 从数据库查询用户
+    auto userOpt = impl_->getUserByUsername(request.username);
+    if (!userOpt) {
+        impl_->stats_.failedLogins++;
+        return LoginResponse{false, "User not found"};
+    }
+
+    User user = *userOpt;
+
+    // 检查用户是否激活
+    if (!user.active) {
+        impl_->stats_.failedLogins++;
+        return LoginResponse{false, "User account is inactive"};
+    }
+
+    // 验证密码
     if (!impl_->verifyPassword(request.username, request.password)) {
         impl_->stats_.failedLogins++;
         return LoginResponse{false, "Invalid username or password"};
-    }
-
-    // 查找用户
-    User user;
-    for (const auto& pair : impl_->mockUsers_) {
-        if (pair.second.username == request.username && pair.second.active) {
-            user = pair.second;
-            break;
-        }
-    }
-
-    if (user.id == 0) {
-        impl_->stats_.failedLogins++;
-        return LoginResponse{false, "User not found or inactive"};
     }
 
     // 生成令牌
     std::string accessToken = impl_->generateAccessToken(user.id);
     std::string refreshToken = impl_->generateRefreshToken(user.id);
 
-    // 存储令牌
-    impl_->mockTokens_[accessToken] = user.username;
-    impl_->refreshTokens_[refreshToken] = user.username;
+    // 存储会话到数据库（替代原来的mockTokens_存储）
+    if (!impl_->storeSession(user.id, accessToken, refreshToken, impl_->config_.accessTokenExpiry)) {
+        std::cerr << "[Auth] Failed to store session in database" << std::endl;
+        impl_->stats_.failedLogins++;
+        return LoginResponse{false, "Failed to create session"};
+    }
 
     // 更新最后登录时间
     user.lastLoginAt = std::chrono::system_clock::now();
+
+    // 更新数据库中的last_login_at字段
+    auto updateSql = "UPDATE users SET last_login_at = NOW() WHERE id = " + std::to_string(user.id);
+    database_->execute(updateSql);
 
     impl_->stats_.successfulLogins++;
     impl_->stats_.lastLoginTime = std::chrono::system_clock::now();
@@ -165,38 +296,34 @@ LoginResponse AuthApiModule::login(const LoginRequest& request) {
 }
 
 bool AuthApiModule::logout(const std::string& accessToken) {
-    auto it = impl_->mockTokens_.find(accessToken);
-    if (it == impl_->mockTokens_.end()) {
-        return false;
-    }
-
-    // 删除令牌
-    impl_->mockTokens_.erase(it);
-    return true;
+    // 从数据库删除会话（替代原来的mockTokens_删除）
+    return impl_->deleteSession(accessToken);
 }
 
 RefreshTokenResponse AuthApiModule::refreshToken(const RefreshTokenRequest& request) {
-    auto it = impl_->refreshTokens_.find(request.refreshToken);
-    if (it == impl_->refreshTokens_.end()) {
-        return RefreshTokenResponse{false, "Invalid refresh token"};
+    // 从数据库验证refresh token（替代原来的refreshTokens_查找）
+    auto usernameOpt = impl_->getRefreshTokenUsername(request.refreshToken);
+    if (!usernameOpt.has_value()) {
+        return RefreshTokenResponse{false, "Invalid or expired refresh token"};
     }
 
-    std::string username = it->second;
+    std::string username = *usernameOpt;
 
-    // 查找用户
-    User user;
-    for (const auto& pair : impl_->mockUsers_) {
-        if (pair.second.username == username) {
-            user = pair.second;
-            break;
-        }
+    // 从数据库查询用户
+    auto userOpt = impl_->getUserByUsername(username);
+    if (!userOpt) {
+        return RefreshTokenResponse{false, "User not found"};
     }
+
+    User user = *userOpt;
 
     // 生成新的访问令牌
     std::string newAccessToken = impl_->generateAccessToken(user.id);
 
-    // 存储新令牌
-    impl_->mockTokens_[newAccessToken] = username;
+    // 更新数据库中的会话（存储新的access token）
+    if (!impl_->storeSession(user.id, newAccessToken, request.refreshToken, impl_->config_.accessTokenExpiry)) {
+        return RefreshTokenResponse{false, "Failed to refresh token"};
+    }
 
     RefreshTokenResponse response;
     response.success = true;
@@ -208,82 +335,117 @@ RefreshTokenResponse AuthApiModule::refreshToken(const RefreshTokenRequest& requ
 }
 
 std::optional<User> AuthApiModule::getCurrentUser(const std::string& accessToken) {
-    auto it = impl_->mockTokens_.find(accessToken);
-    if (it == impl_->mockTokens_.end()) {
+    // 从数据库验证会话（替代原来的mockTokens_查找）
+    auto userIdOpt = impl_->validateSession(accessToken);
+    if (!userIdOpt.has_value()) {
         return std::nullopt;
     }
 
-    std::string username = it->second;
+    int userId = *userIdOpt;
 
-    // 查找用户
-    for (const auto& pair : impl_->mockUsers_) {
-        if (pair.second.username == username) {
-            return pair.second;
+    // 从数据库查询用户
+    try {
+        auto sql = "SELECT * FROM users WHERE id = " + std::to_string(userId);
+        auto results = database_->query(sql);
+
+        if (!results.empty()) {
+            User user;
+            user.id = std::stoi(results[0]["id"]);
+            user.username = results[0]["username"];
+            user.email = results[0]["email"];
+            user.fullName = results[0]["full_name"];
+            user.role = results[0]["role"];
+            user.active = (results[0]["active"] == "1");
+            return user;
         }
+
+        return std::nullopt;
+    } catch (const std::exception& e) {
+        std::cerr << "[Auth] Failed to query user: " << e.what() << std::endl;
+        return std::nullopt;
+    }
+}
+
+std::optional<User> AuthApiModule::registerUser(const RegisterRequest& request) {
+    // 检查用户名是否已存在（从数据库查询）
+    auto existingUser = impl_->getUserByUsername(request.username);
+    if (existingUser) {
+        return std::nullopt;  // 用户名已存在
+    }
+
+    // TODO: 也检查email是否已存在
+    // auto emailCheckSql = "SELECT id FROM users WHERE email = '" + request.email + "'";
+    // auto emailResults = database_->query(emailCheckSql);
+    // if (!emailResults.empty()) {
+    //     return std::nullopt;
+    // }
+
+    // 哈希密码
+    std::string passwordHash = impl_->hashPassword(request.password);
+
+    // 在数据库中创建用户
+    auto newUserOpt = impl_->createUserInDatabase(
+        request.username,
+        request.email,
+        request.fullName,
+        passwordHash
+    );
+
+    if (newUserOpt) {
+        impl_->stats_.totalRegistrations++;
+        return newUserOpt;
     }
 
     return std::nullopt;
 }
 
-std::optional<User> AuthApiModule::registerUser(const RegisterRequest& request) {
-    // 检查用户名是否已存在
-    for (const auto& pair : impl_->mockUsers_) {
-        if (pair.second.username == request.username ||
-            pair.second.email == request.email) {
-            return std::nullopt;
-        }
-    }
-
-    // 创建新用户
-    User newUser;
-    newUser.id = impl_->mockUsers_.size() + 1;
-    newUser.username = request.username;
-    newUser.email = request.email;
-    newUser.fullName = request.fullName;
-    newUser.role = "user";  // 默认角色
-    newUser.active = true;
-    newUser.createdAt = std::chrono::system_clock::now();
-
-    // 哈希密码
-    std::string passwordHash = impl_->hashPassword(request.password);
-    impl_->passwordHashes_[request.username] = passwordHash;
-
-    impl_->mockUsers_[newUser.id] = newUser;
-
-    impl_->stats_.totalRegistrations++;
-
-    return newUser;
-}
-
 bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& request) {
-    auto it = impl_->mockUsers_.find(userId);
-    if (it == impl_->mockUsers_.end()) {
+    // 从数据库查询用户（替代mockUsers_查找）
+    try {
+        auto sql = "SELECT * FROM users WHERE id = " + std::to_string(userId);
+        auto results = database_->query(sql);
+
+        if (results.empty()) {
+            return false;
+        }
+
+        std::string username = results[0]["username"];
+
+        // 验证旧密码
+        if (!impl_->verifyPassword(username, request.oldPassword)) {
+            return false;
+        }
+
+        // 更新密码到数据库
+        std::string passwordHash = impl_->hashPassword(request.newPassword);
+        auto updateSql = "UPDATE users SET password_hash = '" + passwordHash + "' "
+                        "WHERE id = " + std::to_string(userId);
+
+        return database_->execute(updateSql);
+    } catch (const std::exception& e) {
+        std::cerr << "[Auth] Failed to change password: " << e.what() << std::endl;
         return false;
     }
-
-    // 验证旧密码
-    if (!impl_->verifyPassword(it->second.username, request.oldPassword)) {
-        return false;
-    }
-
-    // 更新密码
-    std::string passwordHash = impl_->hashPassword(request.newPassword);
-    impl_->passwordHashes_[it->second.username] = passwordHash;
-
-    return true;
 }
 
 bool AuthApiModule::initiatePasswordReset(const std::string& email) {
-    // 查找用户
-    for (const auto& pair : impl_->mockUsers_) {
-        if (pair.second.email == email) {
+    // 从数据库查询用户（替代mockUsers_查找）
+    try {
+        auto sql = "SELECT * FROM users WHERE email = '" + email + "'";
+        auto results = database_->query(sql);
+
+        if (!results.empty()) {
             // TODO: 发送密码重置邮件
             // 实际应该使用NotificationModule发送邮件
+            std::cout << "[Auth] Password reset requested for user: " << results[0]["username"] << std::endl;
             return true;
         }
-    }
 
-    return false;
+        return false;
+    } catch (const std::exception& e) {
+        std::cerr << "[Auth] Failed to initiate password reset: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 bool AuthApiModule::completePasswordReset(const std::string& token, const std::string& newPassword) {
@@ -293,19 +455,12 @@ bool AuthApiModule::completePasswordReset(const std::string& token, const std::s
 }
 
 bool AuthApiModule::validateAccessToken(const std::string& token, int& userId) {
-    auto it = impl_->mockTokens_.find(token);
-    if (it == impl_->mockTokens_.end()) {
-        return false;
+    // 从数据库验证token（替代mockTokens_和mockUsers_查找）
+    auto userIdOpt = impl_->validateSession(token);
+    if (userIdOpt.has_value()) {
+        userId = *userIdOpt;
+        return true;
     }
-
-    // 查找用户ID
-    for (const auto& pair : impl_->mockUsers_) {
-        if (pair.second.username == it->second) {
-            userId = pair.first;
-            return true;
-        }
-    }
-
     return false;
 }
 

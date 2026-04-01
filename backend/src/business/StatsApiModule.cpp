@@ -148,13 +148,52 @@ std::string PerformanceMetrics::toJSON() const {
 
 class StatsApiModule::Impl {
 public:
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
+
     SystemInfo systemInfo;
     SystemResources currentResources;
     std::chrono::system_clock::time_point startTime_;
 
-    Impl() {
-        startTime_ = std::chrono::system_clock::now();
+    Impl(std::shared_ptr<IDatabase> database)
+        : database_(database), startTime_(std::chrono::system_clock::now()) {
         collectSystemInfo();
+    }
+
+    Impl() : Impl(nullptr) {}  // 保持兼容性
+
+    // 从数据库获取统计信息
+    int getUserCount() {
+        if (!database_) return 0;
+        try {
+            auto results = database_->query("SELECT COUNT(*) as count FROM users");
+            if (!results.empty()) {
+                return std::stoi(results[0]["count"]);
+            }
+        } catch (...) {}
+        return 0;
+    }
+
+    int getPaperCount() {
+        if (!database_) return 0;
+        try {
+            auto results = database_->query("SELECT COUNT(*) as count FROM papers");
+            if (!results.empty()) {
+                return std::stoi(results[0]["count"]);
+            }
+        } catch (...) {}
+        return 0;
+    }
+
+    int getSessionCount() {
+        if (!database_) return 0;
+        try {
+            auto results = database_->query("SELECT COUNT(*) as count FROM user_sessions WHERE expires_at > NOW()");
+            if (!results.empty()) {
+                return std::stoi(results[0]["count"]);
+            }
+        } catch (...) {}
+        return 0;
     }
 
     void collectSystemInfo() {
@@ -364,10 +403,17 @@ std::optional<ModuleInfo> StatsApiModule::getModule(const std::string& moduleNam
 PerformanceMetrics StatsApiModule::getPerformanceMetrics() {
     PerformanceMetrics metrics;
 
-    // Mock数据
-    metrics.requestCounts["HttpServer"] = 1000;
-    metrics.requestCounts["PaperApi"] = 500;
-    metrics.requestCounts["AuthApi"] = 200;
+    // 使用真实数据库数据（如果有数据库连接）
+    if (impl_->database_) {
+        metrics.requestCounts["Users"] = impl_->getUserCount();
+        metrics.requestCounts["Papers"] = impl_->getPaperCount();
+        metrics.requestCounts["ActiveSessions"] = impl_->getSessionCount();
+    } else {
+        // 降级到Mock数据
+        metrics.requestCounts["HttpServer"] = 1000;
+        metrics.requestCounts["PaperApi"] = 500;
+        metrics.requestCounts["AuthApi"] = 200;
+    }
 
     metrics.averageResponseTimes["HttpServer"] = std::chrono::microseconds(15000);
     metrics.averageResponseTimes["PaperApi"] = std::chrono::microseconds(25000);

@@ -48,12 +48,57 @@ std::string ExportTask::toJson() const {
 
 class ExportApiModule::Impl {
 public:
-    Impl() {
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
+
+    Impl(std::shared_ptr<IDatabase> database)
+        : database_(database) {
         // 初始化导出目录
         std::filesystem::create_directories("./exports");
     }
 
-    std::map<int, Paper> mockPapers;
+    Impl() : Impl(nullptr) {}  // 保持兼容性
+
+    // 从数据库获取论文用于导出
+    std::vector<Paper> getPapersForExport(const std::vector<int>& paperIds) {
+        std::vector<Paper> papers;
+        if (!database_) {
+            std::cerr << "[ExportAPI] No database connection" << std::endl;
+            return papers;
+        }
+
+        try {
+            // 构建IN子句
+            std::string idsStr;
+            for (size_t i = 0; i < paperIds.size(); ++i) {
+                if (i > 0) idsStr += ",";
+                idsStr += std::to_string(paperIds[i]);
+            }
+
+            std::string sql = "SELECT * FROM papers WHERE id IN (" + idsStr + ")";
+            auto results = database_->query(sql);
+
+            for (const auto& row : results) {
+                Paper paper;
+                paper.id = std::stoi(row.at("id"));
+                paper.title = row.at("title");
+                paper.authors = row.at("authors");
+                paper.year = std::stoi(row.at("year"));
+                paper.abstract = row.count("abstract") ? row.at("abstract") : "";
+                paper.journal = row.count("journal") ? row.at("journal") : "";
+                paper.volume = row.count("volume") ? row.at("volume") : "";
+                paper.issue = row.count("issue") ? row.at("issue") : "";
+                paper.pages = row.count("pages") ? row.at("pages") : "";
+                paper.doi = row.count("doi") ? row.at("doi") : "";
+                paper.url = row.count("url") ? row.at("url") : "";
+                paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                papers.push_back(paper);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[ExportAPI] Failed to get papers: " << e.what() << std::endl;
+        }
+        return papers;
+    }
 };
 
 // ============================================================================
@@ -505,7 +550,10 @@ bool ExportApiModule::processExportTask(ExportTask& task) {
 
     // 获取论文数据
     std::vector<Paper> papers;
-    // TODO: 从PaperApiModule获取论文
+    // 从数据库获取论文（如果有数据库连接）
+    if (impl_->database_) {
+        papers = impl_->getPapersForExport(task.paperIds);
+    }
 
     // 执行导出
     std::string content;

@@ -194,7 +194,7 @@ protected:
             case ModuleState::INITIALIZED: return "INITIALIZED";
             case ModuleState::STARTED: return "STARTED";
             case ModuleState::STOPPED: return "STOPPED";
-            case ModuleState::ERROR: return "ERROR";
+            case ModuleState::FAILED: return "FAILED";
             default: return "UNKNOWN";
         }
     }

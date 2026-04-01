@@ -1,5 +1,6 @@
 #include <iostream>
 #include "business/UserApiModule.hpp"
+#include "data/DatabaseModule.hpp"
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
@@ -49,55 +50,276 @@ std::string User::toJson() const {
 
 class UserApiModule::Impl {
 public:
-    Impl() {
-        loadMockData();
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
+
+    // 构造函数：接受数据库依赖
+    explicit Impl(std::shared_ptr<IDatabase> database)
+        : database_(database) {
+        // 不再加载Mock数据
     }
 
-    void loadMockData() {
-        // 创建管理员用户
-        User admin;
-        admin.id = 1;
-        admin.username = "admin";
-        admin.email = "admin@papercrawler.com";
-        admin.fullName = "System Administrator";
-        admin.passwordHash = "$2b$12$mock_hash_for_admin";
-        admin.role = UserRole::ADMIN;
-        admin.status = UserStatus::ACTIVE;
-        admin.createdAt = std::chrono::system_clock::now();
-        admin.updatedAt = admin.createdAt;
-        admin.lastLoginAt = admin.createdAt;
-        admin.bio = "System administrator account";
+    // 从数据库行构建User对象
+    User userFromDbRow(const std::map<std::string, std::string>& row) {
+        User user;
+        user.id = std::stoi(row.at("id"));
+        user.username = row.at("username");
+        user.email = row.at("email");
+        user.fullName = row.count("full_name") ? row.at("full_name") : "";
+        user.passwordHash = row.count("password_hash") ? row.at("password_hash") : "";
 
-        // 创建测试用户
-        User user1;
-        user1.id = 2;
-        user1.username = "researcher";
-        user1.email = "researcher@example.com";
-        user1.fullName = "Dr. Research User";
-        user1.passwordHash = "$2b$12$mock_hash_for_user";
-        user1.role = UserRole::USER;
-        user1.status = UserStatus::ACTIVE;
-        user1.createdAt = std::chrono::system_clock::now();
-        user1.updatedAt = user1.createdAt;
-        user1.lastLoginAt = user1.createdAt;
-        user1.bio = "Academic researcher";
+        // 解析角色
+        std::string roleStr = row.at("role");
+        if (roleStr == "admin") user.role = UserRole::ADMIN;
+        else if (roleStr == "user") user.role = UserRole::USER;
+        else user.role = UserRole::GUEST;
+
+        // 解析状态
+        std::string statusStr = row.at("is_active");
+        if (statusStr == "1") user.status = UserStatus::ACTIVE;
+        else user.status = UserStatus::INACTIVE;
+
+        // 可选字段
+        user.avatarUrl = row.count("avatar_url") ? row.at("avatar_url") : "";
+        user.bio = row.count("biography") ? row.at("biography") : "";
+
+        return user;
     }
 
-    std::map<int, User> mockUsers;
+    // 从数据库获取用户
+    std::optional<User> getUserFromDatabase(int id) {
+        try {
+            auto sql = "SELECT * FROM users WHERE id = " + std::to_string(id);
+            auto results = database_->query(sql);
+            if (!results.empty()) {
+                return userFromDbRow(results[0]);
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to query user: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 从数据库获取用户（通过用户名）
+    std::optional<User> getUserByUsernameFromDatabase(const std::string& username) {
+        try {
+            auto sql = "SELECT * FROM users WHERE username = '" + username + "'";
+            auto results = database_->query(sql);
+            if (!results.empty()) {
+                return userFromDbRow(results[0]);
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to query user by username: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 从数据库获取用户（通过邮箱）
+    std::optional<User> getUserByEmailFromDatabase(const std::string& email) {
+        try {
+            auto sql = "SELECT * FROM users WHERE email = '" + email + "'";
+            auto results = database_->query(sql);
+            if (!results.empty()) {
+                return userFromDbRow(results[0]);
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to query user by email: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 从数据库列出用户
+    std::vector<User> listUsersFromDatabase(const UserQuery& query) {
+        std::vector<User> users;
+        try {
+            std::string sql = "SELECT * FROM users WHERE 1=1";
+
+            // 应用过滤条件
+            if (query.roleFilter != UserRole::GUEST) {
+                std::string role = (query.roleFilter == UserRole::ADMIN) ? "admin" : "user";
+                sql += " AND role = '" + role + "'";
+            }
+
+            if (query.statusFilter != UserStatus::PENDING) {
+                bool active = (query.statusFilter == UserStatus::ACTIVE);
+                sql += " AND is_active = " + std::string(active ? "1" : "0");
+            }
+
+            if (!query.search.empty()) {
+                sql += " AND (username LIKE '%" + query.search + "%' OR "
+                       "email LIKE '%" + query.search + "%' OR "
+                       "full_name LIKE '%" + query.search + "%')";
+            }
+
+            // 应用排序
+            sql += " ORDER BY " + query.sortBy + " " + query.sortOrder;
+
+            // 应用分页
+            int offset = (query.page - 1) * query.limit;
+            sql += " LIMIT " + std::to_string(query.limit) + " OFFSET " + std::to_string(offset);
+
+            auto results = database_->query(sql);
+            for (const auto& row : results) {
+                users.push_back(userFromDbRow(row));
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to list users: " << e.what() << std::endl;
+        }
+        return users;
+    }
+
+    // 在数据库中创建用户
+    std::optional<User> createUserInDatabase(const UserCreateRequest& request) {
+        try {
+            // 检查用户名是否已存在
+            auto existingUser = getUserByUsernameFromDatabase(request.username);
+            if (existingUser) {
+                return std::nullopt;  // 用户名已存在
+            }
+
+            // 检查邮箱是否已存在
+            auto existingEmail = getUserByEmailFromDatabase(request.email);
+            if (existingEmail) {
+                return std::nullopt;  // 邮箱已存在
+            }
+
+            // 哈希密码
+            std::string passwordHash = hashPassword(request.password);
+
+            // 插入用户
+            std::string role = (request.role == UserRole::ADMIN) ? "admin" : "user";
+            auto sql = "INSERT INTO users (username, email, full_name, password_hash, "
+                      "role, is_active, created_at) VALUES ('" +
+                      request.username + "', '" + request.email + "', '" +
+                      request.fullName + "', '" + passwordHash + "', '" +
+                      role + "', 1, NOW())";
+
+            if (database_->execute(sql)) {
+                // 返回新创建的用户
+                return getUserByUsernameFromDatabase(request.username);
+            }
+
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to create user: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 在数据库中更新用户
+    bool updateUserInDatabase(int id, const UserUpdateRequest& request) {
+        try {
+            std::vector<std::string> updates;
+
+            if (request.email.has_value()) {
+                // 检查邮箱是否被其他用户使用
+                auto emailCheckSql = "SELECT id FROM users WHERE email = '" + request.email.value() + "' AND id != " + std::to_string(id);
+                auto emailResults = database_->query(emailCheckSql);
+                if (!emailResults.empty()) {
+                    return false;  // 邮箱已被其他用户使用
+                }
+                updates.push_back("email = '" + request.email.value() + "'");
+            }
+
+            if (request.fullName.has_value()) {
+                updates.push_back("full_name = '" + request.fullName.value() + "'");
+            }
+
+            if (request.bio.has_value()) {
+                updates.push_back("biography = '" + request.bio.value() + "'");
+            }
+
+            if (request.avatarUrl.has_value()) {
+                updates.push_back("avatar_url = '" + request.avatarUrl.value() + "'");
+            }
+
+            if (updates.empty()) {
+                return false;
+            }
+
+            // 构建 UPDATE 语句
+            std::string sql = "UPDATE users SET ";
+            for (size_t i = 0; i < updates.size(); ++i) {
+                if (i > 0) sql += ", ";
+                sql += updates[i];
+            }
+            sql += ", updated_at = NOW() WHERE id = " + std::to_string(id);
+
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to update user: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    // 在数据库中删除用户
+    bool deleteUserFromDatabase(int id) {
+        try {
+            auto sql = "DELETE FROM users WHERE id = " + std::to_string(id);
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to delete user: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    // 密码哈希
+    std::string hashPassword(const std::string& password) {
+        // TODO: 实现真实的bcrypt哈希
+        return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
+    }
+
+    // 激活用户
+    bool activateUserInDatabase(int id) {
+        try {
+            auto sql = "UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = " + std::to_string(id);
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to activate user: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    // 暂停用户
+    bool suspendUserInDatabase(int id) {
+        try {
+            auto sql = "UPDATE users SET is_active = 0, updated_at = NOW() WHERE id = " + std::to_string(id);
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to suspend user: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    // 修改密码
+    bool changePasswordInDatabase(int id, const std::string& newPassword) {
+        try {
+            std::string passwordHash = hashPassword(newPassword);
+            auto sql = "UPDATE users SET password_hash = '" + passwordHash + "', updated_at = NOW() WHERE id = " + std::to_string(id);
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] Failed to change password: " << e.what() << std::endl;
+            return false;
+        }
+    }
 };
 
 // ============================================================================
 // UserApiModule
 // ============================================================================
 
-UserApiModule::UserApiModule()
-    : impl_(std::make_unique<Impl>()) {}
+UserApiModule::UserApiModule(std::shared_ptr<IDatabase> database)
+    : database_(database),
+      impl_(std::make_unique<Impl>(database)) {}
 
 UserApiModule::~UserApiModule() = default;
 
 bool UserApiModule::initialize() {
     std::cout << "UserApiModule initialized" << std::endl;
-    std::cout << "  - Mock users loaded: " << impl_->mockUsers.size() << std::endl;
+    // 不再显示mock users数量，改用数据库
     return true;
 }
 
@@ -112,253 +334,67 @@ bool UserApiModule::stop() {
 }
 
 void UserApiModule::cleanup() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    users_.clear();
-    usernameIndex_.clear();
-    emailIndex_.clear();
+    // 不再需要清理内存map，数据存储在数据库中
+    std::cout << "UserApiModule cleanup complete" << std::endl;
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {
-    std::vector<User> result;
-
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    for (const auto& pair : users_) {
-        const User& user = pair.second;
-
-        // 过滤条件
-        bool match = true;
-
-        // 角色过滤
-        if (query.roleFilter != UserRole::GUEST) {  // GUEST 作为"无过滤"的标记
-            if (user.role != query.roleFilter) {
-                match = false;
-            }
-        }
-
-        // 状态过滤
-        if (query.statusFilter != UserStatus::PENDING) {  // PENDING 作为"无过滤"的标记
-            if (user.status != query.statusFilter) {
-                match = false;
-            }
-        }
-
-        // 搜索过滤
-        if (!query.search.empty()) {
-            std::string searchLower = query.search;
-            std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
-
-            std::string usernameLower = user.username;
-            std::transform(usernameLower.begin(), usernameLower.end(), usernameLower.begin(), ::tolower);
-
-            std::string emailLower = user.email;
-            std::transform(emailLower.begin(), emailLower.end(), emailLower.begin(), ::tolower);
-
-            if (usernameLower.find(searchLower) == std::string::npos &&
-                emailLower.find(searchLower) == std::string::npos &&
-                user.fullName.find(query.search) == std::string::npos) {
-                match = false;
-            }
-        }
-
-        if (match) {
-            result.push_back(user);
-        }
-    }
-
-    // 排序
-    if (query.sortBy == "username") {
-        std::sort(result.begin(), result.end(),
-            [query](const User& a, const User& b) {
-                if (query.sortOrder == "ASC") {
-                    return a.username < b.username;
-                } else {
-                    return a.username > b.username;
-                }
-            });
-    } else if (query.sortBy == "email") {
-        std::sort(result.begin(), result.end(),
-            [query](const User& a, const User& b) {
-                if (query.sortOrder == "ASC") {
-                    return a.email < b.email;
-                } else {
-                    return a.email > b.email;
-                }
-            });
-    }
-
-    // 分页
-    size_t start = (query.page - 1) * query.limit;
-    size_t end = std::min(start + query.limit, result.size());
-
-    if (start >= result.size()) {
-        return {};
-    }
-
-    return std::vector<User>(result.begin() + start, result.begin() + end);
+    // 使用数据库查询（替代原来的内存map查询）
+    return impl_->listUsersFromDatabase(query);
 }
 
 std::optional<User> UserApiModule::getUser(int id) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it != users_.end()) {
-        return it->second;
-    }
-    return std::nullopt;
+    // 使用数据库查询（替代原来的内存map查找）
+    return impl_->getUserFromDatabase(id);
 }
 
 std::optional<User> UserApiModule::getUserByUsername(const std::string& username) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = usernameIndex_.find(username);
-    if (it != usernameIndex_.end()) {
-        return users_[it->second];
-    }
-    return std::nullopt;
+    // 使用数据库查询（替代原来的内存map查找）
+    return impl_->getUserByUsernameFromDatabase(username);
 }
 
 std::optional<User> UserApiModule::getUserByEmail(const std::string& email) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = emailIndex_.find(email);
-    if (it != emailIndex_.end()) {
-        return users_[it->second];
-    }
-    return std::nullopt;
+    // 使用数据库查询（替代原来的内存map查找）
+    return impl_->getUserByEmailFromDatabase(email);
 }
 
 std::optional<User> UserApiModule::createUser(const UserCreateRequest& request) {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    // 验证唯一性
-    if (!isUsernameUnique(request.username)) {
-        return std::nullopt;
-    }
-    if (!isEmailUnique(request.email)) {
-        return std::nullopt;
-    }
-
-    // 创建新用户
-    User newUser;
-    newUser.id = nextId_++;
-    newUser.username = request.username;
-    newUser.email = request.email;
-    newUser.fullName = request.fullName;
-    newUser.passwordHash = hashPassword(request.password);
-    newUser.role = request.role;
-    newUser.status = UserStatus::ACTIVE;
-    newUser.createdAt = std::chrono::system_clock::now();
-    newUser.updatedAt = newUser.createdAt;
-
-    users_[newUser.id] = newUser;
-    usernameIndex_[newUser.username] = newUser.id;
-    emailIndex_[newUser.email] = newUser.id;
-
-    std::cout << "[UserApi] Created user: " << newUser.username << " (ID: " << newUser.id << ")" << std::endl;
-
-    return newUser;
+    // 使用数据库创建用户（替代原来的内存map操作）
+    return impl_->createUserInDatabase(request);
 }
 
 bool UserApiModule::updateUser(int id, const UserUpdateRequest& request) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it == users_.end()) {
-        return false;
-    }
-
-    User& user = it->second;
-
-    if (request.email.has_value()) {
-        // 检查邮箱是否被其他用户使用
-        for (const auto& pair : users_) {
-            if (pair.first != id && pair.second.email == request.email.value()) {
-                return false;
-            }
-        }
-        user.email = request.email.value();
-    }
-
-    if (request.fullName.has_value()) {
-        user.fullName = request.fullName.value();
-    }
-
-    if (request.bio.has_value()) {
-        user.bio = request.bio.value();
-    }
-
-    if (request.avatarUrl.has_value()) {
-        user.avatarUrl = request.avatarUrl.value();
-    }
-
-    if (request.preferences.has_value()) {
-        user.preferences = request.preferences.value();
-    }
-
-    user.updatedAt = std::chrono::system_clock::now();
-
-    std::cout << "[UserApi] Updated user: " << user.username << " (ID: " << id << ")" << std::endl;
-
-    return true;
+    // 使用数据库更新用户（替代原来的内存map操作）
+    return impl_->updateUserInDatabase(id, request);
 }
 
 bool UserApiModule::deleteUser(int id) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it == users_.end()) {
-        return false;
+    // 使用数据库删除用户（替代原来的内存map操作）
+    bool success = impl_->deleteUserFromDatabase(id);
+    if (success) {
+        std::cout << "[UserApi] Deleted user ID: " << id << std::endl;
     }
-
-    const User& user = it->second;
-    usernameIndex_.erase(user.username);
-    emailIndex_.erase(user.email);
-    users_.erase(it);
-
-    std::cout << "[UserApi] Deleted user ID: " << id << std::endl;
-
-    return true;
+    return success;
 }
 
 bool UserApiModule::activateUser(int id) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it == users_.end()) {
-        return false;
-    }
-
-    it->second.status = UserStatus::ACTIVE;
-    it->second.updatedAt = std::chrono::system_clock::now();
-
-    return true;
+    // 使用数据库激活用户（替代原来的内存map操作）
+    return impl_->activateUserInDatabase(id);
 }
 
 bool UserApiModule::suspendUser(int id) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it == users_.end()) {
-        return false;
-    }
-
-    it->second.status = UserStatus::SUSPENDED;
-    it->second.updatedAt = std::chrono::system_clock::now();
-
-    return true;
+    // 使用数据库暂停用户（替代原来的内存map操作）
+    return impl_->suspendUserInDatabase(id);
 }
 
 bool UserApiModule::changePassword(int id, const PasswordChangeRequest& request) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it == users_.end()) {
-        return false;
+    // 使用数据库修改密码（替代原来的内存map操作）
+    // TODO: 应该验证旧密码，这里简化处理
+    bool success = impl_->changePasswordInDatabase(id, request.newPassword);
+    if (success) {
+        std::cout << "[UserApi] Password changed for user ID: " << id << std::endl;
     }
-
-    // 验证旧密码（简化）
-    // TODO: 实际应该使用SecurityModule验证
-
-    // 设置新密码
-    it->second.passwordHash = hashPassword(request.newPassword);
-    it->second.updatedAt = std::chrono::system_clock::now();
-
-    std::cout << "[UserApi] Password changed for user ID: " << id << std::endl;
-
-    return true;
+    return success;
 }
 
 bool UserApiModule::verifyPassword(int id, const std::string& password) {

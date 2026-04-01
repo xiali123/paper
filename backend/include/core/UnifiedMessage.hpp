@@ -1,5 +1,15 @@
 #pragma once
 
+// 定义Windows宏以减少包含内容
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+// 保护Windows宏冲突 - 必须在enum定义前
+#ifdef DELETE
+#undef DELETE
+#endif
+
 #include <string>
 #include <map>
 #include <any>
@@ -16,36 +26,36 @@ namespace PaperCrawler {
  */
 enum class MessageOperation {
     // CRUD操作
-    CREATE = 0x0100,
-    READ = 0x0101,
-    UPDATE = 0x0102,
-    DELETE = 0x0103,
-    QUERY = 0x0104,
+    OP_CREATE = 0x0100,
+    OP_READ = 0x0101,
+    OP_UPDATE = 0x0102,
+    OP_DELETE = 0x0103,  // 改名避免Windows宏冲突
+    OP_QUERY = 0x0104,
 
     // 批量操作
-    BATCH_CREATE = 0x0200,
-    BATCH_READ = 0x0201,
-    BATCH_UPDATE = 0x0202,
-    BATCH_DELETE = 0x0203,
+    OP_BATCH_CREATE = 0x0200,
+    OP_BATCH_READ = 0x0201,
+    OP_BATCH_UPDATE = 0x0202,
+    OP_BATCH_DELETE = 0x0203,
 
     // 事务操作
-    TRANSACTION_BEGIN = 0x0300,
-    TRANSACTION_COMMIT = 0x0301,
-    TRANSACTION_ROLLBACK = 0x0302,
+    OP_TRANSACTION_BEGIN = 0x0300,
+    OP_TRANSACTION_COMMIT = 0x0301,
+    OP_TRANSACTION_ROLLBACK = 0x0302,
 
     // 通知事件
-    NOTIFY = 0x0400,
-    SUBSCRIBE = 0x0401,
-    UNSUBSCRIBE = 0x0402,
+    OP_NOTIFY = 0x0400,
+    OP_SUBSCRIBE = 0x0401,
+    OP_UNSUBSCRIBE = 0x0402,
 
     // 系统操作
-    HEALTH_CHECK = 0x0500,
-    STATUS = 0x0501,
-    PING = 0x0502,
-    PONG = 0x0503,
+    OP_HEALTH_CHECK = 0x0500,
+    OP_STATUS = 0x0501,
+    OP_PING = 0x0502,
+    OP_PONG = 0x0503,
 
     // 通用消息
-    CUSTOM = 0xFFFF
+    OP_CUSTOM = 0xFFFF
 };
 
 /**
@@ -105,7 +115,7 @@ struct UnifiedMessage {
      */
     UnifiedMessage()
         : messageId(generateMessageId()),
-          operation(MessageOperation::CUSTOM),
+          operation(MessageOperation::OP_CUSTOM),
           target(MessageTarget::SYSTEM),
           timestamp(std::chrono::system_clock::now()) {}
 
@@ -138,7 +148,7 @@ struct UnifiedMessage {
      */
     UnifiedMessage createResponse() const {
         UnifiedMessage response(
-            operation == MessageOperation::PING ? MessageOperation::PONG : operation,
+            operation == MessageOperation::OP_PING ? MessageOperation::OP_PONG : operation,
             target,
             targetName
         );

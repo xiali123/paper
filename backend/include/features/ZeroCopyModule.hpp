@@ -4,6 +4,7 @@
 #include "core/ModuleExports.hpp"
 #include <memory>
 #include <string>
+#include <atomic>
 
 namespace PaperCrawler {
 

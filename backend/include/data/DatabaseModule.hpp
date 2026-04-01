@@ -2,6 +2,7 @@
 
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "data/IDatabase.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -122,10 +123,11 @@ struct ConnectionPoolStats {
  *
  * 架构改进：
  * - 继承ServerModuleBase获得生命周期管理
+ * - 实现IDatabase接口用于依赖注入
  * - 内置性能监控和指标收集
  * - 标准化健康检查接口
  */
-class DatabaseModule : public ServerModuleBase {
+class DatabaseModule : public ServerModuleBase, public IDatabase {
 public:
     DatabaseModule();
     ~DatabaseModule() override;
@@ -142,12 +144,20 @@ public:
         return "MySQL database access module with connection pooling";
     }
 
-    // 模板方法：只需实现具体逻辑，状态管理由基类处理
-protected:
-    bool onInitialize() override;
-    bool onStart() override;
-    bool onStop() override;
-    void onCleanup() override;
+    /**
+     * @brief 获取连接池统计信息
+     */
+    ConnectionPoolStats getPoolStats() const;
+
+    /**
+     * @brief 从连接池获取连接
+     */
+    std::shared_ptr<DatabaseConnection> getConnection();
+
+    /**
+     * @brief 归还连接到池
+     */
+    void returnConnection(std::shared_ptr<DatabaseConnection> connection);
 
     /**
      * @brief 设置数据库配置
@@ -159,6 +169,13 @@ protected:
      */
     DatabaseConfig getConfig() const;
 
+    // 模板方法：只需实现具体逻辑，状态管理由基类处理
+protected:
+    bool onInitialize() override;
+    bool onStart() override;
+    bool onStop() override;
+    void onCleanup() override;
+
     /**
      * @brief 执行查询（返回结果集）
      */
@@ -168,16 +185,6 @@ protected:
      * @brief 执行语句（INSERT, UPDATE, DELETE）
      */
     bool execute(const std::string& sql);
-
-    /**
-     * @brief 从连接池获取连接
-     */
-    std::shared_ptr<DatabaseConnection> getConnection();
-
-    /**
-     * @brief 归还连接到池
-     */
-    void returnConnection(std::shared_ptr<DatabaseConnection> connection);
 
     /**
      * @brief 开始事务
@@ -193,11 +200,6 @@ protected:
      * @brief 回滚事务
      */
     bool rollbackTransaction(const std::string& transactionId);
-
-    /**
-     * @brief 获取连接池统计信息
-     */
-    ConnectionPoolStats getPoolStats() const;
 
     /**
      * @brief 测试连接

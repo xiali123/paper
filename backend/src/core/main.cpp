@@ -44,6 +44,7 @@
 #include "core/HotReloadManager.hpp"
 #include "core/HttpTypes.hpp"
 #include "core/ConfigManager.hpp"
+#include "core/ServiceContainer.hpp"
 
 // 网络模块
 #include "network/HttpServerModule.hpp"
@@ -69,7 +70,7 @@ std::atomic<bool> g_running{true};
 std::unique_ptr<HttpServerModule> g_httpServer;
 
 // 全局数据库模块（连接池）
-std::unique_ptr<DatabaseModule> g_databaseModule;
+std::shared_ptr<DatabaseModule> g_databaseModule;
 
 // 全局MySQL连接实例（保持向后兼容，实际使用连接池）
 std::unique_ptr<PooledConnection> g_dbConnection;
@@ -450,7 +451,7 @@ bool initializeDatabase() {
         }
 
         // 创建DatabaseModule实例
-        g_databaseModule = std::make_unique<DatabaseModule>();
+        g_databaseModule = std::make_shared<DatabaseModule>();
 
         // 配置连接池
         DatabaseConfig dbConfig;
@@ -512,6 +513,34 @@ bool initializeDatabase() {
         return true;
     } catch (const std::exception& e) {
         printError(std::string("Database initialization failed: ") + e.what());
+        return false;
+    }
+}
+
+/**
+ * @brief 初始化依赖注入服务容器
+ *
+ * 注册全局服务到DI容器，使业务模块可以通过依赖注入获取服务
+ */
+bool initializeServices() {
+    printStep("Init", "Initializing dependency injection service container");
+
+    try {
+        // 注册DatabaseModule为单例服务
+        // 使用g_databaseModule实例（已在initializeDatabase()中创建）
+        Services::registerInstance<IDatabase>(g_databaseModule);
+
+        printSuccess("Dependency injection service container initialized");
+        spdlog::info("[Services] Registered IDatabase service (Singleton)");
+
+        // TODO: 未来可以注册更多服务
+        // Services::registerService<ICache, CacheModule>(ServiceLifetime::SINGLETON);
+        // Services::registerService<IEmailService, EmailService>(ServiceLifetime::SINGLETON);
+
+        return true;
+    } catch (const std::exception& e) {
+        printError(std::string("Service container initialization failed: ") + e.what());
+        spdlog::error("[Services] Initialization failed: {}", e.what());
         return false;
     }
 }
@@ -3128,6 +3157,11 @@ int main(int argc, char* argv[]) {
 
         // 2. 初始化数据库连接
         if (!initializeDatabase()) {
+            return 1;
+        }
+
+        // 2.5. 初始化依赖注入服务容器
+        if (!initializeServices()) {
             return 1;
         }
 

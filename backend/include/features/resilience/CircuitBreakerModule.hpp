@@ -9,6 +9,7 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+#include <stdexcept>
 
 namespace PaperCrawler {
 

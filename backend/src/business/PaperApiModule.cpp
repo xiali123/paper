@@ -73,62 +73,323 @@ std::string getMockPaper(int id) {
 
 class PaperApiModule::Impl {
 public:
-    // Mock 论文存储
-    std::map<int, Paper> mockPapers_;
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
 
-    Impl() {
-        // 初始化 Mock 数据
-        loadMockData();
+    // 构造函数：接受数据库依赖
+    explicit Impl(std::shared_ptr<IDatabase> database)
+        : database_(database) {
+        // 不再加载Mock数据
     }
 
-    void loadMockData() {
-        Paper paper1;
-        paper1.id = 1;
-        paper1.title = "Attention Is All You Need";
-        paper1.authors = "Ashish Vaswani et al.";
-        paper1.year = 2023;
-        paper1.citationCount = 150;
-        paper1.isRead = true;
-        paper1.isFavorite = true;
+    // 从数据库行数据构建Paper对象
+    Paper paperFromDbRow(const std::map<std::string, std::string>& row) {
+        Paper paper;
+        paper.id = std::stoi(row.at("id"));
+        paper.title = row.at("title");
+        paper.authors = row.at("authors");
+        paper.year = std::stoi(row.at("year"));
+        paper.abstract = row.count("abstract") ? row.at("abstract") : "";
+        paper.journal = row.count("journal") ? row.at("journal") : "";
+        paper.volume = row.count("volume") ? row.at("volume") : "";
+        paper.issue = row.count("issue") ? row.at("issue") : "";
+        paper.pages = row.count("pages") ? row.at("pages") : "";
+        paper.doi = row.count("doi") ? row.at("doi") : "";
+        paper.url = row.count("url") ? row.at("url") : "";
+        paper.pdfPath = row.count("pdf_path") ? row.at("pdf_path") : "";
+        paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+        paper.isRead = row.count("is_read") ? (row.at("is_read") == "1") : false;
+        paper.isFavorite = row.count("is_favorite") ? (row.at("is_favorite") == "1") : false;
+        paper.notes = row.count("notes") ? row.at("notes") : "";
+        return paper;
+    }
 
-        Paper paper2;
-        paper2.id = 2;
-        paper2.title = "BERT: Pre-training of Deep Bidirectional Transformers";
-        paper2.authors = "Jacob Devlin et al.";
-        paper2.year = 2019;
-        paper2.citationCount = 89000;
-        paper2.isRead = false;
-        paper2.isFavorite = true;
+    // 从数据库查询单个论文
+    std::optional<Paper> getPaperById(int id) {
+        try {
+            auto sql = "SELECT * FROM papers WHERE id = " + std::to_string(id);
+            auto results = database_->query(sql);
 
-        Paper paper3;
-        paper3.id = 3;
-        paper3.title = "Deep Residual Learning for Image Recognition";
-        paper3.authors = "Kaiming He et al.";
-        paper3.year = 2016;
-        paper3.citationCount = 150000;
-        paper3.isRead = true;
-        paper3.isFavorite = false;
+            if (!results.empty()) {
+                return paperFromDbRow(results[0]);
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to get paper: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
 
-        Paper paper4;
-        paper4.id = 4;
-        paper4.title = "GPT-4 Technical Report";
-        paper4.authors = "OpenAI";
-        paper4.year = 2023;
-        paper4.citationCount = 5000;
-        paper4.isRead = false;
-        paper4.isFavorite = false;
+    // 从数据库查询论文列表（带分页和排序）
+    std::vector<Paper> listPapersFromDb(int page, int limit, const std::string& sortBy, bool ascending) {
+        std::vector<Paper> papers;
 
-        mockPapers_[1] = paper1;
-        mockPapers_[2] = paper2;
-        mockPapers_[3] = paper3;
-        mockPapers_[4] = paper4;
+        try {
+            int offset = (page - 1) * limit;
+            std::string orderDirection = ascending ? "ASC" : "DESC";
+
+            // 防止SQL注入：只允许特定字段
+            std::string allowedSortBy = sortBy;
+            if (sortBy != "title" && sortBy != "year" && sortBy != "citation_count" &&
+                sortBy != "created_at" && sortBy != "updated_at") {
+                allowedSortBy = "created_at";  // 默认排序
+            }
+
+            auto sql = "SELECT * FROM papers ORDER BY " + allowedSortBy + " " +
+                      orderDirection + " LIMIT " + std::to_string(limit) +
+                      " OFFSET " + std::to_string(offset);
+
+            auto results = database_->query(sql);
+
+            for (const auto& row : results) {
+                papers.push_back(paperFromDbRow(row));
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to list papers: " << e.what() << std::endl;
+        }
+
+        return papers;
+    }
+
+    // 在数据库中创建论文
+    std::optional<Paper> createPaperInDb(const Paper& paper) {
+        try {
+            // 转义字符串（简化版，生产环境应使用prepared statements）
+            auto escape = [](const std::string& s) {
+                std::string result;
+                for (char c : s) {
+                    if (c == '\'') result += "''";
+                    else if (c == '\\') result += "\\\\";
+                    else result += c;
+                }
+                return result;
+            };
+
+            auto sql = "INSERT INTO papers (title, authors, year, abstract, journal, volume, issue, "
+                      "pages, doi, url, pdf_path, citation_count, is_read, is_favorite, notes, "
+                      "created_at, updated_at) VALUES ('" +
+                      escape(paper.title) + "', '" +
+                      escape(paper.authors) + "', " +
+                      std::to_string(paper.year) + ", '" +
+                      escape(paper.abstract) + "', '" +
+                      escape(paper.journal) + "', '" +
+                      escape(paper.volume) + "', '" +
+                      escape(paper.issue) + "', '" +
+                      escape(paper.pages) + "', '" +
+                      escape(paper.doi) + "', '" +
+                      escape(paper.url) + "', '" +
+                      escape(paper.pdfPath) + "', " +
+                      std::to_string(paper.citationCount) + ", " +
+                      (paper.isRead ? "1" : "0") + ", " +
+                      (paper.isFavorite ? "1" : "0") + ", '" +
+                      escape(paper.notes) + "', NOW(), NOW())";
+
+            if (database_->execute(sql)) {
+                // 查询新插入的论文（通过title和year）
+                auto querySql = "SELECT * FROM papers WHERE title = '" + escape(paper.title) +
+                               "' AND year = " + std::to_string(paper.year) +
+                               " ORDER BY id DESC LIMIT 1";
+                auto results = database_->query(querySql);
+
+                if (!results.empty()) {
+                    return paperFromDbRow(results[0]);
+                }
+            }
+
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to create paper: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 在数据库中更新论文
+    bool updatePaperInDb(int id, const Paper& paper) {
+        try {
+            auto escape = [](const std::string& s) {
+                std::string result;
+                for (char c : s) {
+                    if (c == '\'') result += "''";
+                    else if (c == '\\') result += "\\\\";
+                    else result += c;
+                }
+                return result;
+            };
+
+            auto sql = "UPDATE papers SET "
+                      "title = '" + escape(paper.title) + "', "
+                      "authors = '" + escape(paper.authors) + "', "
+                      "year = " + std::to_string(paper.year) + ", "
+                      "abstract = '" + escape(paper.abstract) + "', "
+                      "journal = '" + escape(paper.journal) + "', "
+                      "volume = '" + escape(paper.volume) + "', "
+                      "issue = '" + escape(paper.issue) + "', "
+                      "pages = '" + escape(paper.pages) + "', "
+                      "doi = '" + escape(paper.doi) + "', "
+                      "url = '" + escape(paper.url) + "', "
+                      "pdf_path = '" + escape(paper.pdfPath) + "', "
+                      "citation_count = " + std::to_string(paper.citationCount) + ", "
+                      "is_read = " + (paper.isRead ? "1" : "0") + ", "
+                      "is_favorite = " + (paper.isFavorite ? "1" : "0") + ", "
+                      "notes = '" + escape(paper.notes) + "', "
+                      "updated_at = NOW() "
+                      "WHERE id = " + std::to_string(id);
+
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to update paper: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    // 从数据库删除论文
+    bool deletePaperFromDb(int id) {
+        try {
+            auto sql = "DELETE FROM papers WHERE id = " + std::to_string(id);
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to delete paper: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    // 搜索论文（使用数据库）
+    std::vector<Paper> searchPapersFromDb(const PaperSearchCriteria& criteria, int page, int limit) {
+        std::vector<Paper> papers;
+        try {
+            std::string sql = "SELECT * FROM papers WHERE 1=1";
+            int paramCount = 0;
+
+            // 构建WHERE条件
+            if (!criteria.query.empty()) {
+                sql += " AND (title LIKE '%" + criteria.query + "%' OR "
+                       "authors LIKE '%" + criteria.query + "%' OR "
+                       "abstract LIKE '%" + criteria.query + "%')";
+            }
+
+            if (criteria.yearFrom > 0) {
+                sql += " AND year >= " + std::to_string(criteria.yearFrom);
+            }
+
+            if (criteria.yearTo > 0) {
+                sql += " AND year <= " + std::to_string(criteria.yearTo);
+            }
+
+            if (criteria.isRead) {
+                sql += " AND is_read = 1";
+            }
+
+            if (criteria.isFavorite) {
+                sql += " AND is_favorite = 1";
+            }
+
+            // 分页
+            int offset = (page - 1) * limit;
+            sql += " LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
+
+            auto results = database_->query(sql);
+            for (const auto& row : results) {
+                papers.push_back(paperFromDbRow(row));
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to search papers: " << e.what() << std::endl;
+        }
+        return papers;
+    }
+
+    // 获取统计信息（使用数据库）
+    PaperStats getStatsFromDb() {
+        PaperStats stats;
+        try {
+            // 总论文数
+            auto totalSql = "SELECT COUNT(*) as count FROM papers";
+            auto totalResults = database_->query(totalSql);
+            if (!totalResults.empty()) {
+                stats.totalPapers = std::stoi(totalResults[0]["count"]);
+            }
+
+            // 已读/未读统计
+            auto readSql = "SELECT is_read, COUNT(*) as count FROM papers GROUP BY is_read";
+            auto readResults = database_->query(readSql);
+            for (const auto& row : readResults) {
+                bool isRead = (row.at("is_read") == "1");
+                int count = std::stoi(row.at("count"));
+                if (isRead) {
+                    stats.readPapers = count;
+                } else {
+                    stats.unreadPapers = count;
+                }
+            }
+
+            // 收藏统计
+            auto favSql = "SELECT COUNT(*) as count FROM papers WHERE is_favorite = 1";
+            auto favResults = database_->query(favSql);
+            if (!favResults.empty()) {
+                stats.favoritePapers = std::stoi(favResults[0]["count"]);
+            }
+
+            // 按年份统计
+            auto yearSql = "SELECT year, COUNT(*) as count FROM papers GROUP BY year ORDER BY year";
+            auto yearResults = database_->query(yearSql);
+            for (const auto& row : yearResults) {
+                int year = std::stoi(row.at("year"));
+                int count = std::stoi(row.at("count"));
+                stats.papersByYear[year] = count;
+            }
+
+            // 按期刊统计
+            auto journalSql = "SELECT journal, COUNT(*) as count FROM papers WHERE journal IS NOT NULL AND journal != '' GROUP BY journal";
+            auto journalResults = database_->query(journalSql);
+            for (const auto& row : journalResults) {
+                std::string journal = row.at("journal");
+                int count = std::stoi(row.at("count"));
+                stats.papersByJournal[journal] = count;
+            }
+
+            // 按作者统计（简化版，可能需要更复杂的处理）
+            auto authorSql = "SELECT authors, COUNT(*) as count FROM papers WHERE authors IS NOT NULL AND authors != '' GROUP BY authors";
+            auto authorResults = database_->query(authorSql);
+            for (const auto& row : authorResults) {
+                std::string authors = row.at("authors");
+                int count = std::stoi(row.at("count"));
+                stats.papersByAuthor[authors] = count;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to get stats: " << e.what() << std::endl;
+        }
+        return stats;
+    }
+
+    // 标记论文为已读/未读
+    bool markAsReadInDb(int id, bool read) {
+        try {
+            auto sql = "UPDATE papers SET is_read = " + std::string(read ? "1" : "0") +
+                      ", updated_at = NOW() WHERE id = " + std::to_string(id);
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to mark paper: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    // 标记论文为收藏/取消收藏
+    bool markAsFavoriteInDb(int id, bool favorite) {
+        try {
+            auto sql = "UPDATE papers SET is_favorite = " + std::string(favorite ? "1" : "0") +
+                      ", updated_at = NOW() WHERE id = " + std::to_string(id);
+            return database_->execute(sql);
+        } catch (const std::exception& e) {
+            std::cerr << "[PaperAPI] Failed to mark favorite: " << e.what() << std::endl;
+            return false;
+        }
     }
 };
 
 // ============================================================================
 
-PaperApiModule::PaperApiModule()
-    : impl_(std::make_unique<Impl>()) {
+PaperApiModule::PaperApiModule(std::shared_ptr<IDatabase> database)
+    : database_(database),
+      impl_(std::make_unique<Impl>(database)) {
 }
 
 PaperApiModule::~PaperApiModule() = default;
@@ -154,145 +415,48 @@ void PaperApiModule::cleanup() {
 }
 
 std::vector<Paper> PaperApiModule::listPapers(int page, int limit, const std::string& sortBy, bool ascending) {
-    std::vector<Paper> papers;
-
-    // 从 Mock 数据加载
-    for (const auto& pair : impl_->mockPapers_) {
-        papers.push_back(pair.second);
-    }
-
-    // 排序
-    // TODO: 根据 sortBy 参数排序
-
-    // 分页
-    size_t start = (page - 1) * limit;
-    size_t end = std::min(start + limit, papers.size());
-
-    if (start >= papers.size()) {
-        return {}; // 空结果
-    }
-
-    return std::vector<Paper>(papers.begin() + start, papers.begin() + end);
+    // 使用数据库查询（调用已实现的数据库方法）
+    return impl_->listPapersFromDb(page, limit, sortBy, ascending);
 }
 
 std::optional<Paper> PaperApiModule::getPaper(int id) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it != impl_->mockPapers_.end()) {
-        return it->second;
-    }
-    return std::nullopt;
+    // 使用数据库查询（调用已实现的数据库方法）
+    return impl_->getPaperById(id);
 }
 
 std::optional<Paper> PaperApiModule::createPaper(const Paper& paper) {
-    // 生成新ID（简化）
-    int newId = impl_->mockPapers_.size() + 1;
-    Paper newPaper = paper;
-    newPaper.id = newId;
-    impl_->mockPapers_[newId] = newPaper;
-
-    return newPaper;
+    // 使用数据库创建（调用已实现的数据库方法）
+    return impl_->createPaperInDb(paper);
 }
 
 bool PaperApiModule::updatePaper(int id, const Paper& paper) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it == impl_->mockPapers_.end()) {
-        return false;
-    }
-
-    Paper updatedPaper = paper;
-    updatedPaper.id = id;
-    it->second = updatedPaper;
-    return true;
+    // 使用数据库更新（调用已实现的数据库方法）
+    return impl_->updatePaperInDb(id, paper);
 }
 
 bool PaperApiModule::deletePaper(int id) {
-    return impl_->mockPapers_.erase(id) > 0;
+    // 使用数据库删除（调用已实现的数据库方法）
+    return impl_->deletePaperFromDb(id);
 }
 
 std::vector<Paper> PaperApiModule::searchPapers(const PaperSearchCriteria& criteria, int page, int limit) {
-    std::vector<Paper> results;
-
-    for (const auto& pair : impl_->mockPapers_) {
-        const Paper& paper = pair.second;
-
-        // 简单过滤逻辑
-        bool match = true;
-
-        if (!criteria.query.empty()) {
-            // 搜索标题或作者
-            if (paper.title.find(criteria.query) == std::string::npos &&
-                paper.authors.find(criteria.query) == std::string::npos) {
-                match = false;
-            }
-        }
-
-        if (criteria.yearFrom > 0 && paper.year < criteria.yearFrom) {
-            match = false;
-        }
-
-        if (criteria.yearTo > 0 && paper.year > criteria.yearTo) {
-            match = false;
-        }
-
-        if (criteria.isRead && !paper.isRead) {
-            match = false;
-        }
-
-        if (criteria.isFavorite && !paper.isFavorite) {
-            match = false;
-        }
-
-        if (match) {
-            results.push_back(paper);
-        }
-    }
-
-    // 分页
-    size_t start = (page - 1) * limit;
-    size_t end = std::min(start + limit, results.size());
-
-    if (start >= results.size()) {
-        return {};
-    }
-
-    return std::vector<Paper>(results.begin() + start, results.begin() + end);
+    // 使用数据库搜索（调用已实现的数据库方法）
+    return impl_->searchPapersFromDb(criteria, page, limit);
 }
 
 PaperStats PaperApiModule::getStats() {
-    PaperStats stats;
-
-    stats.totalPapers = impl_->mockPapers_.size();
-    stats.readPapers = 0;
-    stats.unreadPapers = 0;
-    stats.favoritePapers = 0;
-
-    for (const auto& pair : impl_->mockPapers_) {
-        const Paper& paper = pair.second;
-
-        if (paper.isRead) stats.readPapers++;
-        else stats.unreadPapers++;
-
-        if (paper.isFavorite) stats.favoritePapers++;
-
-        stats.papersByYear[paper.year]++;
-        stats.papersByJournal[paper.journal]++;
-        stats.papersByAuthor[paper.authors]++;
-    }
-
-    return stats;
+    // 使用数据库查询统计（调用已实现的数据库方法）
+    return impl_->getStatsFromDb();
 }
 
 size_t PaperApiModule::importPapers(const std::vector<Paper>& papers) {
+    // 使用数据库导入（调用已实现的数据库方法）
     size_t imported = 0;
-    int nextId = impl_->mockPapers_.size() + 1;
-
     for (const auto& paper : papers) {
-        Paper newPaper = paper;
-        newPaper.id = nextId++;
-        impl_->mockPapers_[newPaper.id] = newPaper;
-        imported++;
+        if (impl_->createPaperInDb(paper).has_value()) {
+            imported++;
+        }
     }
-
     return imported;
 }
 
@@ -308,21 +472,13 @@ std::string PaperApiModule::exportPapers(const std::vector<int>& ids, const std:
 }
 
 bool PaperApiModule::markAsRead(int id, bool read) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it != impl_->mockPapers_.end()) {
-        it->second.isRead = read;
-        return true;
-    }
-    return false;
+    // 使用数据库标记已读（调用已实现的数据库方法）
+    return impl_->markAsReadInDb(id, read);
 }
 
 bool PaperApiModule::markAsFavorite(int id, bool favorite) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it != impl_->mockPapers_.end()) {
-        it->second.isFavorite = favorite;
-        return true;
-    }
-    return false;
+    // 使用数据库标记收藏（调用已实现的数据库方法）
+    return impl_->markAsFavoriteInDb(id, favorite);
 }
 
 bool PaperApiModule::addTag(int id, const std::string& tag) {

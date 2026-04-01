@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <any>
+#include <limits>
 
 namespace PaperCrawler {
 
