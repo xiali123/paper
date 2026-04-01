@@ -3131,17 +3131,30 @@ void gracefulShutdown() {
  * @brief 主函数
  */
 int main(int argc, char* argv[]) {
+    // 早期调试输出 - 使用C风格避免iostream初始化问题
+    printf("DEBUG: Program starting...\n");
+    printf("DEBUG: Command line args: %d\n", argc);
+    fflush(stdout);
+
     // 初始化Windows Sockets
     #ifdef _WIN32
+        printf("DEBUG: Initializing Winsock...\n");
+        fflush(stdout);
         WSADATA wsaData;
         if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-            std::cerr << "Failed to initialize Winsock" << std::endl;
+            fprintf(stderr, "Failed to initialize Winsock\n");
             return 1;
         }
+        printf("DEBUG: Winsock initialized\n");
+        fflush(stdout);
     #endif
 
     // 设置日志级别
+    printf("DEBUG: Setting up logging...\n");
+    fflush(stdout);
     spdlog::set_level(spdlog::level::info);
+    printf("DEBUG: Logging configured\n");
+    fflush(stdout);
 
     // 打印欢迎信息
     printWelcome();

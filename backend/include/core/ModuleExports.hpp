@@ -53,6 +53,10 @@ using DestroyModuleFunc = void (*)(void*);
 // Export macro definitions
 #ifdef _WIN32
     #define PAPERCRAWLER_MODULE_EXPORT __declspec(dllexport)
+    #define BUSINESS_API __declspec(dllexport)
+    #define PAPERCRAWLER_API __declspec(dllexport)
 #else
     #define PAPERCRAWLER_MODULE_EXPORT __attribute__((visibility("default")))
+    #define BUSINESS_API __attribute__((visibility("default")))
+    #define PAPERCRAWLER_API __attribute__((visibility("default")))
 #endif

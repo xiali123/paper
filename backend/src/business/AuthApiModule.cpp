@@ -1,7 +1,6 @@
 #include <iostream>
 #include "business/AuthApiModule.hpp"
 #include "features/SessionModule.hpp"
-#include "business/JsonHelper.hpp"
 #include "data/DatabaseModule.hpp"
 #include <sstream>
 #include <map>
@@ -9,6 +8,22 @@
 #include <iomanip>
 
 namespace PaperCrawler {
+
+// 简单JSON构建辅助函数
+namespace {
+    std::string buildJsonResponse(const std::map<std::string, std::string>& data, int statusCode = 200) {
+        std::ostringstream json;
+        json << "{";
+        bool first = true;
+        for (const auto& [key, value] : data) {
+            if (!first) json << ",";
+            json << "\n  \"" << key << "\": \"" << value << "\"";
+            first = false;
+        }
+        json << "\n}";
+        return json.str();
+    }
+}
 
 // ============================================================================
 // AuthApiModule 实现
@@ -78,7 +93,7 @@ public:
 
     // 数据库会话管理方法
     bool storeSession(int userId, const std::string& accessToken,
-                     const std::string& refreshToken, int expiresIn) {
+                     const std::string& refreshToken, std::chrono::seconds expiresIn) {
         try {
             // 检查用户是否已有活跃会话
             auto checkSql = "SELECT id FROM user_sessions WHERE user_id = " + std::to_string(userId);
@@ -89,7 +104,7 @@ public:
                 auto updateSql = "UPDATE user_sessions SET "
                                "access_token_hash = SHA2('" + accessToken + "', 256), "
                                "refresh_token = '" + refreshToken + "', "
-                               "expires_at = DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn) + " SECOND), "
+                               "expires_at = DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn.count()) + " SECOND), "
                                "updated_at = NOW() "
                                "WHERE user_id = " + std::to_string(userId);
                 return database_->execute(updateSql);
@@ -100,7 +115,7 @@ public:
                                std::to_string(userId) + ", "
                                "SHA2('" + accessToken + "', 256), "
                                "'" + refreshToken + "', "
-                               "DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn) + " SECOND), "
+                               "DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn.count()) + " SECOND), "
                                "NOW())";
                 return database_->execute(insertSql);
             }
@@ -219,27 +234,19 @@ AuthApiModule::AuthApiModule(std::shared_ptr<IDatabase> database)
 
 AuthApiModule::~AuthApiModule() = default;
 
-bool AuthApiModule::initialize() {
-    registerRoutes();
-    std::cout << "AuthApiModule initialized" << std::endl;
-    return true;
+void AuthApiModule::registerRoutes() {
+    // 注册路由到Router
+    std::cout << "AuthApiModule registering routes..." << std::endl;
+
+    // TODO: 注册路由
+    // addRoute("/api/auth/login", [this](const std::string& body) {
+    //     return handleLogin(body);
+    // });
+
+    std::cout << "AuthApiModule routes registered" << std::endl;
 }
 
-bool AuthApiModule::start() {
-    std::cout << "AuthApiModule started" << std::endl;
-    return true;
-}
-
-bool AuthApiModule::stop() {
-    std::cout << "AuthApiModule stopped" << std::endl;
-    return true;
-}
-
-void AuthApiModule::cleanup() {
-    // 清理资源
-}
-
-LoginResponse AuthApiModule::login(const LoginRequest& request) {
+std::string AuthApiModule::handleLogin(const std::string& body) {
     impl_->stats_.totalLogins++;
 
     // 从数据库查询用户
@@ -473,28 +480,25 @@ std::string AuthApiModule::generateRefreshToken(int userId) {
 }
 
 bool AuthApiModule::revokeToken(const std::string& token) {
-    return impl_->mockTokens_.erase(token) > 0;
+    // 从数据库删除会话
+    try {
+        auto sql = "DELETE FROM user_sessions WHERE refresh_token = '" + token + "'";
+        return database_->execute(sql);
+    } catch (const std::exception& e) {
+        std::cerr << "[Auth] Failed to revoke token: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 bool AuthApiModule::revokeAllUserTokens(int userId) {
-    auto it = impl_->mockUsers_.find(userId);
-    if (it == impl_->mockUsers_.end()) {
+    // 从数据库删除用户的所有会话
+    try {
+        auto sql = "DELETE FROM user_sessions WHERE user_id = " + std::to_string(userId);
+        return database_->execute(sql);
+    } catch (const std::exception& e) {
+        std::cerr << "[Auth] Failed to revoke all user tokens: " << e.what() << std::endl;
         return false;
     }
-
-    std::string username = it->second.username;
-
-    size_t revoked = 0;
-    for (auto tokenIt = impl_->mockTokens_.begin(); tokenIt != impl_->mockTokens_.end();) {
-        if (tokenIt->second == username) {
-            tokenIt = impl_->mockTokens_.erase(tokenIt);
-            revoked++;
-        } else {
-            ++tokenIt;
-        }
-    }
-
-    return revoked > 0;
 }
 
 AuthStats AuthApiModule::getStats() const {
@@ -508,12 +512,6 @@ void AuthApiModule::setConfig(const AuthConfig& config) {
 // ============================================================================
 // 路由处理
 // ============================================================================
-
-void AuthApiModule::registerRoutes() {
-    // TODO: 注册路由到 Router
-}
-
-std::string AuthApiModule::handleLogin(const std::string& body) {
     // TODO: 解析JSON body
     LoginRequest request;
     request.username = "admin";
@@ -522,7 +520,7 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
 
     auto response = login(request);
 
-    return JsonHelper::buildJsonResponse({
+    return buildJsonResponse({
         {"success", response.success ? "true" : "false"},
         {"message", response.message},
         {"access_token", response.accessToken},
@@ -533,7 +531,7 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
 std::string AuthApiModule::handleLogout(const std::map<std::string, std::string>& headers) {
     auto authIt = headers.find("Authorization");
     if (authIt == headers.end()) {
-        return JsonHelper::buildJsonResponse({
+        return buildJsonResponse({
             {"success", "false"},
             {"error", "Missing authorization header"}
         }, 401);
@@ -545,13 +543,13 @@ std::string AuthApiModule::handleLogout(const std::map<std::string, std::string>
     }
 
     if (logout(token)) {
-        return JsonHelper::buildJsonResponse({
+        return buildJsonResponse({
             {"success", "true"},
             {"message", "Logged out successfully"}
         });
     }
 
-    return JsonHelper::buildJsonResponse({
+    return buildJsonResponse({
         {"success", "false"},
         {"error", "Invalid token"}
     }, 401);
@@ -564,7 +562,7 @@ std::string AuthApiModule::handleRefreshToken(const std::string& body) {
 
     auto response = refreshToken(request);
 
-    return JsonHelper::buildJsonResponse({
+    return buildJsonResponse({
         {"success", response.success ? "true" : "false"},
         {"message", response.message},
         {"access_token", response.accessToken},
@@ -575,7 +573,7 @@ std::string AuthApiModule::handleRefreshToken(const std::string& body) {
 std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std::string>& headers) {
     auto authIt = headers.find("Authorization");
     if (authIt == headers.end()) {
-        return JsonHelper::buildJsonResponse({
+        return buildJsonResponse({
             {"success", "false"},
             {"error", "Missing authorization header"}
         }, 401);
@@ -588,93 +586,93 @@ std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std:
 
     auto user = getCurrentUser(token);
     if (!user.has_value()) {
-        return JsonHelper::buildJsonResponse({
+        return buildJsonResponse({
             {"success", "false"},
             {"error", "Invalid or expired token"}
         }, 401);
     }
 
-    return JsonHelper::buildJsonResponse({
+    return buildJsonResponse({
         {"success", "true"},
         {"user", user->toJSON()}
     });
 }
 
-std::string AuthApiModule::handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers) {
-    auto authIt = headers.find("Authorization");
-    if (authIt == headers.end()) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "false"},
-            {"error", "Missing authorization header"}
-        }, 401);
-    }
-
-    std::string token = authIt->second;
-    if (token.find("Bearer ") == 0) {
-        token = token.substr(7);
-    }
-
-    int userId;
-    if (!validateAccessToken(token, userId)) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "false"},
-            {"error", "Invalid token"}
-        }, 401);
-    }
-
-    // TODO: 解析JSON body
-    ChangePasswordRequest request;
-    request.oldPassword = "old_password";
-    request.newPassword = "new_password";
-
-    if (changePassword(userId, request)) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Password changed successfully"}
-        });
-    }
-
-    return JsonHelper::buildJsonResponse({
-        {"success", "false"},
-        {"error", "Failed to change password"}
-    }, 400);
-}
-
-std::string AuthApiModule::handleInitiatePasswordReset(const std::string& body) {
-    // TODO: 解析JSON body
-    std::string email = "user@example.com";
-
-    if (initiatePasswordReset(email)) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Password reset email sent"}
-        });
-    }
-
-    return JsonHelper::buildJsonResponse({
-        {"success", "false"},
-        {"error", "User not found"}
-    }, 404);
-}
-
-std::string AuthApiModule::handleCompletePasswordReset(const std::string& body) {
-    // TODO: 解析JSON body
-    std::string token = "reset_token";
-    std::string newPassword = "new_password";
-
-    if (completePasswordReset(token, newPassword)) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Password reset successfully"}
-        });
-    }
-
-    return JsonHelper::buildJsonResponse({
-        {"success", "false"},
-        {"error", "Invalid or expired reset token"}
-    }, 400);
-}
-
+// std::string AuthApiModule::handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers) {
+//     auto authIt = headers.find("Authorization");
+//     if (authIt == headers.end()) {
+//         return buildJsonResponse({
+//             {"success", "false"},
+//             {"error", "Missing authorization header"}
+//         }, 401);
+//     }
+// 
+//     std::string token = authIt->second;
+//     if (token.find("Bearer ") == 0) {
+//         token = token.substr(7);
+//     }
+// 
+//     int userId;
+//     if (!validateAccessToken(token, userId)) {
+//         return buildJsonResponse({
+//             {"success", "false"},
+//             {"error", "Invalid token"}
+//         }, 401);
+//     }
+// 
+//     // TODO: 解析JSON body
+//     ChangePasswordRequest request;
+//     request.oldPassword = "old_password";
+//     request.newPassword = "new_password";
+// 
+//     if (changePassword(userId, request)) {
+//         return buildJsonResponse({
+//             {"success", "true"},
+//             {"message", "Password changed successfully"}
+//         });
+//     }
+// 
+//     return buildJsonResponse({
+//         {"success", "false"},
+//         {"error", "Failed to change password"}
+//     }, 400);
+// }
+// 
+// std::string AuthApiModule::handleInitiatePasswordReset(const std::string& body) {
+//     // TODO: 解析JSON body
+//     std::string email = "user@example.com";
+// 
+//     if (initiatePasswordReset(email)) {
+//         return buildJsonResponse({
+//             {"success", "true"},
+//             {"message", "Password reset email sent"}
+//         });
+//     }
+// 
+//     return buildJsonResponse({
+//         {"success", "false"},
+//         {"error", "User not found"}
+//     }, 404);
+// }
+// 
+// std::string AuthApiModule::handleCompletePasswordReset(const std::string& body) {
+//     // TODO: 解析JSON body
+//     std::string token = "reset_token";
+//     std::string newPassword = "new_password";
+// 
+//     if (completePasswordReset(token, newPassword)) {
+//         return buildJsonResponse({
+//             {"success", "true"},
+//             {"message", "Password reset successfully"}
+//         });
+//     }
+// 
+//     return buildJsonResponse({
+//         {"success", "false"},
+//         {"error", "Invalid or expired reset token"}
+//     }, 400);
+// }
+// 
 } // namespace PaperCrawler
 
 // ============================================================================

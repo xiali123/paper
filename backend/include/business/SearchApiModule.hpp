@@ -15,6 +15,13 @@
 namespace PaperCrawler {
 
 // 前向声明
+namespace Network {
+    class HttpClient;
+}
+
+using HttpClientPtr = std::shared_ptr<Network::HttpClient>;
+
+// 前向声明
 struct Paper;
 
 /**
@@ -180,7 +187,7 @@ struct SearchStats {
 class SearchApiModule : public BusinessModuleBase {
 public:
     // 构造函数：可注入HttpClient（用于测试）
-    explicit SearchApiModule(std::shared_ptr<HttpClient> httpClient = nullptr);
+    explicit SearchApiModule(HttpClientPtr httpClient = nullptr);
     ~SearchApiModule() override;
 
     std::string getName() const override { return "SearchApi"; }
@@ -266,7 +273,7 @@ private:
     // Meilisearch配置
     std::string meilisearchHost_{"http://localhost:7700"};
     std::string papersIndex_{"papers"};
-    std::shared_ptr<HttpClient> httpClient_;
+    HttpClientPtr httpClient_;
 
     void registerRoutes() override;  // BusinessModuleBase要求实现
 

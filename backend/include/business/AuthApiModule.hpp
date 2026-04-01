@@ -194,6 +194,9 @@ struct AuthStats {
  */
 class AuthApiModule : public BusinessModuleBase {
 public:
+    // 默认构造函数（用于动态加载）
+    AuthApiModule();
+
     // 构造函数：注入IDatabase依赖
     explicit AuthApiModule(std::shared_ptr<IDatabase> database);
     ~AuthApiModule() override;

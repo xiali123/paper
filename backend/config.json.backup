@@ -11,22 +11,6 @@
     "connection_pool_size": 10,
     "timeout": 30
   },
-  "cache": {
-    "enabled": true,
-    "type": "redis",
-    "host": "localhost",
-    "port": 6379,
-    "password": "",
-    "database": 0,
-    "pool_size": 10,
-    "default_ttl_seconds": 3600,
-    "connect_timeout_seconds": 5,
-    "enable_compression": false,
-    "enable_redis": true,
-    "warmup_on_start": false,
-    "async_cleanup": true,
-    "cleanup_interval_minutes": 5
-  },
   "authentication": {
     "enabled": true,
     "jwtSecret": "paper-crawler-secret-key-2024-change-in-production",
