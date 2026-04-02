@@ -624,7 +624,9 @@ find_package_handle_standard_args(LibXml2
 )
 
 # TemplateCrawlerModule - 模板爬虫引擎
-add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp)
+add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp
+    src/network/HttpClient.cpp
+    src/common/JsonUtils.cpp)
 
 set_target_properties(TemplateCrawlerModule PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"

@@ -624,27 +624,19 @@ std::string TemplateCrawlerModule::executeRequest(
     }
 
     // 使用HTTP客户端发送请求
-    // TODO: 修复HttpClient接口调用
-    std::string response = httpClient_->get(url);
+    Network::HttpClientResponse httpResponse = httpClient_->get(url);
 
-    // 设置请求头
-    for (const auto& [key, value] : tmpl.headers) {
-        request.headers[key] = value;
-    }
-
-    // 设置超时
-    // TODO: httpClient_->setTimeout(tmpl.timeout);
-
-    // 发送请求
-    auto response = httpClient_->get(url);
-
-    if (response.statusCode != 200) {
+    if (!httpResponse.isSuccess()) {
         throw std::runtime_error("HTTP request failed with status: " +
-            std::to_string(response.statusCode));
+            std::to_string(httpResponse.statusCode));
     }
 
-    return response.body;
+    return httpResponse.body;
+
+    // TODO: 支持自定义headers和timeout
+    // TODO: 支持POST方法
 }
+
 
 std::vector<CrawledPaper> TemplateCrawlerModule::parseResponse(
     const CrawlerTemplate& tmpl,

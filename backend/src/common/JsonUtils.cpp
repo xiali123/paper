@@ -55,7 +55,7 @@ bool JsonUtils::toFile(const std::string& filePath, const json& j, int indent) {
 }
 
 json JsonUtils::merge(const json& a, const json& b) {
-    json result = a.clone();
+    json result = a;
 
     if (!b.is_object()) {
         return result;
