@@ -1,0 +1,10 @@
+^E:\PAPERCRAWLER\_DEPS\GUMBO-SUBBUILD\CMAKEFILES\2F68CCFEA04210009A6E0678A38FDB3A\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SE:/PaperCrawler/_deps/gumbo-subbuild -BE:/PaperCrawler/_deps/gumbo-subbuild --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file E:/PaperCrawler/_deps/gumbo-subbuild/gumbo-populate.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

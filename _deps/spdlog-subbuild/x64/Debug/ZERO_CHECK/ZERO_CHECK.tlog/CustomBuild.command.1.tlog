@@ -1,0 +1,10 @@
+^E:\PAPERCRAWLER\_DEPS\SPDLOG-SUBBUILD\CMAKEFILES\E61A7C5AECEBE7857A687F9F95FF37C9\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SE:/PaperCrawler/_deps/spdlog-subbuild -BE:/PaperCrawler/_deps/spdlog-subbuild --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file E:/PaperCrawler/_deps/spdlog-subbuild/spdlog-populate.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
