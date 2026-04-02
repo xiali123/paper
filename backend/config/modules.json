@@ -389,6 +389,28 @@
           "GET /api/stats/modules": "getModuleStats",
           "GET /api/stats/performance": "getPerformanceMetrics"
         }
+      },
+      {
+        "name": "AiCoPilotModule",
+        "library": "libaicopilot.so",
+        "path": "./modules/business",
+        "type": "BUSINESS",
+        "autoload": true,
+        "route_prefix": "/api/ai-co-pilot",
+        "version": "1.0.0",
+        "dependencies": ["AiApiModule", "KnowledgeGraphModule"],
+        "endpoints": {
+          "POST /api/ai-co-pilot/review": "generateReview",
+          "GET /api/ai-co-pilot/reviews/:userId": "getReviewHistory",
+          "POST /api/ai-co-pilot/literature-review/generate": "generateLiteratureReview",
+          "GET /api/ai-co-pilot/literature-reviews": "getLiteratureReviews",
+          "POST /api/ai-co-pilot/research-plan/generate": "generateResearchPlan",
+          "GET /api/ai-co-pilot/research-plans": "getResearchPlans",
+          "POST /api/ai-co-pilot/chat": "chat",
+          "GET /api/ai-co-pilot/conversations": "getConversations",
+          "GET /api/ai-co-pilot/recommendations": "getRecommendations",
+          "GET /api/ai-co-pilot/stats": "getUsageStats"
+        }
       }
     ]
   },

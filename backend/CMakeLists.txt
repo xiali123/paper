@@ -581,12 +581,146 @@ add_dynamic_module(RecommendationApiModule
     src/business/RecommendationApiModule.cpp
 )
 
+# 阶段9：分布式爬虫系统（NEW - 2026-04-02）
+# ============================================================================
+# libxml2 支持 - 分布式爬虫XPath解析
+# ============================================================================
+
+# 自动检测libxml2安装位置
+set(LIBXML2_SEARCH_PATHS
+    "C:/msys64/mingw64"              # MSYS2安装路径
+    "${CMAKE_SOURCE_DIR}/../core/external/libxml2"  # 项目本地路径
+    "$ENV{LIBXML2_ROOT}"             # 环境变量
+    "C:/vcpkg/installed/x64-mingw-dynamic"  # vcpkg
+)
+
+# 查找libxml2头文件
+find_path(LIBXML2_INCLUDE_DIR
+    NAMES libxml/xpath.h libxml/parser.h
+    PATHS ${LIBXML2_SEARCH_PATHS}
+    PATH_SUFFIXES include/libxml2 include
+    DOC "libxml2 include directory"
+)
+
+# 查找libxml2库文件
+find_library(LIBXML2_LIBRARY
+    NAMES libxml2 libxml2.dll.a libxml2.a
+    PATHS ${LIBXML2_SEARCH_PATHS}
+    PATH_SUFFIXES lib lib64
+    DOC "libxml2 library file"
+)
+
+# 查找libiconv（libxml2依赖）
+find_library(LIBXML2_ICONV_LIBRARY
+    NAMES libiconv libiconv-2.dll.a charset
+    PATHS ${LIBXML2_SEARCH_PATHS}
+    PATH_SUFFIXES lib lib64
+)
+
+# 判断libxml2是否找到
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LibXml2
+    REQUIRED_VARS LIBXML2_INCLUDE_DIR LIBXML2_LIBRARY
+)
+
+# TemplateCrawlerModule - 模板爬虫引擎
+add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp)
+
+set_target_properties(TemplateCrawlerModule PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
+    PREFIX "lib"
+)
+
+target_include_directories(TemplateCrawlerModule
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/../core/include
+        ${CURL_DIR}/include
+        ${EXTERNAL_DIR}/spdlog/include
+        ${EXTERNAL_DIR}/nlohmann
+        ${EXTERNAL_DIR}/gumbo/src
+)
+
+# 添加libxml2支持（如果找到）
+if(LibXml2_FOUND)
+    message(STATUS "  - libxml2: FOUND")
+    message(STATUS "    Include: ${LIBXML2_INCLUDE_DIR}")
+    message(STATUS "    Library: ${LIBXML2_LIBRARY}")
+
+    target_include_directories(TemplateCrawlerModule
+        PRIVATE ${LIBXML2_INCLUDE_DIR}
+    )
+    target_link_libraries(TemplateCrawlerModule
+        PRIVATE ${LIBXML2_LIBRARY}
+    )
+
+    # 如果找到libiconv，也链接它
+    if(LIBXML2_ICONV_LIBRARY)
+        target_link_libraries(TemplateCrawlerModule
+            PRIVATE ${LIBXML2_ICONV_LIBRARY}
+        )
+    endif()
+
+    # 定义宏，启用XPath支持
+    target_compile_definitions(TemplateCrawlerModule
+        PRIVATE HAVE_LIBXML2=1
+    )
+else()
+    message(WARNING "")
+    message(WARNING "  ==============================================================")
+    message(WARNING "  ⚠️  libxml2 NOT FOUND - XPath解析功能将被禁用")
+    message(WARNING "  ==============================================================")
+    message(WARNING "  请安装libxml2以启用XPath解析功能:")
+    message(WARNING "")
+    message(WARNING "  方法1: MSYS2（推荐）")
+    message(WARNING "    1. 下载安装: https://github.com/msys2/msys2-installer/releases/")
+    message(WARNING "    2. 打开 MSYS2 MinGW 64-bit 终端")
+    message(WARNING "    3. 执行: pacman -S mingw-w64-x86_64-libxml2")
+    message(WARNING "")
+    message(WARNING "  方法2: 下载预编译版本")
+    message(WARNING "    1. 访问: https://github.com/GNOME/libxml2/releases")
+    message(WARNING "    2. 下载libxml2-*.zip")
+    message(WARNING "    3. 解压到: E:/PaperCrawler/core/external/libxml2/")
+    message(WARNING "")
+    message(WARNING "  详细安装指南: backend/docs/LIBXML2_INSTALLATION_GUIDE.md")
+    message(WARNING "  ==============================================================")
+    message(WARNING "")
+
+    # 不定义HAVE_LIBXML2宏（让条件编译正常工作）
+endif()
+
+if(WIN32)
+    target_compile_definitions(TemplateCrawlerModule PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+    )
+    if(MSVC)
+        target_compile_options(TemplateCrawlerModule PRIVATE /utf-8)
+    endif()
+endif()
+
+message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with nlohmann/json)")
+
+# DistributedTaskModule - 分布式任务调度
+add_dynamic_module(DistributedTaskModule
+    src/modules/DistributedTaskModule.cpp
+)
+
+# CrawlerApiModule - 爬虫API接口
+add_dynamic_module(CrawlerApiModule
+    src/business/CrawlerApiModule.cpp
+)
+
 message(STATUS "")
 message(STATUS "================== All Business Modules Dynamic ==================")
 message(STATUS "Modules: ExportApiModule, StatsApiModule, PaperApiModule")
 message(STATUS "         AuthApiModule, SearchApiModule, UserApiModule")
 message(STATUS "         AiApiModule (NEW)")
 message(STATUS "         RecommendationApiModule (NEW)")
+message(STATUS "         TemplateCrawlerModule (NEW - 分布式爬虫)")
+message(STATUS "         DistributedTaskModule (NEW - 分布式爬虫)")
+message(STATUS "         CrawlerApiModule (NEW - 分布式爬虫)")
 message(STATUS "Output: ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
 message(STATUS "Status: Compiling...")
 message(STATUS "==========================================================================")

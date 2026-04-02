@@ -31,6 +31,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#include <optional>
 
 namespace PaperCrawler::Modules {
 
