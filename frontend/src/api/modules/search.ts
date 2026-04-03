@@ -1,0 +1,105 @@
+/**
+ * Advanced Search API Module
+ * 高级搜索功能
+ */
+
+import { request } from '../utils/request'
+import type { SearchResult, AdvancedSearchQuery, SearchSuggestion } from '../types'
+
+/**
+ * 搜索请求
+ */
+export interface SearchRequest {
+  query: string
+  type?: 'papers' | 'authors' | 'keywords' | 'fulltext'
+  page?: number
+  limit?: number
+  sortBy?: 'relevance' | 'date' | 'citation'
+}
+
+/**
+ * 高级搜索请求
+ */
+export interface AdvancedSearchRequest extends AdvancedSearchQuery {
+  page?: number
+  limit?: number
+}
+
+/**
+ * 搜索API
+ */
+export const searchApi = {
+  /**
+   * 基础搜索
+   * GET /api/search
+   */
+  async search(request: SearchRequest): Promise<SearchResult> {
+    return await request.get('/api/search', {
+      params: request
+    })
+  },
+
+  /**
+   * 高级搜索
+   * POST /api/search/advanced
+   */
+  async advancedSearch(request: AdvancedSearchRequest): Promise<SearchResult> {
+    return await request.post('/api/search/advanced', request)
+  },
+
+  /**
+   * 获取搜索建议
+   * GET /api/search/suggestions
+   */
+  async getSuggestions(query: string, limit = 10): Promise<SearchSuggestion[]> {
+    return await request.get('/api/search/suggestions', {
+      params: { query, limit }
+    })
+  },
+
+  /**
+   * 获取热门搜索
+   * GET /api/search/trending
+   */
+  async getTrending(limit = 10): Promise<Array<{
+    query: string
+    count: number
+    trend: 'up' | 'down' | 'stable'
+  }>> {
+    return await request.get('/api/search/trending', {
+      params: { limit }
+    })
+  },
+
+  /**
+   * 获取搜索历史
+   * GET /api/search/history
+   */
+  async getHistory(userId: number, limit = 20): Promise<Array<{
+    query: string
+    timestamp: string
+    resultsCount: number
+  }>> {
+    return await request.get('/api/search/history', {
+      params: { userId, limit }
+    })
+  },
+
+  /**
+   * 保存搜索
+   * POST /api/search/save
+   */
+  async saveSearch(userId: number, query: string, name?: string): Promise<{ success: boolean }> {
+    return await request.post('/api/search/save', { userId, query, name })
+  },
+
+  /**
+   * 删除已保存搜索
+   * DELETE /api/search/saved/:name
+   */
+  async deleteSavedSearch(name: string): Promise<{ success: boolean }> {
+    return await request.delete(`/api/search/saved/${encodeURIComponent(name)}`)
+  }
+}
+
+export default searchApi
