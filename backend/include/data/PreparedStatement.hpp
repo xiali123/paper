@@ -84,6 +84,11 @@ private:
      * @brief 转义SQL值
      */
     std::string escapeValue(const ParameterValue& value);
+
+    /**
+     * @brief 转义SQL字符串（静态方法）
+     */
+    static std::string escapeSql(const std::string& str);
 };
 
 /**
@@ -166,6 +171,16 @@ private:
     int offset_{-1};
     std::vector<std::string> groupByColumns_;
     std::string havingCondition_;
+
+    /**
+     * @brief 转义SQL值
+     */
+    std::string escapeValue(const ParameterValue& value);
+
+    /**
+     * @brief 转义SQL字符串（静态方法）
+     */
+    static std::string escapeSql(const std::string& str);
 };
 
 /**

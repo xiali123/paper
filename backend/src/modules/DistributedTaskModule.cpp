@@ -735,10 +735,13 @@ bool DistributedTaskModule::saveTaskToDatabase(
 
 void DistributedTaskModule::loadWorkersFromDatabase() {
     try {
-        QueryBuilder queryBuilder(database_);
-        queryBuilder.select().from("crawler_workers");
-
-        auto rows = queryBuilder.query();
+        // 使用IDatabase直接执行查询（替代QueryBuilder）
+        auto rows = database_->query(
+            "SELECT node_id, user_id, node_type, ip_address, "
+            "max_concurrent_tasks, current_tasks, status "
+            "FROM crawler_workers "
+            "WHERE status != 'DISABLED'"
+        );
 
         for (const auto& row : rows) {
             WorkerNode worker;

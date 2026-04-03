@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(PaperCrawlerBackend VERSION 1.0.0 LANGUAGES CXX)
+project(PaperCrawlerBackend VERSION 1.0.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -463,18 +463,46 @@ message(STATUS "")
 # 模块化编译配置（当前稳定状态）
 # ============================================================================
 
-# 创建共享系统模块静态库（供业务模块链接）
+# ============================================================================
+# 共享系统模块静态库（供业务模块链接）
+# ============================================================================
 add_library(SystemModules STATIC
     src/features/operations/ResponseHandlerModule.cpp
     src/core/Router.cpp
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
+    src/data/PreparedStatement.cpp   # 添加PreparedStatement支持
+    src/data/DatabaseModule.cpp     # 添加DatabaseModule支持
+    src/modules/TemplateCrawlerModule.cpp  # 完整实现（需要gumbo）
+    # Gumbo解析器源文件（直接编译到SystemModules中）
+    ${EXTERNAL_DIR}/gumbo/src/attribute.c
+    ${EXTERNAL_DIR}/gumbo/src/char_ref.c
+    ${EXTERNAL_DIR}/gumbo/src/error.c
+    ${EXTERNAL_DIR}/gumbo/src/parser.c
+    ${EXTERNAL_DIR}/gumbo/src/string_buffer.c
+    ${EXTERNAL_DIR}/gumbo/src/string_piece.c
+    ${EXTERNAL_DIR}/gumbo/src/tag.c
+    ${EXTERNAL_DIR}/gumbo/src/tokenizer.c
+    ${EXTERNAL_DIR}/gumbo/src/utf8.c
+    ${EXTERNAL_DIR}/gumbo/src/util.c
+    ${EXTERNAL_DIR}/gumbo/src/vector.c
 )
+
+# 为gumbo的C文件设置编译选项
+if(MSVC)
+    target_compile_options(SystemModules PRIVATE /wd4996)  # 禁用VS2015的警告
+    # 为Windows添加strings.h的替代定义
+    target_compile_definitions(SystemModules PRIVATE
+        strncasecmp=_strnicmp
+        strcasecmp=_stricmp
+    )
+endif()
 
 target_include_directories(SystemModules PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/../core/include
     ${CURL_DIR}/include  # HttpClient需要CURL头文件
     ${EXTERNAL_DIR}/spdlog/include  # HttpClient需要spdlog
+    ${EXTERNAL_DIR}/gumbo/src  # TemplateCrawlerModule需要gumbo
 )
 
 if(WIN32)
@@ -490,7 +518,7 @@ if(WIN32)
         # MinGW/GCC默认使用UTF-8，不需要特殊标志
     endif()
 
-    # HttpClient需要的链接库
+    # SystemModules需要的链接库（gumbo已直接编译到SystemModules中）
     target_link_libraries(SystemModules PUBLIC
         ws2_32
         wsock32
@@ -817,10 +845,11 @@ endif()
 
 # message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with nlohmann/json)")
 
-# DistributedTaskModule - 分布式任务调度（临时禁用 - 链接错误）
-# add_dynamic_module_with_system(DistributedTaskModule
-#     src/modules/DistributedTaskModule.cpp
-# )
+# DistributedTaskModule - 分布式任务调度
+# 详见: DISTRIBUTED_TASK_MODULE_ANALYSIS.md
+add_dynamic_module_with_system(DistributedTaskModule
+    src/modules/DistributedTaskModule.cpp
+)
 
 # CrawlerApiModule - 爬虫API接口（临时禁用 - 复杂依赖未实现）
 # 详见: CRAWLER_API_MODULE_ANALYSIS.md
