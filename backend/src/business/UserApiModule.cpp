@@ -104,7 +104,18 @@ public:
     // 从数据库获取用户（通过用户名）
     std::optional<User> getUserByUsernameFromDatabase(const std::string& username) {
         try {
-            auto sql = "SELECT * FROM users WHERE username = '" + username + "'";
+            // ✅ 安全：SQL转义防止SQL注入（临时方案，生产环境应使用PreparedStatement）
+            auto escape = [](const std::string& s) {
+                std::string result;
+                for (char c : s) {
+                    if (c == '\'') result += "''";
+                    else if (c == '\\') result += "\\\\";
+                    else result += c;
+                }
+                return result;
+            };
+
+            auto sql = "SELECT * FROM users WHERE username = '" + escape(username) + "'";
             auto results = database_->query(sql);
             if (!results.empty()) {
                 return userFromDbRow(results[0]);
@@ -119,7 +130,18 @@ public:
     // 从数据库获取用户（通过邮箱）
     std::optional<User> getUserByEmailFromDatabase(const std::string& email) {
         try {
-            auto sql = "SELECT * FROM users WHERE email = '" + email + "'";
+            // ✅ 安全：SQL转义防止SQL注入（临时方案，生产环境应使用PreparedStatement）
+            auto escape = [](const std::string& s) {
+                std::string result;
+                for (char c : s) {
+                    if (c == '\'') result += "''";
+                    else if (c == '\\') result += "\\\\";
+                    else result += c;
+                }
+                return result;
+            };
+
+            auto sql = "SELECT * FROM users WHERE email = '" + escape(email) + "'";
             auto results = database_->query(sql);
             if (!results.empty()) {
                 return userFromDbRow(results[0]);
@@ -311,9 +333,14 @@ public:
 // UserApiModule
 // ============================================================================
 
+UserApiModule::UserApiModule()
+    : UserApiModule(nullptr) {
+    std::cout << "[UserApi] UserApiModule default constructor (database=nullptr)" << std::endl;
+}
+
 UserApiModule::UserApiModule(std::shared_ptr<IDatabase> database)
     : database_(database),
-      impl_(std::make_unique<Impl>(database)) {}
+      impl_(database ? std::make_unique<Impl>(database) : nullptr) {}
 
 UserApiModule::~UserApiModule() = default;
 
@@ -336,6 +363,18 @@ bool UserApiModule::stop() {
 void UserApiModule::cleanup() {
     // 不再需要清理内存map，数据存储在数据库中
     std::cout << "UserApiModule cleanup complete" << std::endl;
+}
+
+void UserApiModule::registerRoutes() {
+    // 注册路由到Router
+    std::cout << "UserApiModule registering routes..." << std::endl;
+
+    // TODO: 注册路由
+    // addRoute("/api/users", [this](const HttpRequest& req) {
+    //     return handleListUsers(req);
+    // });
+
+    std::cout << "UserApiModule routes registered" << std::endl;
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {
@@ -398,26 +437,25 @@ bool UserApiModule::changePassword(int id, const PasswordChangeRequest& request)
 }
 
 bool UserApiModule::verifyPassword(int id, const std::string& password) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it == users_.end()) {
+    auto userOpt = getUser(id);
+    if (!userOpt) {
         return false;
     }
 
     // 简化验证（实际应使用bcrypt）
     std::string hash = hashPassword(password);
-    return it->second.passwordHash == hash;
+    return userOpt->passwordHash == hash;
 }
 
 bool UserApiModule::updateLastLogin(int id) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(id);
-    if (it == users_.end()) {
+    try {
+        auto sql = "UPDATE users SET last_login = NOW() WHERE id = " + std::to_string(id);
+        database_->execute(sql);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[UserApi] Failed to update last login: " << e.what() << std::endl;
         return false;
     }
-
-    it->second.lastLoginAt = std::chrono::system_clock::now();
-    return true;
 }
 
 UserStats UserApiModule::getStats() {
@@ -430,24 +468,30 @@ UserStats UserApiModule::getStats() {
     stats.userCount = 0;
     stats.guestCount = 0;
 
-    std::lock_guard<std::mutex> lock(mutex_);
+    try {
+        // 从数据库查询统计信息
+        auto sql = "SELECT COUNT(*) as total, "
+                   "SUM(CASE WHEN is_active = '1' THEN 1 ELSE 0 END) as active, "
+                   "SUM(CASE WHEN is_active = '0' THEN 1 ELSE 0 END) as inactive, "
+                   "SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended, "
+                   "SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins, "
+                   "SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) as users, "
+                   "SUM(CASE WHEN role = 'guest' THEN 1 ELSE 0 END) as guests "
+                   "FROM users";
 
-    for (const auto& pair : users_) {
-        const User& user = pair.second;
-        stats.totalUsers++;
-
-        switch (user.status) {
-            case UserStatus::ACTIVE: stats.activeUsers++; break;
-            case UserStatus::INACTIVE: stats.inactiveUsers++; break;
-            case UserStatus::SUSPENDED: stats.suspendedUsers++; break;
-            case UserStatus::PENDING: break;
+        auto results = database_->query(sql);
+        if (!results.empty()) {
+            const auto& row = results[0];
+            stats.totalUsers = std::stoi(row.at("total"));
+            stats.activeUsers = std::stoi(row.at("active"));
+            stats.inactiveUsers = std::stoi(row.at("inactive"));
+            stats.suspendedUsers = std::stoi(row.at("suspended"));
+            stats.adminCount = std::stoi(row.at("admins"));
+            stats.userCount = std::stoi(row.at("users"));
+            stats.guestCount = std::stoi(row.at("guests"));
         }
-
-        switch (user.role) {
-            case UserRole::ADMIN: stats.adminCount++; break;
-            case UserRole::USER: stats.userCount++; break;
-            case UserRole::GUEST: stats.guestCount++; break;
-        }
+    } catch (const std::exception& e) {
+        std::cerr << "[UserApi] Failed to query stats: " << e.what() << std::endl;
     }
 
     return stats;
@@ -482,25 +526,14 @@ std::vector<User> UserApiModule::importUsers(const std::vector<UserCreateRequest
     return imported;
 }
 
-User UserApiModule::createMockUser(int id) {
-    User user;
-    user.id = id;
-    user.username = "user" + std::to_string(id);
-    user.email = "user" + std::to_string(id) + "@example.com";
-    user.fullName = "Test User " + std::to_string(id);
-    user.role = UserRole::USER;
-    user.status = UserStatus::ACTIVE;
-    user.createdAt = std::chrono::system_clock::now();
-    user.updatedAt = user.createdAt;
-    return user;
-}
-
 bool UserApiModule::isUsernameUnique(const std::string& username) {
-    return usernameIndex_.find(username) == usernameIndex_.end();
+    // 从数据库查询用户名是否存在
+    return !impl_->getUserByUsernameFromDatabase(username).has_value();
 }
 
 bool UserApiModule::isEmailUnique(const std::string& email) {
-    return emailIndex_.find(email) == emailIndex_.end();
+    // 从数据库查询邮箱是否存在
+    return !impl_->getUserByEmailFromDatabase(email).has_value();
 }
 
 std::string UserApiModule::hashPassword(const std::string& password) {

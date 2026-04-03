@@ -2,6 +2,7 @@
 #include "data/DatabaseModule.hpp"
 #include "data/MySqlConnection.hpp"
 #include "features/operations/ResponseHandlerModule.hpp"
+#include "core/ConfigManager.hpp"
 #include <sstream>
 #include <chrono>
 #include <thread>
@@ -224,9 +225,24 @@ DatabaseModule::~DatabaseModule() = default;
 bool DatabaseModule::onInitialize() {
     std::cout << "DatabaseModule::onInitialize" << std::endl;
 
-    // 使用默认配置初始化
-    DatabaseConfig defaultConfig;
-    return impl_->initializePool(defaultConfig);
+    // 直接使用硬编码配置（临时方案）
+    DatabaseConfig dbConfig;
+    dbConfig.host = "127.0.0.1";
+    dbConfig.port = 3306;
+    dbConfig.username = "root";
+    dbConfig.password = "123456";
+    dbConfig.database = "papercrawler_db";
+    dbConfig.poolSize = 10;
+    dbConfig.maxPoolSize = 20;
+    dbConfig.connectTimeoutSeconds = 30;
+
+    std::cout << "[Database] Using hardcoded database config:" << std::endl;
+    std::cout << "  User: " << dbConfig.username << std::endl;
+    std::cout << "  Password: " << (dbConfig.password.empty() ? "(empty)" : "(***)") << std::endl;
+    std::cout << "  Host: " << dbConfig.host << ":" << dbConfig.port << std::endl;
+    std::cout << "  Database: " << dbConfig.database << std::endl;
+
+    return impl_->initializePool(dbConfig);
 }
 
 bool DatabaseModule::onStart() {

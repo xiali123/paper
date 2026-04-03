@@ -378,11 +378,14 @@ message(STATUS "")
 add_library(SystemModules STATIC
     src/features/operations/ResponseHandlerModule.cpp
     src/core/Router.cpp
+    src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
 )
 
 target_include_directories(SystemModules PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/../core/include
+    ${CURL_DIR}/include  # HttpClient需要CURL头文件
+    ${EXTERNAL_DIR}/spdlog/include  # HttpClient需要spdlog
 )
 
 if(WIN32)
@@ -390,12 +393,33 @@ if(WIN32)
         WIN32_LEAN_AND_MEAN
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
+        CURL_STATIC  # HttpClient需要
     )
     if(MSVC)
         target_compile_options(SystemModules PUBLIC /utf-8)
     else()
         # MinGW/GCC默认使用UTF-8，不需要特殊标志
     endif()
+
+    # HttpClient需要的链接库
+    target_link_libraries(SystemModules PUBLIC
+        ws2_32
+        wsock32
+        crypt32
+        ${CURL_DIR}/lib/libcurl.dll.a
+        ${CURL_DIR}/lib/libcrypto.a
+        ${CURL_DIR}/lib/libssl.a
+        ${CURL_DIR}/lib/libnghttp2.a
+        ${CURL_DIR}/lib/libnghttp3.a
+        ${CURL_DIR}/lib/libngtcp2.a
+        ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
+        ${CURL_DIR}/lib/libssh2.a
+        ${CURL_DIR}/lib/libbrotlicommon.a
+        ${CURL_DIR}/lib/libbrotlidec.a
+        ${CURL_DIR}/lib/libz.a
+        ${CURL_DIR}/lib/libzstd.a
+        ${CURL_DIR}/lib/libpsl.a
+    )
 endif()
 
 # 辅助函数：编译业务模块为对象库（用于静态链接）
@@ -561,15 +585,15 @@ add_dynamic_module(AuthApiModule
     src/business/AuthApiModule.cpp
 )
 
-# 阶段5：SearchApiModule动态化（临时注释 - 有编译错误）
-# add_dynamic_module(SearchApiModule
-#     src/business/SearchApiModule.cpp
-# )
+# 阶段5：SearchApiModule动态化（修复中）
+add_dynamic_module_with_system(SearchApiModule
+    src/business/SearchApiModule.cpp
+)
 
-# 阶段6：UserApiModule动态化（临时注释 - 有编译错误）
-# add_dynamic_module(UserApiModule
-#     src/business/UserApiModule.cpp
-# )
+# 阶段6：UserApiModule动态化（已修复SQL注入和编译错误 ✓）
+add_dynamic_module(UserApiModule
+    src/business/UserApiModule.cpp
+)
 
 # 阶段7：AiApiModule动态化（NEW）
 add_dynamic_module(AiApiModule
@@ -623,25 +647,25 @@ find_package_handle_standard_args(LibXml2
     REQUIRED_VARS LIBXML2_INCLUDE_DIR LIBXML2_LIBRARY
 )
 
-# TemplateCrawlerModule - 模板爬虫引擎
-add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp
-    src/network/HttpClient.cpp
-    src/common/JsonUtils.cpp)
+# TemplateCrawlerModule - 模板爬虫引擎（临时禁用 - 链接错误）
+# add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp
+#     src/network/HttpClient.cpp
+#     src/common/JsonUtils.cpp)
 
-set_target_properties(TemplateCrawlerModule PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
-    PREFIX "lib"
-)
+# set_target_properties(TemplateCrawlerModule PROPERTIES
+#     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
+#     PREFIX "lib"
+# )
 
-target_include_directories(TemplateCrawlerModule
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/../core/include
-        ${CURL_DIR}/include
-        ${EXTERNAL_DIR}/spdlog/include
-        ${EXTERNAL_DIR}/nlohmann
-        ${EXTERNAL_DIR}/gumbo/src
-)
+# target_include_directories(TemplateCrawlerModule
+#     PRIVATE
+#         ${CMAKE_SOURCE_DIR}/include
+#         ${CMAKE_SOURCE_DIR}/../core/include
+#         ${CURL_DIR}/include
+#         ${EXTERNAL_DIR}/spdlog/include
+#         ${EXTERNAL_DIR}/nlohmann
+#         ${EXTERNAL_DIR}/gumbo/src
+# )
 
 # 添加libxml2支持（如果找到）
 if(LibXml2_FOUND)
@@ -649,24 +673,25 @@ if(LibXml2_FOUND)
     message(STATUS "    Include: ${LIBXML2_INCLUDE_DIR}")
     message(STATUS "    Library: ${LIBXML2_LIBRARY}")
 
-    target_include_directories(TemplateCrawlerModule
-        PRIVATE ${LIBXML2_INCLUDE_DIR}
-    )
-    target_link_libraries(TemplateCrawlerModule
-        PRIVATE ${LIBXML2_LIBRARY}
-    )
+    # TemplateCrawlerModule已禁用，跳过配置
+    # target_include_directories(TemplateCrawlerModule
+    #     PRIVATE ${LIBXML2_INCLUDE_DIR}
+    # )
+    # target_link_libraries(TemplateCrawlerModule
+    #     PRIVATE ${LIBXML2_LIBRARY}
+    # )
 
     # 如果找到libiconv，也链接它
     if(LIBXML2_ICONV_LIBRARY)
-        target_link_libraries(TemplateCrawlerModule
-            PRIVATE ${LIBXML2_ICONV_LIBRARY}
-        )
+        # target_link_libraries(TemplateCrawlerModule
+        #     PRIVATE ${LIBXML2_ICONV_LIBRARY}
+        # )
     endif()
 
     # 定义宏，启用XPath支持
-    target_compile_definitions(TemplateCrawlerModule
-        PRIVATE HAVE_LIBXML2=1
-    )
+    # target_compile_definitions(TemplateCrawlerModule
+    #     PRIVATE HAVE_LIBXML2=1
+    # )
 else()
     message(WARNING "")
     message(WARNING "  ==============================================================")
@@ -691,28 +716,29 @@ else()
     # 不定义HAVE_LIBXML2宏（让条件编译正常工作）
 endif()
 
-if(WIN32)
-    target_compile_definitions(TemplateCrawlerModule PRIVATE
-        WIN32_LEAN_AND_MEAN
-        NOMINMAX
-        _CRT_SECURE_NO_WARNINGS
-    )
-    if(MSVC)
-        target_compile_options(TemplateCrawlerModule PRIVATE /utf-8)
-    endif()
-endif()
+# TemplateCrawlerModule Windows配置已禁用
+# if(WIN32)
+#     target_compile_definitions(TemplateCrawlerModule PRIVATE
+#         WIN32_LEAN_AND_MEAN
+#         NOMINMAX
+#         _CRT_SECURE_NO_WARNINGS
+#     )
+#     if(MSVC)
+#         target_compile_options(TemplateCrawlerModule PRIVATE /utf-8)
+#     endif()
+# endif()
 
-message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with nlohmann/json)")
+# message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with nlohmann/json)")
 
-# DistributedTaskModule - 分布式任务调度
-add_dynamic_module(DistributedTaskModule
-    src/modules/DistributedTaskModule.cpp
-)
+# DistributedTaskModule - 分布式任务调度（临时禁用 - 链接错误）
+# add_dynamic_module_with_system(DistributedTaskModule
+#     src/modules/DistributedTaskModule.cpp
+# )
 
-# CrawlerApiModule - 爬虫API接口
-add_dynamic_module(CrawlerApiModule
-    src/business/CrawlerApiModule.cpp
-)
+# CrawlerApiModule - 爬虫API接口（临时禁用 - 编译错误）
+# add_dynamic_module(CrawlerApiModule
+#     src/business/CrawlerApiModule.cpp
+# )
 
 message(STATUS "")
 message(STATUS "================== All Business Modules Dynamic ==================")

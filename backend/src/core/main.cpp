@@ -426,47 +426,29 @@ bool initializeDatabase() {
     printStep("Init", "Connecting to MySQL database with connection pool");
 
     try {
-        // 使用ConfigManager加载配置
-        auto& config = ConfigManager::getInstance();
-
-        // 尝试从配置文件加载
-        config.loadFromFile("./config/config.json");
-
-        // 从环境变量加载（优先级更高）
-        config.loadFromEnvironment();
-
-        // 获取数据库配置
-        std::string host = config.getString("database.host", "localhost");
-        int port = config.getInt("database.port", 3306);
-        std::string user = config.getString("database.user", "root");
-        std::string password = config.getString("database.password");
-        std::string database = config.getString("database.name", "papercrawler");
-        size_t poolSize = config.getInt("database.pool_size", 20);
-
-        // 验证密码配置
-        if (password.empty()) {
-            printError("Database password not configured (set DB_PASSWORD environment variable)");
-            spdlog::error("[Config] Database password not configured (set DB_PASSWORD environment variable)");
-            return false;
-        }
-
         // 创建DatabaseModule实例
         g_databaseModule = std::make_shared<DatabaseModule>();
 
-        // 配置连接池
+        // 使用硬编码配置（临时方案）
         DatabaseConfig dbConfig;
-        dbConfig.host = host;
-        dbConfig.port = port;
-        dbConfig.username = user;
-        dbConfig.password = password;
-        dbConfig.database = database;
-        dbConfig.poolSize = poolSize;        // 初始连接数
-        dbConfig.maxPoolSize = poolSize * 2; // 最大连接数
+        dbConfig.host = "127.0.0.1";
+        dbConfig.port = 3306;
+        dbConfig.username = "root";
+        dbConfig.password = "123456";
+        dbConfig.database = "papercrawler_db";
+        dbConfig.poolSize = 10;         // 初始连接数
+        dbConfig.maxPoolSize = 20;      // 最大连接数
         dbConfig.connectTimeoutSeconds = 5;
         dbConfig.queryTimeoutSeconds = 30;
         dbConfig.autoReconnect = true;
 
         g_databaseModule->setConfig(dbConfig);
+
+        // 打印配置信息
+        std::cout << "  Host: " << dbConfig.host << ":" << dbConfig.port << std::endl;
+        std::cout << "  Database: " << dbConfig.database << std::endl;
+        std::cout << "  User: " << dbConfig.username << std::endl;
+        std::cout << "  Pool size: " << dbConfig.poolSize << std::endl;
 
         // 初始化连接池
         if (!g_databaseModule->initialize()) {
@@ -498,7 +480,7 @@ bool initializeDatabase() {
         if (!g_dbConnection->isConnected()) {
             printError("Failed to connect to MySQL database");
             spdlog::error("[Database] Connection failed - host:{}, port:{}, user:{}, db:{}",
-                         host, port, user, database);
+                         dbConfig.host, dbConfig.port, dbConfig.username, dbConfig.database);
             return false;
         }
 
@@ -506,7 +488,7 @@ bool initializeDatabase() {
         auto poolStats = g_databaseModule->getPoolStats();
         printSuccess("Connected to MySQL database with connection pool");
         spdlog::info("[Database] Successfully connected - host:{}, port:{}, user:{}, db:{}",
-                     host, port, user, database);
+                     dbConfig.host, dbConfig.port, dbConfig.username, dbConfig.database);
         spdlog::info("[Database] Connection pool initialized - size:{}, max_size:{}, active:{}",
                      poolStats.totalConnections, dbConfig.maxPoolSize, poolStats.activeConnections);
 

@@ -196,6 +196,12 @@ public:
         return "Advanced search API with Meilisearch integration";
     }
 
+    // ModuleBase接口实现
+    bool initialize() override;
+    bool start() override;
+    bool stop() override;
+    void cleanup() override;
+
     /**
      * @brief 基础搜索
      */

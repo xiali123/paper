@@ -134,9 +134,16 @@ struct UserStats {
  */
 class UserApiModule : public BusinessModuleBase {
 public:
-    // 构造函数：注入IDatabase依赖
+    // 构造函数
+    UserApiModule();  // 默认构造函数，用于DLL导出
     explicit UserApiModule(std::shared_ptr<IDatabase> database);
     ~UserApiModule() override;
+
+    // ModuleBase接口实现
+    bool initialize() override;
+    bool start() override;
+    bool stop() override;
+    void cleanup() override;
 
     std::string getName() const override { return "UserApi"; }
     std::string getVersion() const override { return "1.0.0"; }

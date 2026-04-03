@@ -92,7 +92,15 @@ void ConfigManager::loadFromEnvironment() {
             char* value = nullptr;
             errno_t err = _dupenv_s(&value, &len, envVars[i]);
             if (err == 0 && value && len > 0) {
-                config_[envVars[i]] = std::string(value, len);
+                // Trim空格
+                std::string strValue(value, len);
+                size_t start = strValue.find_first_not_of(" \t\r\n");
+                if (start != std::string::npos) {
+                    size_t end = strValue.find_last_not_of(" \t\r\n");
+                    config_[envVars[i]] = strValue.substr(start, end - start + 1);
+                } else {
+                    config_[envVars[i]] = "";
+                }
                 free(value);
             }
         #else
@@ -130,7 +138,12 @@ void ConfigManager::loadFromEnvironment() {
 std::string ConfigManager::getString(const std::string& key, const std::string& defaultValue) {
     auto it = config_.find(key);
     if (it != config_.end()) {
-        return it->second;
+        // Trim空格
+        std::string value = it->second;
+        size_t start = value.find_first_not_of(" \t\r\n");
+        if (start == std::string::npos) return "";
+        size_t end = value.find_last_not_of(" \t\r\n");
+        return value.substr(start, end - start + 1);
     }
     return defaultValue;
 }
