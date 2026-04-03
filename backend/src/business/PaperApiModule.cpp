@@ -387,32 +387,17 @@ public:
 
 // ============================================================================
 
+PaperApiModule::PaperApiModule()
+    : PaperApiModule(nullptr) {
+    std::cout << "[PaperApi] PaperApiModule default constructor (database=nullptr)" << std::endl;
+}
+
 PaperApiModule::PaperApiModule(std::shared_ptr<IDatabase> database)
     : database_(database),
       impl_(std::make_unique<Impl>(database)) {
 }
 
 PaperApiModule::~PaperApiModule() = default;
-
-bool PaperApiModule::initialize() {
-    registerRoutes();
-    std::cout << "PaperApiModule initialized" << std::endl;
-    return true;
-}
-
-bool PaperApiModule::start() {
-    std::cout << "PaperApiModule started" << std::endl;
-    return true;
-}
-
-bool PaperApiModule::stop() {
-    std::cout << "PaperApiModule stopped" << std::endl;
-    return true;
-}
-
-void PaperApiModule::cleanup() {
-    // 清理资源
-}
 
 std::vector<Paper> PaperApiModule::listPapers(int page, int limit, const std::string& sortBy, bool ascending) {
     // 使用数据库查询（调用已实现的数据库方法）
@@ -482,40 +467,33 @@ bool PaperApiModule::markAsFavorite(int id, bool favorite) {
 }
 
 bool PaperApiModule::addTag(int id, const std::string& tag) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it != impl_->mockPapers_.end()) {
-        it->second.tags.push_back(tag);
-        return true;
-    }
+    // TODO: 实现标签添加的数据库操作
+    std::cout << "[PaperAPI] addTag not yet implemented for database" << std::endl;
     return false;
 }
 
 bool PaperApiModule::removeTag(int id, const std::string& tag) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it != impl_->mockPapers_.end()) {
-        auto& tags = it->second.tags;
-        auto tagIt = std::find(tags.begin(), tags.end(), tag);
-        if (tagIt != tags.end()) {
-            tags.erase(tagIt);
-            return true;
-        }
-    }
+    // TODO: 实现标签移除的数据库操作
+    std::cout << "[PaperAPI] removeTag not yet implemented for database" << std::endl;
     return false;
 }
 
 bool PaperApiModule::uploadPDF(int id, const std::string& filePath) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it != impl_->mockPapers_.end()) {
-        it->second.pdfPath = filePath;
+    try {
+        // 使用数据库更新PDF路径
+        auto sql = "UPDATE papers SET pdf_path = '" + filePath + "' WHERE id = " + std::to_string(id);
+        impl_->database_->execute(sql);
         return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[PaperAPI] Failed to upload PDF: " << e.what() << std::endl;
+        return false;
     }
-    return false;
 }
 
 std::string PaperApiModule::getPDFPath(int id) {
-    auto it = impl_->mockPapers_.find(id);
-    if (it != impl_->mockPapers_.end()) {
-        return it->second.pdfPath;
+    auto paper = impl_->getPaperById(id);
+    if (paper.has_value()) {
+        return paper->pdfPath;
     }
     return "";
 }
@@ -681,7 +659,7 @@ std::string PaperApiModule::handleListPapers(const std::map<std::string, std::st
     }
     json << "]";
 
-    return JsonHelper::buildPapersJsonResponse(json.str(), impl_->mockPapers_.size(), page, limit);
+    return JsonHelper::buildPapersJsonResponse(json.str(), papers.size(), page, limit);
 }
 
 std::string PaperApiModule::handleGetPaper(const std::map<std::string, std::string>& params) {

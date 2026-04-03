@@ -170,6 +170,11 @@ public:
 // SearchApiModule
 // ============================================================================
 
+SearchApiModule::SearchApiModule()
+    : SearchApiModule(nullptr) {
+    std::cout << "[SearchApi] SearchApiModule default constructor (httpClient=nullptr)" << std::endl;
+}
+
 SearchApiModule::SearchApiModule(HttpClientPtr httpClient)
     : httpClient_(httpClient ? httpClient : std::make_shared<Network::HttpClient>()),
       impl_(std::make_unique<Impl>(nullptr)) {  // 临时：暂时传入nullptr
@@ -177,27 +182,6 @@ SearchApiModule::SearchApiModule(HttpClientPtr httpClient)
 }
 
 SearchApiModule::~SearchApiModule() = default;
-
-bool SearchApiModule::initialize() {
-    std::cout << "SearchApiModule initialized" << std::endl;
-    // 不再加载Mock数据
-    return true;
-}
-
-bool SearchApiModule::start() {
-    std::cout << "SearchApiModule started" << std::endl;
-    return true;
-}
-
-bool SearchApiModule::stop() {
-    std::cout << "SearchApiModule stopped" << std::endl;
-    return true;
-}
-
-void SearchApiModule::cleanup() {
-    // 不再需要清理内存数据结构，数据存储在数据库中
-    std::cout << "SearchApiModule cleanup complete" << std::endl;
-}
 
 SearchResult SearchApiModule::search(const std::string& query, SearchType type, int page, int limit) {
     auto startTime = std::chrono::high_resolution_clock::now();

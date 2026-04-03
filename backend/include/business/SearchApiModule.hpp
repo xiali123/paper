@@ -186,8 +186,11 @@ struct SearchStats {
  */
 class SearchApiModule : public BusinessModuleBase {
 public:
+    // 默认构造函数（用于DLL导出）
+    SearchApiModule();
+
     // 构造函数：可注入HttpClient（用于测试）
-    explicit SearchApiModule(HttpClientPtr httpClient = nullptr);
+    SearchApiModule(HttpClientPtr httpClient);
     ~SearchApiModule() override;
 
     std::string getName() const override { return "SearchApi"; }
@@ -195,12 +198,6 @@ public:
     std::string getDescription() const override {
         return "Advanced search API with Meilisearch integration";
     }
-
-    // ModuleBase接口实现
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 基础搜索

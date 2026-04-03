@@ -116,6 +116,9 @@ struct PaperStats {
  */
 class PaperApiModule : public BusinessModuleBase {
 public:
+    // 默认构造函数（用于DLL导出）
+    PaperApiModule();
+
     // 构造函数：注入IDatabase依赖
     explicit PaperApiModule(std::shared_ptr<IDatabase> database);
     ~PaperApiModule() override;

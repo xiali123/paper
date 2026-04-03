@@ -1,5 +1,6 @@
 #include <iostream>
 #include "business/StatsApiModule.hpp"
+#include "data/IDatabase.hpp"
 #include "core/ModuleRegistry.hpp"
 #include "business/JsonHelper.hpp"
 #include <sstream>
