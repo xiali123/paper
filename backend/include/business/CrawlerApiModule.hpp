@@ -49,7 +49,12 @@ class WebSocketModule;
  */
 class CrawlerApiModule : public BusinessModuleBase {
 public:
+    // 默认构造函数（用于DLL导出）
+    CrawlerApiModule();
+
+    // 构造函数（可注入数据库）
     explicit CrawlerApiModule(std::shared_ptr<IDatabase> database);
+
     ~CrawlerApiModule() override;
 
     std::string getName() const override { return "CrawlerApi"; }
@@ -351,6 +356,11 @@ private:
         const std::string& method,
         const std::string& clientIp
     );
+
+    /**
+     * @brief 转义JSON字符串
+     */
+    std::string escapeJson(const std::string& str);
 };
 
 } // namespace PaperCrawler

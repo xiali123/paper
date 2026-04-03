@@ -822,7 +822,8 @@ endif()
 #     src/modules/DistributedTaskModule.cpp
 # )
 
-# CrawlerApiModule - 爬虫API接口（临时禁用 - 编译错误）
+# CrawlerApiModule - 爬虫API接口（临时禁用 - 复杂依赖未实现）
+# 详见: CRAWLER_API_MODULE_ANALYSIS.md
 # add_dynamic_module(CrawlerApiModule
 #     src/business/CrawlerApiModule.cpp
 # )

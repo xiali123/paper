@@ -17,9 +17,16 @@ namespace PaperCrawler {
 // Constructor and Destructor
 // ============================================================================
 
+// 默认构造函数
+CrawlerApiModule::CrawlerApiModule()
+    : CrawlerApiModule(nullptr) {
+    std::cout << "[CrawlerApi] CrawlerApiModule default constructor" << std::endl;
+}
+
+// 带参数的构造函数
 CrawlerApiModule::CrawlerApiModule(std::shared_ptr<IDatabase> database)
     : database_(database) {
-
+    std::cout << "[CrawlerApi] CrawlerApiModule parameterized constructor" << std::endl;
 }
 
 CrawlerApiModule::~CrawlerApiModule() = default;
@@ -751,3 +758,25 @@ std::string CrawlerApiModule::escapeJson(const std::string& str) {
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::CrawlerApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::CrawlerApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
