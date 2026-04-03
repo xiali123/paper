@@ -106,6 +106,50 @@ const routes: RouteRecordRaw[] = [
     }
   },
 
+  // AI Assistant routes
+  {
+    path: '/ai-copilot',
+    name: 'AiCopilot',
+    component: () => import('../views/AiCopilot.vue'),
+    meta: {
+      title: 'AI Research Co-Pilot',
+      requiresAuth: true
+    }
+  },
+
+  // Recommendations routes
+  {
+    path: '/recommendations',
+    name: 'Recommendations',
+    component: () => import('../views/Recommendations.vue'),
+    meta: {
+      title: 'Recommendations',
+      requiresAuth: true
+    }
+  },
+
+  // Analytics routes (TODO: create view)
+  {
+    path: '/analytics',
+    name: 'Analytics',
+    component: () => import('../views/Analytics.vue'),
+    meta: {
+      title: 'Research Analytics',
+      requiresAuth: true
+    }
+  },
+
+  // Collaborative Writing routes (TODO: create view)
+  {
+    path: '/collaborative',
+    name: 'Collaborative',
+    component: () => import('../views/Collaborative.vue'),
+    meta: {
+      title: 'Collaborative Writing',
+      requiresAuth: true
+    }
+  },
+
   // 404 fallback
   {
     path: '/:pathMatch(.*)*',
