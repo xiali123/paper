@@ -28,6 +28,9 @@ add_executable(PaperCrawlerTests
     # 业务模块测试
     test_AiCoPilotModule.cpp
 
+    # 端到端测试
+    EndToEndTestSuite.cpp
+
     # 安全测试
     test_SQLInjectionSecurity.cpp
 )
