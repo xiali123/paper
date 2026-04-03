@@ -1,11 +1,11 @@
 #include "business/CrawlerApiModule.hpp"
 #include "modules/TemplateCrawlerModule.hpp"
 #include "modules/DistributedTaskModule.hpp"
-#include "modules/WebSocketModule.hpp"
+#include "network/WebSocketModule.hpp"
 #include "data/IDatabase.hpp"
 #include "data/PreparedStatement.hpp"
-#include "data/QueryBuilder.hpp"
-#include "modules/LoggingModule.hpp"
+// #include "data/QueryBuilder.hpp"  // TODO: QueryBuilder not implemented yet
+#include "features/LoggingModule.hpp"
 #include "common/JsonUtils.hpp"
 #include <sstream>
 #include <regex>
@@ -59,25 +59,28 @@ void CrawlerApiModule::registerRoutes() {
 
     // GET /api/crawler/templates
     router.get(prefix + "/templates", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
         return handleListTemplates(params);
     });
 
     // GET /api/crawler/templates/:id
     router.get(prefix + "/templates/:id", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleGetTemplate(params);
     });
 
     // PUT /api/crawler/templates/:id
     router.put(prefix + "/templates/:id", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleUpdateTemplate(params, req.body);
     });
 
     // DELETE /api/crawler/templates/:id
     router.del(prefix + "/templates/:id", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleDeleteTemplate(params);
     });
 
@@ -88,7 +91,8 @@ void CrawlerApiModule::registerRoutes() {
 
     // POST /api/crawler/templates/:id/test
     router.post(prefix + "/templates/:id/test", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleTestTemplate(params, req.body);
     });
 
@@ -103,25 +107,28 @@ void CrawlerApiModule::registerRoutes() {
 
     // GET /api/crawler/tasks
     router.get(prefix + "/tasks", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        auto params = req.queryParams;
         return handleListTasks(params);
     });
 
     // GET /api/crawler/tasks/:id
     router.get(prefix + "/tasks/:id", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleGetTask(params);
     });
 
     // DELETE /api/crawler/tasks/:id
     router.del(prefix + "/tasks/:id", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleCancelTask(params);
     });
 
     // POST /api/crawler/tasks/:id/retry
     router.post(prefix + "/tasks/:id/retry", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleRetryTask(params);
     });
 
@@ -136,13 +143,14 @@ void CrawlerApiModule::registerRoutes() {
 
     // GET /api/crawler/schedules
     router.get(prefix + "/schedules", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        auto params = req.queryParams;
         return handleListSchedules(params);
     });
 
     // POST /api/crawler/schedules/:id/trigger
     router.post(prefix + "/schedules/:id/trigger", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleTriggerSchedule(params);
     });
 
@@ -152,13 +160,14 @@ void CrawlerApiModule::registerRoutes() {
 
     // GET /api/crawler/workers
     router.get(prefix + "/workers", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        auto params = req.queryParams;
         return handleListWorkers(params);
     });
 
     // GET /api/crawler/workers/:id
     router.get(prefix + "/workers/:id", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        std::map<std::string, std::string> params = req.queryParams;
+        params["id"] = req.getPathParam("id");
         return handleGetWorker(params);
     });
 
@@ -168,13 +177,13 @@ void CrawlerApiModule::registerRoutes() {
 
     // GET /api/crawler/dashboard
     router.get(prefix + "/dashboard", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        auto params = req.queryParams;
         return handleGetDashboard(params);
     });
 
     // GET /api/crawler/statistics
     router.get(prefix + "/statistics", [this](const HttpRequest& req) {
-        auto params = parseRequestParams(req.url);
+        auto params = req.queryParams;
         return handleGetStatistics(params);
     });
 

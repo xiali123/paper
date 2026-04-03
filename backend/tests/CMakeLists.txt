@@ -27,6 +27,9 @@ add_executable(PaperCrawlerTests
 
     # 业务模块测试
     test_AiCoPilotModule.cpp
+
+    # 安全测试
+    test_SQLInjectionSecurity.cpp
 )
 
 target_link_libraries(PaperCrawlerTests

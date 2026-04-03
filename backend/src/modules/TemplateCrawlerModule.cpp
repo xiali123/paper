@@ -14,6 +14,8 @@
 
 // libxml2 (XPath) - 条件编译
 #ifdef HAVE_LIBXML2
+    #include <libxml/HTMLparser.h>
+    #include <libxml/HTMLtree.h>
     #include <libxml/xpath.h>
     #include <libxml/tree.h>
     #include <libxml/parser.h>
@@ -437,7 +439,7 @@ std::string TemplateCrawlerModule::parseWithXPath(
     std::string result;
 
     // 解析HTML为XML
-    htmlDocPtr doc = htmlParseDoc(static_cast<const xmlChar*>(html.c_str()), NULL);
+    htmlDocPtr doc = htmlParseDoc(reinterpret_cast<const xmlChar*>(html.c_str()), NULL);
     if (doc == NULL) {
         return result;
     }
@@ -451,7 +453,7 @@ std::string TemplateCrawlerModule::parseWithXPath(
 
     // 评估XPath表达式
     xmlXPathObjectPtr xpathObj = xmlXPathEvalExpression(
-        BAD_CAST xmlChar*(rule.selector.c_str()),
+        BAD_CAST rule.selector.c_str(),
         ctxt
     );
 
@@ -472,7 +474,7 @@ std::string TemplateCrawlerModule::parseWithXPath(
                 } else {
                     xmlChar* attr = xmlGetProp(
                         node,
-                        BAD_CAST xmlChar*(rule.attribute.c_str())
+                        BAD_CAST rule.attribute.c_str()
                     );
                     if (attr != NULL) {
                         result = std::string(reinterpret_cast<char*>(attr));

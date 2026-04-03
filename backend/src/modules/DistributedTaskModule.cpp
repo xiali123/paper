@@ -1,6 +1,10 @@
 #include "modules/DistributedTaskModule.hpp"
+#include "modules/TemplateCrawlerModule.hpp"
 #include "data/IDatabase.hpp"
 #include "data/DatabaseModule.hpp"
+#include "data/PreparedStatement.hpp"
+#include "modules/CrawlerModule.hpp"
+#include "features/LoggingModule.hpp"
 #include "spdlog/spdlog.h"
 #include <sstream>
 #include <queue>
@@ -97,8 +101,8 @@ bool DistributedTaskModule::start() {
     // 启动心跳检测线程
     impl_->heartbeatThread_ = std::thread(&DistributedTaskModule::heartbeatLoop, this);
 
-    if (logging) {
-        logging->info("DistributedTaskModule started successfully");
+    if (logger) {
+        logger->info("DistributedTaskModule started successfully");
     }
 
     return true;
@@ -124,8 +128,8 @@ bool DistributedTaskModule::stop() {
         impl_->heartbeatThread_.join();
     }
 
-    if (logging) {
-        logging->info("DistributedTaskModule stopped");
+    if (logger) {
+        logger->info("DistributedTaskModule stopped");
     }
 
     return true;
@@ -161,7 +165,17 @@ bool DistributedTaskModule::registerWorker(const WorkerNode& worker) {
         stmt.bind(3, static_cast<int>(worker.type));
         stmt.bind(4, worker.ipAddress);
         stmt.bind(5, worker.location);
-        stmt.bind(6, worker.capabilities); // TODO: 转换为JSON
+
+        // Convert supportedTemplateTypes vector to JSON array string
+        std::ostringstream capsJson;
+        capsJson << "[";
+        for (size_t i = 0; i < worker.supportedTemplateTypes.size(); ++i) {
+            if (i > 0) capsJson << ",";
+            capsJson << "\"" << worker.supportedTemplateTypes[i] << "\"";
+        }
+        capsJson << "]";
+        stmt.bind(6, capsJson.str());
+
         stmt.bind(7, worker.maxConcurrentTasks);
 
         if (stmt.execute()) {
@@ -171,9 +185,9 @@ bool DistributedTaskModule::registerWorker(const WorkerNode& worker) {
                 impl_->workers_[worker.nodeId] = worker;
             }
 
-            auto logging = Services::resolve<LoggingModule>();
-            if (logging) {
-                logging->info("Worker registered: " + worker.nodeId);
+            auto logger = spdlog::get("DistributedTask");
+            if (logger) {
+                logger->info("Worker registered: " + worker.nodeId);
             }
 
             // 发送确认消息给工作节点
@@ -183,9 +197,9 @@ bool DistributedTaskModule::registerWorker(const WorkerNode& worker) {
         }
 
     } catch (const std::exception& e) {
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->error("Failed to register worker: " + std::string(e.what()));
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->error("Failed to register worker: " + std::string(e.what()));
         }
     }
 
@@ -207,18 +221,18 @@ bool DistributedTaskModule::unregisterWorker(const std::string& nodeId) {
                 impl_->workers_.erase(nodeId);
             }
 
-            auto logging = Services::resolve<LoggingModule>();
-            if (logging) {
-                logging->info("Worker unregistered: " + nodeId);
+            auto logger = spdlog::get("DistributedTask");
+            if (logger) {
+                logger->info("Worker unregistered: " + nodeId);
             }
 
             return true;
         }
 
     } catch (const std::exception& e) {
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->error("Failed to unregister worker: " + std::string(e.what()));
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->error("Failed to unregister worker: " + std::string(e.what()));
         }
     }
 
@@ -256,9 +270,9 @@ bool DistributedTaskModule::updateWorkerHeartbeat(
         }
 
     } catch (const std::exception& e) {
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->error("Failed to update worker heartbeat: " + std::string(e.what()));
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->error("Failed to update worker heartbeat: " + std::string(e.what()));
         }
     }
 
@@ -387,9 +401,9 @@ std::string DistributedTaskModule::createTask(
         // 通知分配线程
         impl_->queueCondition_.notify_one();
 
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->info("Task created: " + taskId);
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->info("Task created: " + taskId);
         }
 
         return taskId;
@@ -435,9 +449,9 @@ bool DistributedTaskModule::assignTask(
         updateStmt.bind(1, workerNodeId);
         updateStmt.execute();
 
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->info("Task assigned: " + taskId + " to worker: " + workerNodeId);
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->info("Task assigned: " + taskId + " to worker: " + workerNodeId);
         }
 
         return true;
@@ -496,9 +510,9 @@ bool DistributedTaskModule::completeTask(
             impl_->activeTasks_.erase(taskId);
         }
 
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->info("Task completed: " + taskId + " with " +
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->info("Task completed: " + taskId + " with " +
                 std::to_string(results.size()) + " papers");
         }
 
@@ -619,7 +633,7 @@ void DistributedTaskModule::handleWorkerResult(
 // ============================================================================
 
 void DistributedTaskModule::assignmentLoop() {
-    auto logging = Services::resolve<LoggingModule>();
+    auto logger = spdlog::get("DistributedTask");
 
     while (impl_->running_) {
         TaskQueueItem taskItem;
@@ -645,12 +659,12 @@ void DistributedTaskModule::assignmentLoop() {
 
         // 自动分配任务
         if (autoAssignTask(taskItem.taskId)) {
-            if (logging) {
-                logging->debug("Task auto-assigned: " + taskItem.taskId);
+            if (logger) {
+                logger->debug("Task auto-assigned: " + taskItem.taskId);
             }
         } else {
-            if (logging) {
-                logging->warn("Failed to assign task: " + taskItem.taskId);
+            if (logger) {
+                logger->warn("Failed to assign task: " + taskItem.taskId);
             }
 
             // 重新入队（稍后重试）
@@ -665,7 +679,7 @@ void DistributedTaskModule::assignmentLoop() {
 }
 
 void DistributedTaskModule::heartbeatLoop() {
-    auto logging = Services::resolve<LoggingModule>();
+    auto logger = spdlog::get("DistributedTask");
 
     while (impl_->running_) {
         // 检测超时的工作节点
@@ -710,9 +724,9 @@ bool DistributedTaskModule::saveTaskToDatabase(
         return stmt.execute();
 
     } catch (const std::exception& e) {
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->error("Failed to save task to database: " + std::string(e.what()));
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->error("Failed to save task to database: " + std::string(e.what()));
         }
     }
 
@@ -728,26 +742,26 @@ void DistributedTaskModule::loadWorkersFromDatabase() {
 
         for (const auto& row : rows) {
             WorkerNode worker;
-            worker.nodeId = row["node_id"];
-            worker.userId = std::stoi(row["user_id"]);
-            worker.type = static_cast<NodeType>(std::stoi(row["node_type"]));
-            worker.ipAddress = row["ip_address"];
-            worker.maxConcurrentTasks = std::stoi(row["max_concurrent_tasks"]);
-            worker.currentTasks = std::stoi(row["current_tasks"]);
-            worker.status = static_cast<NodeStatus>(std::stoi(row["status"]));
+            worker.nodeId = row.at("node_id");
+            worker.userId = std::stoi(row.at("user_id"));
+            worker.type = static_cast<NodeType>(std::stoi(row.at("node_type")));
+            worker.ipAddress = row.at("ip_address");
+            worker.maxConcurrentTasks = std::stoi(row.at("max_concurrent_tasks"));
+            worker.currentTasks = std::stoi(row.at("current_tasks"));
+            worker.status = static_cast<NodeStatus>(std::stoi(row.at("status")));
 
             impl_->workers_[worker.nodeId] = worker;
         }
 
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->info("Loaded " + std::to_string(impl_->workers_.size()) + " workers from database");
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->info("Loaded " + std::to_string(impl_->workers_.size()) + " workers from database");
         }
 
     } catch (const std::exception& e) {
-        auto logging = Services::resolve<LoggingModule>();
-        if (logging) {
-            logging->error("Failed to load workers from database: " + std::string(e.what()));
+        auto logger = spdlog::get("DistributedTask");
+        if (logger) {
+            logger->error("Failed to load workers from database: " + std::string(e.what()));
         }
     }
 }
@@ -795,18 +809,18 @@ void DistributedTaskModule::log(
     const std::string& level,
     const std::string& message) {
 
-    auto logging = Services::resolve<LoggingModule>();
-    if (logging) {
+    auto logger = spdlog::get("DistributedTask");
+    if (logger) {
         std::string logMsg = "Task[" + taskId + "]: " + message;
 
         if (level == "ERROR") {
-            logging->error(logMsg);
+            logger->error(logMsg);
         } else if (level == "WARN") {
-            logging->warn(logMsg);
+            logger->warn(logMsg);
         } else if (level == "INFO") {
-            logging->info(logMsg);
+            logger->info(logMsg);
         } else {
-            logging->debug(logMsg);
+            logger->debug(logMsg);
         }
     }
 }

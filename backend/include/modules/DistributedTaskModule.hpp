@@ -2,7 +2,8 @@
 
 #include "core/IModule.hpp"
 #include "core/ModuleExports.hpp"
-#include "modules/WebSocketModule.hpp"
+#include "network/WebSocketModule.hpp"
+#include "modules/CrawlerModule.hpp"  // 引入 CrawledPaper 等类型
 #include <memory>
 #include <string>
 #include <vector>
@@ -19,6 +20,8 @@ namespace PaperCrawler {
 // ============================================================================
 
 class IDatabase;
+// CrawledPaper 已通过 CrawlerModule.hpp 引入
+class CrawlerTemplate;
 
 // ============================================================================
 // 节点类型和状态
@@ -151,7 +154,7 @@ public:
     std::string getDescription() const override {
         return "Distributed task scheduling and worker management";
     }
-    ModuleType getModuleType() const override { return ModuleType::SYSTEM; }
+    ModuleType getModuleType() const override { return ModuleType::SERVER; }
 
     bool initialize() override;
     bool start() override;
@@ -235,7 +238,7 @@ public:
      */
     bool completeTask(
         const std::string& taskId,
-        const std::vector<CrawledPaper>& results,
+        const std::vector<Modules::CrawledPaper>& results,
         const std::string& errorMsg = ""
     );
 
@@ -297,13 +300,36 @@ public:
      */
     void handleWorkerResult(
         const std::string& taskId,
-        const std::vector<CrawledPaper>& results
+        const std::vector<Modules::CrawledPaper>& results
     );
 
     /**
      * @brief 广播任务取消
      */
     void broadcastTaskCancellation(const std::string& taskId);
+
+    /**
+     * @brief 从数据库加载工作节点
+     */
+    void loadWorkersFromDatabase();
+
+    /**
+     * @brief 从数据库加载任务
+     */
+    void loadTasksFromDatabase();
+
+    /**
+     * @brief 发送注册确认给工作节点
+     */
+    void sendRegistrationConfirmation(const std::string& workerNodeId);
+
+    /**
+     * @brief 构建URL（基于模板和参数）
+     */
+    std::string buildUrl(
+        const CrawlerTemplate& tmpl,
+        const std::map<std::string, std::string>& params
+    );
 
 private:
     class Impl;
