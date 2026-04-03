@@ -555,7 +555,7 @@ void ModuleLoader::healthCheckThreadFunc() {
         performHealthCheck();
 
         // 等待指定间隔
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::unique_lock<std::recursive_mutex> lock(mutex_);
         healthCheckCV_.wait_for(lock, std::chrono::seconds(healthCheckInterval_),
             [this] { return !healthCheckRunning_.load(); });
     }

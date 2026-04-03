@@ -197,7 +197,7 @@ private:
     mutable std::recursive_mutex mutex_;
     std::atomic<bool> healthCheckRunning_{false};
     std::thread healthCheckThread_;
-    std::condition_variable healthCheckCV_;
+    std::condition_variable_any healthCheckCV_;
 
     // 健康检查配置
     int healthCheckInterval_{30};  // 秒
