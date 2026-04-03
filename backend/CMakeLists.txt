@@ -658,10 +658,9 @@ add_dynamic_module(ExportApiModule
 )
 
 # 阶段2：StatsApiModule动态化
-# 临时注释 - 编译错误待修复
-# add_dynamic_module(StatsApiModule
-#     src/business/StatsApiModule.cpp
-# )
+add_dynamic_module(StatsApiModule
+    src/business/StatsApiModule.cpp
+)
 
 # 阶段3：PaperApiModule动态化
 add_dynamic_module_with_system(PaperApiModule
@@ -839,5 +838,75 @@ message(STATUS "         DistributedTaskModule (NEW - 分布式爬虫)")
 message(STATUS "         CrawlerApiModule (NEW - 分布式爬虫)")
 message(STATUS "Output: ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
 message(STATUS "Status: Compiling...")
+message(STATUS "==========================================================================")
+message(STATUS "")
+
+# ============================================================================
+# 第三方依赖库自动部署
+# ============================================================================
+
+message(STATUS "")
+message(STATUS "================== Third-party Dependencies Deployment ==========")
+message(STATUS "")
+
+set(DEPENDENCIES_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/runtime")
+set(DEPENDENCIES_TARGET_DIR "${CMAKE_BINARY_DIR}/Release")
+
+# 检查依赖目录是否存在
+if(EXISTS "${DEPENDENCIES_SOURCE_DIR}")
+    message(STATUS "Dependencies source directory: ${DEPENDENCIES_SOURCE_DIR}")
+    message(STATUS "Dependencies target directory: ${DEPENDENCIES_TARGET_DIR}")
+    message(STATUS "")
+
+    # 查找所有DLL文件
+    file(GLOB DEPENDENCY_DLLS "${DEPENDENCIES_SOURCE_DIR}/*.dll")
+
+    if(DEPENDENCY_DLLS)
+        list(LENGTH DEPENDENCY_DLLS DEP_COUNT)
+        message(STATUS "Found ${DEP_COUNT} dependency DLL(s):")
+        foreach(DEP_DLL ${DEPENDENCY_DLLS})
+            get_filename_component(DEP_DLL_NAME ${DEP_DLL} NAME)
+            message(STATUS "  - ${DEP_DLL_NAME}")
+
+            # 复制DLL到Release目录
+            add_custom_command(TARGET PaperCrawlerServerHotPlug POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${DEP_DLL}"
+                    "${DEPENDENCIES_TARGET_DIR}/${DEP_DLL_NAME}"
+                COMMENT "Copying ${DEP_DLL_NAME} to Release directory"
+                VERBATIM
+            )
+
+            # 复制DLL到模块目录 (for hot-plug modules)
+            add_custom_command(TARGET PaperCrawlerServerHotPlug POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${DEP_DLL}"
+                    "${CMAKE_BINARY_DIR}/Release/modules/dynamic/Release/${DEP_DLL_NAME}"
+                COMMENT "Copying ${DEP_DLL_NAME} to modules directory"
+                VERBATIM
+            )
+        endforeach()
+        message(STATUS "")
+        message(STATUS "✅ Dependencies will be automatically deployed on build")
+        message(STATUS "   → ${DEP_COUNT} DLL(s) copied to Release/")
+        message(STATUS "   → ${DEP_COUNT} DLL(s) copied to modules/dynamic/Release/")
+    else()
+        message(WARNING "No dependency DLLs found in ${DEPENDENCIES_SOURCE_DIR}")
+    endif()
+else()
+    message(WARNING "Dependencies directory not found: ${DEPENDENCIES_SOURCE_DIR}")
+    message(STATUS "  Creating directory...")
+
+    file(MAKE_DIRECTORY "${DEPENDENCIES_SOURCE_DIR}")
+
+    message(STATUS "  ✅ Directory created: ${DEPENDENCIES_SOURCE_DIR}")
+    message(STATUS "")
+    message(STATUS "  Please place third-party DLLs in this directory:")
+    message(STATUS "    - libcurl-x64.dll (for SearchApiModule)")
+    message(STATUS "    - libmysql.dll (for Database modules)")
+    message(STATUS "    - Other runtime dependencies")
+    message(STATUS "")
+endif()
+
 message(STATUS "==========================================================================")
 message(STATUS "")
