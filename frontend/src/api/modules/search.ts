@@ -1,10 +1,10 @@
 /**
  * Advanced Search API Module
- * 高级搜索功能
+ * 高级搜索功能 - 对应后端SearchApiModule
  */
 
-import { request } from '../utils/request'
-import type { SearchResult, AdvancedSearchQuery, SearchSuggestion } from '../types'
+import request from '@/utils/request'
+import type { SearchResult, AdvancedSearchQuery, SearchSuggestion } from '@/types/search'
 
 /**
  * 搜索请求
@@ -33,9 +33,9 @@ export const searchApi = {
    * 基础搜索
    * GET /api/search
    */
-  async search(request: SearchRequest): Promise<SearchResult> {
+  async search(req: SearchRequest): Promise<SearchResult> {
     return await request.get('/api/search', {
-      params: request
+      params: req
     })
   },
 
@@ -43,8 +43,8 @@ export const searchApi = {
    * 高级搜索
    * POST /api/search/advanced
    */
-  async advancedSearch(request: AdvancedSearchRequest): Promise<SearchResult> {
-    return await request.post('/api/search/advanced', request)
+  async advancedSearch(req: AdvancedSearchRequest): Promise<SearchResult> {
+    return await request.post('/api/search/advanced', req)
   },
 
   /**
@@ -87,10 +87,24 @@ export const searchApi = {
 
   /**
    * 保存搜索
-   * POST /api/search/save
+   * POST /api/search/saved
    */
   async saveSearch(userId: number, query: string, name?: string): Promise<{ success: boolean }> {
-    return await request.post('/api/search/save', { userId, query, name })
+    return await request.post('/api/search/saved', { userId, query, name })
+  },
+
+  /**
+   * 获取已保存搜索
+   * GET /api/search/saved
+   */
+  async getSavedSearches(userId: number): Promise<Array<{
+    name: string
+    query: string
+    createdAt: string
+  }>> {
+    return await request.get('/api/search/saved', {
+      params: { userId }
+    })
   },
 
   /**
@@ -99,6 +113,48 @@ export const searchApi = {
    */
   async deleteSavedSearch(name: string): Promise<{ success: boolean }> {
     return await request.delete(`/api/search/saved/${encodeURIComponent(name)}`)
+  },
+
+  /**
+   * 清空搜索历史
+   * DELETE /api/search/history
+   */
+  async clearHistory(userId: number): Promise<{ success: boolean }> {
+    return await request.delete('/api/search/history', {
+      params: { userId }
+    })
+  },
+
+  /**
+   * 导出搜索结果
+   * GET /api/search/export
+   */
+  async exportResults(searchId: string, format: 'csv' | 'json' | 'excel'): Promise<{
+    url: string
+    filename: string
+  }> {
+    return await request.get('/api/search/export', {
+      params: { searchId, format }
+    })
+  },
+
+  /**
+   * 获取搜索统计信息
+   * GET /api/search/stats
+   */
+  async getStats(): Promise<{
+    totalSearches: number
+    avgResultsPerSearch: number
+    mostSearchedQueries: Array<{
+      query: string
+      count: number
+    }>
+    searchTrends: Array<{
+      date: string
+      count: number
+    }>
+  }> {
+    return await request.get('/api/search/stats')
   }
 }
 

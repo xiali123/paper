@@ -1,3 +1,8 @@
+/**
+ * Paper API Module
+ * 论文管理功能 - 对应后端PaperApiModule
+ */
+
 import request from '@/utils/request'
 import type {
   Paper,
@@ -15,6 +20,34 @@ import {
   transformPaginationParams,
   transformPaginationResponse
 } from '@/api/adapters/paginationAdapter'
+
+/**
+ * 论文创建请求
+ */
+export interface PaperCreateRequest {
+  title: string
+  authors: string[]
+  abstract: string
+  year?: number
+  journal?: string
+  volume?: string
+  issue?: string
+  pages?: string
+  doi?: string
+  url?: string
+  pdfUrl?: string
+  citationCount?: number
+  keywords?: string[]
+  category?: string
+  tags?: string[]
+}
+
+/**
+ * 论文更新请求
+ */
+export interface PaperUpdateRequest extends Partial<PaperCreateRequest> {
+  id: number
+}
 
 /**
  * Paper API module
@@ -111,5 +144,151 @@ export const paperApi = {
       page: Math.floor(offset / limit) + 1,
       pageSize: limit
     })
+  },
+
+  // ==================== 论文CRUD操作 ====================
+
+  /**
+   * 创建新论文
+   * POST /api/papers
+   */
+  async create(data: PaperCreateRequest): Promise<Paper> {
+    const backendPaper = await request.post('/api/papers', data)
+    return toFrontendPaper(backendPaper)
+  },
+
+  /**
+   * 更新论文信息
+   * PUT /api/papers/:id
+   */
+  async update(id: number, data: Partial<PaperCreateRequest>): Promise<Paper> {
+    const backendPaper = await request.put(`/api/papers/${id}`, data)
+    return toFrontendPaper(backendPaper)
+  },
+
+  /**
+   * 删除论文
+   * DELETE /api/papers/:id
+   */
+  async delete(id: number): Promise<{ success: boolean }> {
+    return await request.delete(`/api/papers/${id}`)
+  },
+
+  // ==================== 分类和标签管理 ====================
+
+  /**
+   * 获取所有分类
+   * GET /api/papers/categories
+   */
+  async getCategories(): Promise<Array<{
+    id: number
+    name: string
+    description: string
+    paperCount: number
+  }>> {
+    return await request.get('/api/papers/categories')
+  },
+
+  /**
+   * 获取所有标签
+   * GET /api/papers/tags
+   */
+  async getTags(): Promise<Array<{
+    id: number
+    name: string
+    usageCount: number
+  }>> {
+    return await request.get('/api/papers/tags')
+  },
+
+  // ==================== 收藏管理 ====================
+
+  /**
+   * 添加到收藏
+   * POST /api/papers/:id/favorite
+   */
+  async addFavorite(userId: number, paperId: number): Promise<{ success: boolean }> {
+    return await request.post(`/api/papers/${paperId}/favorite`, { userId })
+  },
+
+  /**
+   * 取消收藏
+   * DELETE /api/papers/:id/favorite
+   */
+  async removeFavorite(userId: number, paperId: number): Promise<{ success: boolean }> {
+    return await request.delete(`/api/papers/${paperId}/favorite`, {
+      data: { userId }
+    })
+  },
+
+  /**
+   * 获取用户收藏列表
+   * GET /api/users/:id/favorites
+   */
+  async getFavorites(userId: number, page = 1, limit = 20): Promise<PaginatedResponse<Paper>> {
+    const backendResponse = await request.get(`/api/users/${userId}/favorites`, {
+      params: { page, limit }
+    })
+
+    return transformPaginationResponse({
+      items: transformPaperList(backendResponse.papers || backendResponse.data || []),
+      total: backendResponse.total || 0,
+      page: page,
+      pageSize: limit
+    })
+  },
+
+  // ==================== 阅读历史 ====================
+
+  /**
+   * 添加到阅读历史
+   * POST /api/papers/:id/history
+   */
+  async addToHistory(userId: number, paperId: number): Promise<{ success: boolean }> {
+    return await request.post(`/api/papers/${paperId}/history`, { userId })
+  },
+
+  /**
+   * 获取阅读历史
+   * GET /api/users/:id/history
+   */
+  async getHistory(userId: number, limit = 20): Promise<Paper[]> {
+    const backendResponse = await request.get(`/api/users/${userId}/history`, {
+      params: { limit }
+    })
+    return transformPaperList(backendResponse.papers || backendResponse.data || [])
+  },
+
+  /**
+   * 清空阅读历史
+   * DELETE /api/users/:id/history
+   */
+  async clearHistory(userId: number): Promise<{ success: boolean }> {
+    return await request.delete(`/api/users/${userId}/history`)
+  },
+
+  // ==================== 统计信息 ====================
+
+  /**
+   * 获取论文统计信息
+   * GET /api/papers/stats
+   */
+  async getStats(): Promise<{
+    totalPapers: number
+    totalAuthors: number
+    totalCategories: number
+    avgCitationCount: number
+    topCategories: Array<{
+      name: string
+      count: number
+    }>
+    recentGrowth: Array<{
+      date: string
+      count: number
+    }>
+  }> {
+    return await request.get('/api/papers/stats')
   }
 }
+
+export default paperApi

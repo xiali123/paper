@@ -1,19 +1,19 @@
 /**
  * Recommendations API Module
- * 推荐系统功能 - 个性化推荐、相似论文、热门论文
+ * 推荐系统功能 - 对应后端RecommendationApiModule
  */
 
-import { request } from '../utils/request'
-import type { Paper, RecommendationResult, UserProfile } from '../types'
+import request from '@/utils/request'
+import type { RecommendationResult, UserProfile } from '@/types/recommendation'
 
 /**
  * 推荐请求
  */
 export interface RecommendationRequest {
   userId: number
-  category?: string
+  algorithm?: 'collaborative_filtering' | 'content_based' | 'hybrid' | 'popularity'
   limit?: number
-  algorithm?: 'collaborative' | 'content' | 'hybrid'
+  excludedPaperIds?: number[]
 }
 
 /**
@@ -27,24 +27,44 @@ export interface RecommendationFeedback {
 }
 
 /**
+ * 推荐解释结果
+ */
+export interface RecommendationExplanation {
+  paperId: number
+  reason: string
+  confidence: number
+  factors: Array<{
+    factor: string
+    weight: number
+  }>
+  algorithm: string
+}
+
+/**
  * 推荐系统API
  */
 export const recommendationsApi = {
   /**
    * 获取个性化推荐
-   * POST /api/recommendations
+   * GET /api/recommendations/:userId
    */
-  async getPersonalized(request: RecommendationRequest): Promise<RecommendationResult[]> {
-    return await request.post('/api/recommendations', request)
+  async getPersonalized(req: RecommendationRequest): Promise<RecommendationResult[]> {
+    return await request.get(`/api/recommendations/${req.userId}`, {
+      params: {
+        algorithm: req.algorithm || 'hybrid',
+        limit: req.limit || 10,
+        excluded_paper_ids: req.excludedPaperIds || []
+      }
+    })
   },
 
   /**
    * 获取相似论文
    * GET /api/recommendations/similar/:paperId
    */
-  async getSimilar(paperId: number, limit = 10, category?: string): Promise<Paper[]> {
+  async getSimilar(paperId: number, limit = 10): Promise<RecommendationResult[]> {
     return await request.get(`/api/recommendations/similar/${paperId}`, {
-      params: { limit, category }
+      params: { limit }
     })
   },
 
@@ -52,22 +72,20 @@ export const recommendationsApi = {
    * 获取热门论文
    * GET /api/recommendations/trending
    */
-  async getTrending(limit = 20, timeWindow?: 'day' | 'week' | 'month'): Promise<Paper[]> {
+  async getTrending(limit = 20, timeWindow: 'day' | 'week' | 'month' = 'week'): Promise<RecommendationResult[]> {
     return await request.get('/api/recommendations/trending', {
-      params: { limit, timeWindow }
+      params: { limit, time_window: timeWindow }
     })
   },
 
   /**
    * 获取推荐解释
-   * GET /api/recommendations/explain/:userId/:paperId
+   * GET /api/recommendations/explain
    */
-  async explainRecommendation(userId: number, paperId: number): Promise<{
-    reason: string
-    confidence: number
-    factors: string[]
-  }> {
-    return await request.get(`/api/recommendations/explain/${userId}/${paperId}`)
+  async explainRecommendation(userId: number, paperId: number): Promise<RecommendationExplanation> {
+    return await request.get('/api/recommendations/explain', {
+      params: { userId, paperId }
+    })
   },
 
   /**
@@ -84,6 +102,23 @@ export const recommendationsApi = {
    */
   async getUserProfile(userId: number): Promise<UserProfile> {
     return await request.get(`/api/recommendations/profile/${userId}`)
+  },
+
+  /**
+   * 获取推荐系统统计信息
+   * GET /api/recommendations/stats
+   */
+  async getStats(): Promise<{
+    totalRecommendations: number
+    totalFeedback: number
+    avgRating: number
+    topAlgorithms: Array<{
+      algorithm: string
+      usage: number
+    }>
+    satisfactionRate: number
+  }> {
+    return await request.get('/api/recommendations/stats')
   }
 }
 

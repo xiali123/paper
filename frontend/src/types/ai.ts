@@ -83,3 +83,108 @@ export interface AIChatMessage {
   context?: string
   paperId?: number
 }
+
+// ==================== 基础AI服务类型 ====================
+
+/**
+ * 论文摘要结果
+ */
+export interface PaperSummary {
+  paperId: number
+  title: string
+  summary: string
+  keywords: string[]
+  contributions: string[]
+  language: 'zh' | 'en'
+  confidenceScore?: number
+  generatedAt?: string
+}
+
+/**
+ * 批量摘要结果
+ */
+export interface BatchSummaryResult {
+  summaries: PaperSummary[]
+  totalCount: number
+  successCount: number
+  failedPapers: Array<{ paperId: number; error: string }>
+}
+
+/**
+ * AI问答结果
+ */
+export interface AIAnswer {
+  paperId: number
+  question: string
+  answer: string
+  relevantSections: Array<{
+    section: string
+    text: string
+    confidence: number
+  }>
+  language: 'zh' | 'en'
+}
+
+/**
+ * 关键词提取结果
+ */
+export interface KeywordsResult {
+  paperId: number
+  keywords: Array<{
+    word: string
+    score: number
+    category?: string
+  }>
+  totalScore: number
+  extractedAt: string
+}
+
+/**
+ * 贡献点总结结果
+ */
+export interface ContributionsResult {
+  paperId: number
+  contributions: Array<{
+    title: string
+    description: string
+    importance: 'high' | 'medium' | 'low'
+  }>
+  summary: string
+  totalContributions: number
+}
+
+/**
+ * 论文比较结果
+ */
+export interface PaperComparison {
+  papers: Array<{
+    id: number
+    title: string
+    authors: string
+    year: number
+  }>
+  similarities: string[]
+  differences: Array<{
+    aspect: string
+    comparison: Record<number, string> // paperId -> description
+  }>
+  overallComparison: string
+  recommendation: string
+}
+
+/**
+ * AI统计信息
+ */
+export interface AIStats {
+  totalSummaries: number
+  totalQuestions: number
+  totalKeywords: number
+  totalComparisons: number
+  avgResponseTime: number
+  successRate: number
+  dailyUsage: Array<{
+    date: string
+    summaries: number
+    questions: number
+  }>
+}
