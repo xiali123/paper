@@ -1,63 +1,62 @@
-# Build directories
-build/
-bin/
-lib/
-out/
+# 构建生成的文件
+_deps/
+PaperCrawler.dir/
+x64/
+*.obj
+*.o
+*.lib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.exp
 
-# CMake
+# CMake生成的文件
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
-*.cmake
-!CMakeLists.txt
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
 
-# IDE
+# Visual Studio生成的文件
 .vs/
-.vscode/
-.idea/
-*.user
-*.suo
-*.sln
 *.vcxproj
 *.vcxproj.filters
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 
-# Logs
+# vcpkg相关
+vcpkg-papercrawler-core/
+vcpkg_installed/
+
+# 生产部署文件
+Production/
+backend/Production/
+
+# 临时文件和备份
+*.backup
+*.old
+*.tmp
 *.log
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
+# 配置文件（包含敏感信息）
+backend/config/config.json
+backend/config/database.json
 
-# Output
-*.exe
-*.dll
-*.so
-*.dylib
-*.a
-*.lib
-
-# Config (sensitive data)
-config/config.json
-!config/config.json.example
-
-# Temporary files
-*.tmp
+# IDE文件
+.idea/
+.vscode/
 *.swp
+*.swo
 *~
 
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-
-# Testing
-tests/build/
-coverage/
-
-# Docker
-*.dockerignore
+# 测试输出
+backend/tests/integration/output/
+backend/tests/performance/output/
+backend/tests/security/output/
+backend/tests/stress/output/
