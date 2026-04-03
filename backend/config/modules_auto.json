@@ -1,5 +1,5 @@
 {
-  "modulesDirectory": "./modules",
+  "modulesDirectory": "./modules/dynamic/Release",
   "healthCheckInterval": 30,
   "modules": [
     {
@@ -10,7 +10,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/auth",
-      "libraryPath": "./modules/libAuthApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libAuthApiModule.dll",
       "loadPriority": 90,
       "endpoints": [
         "POST /api/auth/register",
@@ -33,7 +33,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/users",
-      "libraryPath": "./modules/libUserApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libUserApiModule.dll",
       "loadPriority": 85,
       "endpoints": [
         "GET /api/users",
@@ -59,7 +59,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/papers",
-      "libraryPath": "./modules/libPaperApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libPaperApiModule.dll",
       "loadPriority": 80,
       "endpoints": [
         "GET /api/papers",
@@ -91,7 +91,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/search",
-      "libraryPath": "./modules/libSearchApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libSearchApiModule.dll",
       "loadPriority": 75,
       "endpoints": [
         "GET /api/search/papers",
@@ -115,7 +115,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/export",
-      "libraryPath": "./modules/libExportApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libExportApiModule.dll",
       "loadPriority": 70,
       "endpoints": [
         "POST /api/export/papers",
@@ -138,7 +138,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/stats",
-      "libraryPath": "./modules/libStatsApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libStatsApiModule.dll",
       "loadPriority": 65,
       "endpoints": [
         "GET /api/stats/overview",
@@ -162,7 +162,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/ai",
-      "libraryPath": "./modules/libAiApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libAiApiModule.dll",
       "loadPriority": 60,
       "endpoints": [
         "POST /api/ai/summarize",
@@ -190,7 +190,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/recommend",
-      "libraryPath": "./modules/libRecommendationApiModule.dll",
+      "libraryPath": "./modules/dynamic/Release/libRecommendationApiModule.dll",
       "loadPriority": 55,
       "endpoints": [
         "GET /api/recommend/papers",
