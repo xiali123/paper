@@ -42,14 +42,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
-# gumbo-parser
-FetchContent_Declare(
-    gumbo
-    GIT_REPOSITORY https://github.com/google/gumbo-parser.git
-    GIT_TAG v0.10.1
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(gumbo)
+# gumbo-parser - handled by backend/CMakeLists.txt from ../core/external/gumbo/src
+# Temporarily commented out to avoid FetchContent lock issues
+# FetchContent_Declare(
+#     gumbo
+#     GIT_REPOSITORY https://github.com/google/gumbo-parser.git
+#     GIT_TAG v0.10.1
+#     GIT_SHALLOW TRUE
+# )
+# FetchContent_MakeAvailable(gumbo)
 
 # Sources
 set(SOURCES
