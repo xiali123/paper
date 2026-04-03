@@ -2,6 +2,8 @@
 #include "core/Router.hpp"
 #include "core/EventDrivenIntegration.hpp"
 #include "modules/LoggingModule.hpp"
+#include "prompts/AIPromptTemplates.hpp"
+#include "business/AIResponseParser.hpp"
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -120,17 +122,35 @@ AIReviewResult AiCoPilotModule::generateReview(const AIReviewRequest& request) {
             );
 
             if (aiResult.success) {
-                result.success = true;
-                result.costUsd = aiResult.costUsd;
+                // 使用AIResponseParser解析AI响应（新功能）
+                AIReviewResult parsedResult = AIResponseParser::parseReviewResponse(
+                    aiResult.content,
+                    request.paperId,
+                    request.userId
+                );
 
-                // TODO: 解析AI响应，提取结构化数据
-                // 简化版：假设AI返回JSON格式
-                result.reviewScore = 7; // 示例
-                result.acceptanceProbability = 0.65f;
-                result.strengths = {"Novel approach", "Good methodology"};
-                result.weaknesses = {"Limited experiments", "Missing related work"};
-                result.improvements = {"Add more experiments", "Compare with X et al."};
-                result.reviewerComments = aiResult.content;
+                if (parsedResult.success) {
+                    // 解析成功，使用结构化数据
+                    result = parsedResult;
+                    result.success = true;
+                    result.costUsd = aiResult.costUsd;
+
+                    if (auto logging = Services::resolve<LoggingModule>()) {
+                        logging->info("Successfully parsed AI review response with score: " +
+                                    std::to_string(result.reviewScore));
+                    }
+                } else {
+                    // 解析失败，使用原始响应作为comments
+                    result.success = true;
+                    result.costUsd = aiResult.costUsd;
+                    result.reviewerComments = aiResult.content;
+                    result.reviewScore = 5; // 默认中等评分
+                    result.acceptanceProbability = 0.5f;
+
+                    if (auto logging = Services::resolve<LoggingModule>()) {
+                        logging->warn("Failed to parse AI review response, using raw content");
+                    }
+                }
 
                 // 保存到数据库
                 std::ostringstream insertSql;
@@ -173,29 +193,33 @@ std::string AiCoPilotModule::buildReviewPrompt(
     const AIReviewRequest& request,
     const std::map<std::string, std::string>& paperData) {
 
-    std::ostringstream prompt;
+    // 使用新的AIPromptTemplates生成审稿Prompt（v2.0）
+    ReviewPromptContext promptContext;
+    promptContext.paperId = std::to_string(request.paperId);
+    promptContext.paperTitle = paperData.count("title") ? paperData.at("title") : "";
+    promptContext.paperAuthors = paperData.count("authors") ? paperData.at("authors") : "";
+    promptContext.paperAbstract = paperData.count("abstract") ? paperData.at("abstract") : "";
+    promptContext.paperContent = paperData.count("content") ? paperData.at("content") : "";
+    promptContext.targetJournal = request.targetJournal;
+    promptContext.researchField = request.researchField;
+    promptContext.includeComparison = request.includeComparison;
+    promptContext.includeMethodology = true;
+    promptContext.includeReferences = true;
+    promptContext.maxSuggestions = 5;
 
-    prompt << "You are an expert reviewer for " << request.targetJournal << ".\n\n";
-    prompt << "Please review the following paper:\n\n";
-    prompt << "Title: " << paperData.at("title") << "\n";
-    prompt << "Authors: " << paperData.at("authors") << "\n";
-    prompt << "Abstract: " << paperData.at("abstract") << "\n\n";
+    // 根据用户偏好选择审稿风格（默认Balanced）
+    ReviewPromptStyle style = ReviewPromptStyle::Balanced;
+    // 未来可以根据用户设置或请求参数调整风格
 
-    prompt << "Please provide a comprehensive review including:\n";
-    prompt << "1. Overall score (1-10)\n";
-    prompt << "2. Acceptance probability (0-1)\n";
-    prompt << "3. Key strengths (3-5 points)\n";
-    prompt << "4. Major weaknesses (3-5 points)\n";
-    prompt << "5. Specific improvement suggestions\n";
-    prompt << "6. Detailed reviewer comments\n";
+    // 生成高质量的结构化Prompt
+    std::string prompt = AIPromptTemplates::generateReviewPrompt(promptContext, style);
 
-    if (request.includeComparison) {
-        prompt << "7. Comparison with similar papers in the field\n";
+    if (auto logging = Services::resolve<LoggingModule>()) {
+        logging->info("Generated AI review prompt using AIPromptTemplates v2.0");
+        logging->debug("Prompt length: " + std::to_string(prompt.length()) + " characters");
     }
 
-    prompt << "\nPlease respond in JSON format.";
-
-    return prompt.str();
+    return prompt;
 }
 
 std::vector<AIReviewResult> AiCoPilotModule::getReviewHistory(int userId, int page, int limit) {
@@ -242,15 +266,38 @@ LiteratureReviewResult AiCoPilotModule::generateLiteratureReview(
             );
 
             if (aiResult.success) {
-                result.success = true;
-                result.title = request.title;
-                result.paperCount = request.paperIds.size();
-                result.costUsd = aiResult.costUsd;
-                result.reviewContent = aiResult.content;
+                // 使用AIResponseParser解析AI响应（新功能）
+                LiteratureReviewResult parsedResult =
+                    AIResponseParser::parseLiteratureReviewResponse(
+                        aiResult.content,
+                        request
+                    );
 
-                // TODO: 解析结构化数据
-                result.researchGaps = {"Gap 1", "Gap 2"};
-                result.trends = {"Trend 1", "Trend 2"};
+                if (parsedResult.success) {
+                    // 解析成功，使用结构化数据
+                    result = parsedResult;
+                    result.success = true;
+                    result.title = request.title;
+                    result.paperCount = request.paperIds.size();
+                    result.costUsd = aiResult.costUsd;
+
+                    if (auto logging = Services::resolve<LoggingModule>()) {
+                        logging->info("Successfully parsed literature review with " +
+                                    std::to_string(result.researchGaps.size()) + " gaps and " +
+                                    std::to_string(result.trends.size()) + " trends");
+                    }
+                } else {
+                    // 解析失败，使用原始响应
+                    result.success = true;
+                    result.title = request.title;
+                    result.paperCount = request.paperIds.size();
+                    result.costUsd = aiResult.costUsd;
+                    result.reviewContent = aiResult.content;
+
+                    if (auto logging = Services::resolve<LoggingModule>()) {
+                        logging->warn("Failed to parse literature review response, using raw content");
+                    }
+                }
 
                 // 保存到数据库
                 std::ostringstream insertSql;
@@ -277,28 +324,30 @@ LiteratureReviewResult AiCoPilotModule::generateLiteratureReview(
 }
 
 std::string AiCoPilotModule::buildLiteratureReviewPrompt(const LiteratureReviewRequest& request) {
-    std::ostringstream prompt;
+    // 使用新的AIPromptTemplates生成文献综述Prompt（v2.0）
+    LiteratureReviewContext promptContext;
+    promptContext.userId = std::to_string(request.userId);
+    promptContext.title = request.title;
+    promptContext.researchField = request.researchField;
+    promptContext.paperIds = request.paperIds;
+    promptContext.reviewType = "systematic"; // 默认系统性综述
+    promptContext.maxLength = request.maxLength;
+    promptContext.includeGaps = request.includeGaps;
+    promptContext.includeTrends = request.includeTrends;
+    promptContext.includeMethodology = request.includeMethodology;
+    promptContext.includeKeyFindings = true;
+    promptContext.includeFutureDirections = true;
+    promptContext.themeCount = 5;
 
-    prompt << "Generate a comprehensive literature review on: " << request.title << "\n\n";
-    prompt << "Field: " << request.researchField << "\n";
-    prompt << "Number of papers: " << request.paperIds.size() << "\n\n";
+    // 生成高质量的结构化Prompt
+    std::string prompt = AIPromptTemplates::generateLiteratureReviewPrompt(promptContext);
 
-    prompt << "Please include:\n";
-    if (request.includeGaps) {
-        prompt << "- Research gaps and limitations\n";
+    if (auto logging = Services::resolve<LoggingModule>()) {
+        logging->info("Generated literature review prompt using AIPromptTemplates v2.0");
+        logging->debug("Prompt length: " + std::to_string(prompt.length()) + " characters");
     }
-    if (request.includeTrends) {
-        prompt << "- Current trends and future directions\n";
-    }
-    if (request.includeMethodology) {
-        prompt << "- Methodology summary across studies\n";
-    }
 
-    prompt << "- Key findings and contributions\n";
-    prompt << "\nMax length: " << request.maxLength << " words\n";
-    prompt << "\nPlease provide a well-structured, academic literature review.";
-
-    return prompt.str();
+    return prompt;
 }
 
 // ============================================================================
@@ -323,15 +372,39 @@ ResearchPlanResult AiCoPilotModule::generateResearchPlan(const ResearchPlanReque
             );
 
             if (aiResult.success) {
-                result.success = true;
-                result.title = request.title;
-                result.researchQuestion = request.researchQuestion;
-                result.costUsd = aiResult.costUsd;
+                // 使用AIResponseParser解析AI响应（新功能）
+                ResearchPlanResult parsedResult =
+                    AIResponseParser::parseResearchPlanResponse(
+                        aiResult.content,
+                        request
+                    );
 
-                // TODO: 解析结构化数据
-                result.objectives = {"Objective 1", "Objective 2"};
-                result.feasibilityScore = 7;
-                result.innovationScore = 8;
+                if (parsedResult.success) {
+                    // 解析成功，使用结构化数据
+                    result = parsedResult;
+                    result.success = true;
+                    result.title = request.title;
+                    result.researchQuestion = request.researchQuestion;
+                    result.costUsd = aiResult.costUsd;
+
+                    if (auto logging = Services::resolve<LoggingModule>()) {
+                        logging->info("Successfully parsed research plan with " +
+                                    std::to_string(result.objectives.size()) + " objectives, " +
+                                    "feasibility: " + std::to_string(result.feasibilityScore) + "/10, " +
+                                    "innovation: " + std::to_string(result.innovationScore) + "/10");
+                    }
+                } else {
+                    // 解析失败，使用原始响应
+                    result.success = true;
+                    result.title = request.title;
+                    result.researchQuestion = request.researchQuestion;
+                    result.costUsd = aiResult.costUsd;
+                    result.methodology = aiResult.content; // 保存原始响应
+
+                    if (auto logging = Services::resolve<LoggingModule>()) {
+                        logging->warn("Failed to parse research plan response, using raw content");
+                    }
+                }
 
                 // 保存到数据库
                 std::ostringstream insertSql;
@@ -357,26 +430,30 @@ ResearchPlanResult AiCoPilotModule::generateResearchPlan(const ResearchPlanReque
 }
 
 std::string AiCoPilotModule::buildResearchPlanPrompt(const ResearchPlanRequest& request) {
-    std::ostringstream prompt;
+    // 使用新的AIPromptTemplates生成研究计划Prompt（v2.0）
+    ResearchPlanContext promptContext;
+    promptContext.userId = std::to_string(request.userId);
+    promptContext.title = request.title;
+    promptContext.researchQuestion = request.researchQuestion;
+    promptContext.researchField = request.researchField;
+    promptContext.keywords = {}; // 从request中获取
+    promptContext.durationMonths = request.durationMonths;
+    promptContext.budgetLevel = request.budgetLevel;
+    promptContext.includeTimeline = true;
+    promptContext.includeBudget = true;
+    promptContext.includeRisks = true;
+    promptContext.includeTeam = true;
+    promptContext.includeEthics = true;
 
-    prompt << "Create a detailed research plan for the following project:\n\n";
-    prompt << "Title: " << request.title << "\n";
-    prompt << "Research Question: " << request.researchQuestion << "\n";
-    prompt << "Field: " << request.researchField << "\n";
-    prompt << "Duration: " << request.durationMonths << " months\n";
-    prompt << "Budget: " << request.budgetLevel << "\n\n";
+    // 生成高质量的结构化Prompt
+    std::string prompt = AIPromptTemplates::generateResearchPlanPrompt(promptContext);
 
-    prompt << "Please provide:\n";
-    prompt << "1. Specific research objectives (3-5)\n";
-    prompt << "2. Detailed methodology\n";
-    prompt << "3. Timeline with milestones\n";
-    prompt << "4. Required resources (equipment, personnel, data)\n";
-    prompt << "5. Potential challenges and mitigation strategies\n";
-    prompt << "6. Expected outcomes and impact\n";
-    prompt << "7. Feasibility score (1-10) with justification\n";
-    prompt << "8. Innovation score (1-10) with justification\n";
+    if (auto logging = Services::resolve<LoggingModule>()) {
+        logging->info("Generated research plan prompt using AIPromptTemplates v2.0");
+        logging->debug("Prompt length: " + std::to_string(prompt.length()) + " characters");
+    }
 
-    return prompt.str();
+    return prompt;
 }
 
 // ============================================================================
