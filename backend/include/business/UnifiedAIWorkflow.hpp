@@ -3,13 +3,14 @@
 #include "core/IModule.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
-#include "modules/CacheModule.hpp"
+// #include "modules/CacheModule.hpp"  // TODO: CacheModule not implemented yet
 #include "network/HttpClient.hpp"
 #include <string>
 #include <map>
 #include <memory>
 #include <optional>
 #include <functional>
+#include <chrono>
 
 namespace PaperCrawler {
 

@@ -108,7 +108,8 @@ public:
     }
 
     void handleClient(SOCKET clientSocket, sockaddr_in clientAddr) {
-        char buffer[4096];
+        // First, read the initial buffer to get headers
+        char buffer[8192];
         int bytesRead = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
 
         if (bytesRead > 0) {
@@ -118,9 +119,51 @@ public:
             // Debug: Log raw request
             spdlog::debug("Raw request:\n{}", std::string(buffer, bytesRead));
 
-            // Parse HTTP request
+            // Parse HTTP request headers first
             std::string requestStr(buffer);
-            HttpRequest request = parseRequest(requestStr);
+            size_t headerEnd = requestStr.find("\r\n\r\n");
+
+            if (headerEnd == std::string::npos) {
+                spdlog::warn("Incomplete request headers received");
+                return;
+            }
+
+            // Extract headers part
+            std::string headersPart = requestStr.substr(0, headerEnd);
+
+            // Check for Content-Length to see if we need to read more data
+            size_t contentLengthPos = headersPart.find("Content-Length:");
+            if (contentLengthPos != std::string::npos) {
+                size_t colonPos = headersPart.find(":", contentLengthPos);
+                size_t valueStart = headersPart.find_first_not_of(" \t", colonPos + 1);
+                size_t valueEnd = headersPart.find("\r\n", valueStart);
+                std::string contentLengthStr = headersPart.substr(valueStart, valueEnd - valueStart);
+                int contentLength = std::stoi(contentLengthStr);
+
+                spdlog::info("POST request with Content-Length: {}", contentLength);
+
+                // Calculate how much body data we have already
+                size_t bodyStart = headerEnd + 4;
+                int currentBodyLength = bytesRead - bodyStart;
+
+                // If we don't have all the body data yet, read more
+                if (currentBodyLength < contentLength) {
+                    int remainingBytes = contentLength - currentBodyLength;
+                    spdlog::info("Need to read {} more bytes for body", remainingBytes);
+
+                    int additionalBytes = recv(clientSocket, buffer + bytesRead, sizeof(buffer) - bytesRead - 1, 0);
+                    if (additionalBytes > 0) {
+                        bytesRead += additionalBytes;
+                        buffer[bytesRead] = '\0';
+                        stats_.totalBytesReceived += additionalBytes;
+                        spdlog::info("Read {} additional bytes", additionalBytes);
+                    }
+                }
+            }
+
+            // Parse HTTP request
+            std::string fullRequestStr(buffer, bytesRead);
+            HttpRequest request = parseRequest(fullRequestStr);
 
             // Debug: Log parsed request
             spdlog::info("Request: {} {}", request.method, request.path);
@@ -219,13 +262,44 @@ public:
             }
         }
 
-        // Parse body (if any)
+        // Parse body (if any) - everything after the empty line following headers
+        // Get the remaining content from the stream
         std::string body;
+        std::string remaining;
         while (std::getline(iss, line)) {
-            body += line + "\n";
+            if (!line.empty() || body.empty()) {
+                // Only add newline if it's not the first empty line after headers
+                body += line + "\n";
+            }
         }
+
+        // Trim trailing newlines from body
+        while (!body.empty() && (body.back() == '\n' || body.back() == '\r')) {
+            body.pop_back();
+        }
+
+        // Fallback: If body parsing failed but we know there should be a body,
+        // extract it directly from the original request string
+        if (body.empty()) {
+            size_t contentLengthPos = requestStr.find("Content-Length:");
+            if (contentLengthPos != std::string::npos) {
+                // Find the body start (after \r\n\r\n)
+                size_t bodyStart = requestStr.find("\r\n\r\n");
+                if (bodyStart != std::string::npos) {
+                    bodyStart += 4;
+                    if (bodyStart < requestStr.length()) {
+                        body = requestStr.substr(bodyStart);
+                        spdlog::info("Extracted body directly from request string, {} bytes", body.length());
+                    }
+                }
+            }
+        }
+
         if (!body.empty()) {
             request.body = body;
+            spdlog::info("Parsed body with {} bytes: '{}'", body.length(), body.substr(0, std::min(size_t(100), body.length())));
+        } else {
+            spdlog::warn("Body is empty after parsing");
         }
 
         return request;
