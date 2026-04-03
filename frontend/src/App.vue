@@ -28,14 +28,41 @@
                 <span class="nav-icon">🔍</span>
                 <span class="nav-text">{{ $t('nav.search') }}</span>
               </router-link>
-              <router-link to="/crawler" class="nav-link">
-                <span class="nav-icon">🕷️</span>
-                <span class="nav-text">爬虫</span>
+              <router-link to="/ai" class="nav-link">
+                <span class="nav-icon">🤖</span>
+                <span class="nav-text">AI</span>
               </router-link>
-              <router-link to="/stats" class="nav-link">
-                <span class="nav-icon">📊</span>
-                <span class="nav-text">{{ $t('nav.stats') }}</span>
-              </router-link>
+
+              <!-- More Dropdown -->
+              <div class="more-menu">
+                <div class="nav-link more-dropdown" @click="toggleMoreDropdown">
+                  <span class="nav-icon">☰</span>
+                  <span class="nav-text">更多</span>
+                  <span class="dropdown-arrow">▼</span>
+                </div>
+                <div v-if="showMoreDropdown" class="more-dropdown-content">
+                  <router-link to="/crawler" class="dropdown-link" @click="showMoreDropdown = false">
+                    <span class="dropdown-icon">🕷️</span>
+                    <span>爬虫</span>
+                  </router-link>
+                  <router-link to="/collections" class="dropdown-link" @click="showMoreDropdown = false">
+                    <span class="dropdown-icon">⭐</span>
+                    <span>收藏</span>
+                  </router-link>
+                  <router-link to="/journals" class="dropdown-link" @click="showMoreDropdown = false">
+                    <span class="dropdown-icon">📰</span>
+                    <span>期刊</span>
+                  </router-link>
+                  <router-link to="/export" class="dropdown-link" @click="showMoreDropdown = false">
+                    <span class="dropdown-icon">📤</span>
+                    <span>导出</span>
+                  </router-link>
+                  <router-link to="/stats" class="dropdown-link" @click="showMoreDropdown = false">
+                    <span class="dropdown-icon">📊</span>
+                    <span>{{ $t('nav.stats') }}</span>
+                  </router-link>
+                </div>
+              </div>
             </div>
 
             <div class="nav-controls">
@@ -200,6 +227,7 @@ const authStore = useAuthStore()
 const backendStatus = ref(false)
 const healthCheckInitialized = ref(false)
 const showUserDropdown = ref(false)
+const showMoreDropdown = ref(false)
 
 // User initial for avatar
 const userInitial = computed(() => {
@@ -210,14 +238,25 @@ const userInitial = computed(() => {
 // Toggle user dropdown
 const toggleUserDropdown = () => {
   showUserDropdown.value = !showUserDropdown.value
+  showMoreDropdown.value = false
 }
 
-// Close dropdown when clicking outside
+// Toggle more dropdown
+const toggleMoreDropdown = () => {
+  showMoreDropdown.value = !showMoreDropdown.value
+  showUserDropdown.value = false
+}
+
+// Close dropdowns when clicking outside
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   const userMenu = document.querySelector('.user-menu')
+  const moreMenu = document.querySelector('.more-menu')
   if (userMenu && !userMenu.contains(target)) {
     showUserDropdown.value = false
+  }
+  if (moreMenu && !moreMenu.contains(target)) {
+    showMoreDropdown.value = false
   }
 }
 
@@ -637,6 +676,171 @@ onUnmounted(() => {
 
 .user-info:hover .dropdown-arrow {
   transform: rotate(180deg);
+}
+
+/* More Dropdown Menu */
+.more-menu {
+  position: relative;
+}
+
+.more-dropdown {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.more-dropdown:hover .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.more-dropdown-content {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  z-index: 1000;
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+.dropdown-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: #374151;
+  font-size: 14px;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.dropdown-link:last-child {
+  border-bottom: none;
+}
+
+.dropdown-link:hover {
+  background: #f3f4f6;
+  color: #667eea;
+}
+
+.dropdown-link.router-link-active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+  font-weight: 600;
+}
+
+/* More Dropdown Menu */
+.more-menu {
+  position: relative;
+}
+
+.more-dropdown {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.more-dropdown:hover .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.more-dropdown-content {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  z-index: 1000;
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+.dropdown-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: #374151;
+  font-size: 14px;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.dropdown-link:last-child {
+  border-bottom: none;
+}
+
+.dropdown-link:hover {
+  background: #f3f4f6;
+  color: #667eea;
+}
+
+.dropdown-link.router-link-active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+  font-weight: 600;
+}
+
+/* More Dropdown Menu */
+.more-menu {
+  position: relative;
+}
+
+.more-dropdown {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.more-dropdown:hover .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.more-dropdown-content {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  z-index: 1000;
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+.dropdown-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: #374151;
+  font-size: 14px;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.dropdown-link:last-child {
+  border-bottom: none;
+}
+
+.dropdown-link:hover {
+  background: #f3f4f6;
+  color: #667eea;
+}
+
+.dropdown-link.router-link-active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+  font-weight: 600;
 }
 
 /* User Dropdown */

@@ -147,6 +147,26 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/ai/history',
+    name: 'AIHistory',
+    component: () => import('../views/ai/AIHistoryPage.vue'),
+    meta: {
+      title: 'AI History - AI Research Co-Pilot',
+      requiresAuth: true,
+      description: 'View your AI generation history'
+    }
+  },
+  {
+    path: '/ai/stats',
+    name: 'AIStats',
+    component: () => import('../views/ai/AIStatsPage.vue'),
+    meta: {
+      title: 'AI Statistics - AI Research Co-Pilot',
+      requiresAuth: true,
+      description: 'AI usage statistics and cost analysis'
+    }
+  },
+  {
     path: '/ai/copilot',
     name: 'AiCopilot',
     component: () => import('../views/AiCopilot.vue'),
@@ -163,6 +183,39 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Recommendations.vue'),
     meta: {
       title: 'Recommendations',
+      requiresAuth: true
+    }
+  },
+
+  // Export routes
+  {
+    path: '/export',
+    name: 'Export',
+    component: () => import('../views/Export.vue'),
+    meta: {
+      title: 'Export Papers',
+      requiresAuth: true
+    }
+  },
+
+  // Collections routes
+  {
+    path: '/collections',
+    name: 'Collections',
+    component: () => import('../views/Collections.vue'),
+    meta: {
+      title: 'My Collections',
+      requiresAuth: true
+    }
+  },
+
+  // Journals routes
+  {
+    path: '/journals',
+    name: 'Journals',
+    component: () => import('../views/Journals.vue'),
+    meta: {
+      title: 'Browse Journals',
       requiresAuth: true
     }
   },
