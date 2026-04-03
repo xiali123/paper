@@ -60,3 +60,12 @@ backend/tests/integration/output/
 backend/tests/performance/output/
 backend/tests/security/output/
 backend/tests/stress/output/
+node_modules
+
+# 构建目录
+backend/build/
+build/
+
+# 外部依赖二进制文件
+core/external/curl-*/
+curl-*/
