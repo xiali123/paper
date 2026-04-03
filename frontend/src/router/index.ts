@@ -106,13 +106,52 @@ const routes: RouteRecordRaw[] = [
     }
   },
 
-  // AI Assistant routes
+  // AI Research Co-Pilot routes
   {
-    path: '/ai-copilot',
+    path: '/ai',
+    name: 'AI',
+    redirect: '/ai/review',
+    meta: {
+      title: 'AI Research Co-Pilot',
+      requiresAuth: true
+    }
+  },
+  {
+    path: '/ai/review',
+    name: 'AIReview',
+    component: () => import('../views/ai/AIReviewPage.vue'),
+    meta: {
+      title: 'AI Reviewer - AI Research Co-Pilot',
+      requiresAuth: true,
+      description: 'AI-powered peer review system'
+    }
+  },
+  {
+    path: '/ai/literature-review',
+    name: 'AILiteratureReview',
+    component: () => import('../views/ai/AILiteratureReviewPage.vue'),
+    meta: {
+      title: 'Literature Review - AI Research Co-Pilot',
+      requiresAuth: true,
+      description: 'AI-generated systematic literature reviews'
+    }
+  },
+  {
+    path: '/ai/research-plan',
+    name: 'AIResearchPlan',
+    component: () => import('../views/ai/AIResearchPlanPage.vue'),
+    meta: {
+      title: 'Research Plan - AI Research Co-Pilot',
+      requiresAuth: true,
+      description: 'AI-powered research project planning'
+    }
+  },
+  {
+    path: '/ai/copilot',
     name: 'AiCopilot',
     component: () => import('../views/AiCopilot.vue'),
     meta: {
-      title: 'AI Research Co-Pilot',
+      title: 'AI Research Co-Pilot Dashboard',
       requiresAuth: true
     }
   },

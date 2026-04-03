@@ -188,3 +188,218 @@ export interface AIStats {
     questions: number
   }>
 }
+
+// ==================== AI Research Co-Pilot 类型 ====================
+
+/**
+ * AI审稿请求
+ */
+export interface AIReviewRequest {
+  paperId: number
+  userId: number
+  targetJournal: string
+  researchField: string
+  includeComparison: boolean
+  reviewStyle: 'strict' | 'balanced' | 'encouraging'
+}
+
+/**
+ * 文献综述请求
+ */
+export interface LiteratureReviewRequest {
+  title: string
+  userId: number
+  researchField: string
+  paperCount: number
+  keywords: string
+  timeRange: string
+}
+
+/**
+ * 研究计划请求
+ */
+export interface ResearchPlanRequest {
+  title: string
+  userId: number
+  researchField: string
+  duration: number
+  budget: number
+  description: string
+  keywords: string
+}
+
+/**
+ * 研究计划结果（扩展版）
+ */
+export interface ResearchPlanResult {
+  id?: number
+  title: string
+  background_and_significance?: string
+  researchField: string
+  duration: number
+  budget_estimate: number
+  feasibility_analysis?: {
+    technical_feasibility: number
+    resource_feasibility: number
+    time_feasibility: number
+    overall_score?: number
+  }
+  objectives?: Array<{
+    title?: string
+    description: string
+    priority?: string
+    specific?: string
+    measurable?: string
+    achievable?: string
+    relevant?: string
+    time_bound?: string
+    success_metrics?: string[]
+  }>
+  methodology?: {
+    approach?: string
+    data_collection?: Array<{
+      type?: string
+      source?: string
+      description?: string
+      details?: string
+      sample_size?: number
+    }>
+    analysis?: Array<{
+      name?: string
+      method?: string
+      description: string
+    }>
+  }
+  timeline?: {
+    total_duration?: string
+    phases: Array<{
+      name?: string
+      phase?: string
+      duration?: string
+      period?: string
+      deliverables?: string[]
+      milestones?: string[]
+      tasks?: string[]
+    }>
+  }
+  required_resources?: {
+    personnel?: Array<{
+      role: string
+      count: number
+      qualifications?: string
+    }>
+    equipment?: Array<{
+      name: string
+      quantity?: number
+      specification?: string
+    }>
+  }
+  potential_challenges?: Array<{
+    title?: string
+    challenge?: string
+    description?: string
+    detail?: string
+    severity?: string
+    probability?: number
+    mitigation_strategies?: string[]
+  }>
+  expected_outcomes?: {
+    deliverables?: Array<string | { name: string }>
+    publications?: {
+      journal_papers?: number
+      journals?: number
+      conference_papers?: number
+      conferences?: number
+    }
+    impact?: string
+  }
+  budget_breakdown?: Array<{
+    category: string
+    amount: number
+  }>
+  responseTime?: number
+  costUsd?: number
+  createdAt?: string
+  success: boolean
+}
+
+/**
+ * 文献综述结果（扩展版）
+ */
+export interface LiteratureReviewResult {
+  id?: number
+  title: string
+  abstract?: string
+  introduction?: string
+  researchField: string
+  paperCount: number
+  themes?: Array<{
+    name: string
+    description: string
+    key_insights?: string[]
+    papers?: string[]
+  }>
+  research_gaps?: Array<{
+    title?: string
+    area?: string
+    description?: string
+    detail?: string
+    priority?: number
+    potential?: string
+  }>
+  trends?: Array<{
+    title?: string
+    topic?: string
+    description: string
+    type?: string
+    growth_rate?: number
+    time_period?: string
+  }>
+  methodology_summary?: {
+    approaches?: Array<{ name: string; frequency: number }>
+    evolution?: string
+    challenges?: string[]
+  }
+  key_findings?: Array<{
+    title?: string
+    topic?: string
+    description: string
+    impact?: string
+  }>
+  future_directions?: {
+    challenges?: string[]
+    opportunities?: Array<{
+      title?: string
+      area?: string
+      description: string
+      feasibility?: number
+    }>
+  }
+  responseTime?: number
+  costUsd?: number
+  createdAt?: string
+  success: boolean
+}
+
+/**
+ * AI审稿结果（扩展版）
+ */
+export interface AIReviewResultExtended {
+  reviewScore: number
+  acceptanceProbability: number
+  methodologyScore?: number
+  innovationScore?: number
+  presentationScore?: number
+  strengths: string[]
+  weaknesses: string[]
+  suggestions?: string[]
+  comparedPapers?: Array<{
+    title: string
+    reason: string
+  }>
+  recommendation?: string
+  responseTime?: number
+  costUsd?: number
+  createdAt?: string
+  success: boolean
+}
