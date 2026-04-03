@@ -1,0 +1,58 @@
+# PaperCrawler::Core - Development Docker Image
+# This image includes all development tools for active development
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install comprehensive development tools
+RUN apt-get update && apt-get install -y \
+    # Build tools
+    cmake \
+    g++ \
+    gcc \
+    make \
+    ninja-build \
+    ccache \
+    # Version control
+    git \
+    # Debugging tools
+    gdb \
+    valgrind \
+    # Libraries
+    libpthread-dev \
+    libspdlog-dev \
+    libfmt-dev \
+    libgtest-dev \
+    libbenchmark-dev \
+    # Documentation
+    doxygen \
+    graphviz \
+    # Utilities
+    vim \
+    nano \
+    htop \
+    wget \
+    curl \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /workspace
+
+# Create non-root user for development
+RUN useradd -m -u 1000 developer && \
+    usermod -aG sudo developer && \
+    echo "developer ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+USER developer
+
+# Configure git (if needed)
+RUN git config --global core.autocrlf input
+
+# Expose common ports
+EXPOSE 8080 8443
+
+# Default to bash shell
+CMD ["/bin/bash"]

@@ -1,0 +1,144 @@
+# PaperCrawler::Core - Docker Compose Configuration
+# Development and testing orchestration
+
+version: '3.8'
+
+services:
+  # Development environment
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: papercrawler-core-dev
+    volumes:
+      # Mount source code for live development
+      - .:/workspace
+      # Use named volume for build cache
+      - build-cache:/build
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+    environment:
+      - CMAKE_BUILD_TYPE=Debug
+      - ENABLE_SANITIZERS=ON
+    networks:
+      - papercrawler-network
+
+  # Build and test environment
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: papercrawler-core-test
+    volumes:
+      - ./test-results:/build/test-results
+    working_dir: /build
+    command: >
+      bash -c "
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_TESTS=ON \
+          -DENABLE_COVERAGE=ON \
+          -DENABLE_SANITIZERS=ON && \
+        cmake --build build -- -j$(nproc) && \
+        cd build && \
+        ctest --output-on-failure --verbose && \
+        gcov ../*.gcda 2>/dev/null || true
+      "
+    environment:
+      - CTEST_OUTPUT_ON_FAILURE=1
+    networks:
+      - papercrawler-network
+
+  # Documentation builder
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: papercrawler-core-docs
+    volumes:
+      - ./docs-output:/build/docs-output
+    working_dir: /build
+    command: >
+      bash -c "
+        cmake -B build -DBUILD_DOCS=ON && \
+        cmake --build build --target docs && \
+        cp -r build/docs/html /build/docs-output/ && \
+        echo 'Documentation generated in /build/docs-output/'
+      "
+    networks:
+      - papercrawler-network
+
+  # Benchmark runner
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: papercrawler-core-benchmark
+    volumes:
+      - ./benchmark-results:/build/benchmark-results
+    working_dir: /build
+    command: >
+      bash -c "
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DENABLE_BENCHMARKS=ON && \
+        cmake --build build --target PaperCrawlerCoreBenchmarks && \
+        ./build/PaperCrawlerCoreBenchmarks \
+          --benchmark_format=json \
+          --benchmark_out=/build/benchmark-results/results.json
+      "
+    networks:
+      - papercrawler-network
+
+  # Example runner
+  examples:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: papercrawler-core-examples
+    working_dir: /build
+    command: >
+      bash -c "
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON && \
+        cmake --build build && \
+        echo 'Running MinimalModuleExample:' && \
+        ./build/MinimalModuleExample && \
+        echo '' && \
+        echo 'Running DependencyInjectionExample:' && \
+        ./build/DependencyInjectionExample && \
+        echo '' && \
+        echo 'Running EventDrivenExample:' && \
+        ./build/EventDrivenExample && \
+        echo '' && \
+        echo 'Running CompleteApplicationExample:' && \
+        ./build/CompleteApplicationExample
+      "
+    networks:
+      - papercrawler-network
+
+  # Production image builder
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: papercrawler-core:latest
+    container_name: papercrawler-core-prod
+    command: /bin/bash -c "echo 'PaperCrawler::Core production image ready' && sleep infinity"
+    networks:
+      - papercrawler-network
+
+volumes:
+  # Persistent build cache to speed up rebuilds
+  build-cache:
+    driver: local
+
+networks:
+  papercrawler-network:
+    driver: bridge

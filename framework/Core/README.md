@@ -26,6 +26,24 @@ PaperCrawler-Core是一个现代化的C++后端框架核心库，提供了构建
 
 ### 安装
 
+#### 使用Docker（推荐）
+
+```bash
+# 拉取或构建镜像
+docker build -t papercrawler-core:latest .
+
+# 运行测试
+docker-compose up test
+
+# 开发环境
+docker-compose up dev
+
+# 生成文档
+docker-compose up docs
+```
+
+**详细Docker指南**: [DOCKER.md](DOCKER.md)
+
 #### 从源码构建
 
 ```bash

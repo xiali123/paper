@@ -1,0 +1,334 @@
+# PaperCrawler::Core - Continuous Deployment
+# Automated release and package distribution
+
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # Multi-Platform Build
+  # ============================================================================
+  build-multiplatform:
+    name: Build (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+          - windows/amd64
+          - darwin/amd64
+          - darwin/arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for cross-platform builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and test
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --build-arg BUILD_TYPE=Release \
+            --target builder \
+            --output type=local,dest=build-${{ matrix.platform }} \
+            .
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ matrix.platform }}
+          path: build-${{ matrix.platform }}
+
+  # ============================================================================
+  # Create Release Packages
+  # ============================================================================
+  package:
+    name: Package Release
+    runs-on: ${{ matrix.os }}
+    needs: build-multiplatform
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: papercrawler-core-linux
+            extension: tar.gz
+          - os: macos-latest
+            artifact_name: papercrawler-core-macos
+            extension: tar.gz
+          - os: windows-latest
+            artifact_name: papercrawler-core-windows
+            extension: zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libspdlog-dev libfmt-dev
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake spdlog fmt
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake ninja spdlog fmt
+
+      - name: Build release
+        shell: bash
+        run: |
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DBUILD_EXAMPLES=ON \
+                -DCMAKE_INSTALL_PREFIX=../install \
+                ..
+          cmake --build . -- -j$(nproc)
+          cmake --install .
+
+      - name: Create archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd install
+          tar -czvf ../${{ matrix.artifact_name }}-${{ github.ref_name }}.${{ matrix.extension }} .
+
+      - name: Create archive (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path install\* -DestinationPath ${{ matrix.artifact_name }}-${{ github.ref_name }}.${{ matrix.extension }}
+
+      - name: Generate checksums
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            certutil -hashfile ${{ matrix.artifact_name }}-${{ github.ref_name }}.${{ matrix.extension }} SHA256 > checksums.txt
+          else
+            shasum -a 256 ${{ matrix.artifact_name }}-${{ github.ref_name }}.${{ matrix.extension }} >> checksums.txt
+          fi
+
+      - name: Upload package
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ${{ matrix.artifact_name }}-${{ github.ref_name }}.${{ matrix.extension }}
+            checksums.txt
+
+  # ============================================================================
+  # Build and Push Docker Images
+  # ============================================================================
+  docker-push:
+    name: Push Docker Images
+    runs-on: ubuntu-latest
+    needs: build-multiplatform
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          target: runtime
+
+  # ============================================================================
+  # Publish to vcpkg
+  # ============================================================================
+  vcpkg-publish:
+    name: Publish to vcpkg
+    runs-on: ubuntu-latest
+    needs: package
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          path: vcpkg
+
+      - name: Configure vcpkg
+        run: |
+          cd vcpkg
+          ./bootstrap-vcpkg.sh
+
+      - name: Create vcpkg port
+        run: |
+          mkdir -p vcpkg/ports/papercrawler-core
+          cat > vcpkg/ports/papercrawler-core/vcpkg.json <<'EOF'
+          {
+            "name": "papercrawler-core",
+            "version-string": "${{ github.ref_name }}",
+            "description": "High-performance C++ backend framework",
+            "homepage": "https://github.com/PaperCrawler/Core",
+            "license": "MIT",
+            "dependencies": [
+              "spdlog",
+              "fmt"
+            ]
+          }
+          EOF
+
+          cat > vcpkg/ports/papercrawler-core/portfile.cmake <<'EOF'
+          # TODO: Generate proper portfile
+          EOF
+
+      - name: Submit PR to vcpkg
+        uses: peter-evans/create-pull-request@v5
+        with:
+          path: vcpkg
+          token: ${{ secrets.VCPKG_SUBMIT_TOKEN }}
+          commit-message: "Add papercrawler-core ${{ github.ref_name }}"
+          title: "[papercrawler-core] Add version ${{ github.ref_name }}"
+          body: |
+            Automated submission for PaperCrawler::Core ${{ github.ref_name }}
+
+            ## Overview
+            PaperCrawler::Core is a high-performance C++ backend framework.
+
+            ## Changes
+            - Added papercrawler-core port version ${{ github.ref_name }}
+          branch: papercrawler-core-${{ github.ref_name }}
+          delete-branch: true
+
+  # ============================================================================
+  # Create GitHub Release
+  # ============================================================================
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [package, docker-push]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: release-assets
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md <<'EOF'
+          ## PaperCrawler::Core ${{ github.ref_name }}
+
+          ### Changes since last release
+          TODO: Add changelog
+
+          ### Installation
+
+          #### Using package manager
+          ```bash
+          # vcpkg
+          vcpkg install papercrawler-core:${{ github.ref_name }}
+          ```
+
+          #### Using Docker
+          ```bash
+          docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          ```
+
+          #### From source
+          ```bash
+          git clone https://github.com/PaperCrawler/Core.git
+          cd Core
+          git checkout ${{ github.ref_name }}
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+          sudo make install
+          ```
+
+          ### Verification
+          Checksums for all packages:
+
+          ```
+          $(cat checksums.txt)
+          ```
+
+          ### Documentation
+          Full API documentation: https://papercrawler.github.io/Core/${{ github.ref_name }}
+
+          ### What's New
+          - See [CHANGELOG.md](https://github.com/PaperCrawler/Core/blob/main/CHANGELOG.md)
+
+          ### Contributors
+          TODO: Add contributors
+          EOF
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: release_notes.md
+          files: release-assets/*/*
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify subscribers
+        run: |
+          echo "Release ${{ github.ref_name }} created successfully!"
+          echo "Notify subscribers via email, Slack, etc."
