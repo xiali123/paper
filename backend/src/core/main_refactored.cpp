@@ -45,7 +45,7 @@
 
 // JSON library
 #include <spdlog/spdlog.h>
-#include <nlohmann/json.hpp>
+#include "../../core/external/nlohmann/json.hpp"
 
 using namespace PaperCrawler;
 using json = nlohmann::json;

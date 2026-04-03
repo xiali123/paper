@@ -4,6 +4,9 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
+#include <iostream>
 #include "ModuleExports.hpp"
 
 namespace PaperCrawler {
