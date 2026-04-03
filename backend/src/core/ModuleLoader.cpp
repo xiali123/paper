@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <nlohmann/json.hpp>
+#include "../../core/external/nlohmann/json.hpp"
 
 #ifdef _WIN32
     #define LOAD_LIBRARY(path) LoadLibraryA(path)
