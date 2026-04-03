@@ -332,8 +332,97 @@ if(WIN32)
     )
 endif()
 
+# ============================================================================
+# 热插拔架构版本 - 新增可执行文件
+# ============================================================================
+
+# 添加模块加载器源文件
+set(HOT_PLUG_SOURCES
+    src/core/ModuleLoader.cpp
+)
+
+# 创建热插拔版本的可执行文件
+add_executable(PaperCrawlerServerHotPlug
+    ${CORE_SOURCES}
+    ${DATA_SOURCES}
+    ${NETWORK_SOURCES}
+    ${INFRASTRUCTURE_SOURCES}
+    ${PERFORMANCE_SOURCES}
+    ${SECURITY_SOURCES}
+    ${RESILIENCE_SOURCES}
+    ${OPERATIONS_SOURCES}
+    ${HOT_PLUG_SOURCES}
+    src/core/main_refactored.cpp
+)
+
+# 为热插拔版本配置依赖
+target_include_directories(PaperCrawlerServerHotPlug PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/../core/include
+    ${CURL_DIR}/include
+    ${EXTERNAL_DIR}/spdlog/include
+)
+
+if(WIN32)
+    target_compile_definitions(PaperCrawlerServerHotPlug PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+        _WINSOCK_DEPRECATED_NO_WARNINGS
+        CURL_STATIC
+    )
+    if(MSVC)
+        target_compile_options(PaperCrawlerServerHotPlug PRIVATE /utf-8)
+    endif()
+endif()
+
+# 链接依赖库
+target_link_libraries(PaperCrawlerServerHotPlug
+    PRIVATE
+        Threads::Threads
+)
+
+# 链接hiredis if available
+if(HIREDIS_FOUND)
+    if(hiredis_FOUND)
+        target_link_libraries(PaperCrawlerServerHotPlug PRIVATE hiredis::hiredis)
+    else()
+        target_link_libraries(PaperCrawlerServerHotPlug PRIVATE ${HIREDIS_DIR}/lib/libhiredis.a)
+    endif()
+endif()
+
+# 链接CURL library
+if(CURL_FOUND)
+    target_link_libraries(PaperCrawlerServerHotPlug PRIVATE
+        ${CURL_DIR}/lib/libcurl.dll.a
+        ${CURL_DIR}/lib/libcrypto.a
+        ${CURL_DIR}/lib/libssl.a
+        ${CURL_DIR}/lib/libnghttp2.a
+        ${CURL_DIR}/lib/libnghttp3.a
+        ${CURL_DIR}/lib/libngtcp2.a
+        ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
+        ${CURL_DIR}/lib/libssh2.a
+        ${CURL_DIR}/lib/libbrotlicommon.a
+        ${CURL_DIR}/lib/libbrotlidec.a
+        ${CURL_DIR}/lib/libz.a
+        ${CURL_DIR}/lib/libzstd.a
+        ${CURL_DIR}/lib/libpsl.a
+    )
+endif()
+
+if(WIN32)
+    target_link_libraries(PaperCrawlerServerHotPlug
+        PRIVATE
+            ws2_32
+            wsock32
+            crypt32
+            ucrt
+            "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+    )
+endif()
+
 # Installation
-install(TARGETS PaperCrawlerServer
+install(TARGETS PaperCrawlerServer PaperCrawlerServerHotPlug
     RUNTIME DESTINATION bin
 )
 
