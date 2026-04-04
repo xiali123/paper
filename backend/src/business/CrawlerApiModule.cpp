@@ -513,6 +513,12 @@ HttpResponse CrawlerApiModule::handleCreateTask(const HttpRequest& req) {
 
 HttpResponse CrawlerApiModule::handleListTasks(const HttpRequest& req) {
     try {
+        // 如果没有数据库，返回空数组（优雅降级）
+        if (!database_) {
+            nlohmann::json tasks = nlohmann::json::array();
+            return buildJsonResponse(true, "Tasks retrieved (no database)", tasks);
+        }
+
         std::string statusFilter = req.queryParams.count("status") ? req.queryParams.at("status") : "";
         int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 100;
         int offset = req.queryParams.count("offset") ? std::stoi(req.queryParams.at("offset")) : 0;
