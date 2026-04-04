@@ -16,7 +16,10 @@
     "admin": "Admin",
     "login": "Login",
     "register": "Register",
-    "logout": "Logout"
+    "logout": "Logout",
+    "dashboard": "Dashboard",
+    "papers": "Papers",
+    "crawler": "Crawler"
   },
   "home": {
     "welcome": "Welcome to PaperCrawler",
@@ -186,7 +189,8 @@
     "status": "Status",
     "active": "Active",
     "inactive": "Inactive",
-    "actions": "Actions"
+    "actions": "Actions",
+    "toggleTheme": "Toggle Theme"
   },
   "error": {
     "networkError": "Network error, please check your connection",

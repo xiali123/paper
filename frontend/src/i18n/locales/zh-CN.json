@@ -16,7 +16,10 @@
     "admin": "管理",
     "login": "登录",
     "register": "注册",
-    "logout": "登出"
+    "logout": "登出",
+    "dashboard": "仪表板",
+    "papers": "论文管理",
+    "crawler": "爬虫管理"
   },
   "home": {
     "welcome": "欢迎使用 PaperCrawler",
@@ -186,7 +189,8 @@
     "status": "状态",
     "active": "活跃",
     "inactive": "未激活",
-    "actions": "操作"
+    "actions": "操作",
+    "toggleTheme": "切换主题"
   },
   "error": {
     "networkError": "网络错误，请检查您的连接",
