@@ -471,7 +471,9 @@ add_library(SystemModules STATIC
     src/core/Router.cpp
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
     src/data/PreparedStatement.cpp   # 添加PreparedStatement支持
+    src/data/QueryBuilder.cpp        # 添加QueryBuilder支持
     src/data/DatabaseModule.cpp     # 添加DatabaseModule支持
+    src/common/JsonUtils.cpp        # 添加JsonUtils支持（CrawlerApiModule需要）
     src/modules/TemplateCrawlerModule.cpp  # 完整实现（需要gumbo）
     # Gumbo解析器源文件（直接编译到SystemModules中）
     ${EXTERNAL_DIR}/gumbo/src/attribute.c
@@ -851,11 +853,10 @@ add_dynamic_module_with_system(DistributedTaskModule
     src/modules/DistributedTaskModule.cpp
 )
 
-# CrawlerApiModule - 爬虫API接口（临时禁用 - 复杂依赖未实现）
-# 详见: CRAWLER_API_MODULE_ANALYSIS.md
-# add_dynamic_module(CrawlerApiModule
-#     src/business/CrawlerApiModule.cpp
-# )
+# CrawlerApiModule - 爬虫API接口
+add_dynamic_module_with_system(CrawlerApiModule
+    src/business/CrawlerApiModule.cpp
+)
 
 message(STATUS "")
 message(STATUS "================== All Business Modules Dynamic ==================")
