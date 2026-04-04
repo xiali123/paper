@@ -102,6 +102,7 @@
     "unread": "Unread",
     "bookmarked": "Bookmarked",
     "clearFilters": "Clear Filters",
+    "filters": "Filters",
     "selected": "Selected {count} items",
     "batchBookmark": "Batch Bookmark",
     "batchUnbookmark": "Batch Unbookmark",

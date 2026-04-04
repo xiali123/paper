@@ -102,6 +102,7 @@
     "unread": "未读",
     "bookmarked": "收藏",
     "clearFilters": "清除筛选",
+    "filters": "筛选",
     "selected": "已选择 {count} 项",
     "batchBookmark": "批量收藏",
     "batchUnbookmark": "批量取消收藏",
