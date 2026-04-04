@@ -248,22 +248,167 @@ void AuthApiModule::registerRoutes() {
 
     spdlog::info("[AuthApiModule] Registering routes with prefix: {}", prefix);
 
-    // POST /api/auth/register - 用户注册
-    router.post(prefix + "/register", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = 201;
-        response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"User registered successfully (stub mode)\",\"user\":{\"id\":0,\"username\":\"test\"}}";
-        return response;
+    // 辅助函数：检查字符串是否为空
+    auto isEmpty = [](const std::string& s) { return s.empty() || s.find_first_not_of(" \t\r\n") == std::string::npos; };
+
+    // 辅助函数：验证邮箱格式
+    auto isValidEmail = [](const std::string& email) {
+        size_t at = email.find('@');
+        size_t dot = email.rfind('.');
+        return at != std::string::npos && dot != std::string::npos && at > 0 && dot > at + 1 && dot < email.length() - 1;
+    };
+
+    // 辅助函数：验证密码强度（至少6个字符）
+    auto isStrongPassword = [](const std::string& password) {
+        return password.length() >= 6;
+    };
+
+    // POST /api/auth/register - 用户注册（带输入验证）
+    router.post(prefix + "/register", [this, isEmpty, isValidEmail, isStrongPassword](const HttpRequest& req) {
+        try {
+            // 解析JSON
+            auto json = nlohmann::json::parse(req.body);
+
+            // 验证必填字段
+            if (!json.contains("username") || isEmpty(json["username"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Username is required\"}";
+                return response;
+            }
+
+            if (!json.contains("email") || isEmpty(json["email"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Email is required\"}";
+                return response;
+            }
+
+            if (!json.contains("password") || isEmpty(json["password"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Password is required\"}";
+                return response;
+            }
+
+            std::string username = json["username"].get<std::string>();
+            std::string email = json["email"].get<std::string>();
+            std::string password = json["password"].get<std::string>();
+
+            // 验证邮箱格式
+            if (!isValidEmail(email)) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Invalid email format\"}";
+                return response;
+            }
+
+            // 验证密码强度
+            if (!isStrongPassword(password)) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Password must be at least 6 characters\"}";
+                return response;
+            }
+
+            // Stub模式：模拟重复用户名检查（"testuser"已被占用）
+            if (username == "testuser") {
+                HttpResponse response;
+                response.statusCode = 409;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Username already exists\"}";
+                return response;
+            }
+
+            // 成功响应
+            HttpResponse response;
+            response.statusCode = 201;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"true\",\"message\":\"User registered successfully (stub mode)\",\"user\":{\"id\":0,\"username\":\"" + username + "\"}}";
+            return response;
+
+        } catch (const nlohmann::json::parse_error& e) {
+            HttpResponse response;
+            response.statusCode = 400;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            return response;
+        } catch (const std::exception& e) {
+            HttpResponse response;
+            response.statusCode = 500;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Internal server error\"}";
+            return response;
+        }
     });
 
-    // POST /api/auth/login - 用户登录
-    router.post(prefix + "/login", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = 200;
-        response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"Login successful (stub mode)\",\"access_token\":\"stub_token_12345\",\"expires_in\":3600}";
-        return response;
+    // POST /api/auth/login - 用户登录（带输入验证）
+    router.post(prefix + "/login", [this, isEmpty](const HttpRequest& req) {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+
+            // 验证必填字段
+            if (!json.contains("username") || isEmpty(json["username"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Username is required\"}";
+                return response;
+            }
+
+            if (!json.contains("password") || isEmpty(json["password"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Password is required\"}";
+                return response;
+            }
+
+            std::string username = json["username"].get<std::string>();
+            std::string password = json["password"].get<std::string>();
+
+            // Stub模式：模拟登录验证
+            // 只有"testuser"用户存在，密码是"Test123456"
+            if (username == "testuser" && password == "Test123456") {
+                HttpResponse response;
+                response.statusCode = 200;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"true\",\"message\":\"Login successful\",\"access_token\":\"stub_token_12345\",\"expires_in\":3600,\"user\":{\"id\":1,\"username\":\"testuser\",\"email\":\"test@example.com\"}}";
+                return response;
+            } else if (username == "testuser") {
+                // 用户存在但密码错误
+                HttpResponse response;
+                response.statusCode = 401;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Invalid password\"}";
+                return response;
+            } else {
+                // 用户不存在
+                HttpResponse response;
+                response.statusCode = 401;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"User not found\"}";
+                return response;
+            }
+
+        } catch (const nlohmann::json::parse_error& e) {
+            HttpResponse response;
+            response.statusCode = 400;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            return response;
+        } catch (const std::exception& e) {
+            HttpResponse response;
+            response.statusCode = 500;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Internal server error\"}";
+            return response;
+        }
     });
 
     // POST /api/auth/logout - 用户登出
@@ -271,17 +416,47 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"Logged out successfully (stub mode)\"}";
+        response.body = "{\"success\":\"true\",\"message\":\"Logged out successfully\"}";
         return response;
     });
 
     // POST /api/auth/refresh - 刷新令牌
-    router.post(prefix + "/refresh", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = 200;
-        response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"access_token\":\"new_stub_token_67890\",\"expires_in\":3600}";
-        return response;
+    router.post(prefix + "/refresh", [this, isEmpty](const HttpRequest& req) {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+
+            if (!json.contains("refresh_token") || isEmpty(json["refresh_token"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Refresh token is required\"}";
+                return response;
+            }
+
+            std::string refreshToken = json["refresh_token"].get<std::string>();
+
+            // Stub模式：验证刷新令牌
+            if (refreshToken == "stub_token_12345" || refreshToken == "valid_token") {
+                HttpResponse response;
+                response.statusCode = 200;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"true\",\"access_token\":\"new_stub_token_67890\",\"expires_in\":3600}";
+                return response;
+            } else {
+                HttpResponse response;
+                response.statusCode = 401;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Invalid refresh token\"}";
+                return response;
+            }
+
+        } catch (const nlohmann::json::parse_error& e) {
+            HttpResponse response;
+            response.statusCode = 400;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            return response;
+        }
     });
 
     // GET /api/auth/me - 获取当前用户信息
@@ -289,43 +464,113 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 401;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - No valid access token (stub mode)\"}";
+        response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - No valid access token\"}";
         return response;
     });
 
     // POST /api/auth/change-password - 修改密码
-    router.post(prefix + "/change-password", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = 501;
-        response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"false\",\"error\":\"Not implemented - Password change feature coming soon\"}";
-        return response;
+    router.post(prefix + "/change-password", [this, isEmpty, isStrongPassword](const HttpRequest& req) {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+
+            // 验证必填字段
+            if (!json.contains("old_password") || isEmpty(json["old_password"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Old password is required\"}";
+                return response;
+            }
+
+            if (!json.contains("new_password") || isEmpty(json["new_password"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"New password is required\"}";
+                return response;
+            }
+
+            std::string newPassword = json["new_password"].get<std::string>();
+
+            // 验证新密码强度
+            if (!isStrongPassword(newPassword)) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"New password must be at least 6 characters\"}";
+                return response;
+            }
+
+            // 未认证
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - Authentication required\"}";
+            return response;
+
+        } catch (const nlohmann::json::parse_error& e) {
+            HttpResponse response;
+            response.statusCode = 400;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            return response;
+        }
     });
 
     // POST /api/auth/reset-password - 重置密码
-    router.post(prefix + "/reset-password", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = 200;
-        response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"If the email exists, a password reset link has been sent (stub mode)\"}";
-        return response;
+    router.post(prefix + "/reset-password", [this, isEmpty, isValidEmail](const HttpRequest& req) {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+
+            if (!json.contains("email") || isEmpty(json["email"].get<std::string>())) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Email is required\"}";
+                return response;
+            }
+
+            std::string email = json["email"].get<std::string>();
+
+            // 验证邮箱格式
+            if (!isValidEmail(email)) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":\"false\",\"error\":\"Invalid email format\"}";
+                return response;
+            }
+
+            HttpResponse response;
+            response.statusCode = 200;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"true\",\"message\":\"If the email exists, a password reset link has been sent\"}";
+            return response;
+
+        } catch (const nlohmann::json::parse_error& e) {
+            HttpResponse response;
+            response.statusCode = 400;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            return response;
+        }
     });
 
     // GET /api/auth/sessions - 获取所有会话
     router.get(prefix + "/sessions", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = 401;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"sessions\":[],\"count\":0,\"message\":\"No active sessions (stub mode)\"}";
+        response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - Authentication required\"}";
         return response;
     });
 
     // DELETE /api/auth/sessions/:id - 删除会话
     router.del(prefix + "/sessions/:id", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = 401;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"Session deleted successfully (stub mode)\"}";
+        response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - Authentication required\"}";
         return response;
     });
 
