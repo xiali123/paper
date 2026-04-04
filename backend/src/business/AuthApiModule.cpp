@@ -253,7 +253,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 201;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"true","message":"User registered successfully (stub mode)","user":{"id":0,"username":"test"}})";
+        response.body = "{\"success\":\"true\",\"message\":\"User registered successfully (stub mode)\",\"user\":{\"id\":0,\"username\":\"test\"}}";
         return response;
     });
 
@@ -262,7 +262,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"true","message":"Login successful (stub mode)","access_token":"stub_token_12345","expires_in":3600})";
+        response.body = "{\"success\":\"true\",\"message\":\"Login successful (stub mode)\",\"access_token\":\"stub_token_12345\",\"expires_in\":3600}";
         return response;
     });
 
@@ -271,7 +271,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"true","message":"Logged out successfully (stub mode)"})";
+        response.body = "{\"success\":\"true\",\"message\":\"Logged out successfully (stub mode)\"}";
         return response;
     });
 
@@ -280,7 +280,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"true","access_token":"new_stub_token_67890","expires_in":3600})";
+        response.body = "{\"success\":\"true\",\"access_token\":\"new_stub_token_67890\",\"expires_in\":3600}";
         return response;
     });
 
@@ -289,7 +289,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 401;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"false","error":"Unauthorized - No valid access token (stub mode)"})";
+        response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - No valid access token (stub mode)\"}";
         return response;
     });
 
@@ -298,7 +298,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 501;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"false","error":"Not implemented - Password change feature coming soon"})";
+        response.body = "{\"success\":\"false\",\"error\":\"Not implemented - Password change feature coming soon\"}";
         return response;
     });
 
@@ -307,7 +307,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"true","message":"If the email exists, a password reset link has been sent (stub mode)"})";
+        response.body = "{\"success\":\"true\",\"message\":\"If the email exists, a password reset link has been sent (stub mode)\"}";
         return response;
     });
 
@@ -316,7 +316,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"true","sessions":[],"count":0,"message":"No active sessions (stub mode)"})";
+        response.body = "{\"success\":\"true\",\"sessions\":[],\"count\":0,\"message\":\"No active sessions (stub mode)\"}";
         return response;
     });
 
@@ -325,7 +325,7 @@ void AuthApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = R"({"success":"true","message":"Session deleted successfully (stub mode)"})";
+        response.body = "{\"success\":\"true\",\"message\":\"Session deleted successfully (stub mode)\"}";
         return response;
     });
 
