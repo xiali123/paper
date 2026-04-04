@@ -916,6 +916,7 @@ HttpResponse UserApiModule::handleGetStats(const HttpRequest& req) {
 HttpResponse UserApiModule::buildJsonResponse(bool success, const std::string& message) {
     HttpResponse response;
     response.statusCode = success ? 200 : 400;
+    response.statusText = success ? "OK" : "Bad Request";
     response.headers["Content-Type"] = "application/json";
 
     nlohmann::json json;
@@ -929,6 +930,18 @@ HttpResponse UserApiModule::buildJsonResponse(bool success, const std::string& m
 HttpResponse UserApiModule::buildJsonResponse(int statusCode, const std::string& message, const nlohmann::json& data) {
     HttpResponse response;
     response.statusCode = statusCode;
+
+    // Set appropriate status text
+    switch (statusCode) {
+        case 200: response.statusText = "OK"; break;
+        case 201: response.statusText = "Created"; break;
+        case 204: response.statusText = "No Content"; break;
+        case 400: response.statusText = "Bad Request"; break;
+        case 404: response.statusText = "Not Found"; break;
+        case 500: response.statusText = "Internal Server Error"; break;
+        default: response.statusText = "Unknown"; break;
+    }
+
     response.headers["Content-Type"] = "application/json";
 
     nlohmann::json json;

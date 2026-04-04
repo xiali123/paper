@@ -172,165 +172,202 @@ foreach(src ${BACKEND_SOURCES})
     message(STATUS "  - ${src}")
 endforeach()
 
-# Create executable（包含核心框架、系统模块和main.cpp）
-add_executable(PaperCrawlerServer
-    ${CORE_SOURCES}
-    ${DATA_SOURCES}
-    ${NETWORK_SOURCES}
-    ${INFRASTRUCTURE_SOURCES}
-    ${PERFORMANCE_SOURCES}
-    ${SECURITY_SOURCES}
-    ${RESILIENCE_SOURCES}
-    ${OPERATIONS_SOURCES}
-    src/core/main.cpp
-)
+# ============================================================================
+# ⚠️ DEPRECATED: Legacy PaperCrawlerServer (非热插拔版本 - 已废弃)
+# ============================================================================
+# The legacy PaperCrawlerServer (non-hot-plug version using main.cpp) has been
+# deprecated as of 2026-04-04. Only PaperCrawlerServerHotPlug is maintained.
+#
+# Reason: Hot-plug architecture provides dynamic module loading without restart
+# Migration: Use PaperCrawlerServerHotPlug (main_refactored.cpp) instead
+# ============================================================================
 
+# Create executable（包含核心框架、系统模块和main.cpp）
+# add_executable(PaperCrawlerServer
+#     ${CORE_SOURCES}
+#     ${DATA_SOURCES}
+#     ${NETWORK_SOURCES}
+#     ${INFRASTRUCTURE_SOURCES}
+#     ${PERFORMANCE_SOURCES}
+#     ${SECURITY_SOURCES}
+#     ${RESILIENCE_SOURCES}
+#     ${OPERATIONS_SOURCES}
+#     src/core/main.cpp
+# )
+# 
+# Find required packages
+# find_package(Threads REQUIRED)
+# 
+# Find hiredis for Redis caching
+# find_package(hiredis QUIET)
+# if(hiredis_FOUND)
+#     message(STATUS "  - hiredis: found system package")
+#     target_include_directories(PaperCrawlerServer PRIVATE ${hiredis_INCLUDE_DIRS})
+#     target_compile_definitions(PaperCrawlerServer PRIVATE USE_REDIS_CACHE=1)
+# else()
+#     message(WARNING "hiredis not found, checking local dependencies...")
+    # Try local external dependencies
+#     set(HIREDIS_DIR "${CMAKE_SOURCE_DIR}/../core/external/hiredis")
+#     if(EXISTS ${HIREDIS_DIR})
+#         message(STATUS "  - hiredis: found in external dependencies")
+#         message(STATUS "    Path: ${HIREDIS_DIR}")
+#         include_directories(${HIREDIS_DIR}/include)
+#         target_compile_definitions(PaperCrawlerServer PRIVATE USE_REDIS_CACHE=1)
+#         set(HIREDIS_FOUND TRUE)
+#     else()
+#         message(WARNING "hiredis not found, using in-memory cache only")
+#         target_compile_definitions(PaperCrawlerServer PRIVATE USE_MEMORY_CACHE=1)
+#         set(HIREDIS_FOUND FALSE)
+#     endif()
+# endif()
+# 
+# Use local libcurl from core/external
+# set(CURL_DIR "${CMAKE_SOURCE_DIR}/../core/external/curl-8.19.0_4-win64-mingw")
+# if(EXISTS ${CURL_DIR})
+#     message(STATUS "  - curl: found in external dependencies")
+#     message(STATUS "    Path: ${CURL_DIR}")
+# 
+    # Include directories
+#     include_directories(${CURL_DIR}/include)
+# 
+    # Link libraries
+#     set(CURL_FOUND TRUE)
+# else()
+#     message(FATAL_ERROR "libcurl not found in ${CURL_DIR}")
+# endif()
+# 
+# Use local dependencies from PaperCrawler/core/external
+# Backend is at PaperCrawler/backend, so we go up one level to reach PaperCrawler/
+# set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/../core/external)
+# 
+# Check if external directory exists
+# if(EXISTS ${EXTERNAL_DIR})
+#     message(STATUS "Using external dependencies from: ${EXTERNAL_DIR}")
+# 
+    # Use spdlog with bundled fmt
+#     if(EXISTS ${EXTERNAL_DIR}/spdlog)
+#         message(STATUS "  - spdlog: found (header-only with bundled fmt)")
+# 
+        # Include directories
+#         include_directories(${EXTERNAL_DIR}/spdlog/include)
+# 
+        # Don't define SPDLOG_FMT_EXTERNAL - let it use bundled fmt by default
+#         target_compile_definitions(PaperCrawlerServer PRIVATE
+#             SPDLOG_HEADER_ONLY
+#             SPDLOG_NO_EXCEPTIONS=0
+#         )
+#     else()
+#         message(WARNING "spdlog not found in ${EXTERNAL_DIR}")
+#     endif()
+# else()
+#     message(WARNING "External dependencies directory not found: ${EXTERNAL_DIR}")
+#     message(STATUS "  Will try to use system packages...")
+# 
+    # Try to find system packages
+#     find_package(spdlog QUIET)
+#     if(spdlog_FOUND)
+#         message(STATUS "  - spdlog: found system package")
+#         target_link_libraries(PaperCrawlerServer PRIVATE spdlog::spdlog)
+#     else()
+#         message(FATAL_ERROR "Neither local nor system spdlog found. Please install spdlog.")
+#     endif()
+# 
+#     find_package(fmt QUIET)
+#     if(fmt_FOUND)
+#         message(STATUS "  - fmt: found system package")
+#         target_link_libraries(PaperCrawlerServer PRIVATE fmt::fmt)
+#     endif()
+# endif()
+# 
+# Link libraries
+# target_link_libraries(PaperCrawlerServer
+#     PRIVATE
+#         Threads::Threads
+# )
+# 
+# Link hiredis if available
+# if(HIREDIS_FOUND)
+#     if(hiredis_FOUND)
+#         target_link_libraries(PaperCrawlerServer PRIVATE hiredis::hiredis)
+#     else()
+        # Use local hiredis library
+#         target_link_libraries(PaperCrawlerServer PRIVATE ${HIREDIS_DIR}/lib/libhiredis.a)
+#     endif()
+# endif()
+# 
+# Link CURL library
+# Note: Using DLL import library for MSVC compatibility
+# if(CURL_FOUND)
+    # For MinGW/GCC, use DLL import library
+#     target_link_libraries(PaperCrawlerServer PRIVATE
+        # DLL import library for curl
+#         ${CURL_DIR}/lib/libcurl.dll.a
+        # Dependencies for static linking
+#         ${CURL_DIR}/lib/libcrypto.a
+#         ${CURL_DIR}/lib/libssl.a
+#         ${CURL_DIR}/lib/libnghttp2.a
+#         ${CURL_DIR}/lib/libnghttp3.a
+#         ${CURL_DIR}/lib/libngtcp2.a
+#         ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
+#         ${CURL_DIR}/lib/libssh2.a
+#         ${CURL_DIR}/lib/libbrotlicommon.a
+#         ${CURL_DIR}/lib/libbrotlidec.a
+#         ${CURL_DIR}/lib/libz.a
+#         ${CURL_DIR}/lib/libzstd.a
+#         ${CURL_DIR}/lib/libpsl.a
+#     )
+# endif()
+# 
+# Platform specific
+# if(WIN32)
+#     target_compile_definitions(PaperCrawlerServer PRIVATE
+#         WIN32_LEAN_AND_MEAN
+#         NOMINMAX
+#         _CRT_SECURE_NO_WARNINGS
+#         _WINSOCK_DEPRECATED_NO_WARNINGS
+#         CURL_STATIC
+#     )
+#     if(MSVC)
+#         target_compile_options(PaperCrawlerServer PRIVATE /utf-8)
+#     else()
+        # MinGW/GCC默认使用UTF-8，不需要特殊标志
+#     endif()
+#     target_link_libraries(PaperCrawlerServer
+#         PRIVATE
+#             ws2_32
+#             wsock32
+#             crypt32
+#             ucrt
+#             "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+#     )
+# endif()
+
+# ============================================================================
+# Global Dependencies Configuration (全局依赖配置)
+# ============================================================================
 # Find required packages
 find_package(Threads REQUIRED)
 
-# Find hiredis for Redis caching
-find_package(hiredis QUIET)
-if(hiredis_FOUND)
-    message(STATUS "  - hiredis: found system package")
-    target_include_directories(PaperCrawlerServer PRIVATE ${hiredis_INCLUDE_DIRS})
-    target_compile_definitions(PaperCrawlerServer PRIVATE USE_REDIS_CACHE=1)
+# Define EXTERNAL_DIR for use by both hot-plug version and SystemModules
+set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/../core/external)
+
+if(EXISTS ${EXTERNAL_DIR})
+    message(STATUS "Using external dependencies from: ${EXTERNAL_DIR}")
 else()
-    message(WARNING "hiredis not found, checking local dependencies...")
-    # Try local external dependencies
-    set(HIREDIS_DIR "${CMAKE_SOURCE_DIR}/../core/external/hiredis")
-    if(EXISTS ${HIREDIS_DIR})
-        message(STATUS "  - hiredis: found in external dependencies")
-        message(STATUS "    Path: ${HIREDIS_DIR}")
-        include_directories(${HIREDIS_DIR}/include)
-        target_compile_definitions(PaperCrawlerServer PRIVATE USE_REDIS_CACHE=1)
-        set(HIREDIS_FOUND TRUE)
-    else()
-        message(WARNING "hiredis not found, using in-memory cache only")
-        target_compile_definitions(PaperCrawlerServer PRIVATE USE_MEMORY_CACHE=1)
-        set(HIREDIS_FOUND FALSE)
-    endif()
+    message(WARNING "External dependencies directory not found: ${EXTERNAL_DIR}")
 endif()
 
-# Use local libcurl from core/external
+# Define CURL_DIR for HTTP client support
 set(CURL_DIR "${CMAKE_SOURCE_DIR}/../core/external/curl-8.19.0_4-win64-mingw")
 if(EXISTS ${CURL_DIR})
-    message(STATUS "  - curl: found in external dependencies")
-    message(STATUS "    Path: ${CURL_DIR}")
-
-    # Include directories
-    include_directories(${CURL_DIR}/include)
-
-    # Link libraries
+    message(STATUS "Using curl from: ${CURL_DIR}")
     set(CURL_FOUND TRUE)
 else()
     message(FATAL_ERROR "libcurl not found in ${CURL_DIR}")
 endif()
 
-# Use local dependencies from PaperCrawler/core/external
-# Backend is at PaperCrawler/backend, so we go up one level to reach PaperCrawler/
-set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/../core/external)
-
-# Check if external directory exists
-if(EXISTS ${EXTERNAL_DIR})
-    message(STATUS "Using external dependencies from: ${EXTERNAL_DIR}")
-
-    # Use spdlog with bundled fmt
-    if(EXISTS ${EXTERNAL_DIR}/spdlog)
-        message(STATUS "  - spdlog: found (header-only with bundled fmt)")
-
-        # Include directories
-        include_directories(${EXTERNAL_DIR}/spdlog/include)
-
-        # Don't define SPDLOG_FMT_EXTERNAL - let it use bundled fmt by default
-        target_compile_definitions(PaperCrawlerServer PRIVATE
-            SPDLOG_HEADER_ONLY
-            SPDLOG_NO_EXCEPTIONS=0
-        )
-    else()
-        message(WARNING "spdlog not found in ${EXTERNAL_DIR}")
-    endif()
-else()
-    message(WARNING "External dependencies directory not found: ${EXTERNAL_DIR}")
-    message(STATUS "  Will try to use system packages...")
-
-    # Try to find system packages
-    find_package(spdlog QUIET)
-    if(spdlog_FOUND)
-        message(STATUS "  - spdlog: found system package")
-        target_link_libraries(PaperCrawlerServer PRIVATE spdlog::spdlog)
-    else()
-        message(FATAL_ERROR "Neither local nor system spdlog found. Please install spdlog.")
-    endif()
-
-    find_package(fmt QUIET)
-    if(fmt_FOUND)
-        message(STATUS "  - fmt: found system package")
-        target_link_libraries(PaperCrawlerServer PRIVATE fmt::fmt)
-    endif()
-endif()
-
-# Link libraries
-target_link_libraries(PaperCrawlerServer
-    PRIVATE
-        Threads::Threads
-)
-
-# Link hiredis if available
-if(HIREDIS_FOUND)
-    if(hiredis_FOUND)
-        target_link_libraries(PaperCrawlerServer PRIVATE hiredis::hiredis)
-    else()
-        # Use local hiredis library
-        target_link_libraries(PaperCrawlerServer PRIVATE ${HIREDIS_DIR}/lib/libhiredis.a)
-    endif()
-endif()
-
-# Link CURL library
-# Note: Using DLL import library for MSVC compatibility
-if(CURL_FOUND)
-    # For MinGW/GCC, use DLL import library
-    target_link_libraries(PaperCrawlerServer PRIVATE
-        # DLL import library for curl
-        ${CURL_DIR}/lib/libcurl.dll.a
-        # Dependencies for static linking
-        ${CURL_DIR}/lib/libcrypto.a
-        ${CURL_DIR}/lib/libssl.a
-        ${CURL_DIR}/lib/libnghttp2.a
-        ${CURL_DIR}/lib/libnghttp3.a
-        ${CURL_DIR}/lib/libngtcp2.a
-        ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
-        ${CURL_DIR}/lib/libssh2.a
-        ${CURL_DIR}/lib/libbrotlicommon.a
-        ${CURL_DIR}/lib/libbrotlidec.a
-        ${CURL_DIR}/lib/libz.a
-        ${CURL_DIR}/lib/libzstd.a
-        ${CURL_DIR}/lib/libpsl.a
-    )
-endif()
-
-# Platform specific
-if(WIN32)
-    target_compile_definitions(PaperCrawlerServer PRIVATE
-        WIN32_LEAN_AND_MEAN
-        NOMINMAX
-        _CRT_SECURE_NO_WARNINGS
-        _WINSOCK_DEPRECATED_NO_WARNINGS
-        CURL_STATIC
-    )
-    if(MSVC)
-        target_compile_options(PaperCrawlerServer PRIVATE /utf-8)
-    else()
-        # MinGW/GCC默认使用UTF-8，不需要特殊标志
-    endif()
-    target_link_libraries(PaperCrawlerServer
-        PRIVATE
-            ws2_32
-            wsock32
-            crypt32
-            ucrt
-            "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
-    )
-endif()
+# Add curl include directories
+include_directories(${CURL_DIR}/include)
 
 # ============================================================================
 # 热插拔架构版本 - 新增可执行文件
@@ -425,13 +462,13 @@ if(WIN32)
 endif()
 
 # Installation
-install(TARGETS PaperCrawlerServer PaperCrawlerServerHotPlug
+install(TARGETS PaperCrawlerServerHotPlug
     RUNTIME DESTINATION bin
 )
 
 message(STATUS "")
 message(STATUS "================== Backend Configuration ==================")
-message(STATUS "Executable: PaperCrawlerServer")
+message(STATUS "Executable: PaperCrawlerServerHotPlug (Hot-Plug Version)")
 message(STATUS "Port: 8080")
 message(STATUS "Type: Modular Backend with Hot-Plug Support")
 message(STATUS "")
