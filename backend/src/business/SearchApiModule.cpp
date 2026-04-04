@@ -1,4 +1,5 @@
 #include <iostream>
+#include "data/DatabaseModule.hpp"
 #include "business/SearchApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "network/HttpClient.hpp"
@@ -337,10 +338,33 @@ std::vector<TrendingSearch> SearchApiModule::calculateTrendingSearches() {
 }
 
 void SearchApiModule::registerRoutes() {
-    auto& router = Router::getInstance();
+
+
+    // 🔔 优先级1：使用ModuleLoader注入的数据库连接
+    database_ = getDatabase();
+    if (database_) {
+        spdlog::info("[SearchApiModule] ✅ Received injected database connection from ModuleLoader!");
+    }
+
+    // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
+    if (!database_) {
+        try {
+            auto* dbModule = DatabaseModule::getGlobalInstance();
+            if (dbModule) {
+                auto dbInterface = static_cast<IDatabase*>(dbModule);
+                std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
+                database_ = dbPtr;
+                spdlog::info("[SearchApiModule] ✅ Received shared database connection from global DatabaseModule!");
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[SearchApiModule] Failed to get global database connection: {}", e.what());
+        }
+    }
+
+    // 🔔 优先级3：回退到MessageBus（保留原有逻辑）
+    if (!database_) {
     std::string prefix = getRoutePrefix(); // "/api/search"
 
-    spdlog::info("[SearchApiModule] Registering routes with prefix: {}", prefix);
 
     // 订阅MessageBus消息
     auto& messageBus = MessageBus::getInstance();

@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <random>
 #include <chrono>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -366,7 +367,28 @@ void UserApiModule::registerRoutes() {
     std::cout << "UserApiModule route prefix: [" << prefix << "]" << std::endl;
     std::cout << "UserApiModule router address: [" << (void*)&router << "]" << std::endl;
 
-    // 🔔 订阅数据库连接可用消息（仅第一次）
+    // 🔔 优先级1：使用ModuleLoader注入的数据库连接
+    impl_->database_ = getDatabase();
+    if (impl_->database_) {
+        spdlog::info("[UserApi] ✅ Received injected database connection from ModuleLoader!");
+    }
+
+    // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
+    if (!impl_->database_) {
+        try {
+            auto* dbModule = DatabaseModule::getGlobalInstance();
+            if (dbModule) {
+                auto dbInterface = static_cast<IDatabase*>(dbModule);
+                std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
+                impl_->database_ = dbPtr;
+                spdlog::info("[UserApi] ✅ Received shared database connection from global DatabaseModule!");
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[UserApi] Failed to get global database connection: {}", e.what());
+        }
+    }
+
+    // 🔔 优先级3：回退到MessageBus（保留原有逻辑，虽然不会成功）
     if (!database_ && !g_databaseInitialized) {
         std::cout << "[UserApi] Subscribing to database connection messages..." << std::endl;
 

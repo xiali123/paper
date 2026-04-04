@@ -1,4 +1,6 @@
 #include "business/CrawlerApiModule.hpp"
+#include "data/DatabaseModule.hpp"
+#include <spdlog/spdlog.h>
 #include "modules/TemplateCrawlerModule.hpp"
 #include "modules/DistributedTaskModule.hpp"
 #include "network/WebSocketModule.hpp"
@@ -60,22 +62,49 @@ void CrawlerApiModule::registerRoutes() {
 
     spdlog::info("[CrawlerApi] registerRoutes() called, prefix = '{}'", prefix);
 
-    // 订阅MessageBus消息
-    auto& messageBus = MessageBus::getInstance();
-    messageBus.registerHandler(MessageType::CUSTOM,
-        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
-            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
-            if (dbMsg && dbMsg->isSuccess()) {
-                database_ = dbMsg->getConnection();
-                spdlog::info("[CrawlerApi] ✅ Received database connection from MessageBus!");
+    // 🔔 优先级1：使用ModuleLoader注入的数据库连接
+    database_ = getDatabase();
+    if (database_) {
+        spdlog::info("[CrawlerApiModule] ✅ Received injected database connection from ModuleLoader!");
+    }
+
+    // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
+    if (!database_) {
+        try {
+            auto* dbModule = DatabaseModule::getGlobalInstance();
+            if (dbModule) {
+                auto dbInterface = static_cast<IDatabase*>(dbModule);
+                std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
+                database_ = dbPtr;
+                spdlog::info("[CrawlerApiModule] ✅ Received shared database connection from global DatabaseModule!");
             }
-            // 返回确认消息
-            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "CrawlerApi", "DatabaseModule");
-            response->setData("acknowledged", true);
-            response->setData("moduleName", "CrawlerApi");
-            return response;
-        },
-        "CrawlerApi"
+        } catch (const std::exception& e) {
+            spdlog::warn("[CrawlerApiModule] Failed to get global database connection: {}", e.what());
+        }
+    }
+
+    // 🔔 优先级3：回退到MessageBus（保留原有逻辑）
+    if (!database_) {
+        // 订阅MessageBus消息
+        auto& messageBus = MessageBus::getInstance();
+        messageBus.registerHandler(MessageType::CUSTOM,
+            [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+                auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+                if (dbMsg && dbMsg->isSuccess()) {
+                    database_ = dbMsg->getConnection();
+                    spdlog::info("[CrawlerApi] ✅ Received database connection from MessageBus!");
+                }
+                // 返回确认消息
+                auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "CrawlerApi", "DatabaseModule");
+                response->setData("acknowledged", true);
+                response->setData("moduleName", "CrawlerApi");
+                return response;
+            },
+            "CrawlerApi"
+        );
+
+        spdlog::info("[CrawlerApi] Successfully subscribed to database connection messages");
+    }
     );
 
     spdlog::info("[CrawlerApi] Successfully subscribed to database connection messages");
