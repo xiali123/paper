@@ -785,7 +785,7 @@ add_dynamic_module(ExportApiModule
 )
 
 # 阶段2：StatsApiModule动态化
-add_dynamic_module(StatsApiModule
+add_dynamic_module_with_system(StatsApiModule
     src/business/StatsApiModule.cpp
 )
 

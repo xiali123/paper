@@ -2,10 +2,12 @@
 #include "business/StatsApiModule.hpp"
 #include "data/IDatabase.hpp"
 #include "core/ModuleRegistry.hpp"
+#include "core/Router.hpp"
 #include "business/JsonHelper.hpp"
 #include <sstream>
 #include <map>
 #include <chrono>
+#include <spdlog/spdlog.h>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -324,26 +326,6 @@ StatsApiModule::StatsApiModule()
 
 StatsApiModule::~StatsApiModule() = default;
 
-bool StatsApiModule::initialize() {
-    registerRoutes();
-    std::cout << "StatsApiModule initialized" << std::endl;
-    return true;
-}
-
-bool StatsApiModule::start() {
-    std::cout << "StatsApiModule started" << std::endl;
-    return true;
-}
-
-bool StatsApiModule::stop() {
-    std::cout << "StatsApiModule stopped" << std::endl;
-    return true;
-}
-
-void StatsApiModule::cleanup() {
-    // 清理资源
-}
-
 SystemInfo StatsApiModule::getSystemInfo() {
     return impl_->systemInfo;
 }
@@ -474,7 +456,57 @@ void StatsApiModule::updatePerformanceMetrics(const std::string& moduleName,
 // ============================================================================
 
 void StatsApiModule::registerRoutes() {
-    // TODO: 注册路由到 Router
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/stats"
+
+    spdlog::info("[StatsApiModule] Registering routes with prefix: {}", prefix);
+
+    // GET /api/stats/system - 系统信息
+    router.get(prefix + "/system", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleSystemInfo();
+        return response;
+    });
+
+    // GET /api/stats/resources - 资源使用情况
+    router.get(prefix + "/resources", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleResources();
+        return response;
+    });
+
+    // GET /api/stats/uptime - 运行时间
+    router.get(prefix + "/uptime", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleUptime();
+        return response;
+    });
+
+    // GET /api/stats/modules - 模块状态
+    router.get(prefix + "/modules", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleModules();
+        return response;
+    });
+
+    // GET /api/stats/performance - 性能指标
+    router.get(prefix + "/performance", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handlePerformance();
+        return response;
+    });
+
+    spdlog::info("[StatsApiModule] Registered 5 routes");
 }
 
 std::string StatsApiModule::handleSystemInfo() {
