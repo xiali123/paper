@@ -26,6 +26,7 @@
 #include <thread>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -43,6 +44,13 @@
 // 网络模块
 #include "network/HttpServerModule.hpp"
 
+// 数据模块
+#include "data/DatabaseModule.hpp"
+
+// 消息模块
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
+
 // JSON library
 #include <spdlog/spdlog.h>
 #include "../../core/external/nlohmann/json.hpp"
@@ -56,6 +64,7 @@ using json = nlohmann::json;
 
 std::atomic<bool> g_running{true};
 std::unique_ptr<HttpServerModule> g_httpServer;
+std::unique_ptr<DatabaseModule> g_databaseModule;
 
 // ============================================================================
 // 信号处理
@@ -308,6 +317,48 @@ int main(int argc, char* argv[]) {
     MessageBus::getInstance();
     Router::getInstance();
 
+    // 初始化数据库模块
+    spdlog::info("Initializing database module...");
+    g_databaseModule = std::make_unique<DatabaseModule>();
+
+    // 读取数据库配置
+    DatabaseConfig dbConfig;
+    std::string dbConfigPath = "config/database.json";
+
+    // 尝试读取配置文件
+    std::ifstream dbConfigFile(dbConfigPath);
+    if (dbConfigFile.is_open()) {
+        try {
+            json dbJson;
+            dbConfigFile >> dbJson;
+
+            if (dbJson.contains("host")) dbConfig.host = dbJson["host"];
+            if (dbJson.contains("port")) dbConfig.port = dbJson["port"];
+            if (dbJson.contains("user")) dbConfig.username = dbJson["user"];
+            if (dbJson.contains("password")) dbConfig.password = dbJson["password"];
+            if (dbJson.contains("database")) dbConfig.database = dbJson["database"];
+            if (dbJson.contains("pool_size")) dbConfig.poolSize = dbJson["pool_size"];
+
+            spdlog::info("Loaded database config from {}", dbConfigPath);
+        } catch (const std::exception& e) {
+            spdlog::warn("Failed to parse database config: {}, using defaults", e.what());
+        }
+    } else {
+        spdlog::warn("Database config file not found at {}, using defaults", dbConfigPath);
+    }
+
+    // 初始化数据库模块
+    g_databaseModule->setConfig(dbConfig);
+
+    // 调用基类的initialize()模板方法（会调用onInitialize()）
+    auto dbModule = static_cast<ServerModuleBase*>(g_databaseModule.get());
+    if (!dbModule->initialize()) {
+        spdlog::warn("Failed to initialize database module, continuing without database...");
+        spdlog::warn("APIs will use stub implementations (no database connection)");
+    } else {
+        spdlog::info("Database module initialized successfully");
+    }
+
     // 初始化模块加载器
     auto& loader = ModuleLoader::getInstance();
 
@@ -330,6 +381,21 @@ int main(int argc, char* argv[]) {
     if (!loader.startAllModules()) {
         spdlog::error("Failed to start all modules");
         return 1;
+    }
+
+    // 🔔 发送数据库连接可用消息给所有模块（在模块加载之后）
+    if (g_databaseModule) {
+        spdlog::info("Broadcasting database connection to all modules...");
+        auto dbMessage = Messages::DatabaseConnectionMessage::create(
+            std::shared_ptr<IDatabase>(g_databaseModule.get(), [](IDatabase* ptr) {
+                // 不删除，g_databaseModule拥有生命周期
+                (void)ptr;
+            }),
+            true,
+            ""
+        );
+        MessageBus::getInstance().broadcast(dbMessage);
+        spdlog::info("Database connection message sent successfully");
     }
 
     // 注册管理API
@@ -393,3 +459,37 @@ int main(int argc, char* argv[]) {
     spdlog::info("Shutdown complete");
     return 0;
 }
+
+// ============================================================================
+// 全局数据库访问函数
+// ============================================================================
+
+namespace PaperCrawler {
+
+/**
+ * @brief 获取全局DatabaseModule实例
+ * @return DatabaseModule指针（可能为nullptr）
+ */
+DatabaseModule* getDatabaseModule() {
+    return g_databaseModule.get();
+}
+
+/**
+ * @brief 获取数据库连接（用于业务模块）
+ * @return 数据库连接的shared_ptr（可能为nullptr）
+ */
+std::shared_ptr<IDatabase> getDatabaseConnection() {
+    if (g_databaseModule) {
+        // 通过IDatabase接口调用testConnection()
+        auto dbInterface = static_cast<IDatabase*>(g_databaseModule.get());
+        if (dbInterface->testConnection()) {
+            return std::shared_ptr<IDatabase>(g_databaseModule.get(), [](IDatabase* ptr) {
+                // 不负责删除，因为DatabaseModule拥有生命周期
+                (void)ptr;
+            });
+        }
+    }
+    return nullptr;
+}
+
+} // namespace PaperCrawler

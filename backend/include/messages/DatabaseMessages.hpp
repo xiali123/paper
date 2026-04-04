@@ -140,5 +140,25 @@ struct DatabasePreparedStatementMessage {
     using ResponseType = std::vector<std::map<std::string, std::string>>;
 };
 
+/**
+ * @brief 数据库连接可用通知消息
+ *
+ * 用于DatabaseModule通知业务模块数据库连接已就绪
+ * 业务模块订阅此消息来获取数据库连接
+ */
+struct DatabaseAvailableMessage {
+    std::string messageId;
+    std::string databaseType;  // "MySQL", "PostgreSQL", etc.
+    std::string databaseName;
+    bool success;
+    std::string errorMessage;
+
+    // 响应类型
+    using ResponseType = struct {
+        bool acknowledged;
+        std::string moduleName;
+    };
+};
+
 } // namespace Messages
 } // namespace PaperCrawler
