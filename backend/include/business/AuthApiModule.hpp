@@ -1,13 +1,16 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "data/IDatabase.hpp"
 #include <string>
 #include <map>
 #include <optional>
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <sstream>
+#include <memory>
 
 namespace PaperCrawler {
 
@@ -173,6 +176,11 @@ struct AuthStats {
  * 7. 重置密码
  * 8. 会话管理
  *
+ * 架构改进：
+ * - 继承BusinessModuleBase获得路由和中间件支持
+ * - 依赖注入IDatabase接口，松耦合设计
+ * - 移除Mock数据，使用真实数据库
+ *
  * 端点：
  * - POST /api/auth/login          - 登录
  * - POST /api/auth/logout         - 登出
@@ -184,9 +192,13 @@ struct AuthStats {
  * - GET  /api/auth/sessions       - 获取所有会话
  * - DELETE /api/auth/sessions/:id - 删除会话
  */
-class AuthApiModule : public IModule {
+class AuthApiModule : public BusinessModuleBase {
 public:
+    // 默认构造函数（用于动态加载）
     AuthApiModule();
+
+    // 构造函数：注入IDatabase依赖
+    explicit AuthApiModule(std::shared_ptr<IDatabase> database);
     ~AuthApiModule() override;
 
     std::string getName() const override { return "AuthApi"; }
@@ -194,13 +206,6 @@ public:
     std::string getDescription() const override {
         return "Authentication and authorization API";
     }
-    ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
-    std::string getRoutePrefix() const override { return "/api/auth"; }
-
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 用户登录
@@ -281,15 +286,19 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
-    void registerRoutes();
+    // 依赖注入：数据库接口（允许Mock测试）
+    std::shared_ptr<IDatabase> database_;
+
+    void registerRoutes() override;  // BusinessModuleBase要求实现
     std::string handleLogin(const std::string& body);
     std::string handleLogout(const std::map<std::string, std::string>& headers);
     std::string handleRefreshToken(const std::string& body);
     std::string handleGetCurrentUser(const std::map<std::string, std::string>& headers);
     std::string handleRegister(const std::string& body);
     std::string handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers);
-    std::string handleInitiatePasswordReset(const std::string& body);
-    std::string handleCompletePasswordReset(const std::string& body);
+    std::string handleResetPassword(const std::string& body);
+    std::string handleGetSessions(const std::map<std::string, std::string>& headers);
+    std::string handleDeleteSession(const std::map<std::string, std::string>& params, const std::map<std::string, std::string>& headers);
 
     AuthConfig config_;
     AuthStats stats_;

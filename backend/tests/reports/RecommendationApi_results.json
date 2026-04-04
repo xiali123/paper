@@ -1,0 +1,13 @@
+{
+  "module": "RecommendationApi",
+  "timestamp": "2026-04-04T03:39:18Z",
+  "total_tests": 3,
+  "passed": 0,
+  "failed": 3,
+  "success_rate": 0,
+  "tests": [
+    {"test":"GET /recommendations/papers","status":"fail","http_code":000,"expected":200}
+    ,{"test":"GET /recommendations/related","status":"fail","http_code":000,"expected":200}
+    ,{"test":"GET /recommendations/trending","status":"fail","http_code":000,"expected":200}
+  ]
+}

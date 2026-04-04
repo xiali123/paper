@@ -13,6 +13,28 @@
 
 import request from '@/utils/request'
 import type { ApiResponse } from '@/types'
+import {
+  transformLoginRequest,
+  transformLoginResponse,
+  transformRegisterRequest,
+  transformUser
+} from '@/api/adapters/authAdapter'
+
+// ============================================================================
+// 后端数据类型（从适配器导入，这里用于类型标注）
+// ============================================================================
+
+/**
+ * 后端登录响应格式
+ */
+interface BackendLoginResponse {
+  success: boolean
+  message?: string
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  user: any
+}
 
 // ============================================================================
 // Type Definitions
@@ -151,7 +173,14 @@ export const authApi = {
    * ```
    */
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    return await request.post('/auth/register', data)
+    // 转换请求格式
+    const backendRequest = transformRegisterRequest(data)
+
+    // 发送请求到后端
+    const backendResponse = await request.post<BackendLoginResponse>('/api/auth/register', backendRequest)
+
+    // 转换响应格式
+    return transformLoginResponse(backendResponse)
   },
 
   /**
@@ -169,7 +198,14 @@ export const authApi = {
    * ```
    */
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    return await request.post('/auth/login', credentials)
+    // 转换请求格式：email -> username
+    const backendRequest = transformLoginRequest(credentials)
+
+    // 发送请求到后端
+    const backendResponse = await request.post<BackendLoginResponse>('/api/auth/login', backendRequest)
+
+    // 转换响应格式：后端 -> 前端
+    return transformLoginResponse(backendResponse)
   },
 
   /**
@@ -184,7 +220,7 @@ export const authApi = {
    * ```
    */
   async logout(refreshToken: string): Promise<{ message: string }> {
-    return await request.post('/auth/logout', { refreshToken })
+    return await request.post('/api/auth/logout', { refreshToken })
   },
 
   /**
@@ -199,7 +235,7 @@ export const authApi = {
    * ```
    */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
-    return await request.post('/auth/refresh', { refreshToken })
+    return await request.post('/api/auth/refresh', { refreshToken })
   },
 
   /**
@@ -213,7 +249,7 @@ export const authApi = {
    * ```
    */
   async getCurrentUser(): Promise<User> {
-    return await request.get('/auth/me')
+    return await request.get('/api/auth/me')
   },
 
   /**
@@ -231,7 +267,7 @@ export const authApi = {
    * ```
    */
   async changePassword(data: ChangePasswordRequest): Promise<{ message: string }> {
-    return await request.post('/auth/change-password', data)
+    return await request.put('/api/auth/password', data)
   },
 
   /**
@@ -246,7 +282,7 @@ export const authApi = {
    * ```
    */
   async requestPasswordReset(email: string): Promise<{ message: string }> {
-    return await request.post('/auth/request-password-reset', { email })
+    return await request.post('/api/auth/forgot-password', { email })
   },
 
   /**
@@ -264,7 +300,7 @@ export const authApi = {
    * ```
    */
   async resetPassword(data: PasswordResetConfirm): Promise<{ message: string }> {
-    return await request.post('/auth/reset-password', data)
+    return await request.post('/api/auth/reset-password', data)
   },
 
   /**

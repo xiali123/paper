@@ -1,8 +1,13 @@
+#include <iostream>
 #include "business/StatsApiModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "data/IDatabase.hpp"
+#include "core/ModuleRegistry.hpp"
+#include "core/Router.hpp"
+#include "business/JsonHelper.hpp"
 #include <sstream>
 #include <map>
 #include <chrono>
+#include <spdlog/spdlog.h>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -89,34 +94,6 @@ std::string SystemUptime::toJSON() const {
 }
 
 // ============================================================================
-// ModuleInfo JSON 序列化
-// ============================================================================
-
-std::string ModuleInfo::toJSON() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"name\": \"" << name << "\",\n";
-    json << "  \"version\": \"" << version << "\",\n";
-    json << "  \"description\": \"" << description << "\",\n";
-    json << "  \"status\": \"";
-
-    switch (status) {
-        case ModuleStatus::UNLOADED: json << "UNLOADED"; break;
-        case ModuleStatus::LOADED: json << "LOADED"; break;
-        case ModuleStatus::STARTED: json << "STARTED"; break;
-        case ModuleStatus::STOPPED: json << "STOPPED"; break;
-        case ModuleStatus::ERROR: json << "ERROR"; break;
-    }
-
-    json << "\",\n";
-    json << "  \"total_requests\": " << totalRequests << ",\n";
-    json << "  \"failed_requests\": " << failedRequests << ",\n";
-    json << "  \"success_rate\": " << successRate << "\n";
-    json << "}";
-    return json.str();
-}
-
-// ============================================================================
 // PerformanceMetrics JSON 序列化
 // ============================================================================
 
@@ -174,13 +151,52 @@ std::string PerformanceMetrics::toJSON() const {
 
 class StatsApiModule::Impl {
 public:
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
+
     SystemInfo systemInfo;
     SystemResources currentResources;
     std::chrono::system_clock::time_point startTime_;
 
-    Impl() {
-        startTime_ = std::chrono::system_clock::now();
+    Impl(std::shared_ptr<IDatabase> database)
+        : database_(database), startTime_(std::chrono::system_clock::now()) {
         collectSystemInfo();
+    }
+
+    Impl() : Impl(nullptr) {}  // 保持兼容性
+
+    // 从数据库获取统计信息
+    int getUserCount() {
+        if (!database_) return 0;
+        try {
+            auto results = database_->query("SELECT COUNT(*) as count FROM users");
+            if (!results.empty()) {
+                return std::stoi(results[0]["count"]);
+            }
+        } catch (...) {}
+        return 0;
+    }
+
+    int getPaperCount() {
+        if (!database_) return 0;
+        try {
+            auto results = database_->query("SELECT COUNT(*) as count FROM papers");
+            if (!results.empty()) {
+                return std::stoi(results[0]["count"]);
+            }
+        } catch (...) {}
+        return 0;
+    }
+
+    int getSessionCount() {
+        if (!database_) return 0;
+        try {
+            auto results = database_->query("SELECT COUNT(*) as count FROM user_sessions WHERE expires_at > NOW()");
+            if (!results.empty()) {
+                return std::stoi(results[0]["count"]);
+            }
+        } catch (...) {}
+        return 0;
     }
 
     void collectSystemInfo() {
@@ -212,7 +228,12 @@ public:
         SYSTEM_INFO sysInfo;
         GetSystemInfo(&sysInfo);
         systemInfo.cpuCores = sysInfo.dwNumberOfProcessors;
-        systemInfo.totalMemory = sysInfo.ullTotalPhys;
+
+        // Get total memory using MEMORYSTATUSEX
+        MEMORYSTATUSEX memInfo;
+        memInfo.dwLength = sizeof(memInfo);
+        GlobalMemoryStatusEx(&memInfo);
+        systemInfo.totalMemory = memInfo.ullTotalPhys;
 
         // CPU架构
         systemInfo.osArchitecture = "x64";
@@ -305,46 +326,6 @@ StatsApiModule::StatsApiModule()
 
 StatsApiModule::~StatsApiModule() = default;
 
-std::string StatsApiModule::getName() const {
-    return "StatsApi";
-}
-
-std::string StatsApiModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string StatsApiModule::getDescription() const {
-    return "System statistics and monitoring API";
-}
-
-ModuleType StatsApiModule::getModuleType() const {
-    return ModuleType::BUSINESS;
-}
-
-std::string StatsApiModule::getRoutePrefix() const {
-    return "/api/stats";
-}
-
-bool StatsApiModule::initialize() {
-    registerRoutes();
-    std::cout << "StatsApiModule initialized" << std::endl;
-    return true;
-}
-
-bool StatsApiModule::start() {
-    std::cout << "StatsApiModule started" << std::endl;
-    return true;
-}
-
-bool StatsApiModule::stop() {
-    std::cout << "StatsApiModule stopped" << std::endl;
-    return true;
-}
-
-void StatsApiModule::cleanup() {
-    // 清理资源
-}
-
 SystemInfo StatsApiModule::getSystemInfo() {
     return impl_->systemInfo;
 }
@@ -376,21 +357,17 @@ std::vector<ModuleInfo> StatsApiModule::getAllModules() {
     ModuleInfo module1;
     module1.name = "HttpServer";
     module1.version = "1.0.0";
-    module1.description = "HTTP Server";
-    module1.status = ModuleStatus::STARTED;
-    module1.loadTime = std::chrono::microseconds(5000);
-    module1.totalRequests = 1000;
-    module1.successRate = 99.5;
+    module1.type = ModuleType::SERVER;
+    module1.state = ModuleState::STARTED;
+    module1.loadedAt = std::chrono::system_clock::now() - std::chrono::milliseconds(5000);
     modules.push_back(module1);
 
     ModuleInfo module2;
     module2.name = "PaperApi";
     module2.version = "1.0.0";
-    module2.description = "Paper API";
-    module2.status = ModuleStatus::STARTED;
-    module2.loadTime = std::chrono::microseconds(3000);
-    module2.totalRequests = 500;
-    module2.successRate = 98.0;
+    module2.type = ModuleType::BUSINESS;
+    module2.state = ModuleState::STARTED;
+    module2.loadedAt = std::chrono::system_clock::now() - std::chrono::milliseconds(3000);
     modules.push_back(module2);
 
     return modules;
@@ -409,10 +386,17 @@ std::optional<ModuleInfo> StatsApiModule::getModule(const std::string& moduleNam
 PerformanceMetrics StatsApiModule::getPerformanceMetrics() {
     PerformanceMetrics metrics;
 
-    // Mock数据
-    metrics.requestCounts["HttpServer"] = 1000;
-    metrics.requestCounts["PaperApi"] = 500;
-    metrics.requestCounts["AuthApi"] = 200;
+    // 使用真实数据库数据（如果有数据库连接）
+    if (impl_->database_) {
+        metrics.requestCounts["Users"] = impl_->getUserCount();
+        metrics.requestCounts["Papers"] = impl_->getPaperCount();
+        metrics.requestCounts["ActiveSessions"] = impl_->getSessionCount();
+    } else {
+        // 降级到Mock数据
+        metrics.requestCounts["HttpServer"] = 1000;
+        metrics.requestCounts["PaperApi"] = 500;
+        metrics.requestCounts["AuthApi"] = 200;
+    }
 
     metrics.averageResponseTimes["HttpServer"] = std::chrono::microseconds(15000);
     metrics.averageResponseTimes["PaperApi"] = std::chrono::microseconds(25000);
@@ -472,19 +456,69 @@ void StatsApiModule::updatePerformanceMetrics(const std::string& moduleName,
 // ============================================================================
 
 void StatsApiModule::registerRoutes() {
-    // TODO: 注册路由到 Router
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/stats"
+
+    spdlog::info("[StatsApiModule] Registering routes with prefix: {}", prefix);
+
+    // GET /api/stats/system - 系统信息
+    router.get(prefix + "/system", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleSystemInfo();
+        return response;
+    });
+
+    // GET /api/stats/resources - 资源使用情况
+    router.get(prefix + "/resources", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleResources();
+        return response;
+    });
+
+    // GET /api/stats/uptime - 运行时间
+    router.get(prefix + "/uptime", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleUptime();
+        return response;
+    });
+
+    // GET /api/stats/modules - 模块状态
+    router.get(prefix + "/modules", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleModules();
+        return response;
+    });
+
+    // GET /api/stats/performance - 性能指标
+    router.get(prefix + "/performance", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handlePerformance();
+        return response;
+    });
+
+    spdlog::info("[StatsApiModule] Registered 5 routes");
 }
 
 std::string StatsApiModule::handleSystemInfo() {
     auto info = getSystemInfo();
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"system_info", info.toJSON()}
     });
 }
 
 std::string StatsApiModule::handleResources() {
     auto resources = getResources();
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"resources", resources.toJSON()}
     });
 }
@@ -499,7 +533,7 @@ std::string StatsApiModule::handleUptime() {
     data["seconds"] = std::to_string(uptime.seconds);
     data["formatted"] = uptime.format();
 
-    return ResponseHandlerModule::buildJsonResponse(data);
+    return JsonHelper::buildJsonResponse(data);
 }
 
 std::string StatsApiModule::handleModules() {
@@ -515,14 +549,15 @@ std::string StatsApiModule::handleModules() {
         json << "{\n";
         json << "  \"name\": \"" << module.name << "\",\n";
         json << "  \"version\": \"" << module.version << "\",\n";
-        json << "  \"status\": \"" << (module.status == ModuleStatus::STARTED ? "STARTED" : "STOPPED") << "\",\n";
-        json << "  \"total_requests\": " << module.totalRequests << ",\n";
-        json << "  \"success_rate\": " << module.successRate << "\n";
+        json << "  \"type\": \"" << (module.type == ModuleType::SERVER ? "SERVER" : "BUSINESS") << "\",\n";
+        json << "  \"state\": \"" << (module.state == ModuleState::STARTED ? "STARTED" :
+                  module.state == ModuleState::STOPPED ? "STOPPED" : "UNLOADED") << "\",\n";
+        json << "  \"reference_count\": " << module.referenceCount.load() << "\n";
         json << "}";
     }
     json << "]";
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"modules", json.str()}
     });
 }
@@ -530,19 +565,21 @@ std::string StatsApiModule::handleModules() {
 std::string StatsApiModule::handleModule(const std::string& moduleName) {
     auto module = getModule(moduleName);
     if (!module.has_value()) {
-        return ResponseHandlerModule::buildJsonResponse({
+        return JsonHelper::buildJsonResponse({
             {"error", "Module not found"}
         }, 404);
     }
 
     std::map<std::string, std::string> data;
-    data["name"] = module->name;
-    data["version"] = module->version;
-    data["status"] = (module->status == ModuleStatus::STARTED ? "STARTED" : "STOPPED");
-    data["total_requests"] = std::to_string(module->totalRequests);
-    data["success_rate"] = std::to_string(module->successRate);
+    const ModuleInfo& info = module.value();
+    data["name"] = info.name;
+    data["version"] = info.version;
+    data["type"] = (info.type == ModuleType::SERVER ? "SERVER" : "BUSINESS");
+    data["state"] = (info.state == ModuleState::STARTED ? "STARTED" :
+                  info.state == ModuleState::STOPPED ? "STOPPED" : "UNLOADED");
+    data["reference_count"] = std::to_string(info.referenceCount.load());
 
-    return ResponseHandlerModule::buildJsonResponse(data);
+    return JsonHelper::buildJsonResponse(data);
 }
 
 std::string StatsApiModule::handlePerformance() {
@@ -572,13 +609,13 @@ std::string StatsApiModule::handlePerformance() {
     json << "\n  }\n";
     json << "}";
 
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"performance_metrics", json.str()}
     });
 }
 
 std::string StatsApiModule::handleRealtime() {
-    return ResponseHandlerModule::buildJsonResponse({
+    return JsonHelper::buildJsonResponse({
         {"realtime_stats", getRealtimeStats()}
     });
 }
@@ -591,3 +628,26 @@ void StatsApiModule::monitorLoop() {
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::StatsApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::StatsApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+

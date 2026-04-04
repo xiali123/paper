@@ -1,0 +1,15 @@
+{
+  "module": "UserApi",
+  "timestamp": "2026-04-04T03:44:14Z",
+  "total_tests": 5,
+  "passed": 3,
+  "failed": 2,
+  "success_rate": 60,
+  "tests": [
+    {"test":"GET /users","status":"fail","http_code":404,"expected":200}
+    ,{"test":"GET /users/:id","status":"fail","http_code":404,"expected":200}
+    ,{"test":"POST /users","status":"pass","http_code":404}
+    ,{"test":"PUT /users/:id","status":"pass","http_code":404}
+    ,{"test":"DELETE /users/:id","status":"pass","http_code":404}
+  ]
+}

@@ -34,7 +34,8 @@ bool MessagePool::initialize(const MessagePoolConfig& config) {
     for (size_t i = 0; i < config_.poolSize; ++i) {
         auto msg = std::make_shared<PooledMessage>();
         msg->bufferSize = config_.messageBufferSize;
-        msg->buffer = nullptr;  // 暂不分配实际内存
+        // 使用智能指针分配buffer（RAII自动管理）
+        msg->buffer = std::make_unique<uint8_t[]>(msg->bufferSize);
         msg->inUse = false;
         msg->useCount = 0;
         msg->threadAffinity = -1;
@@ -52,11 +53,12 @@ void MessagePool::shutdown() {
 
     spdlog::info("Shutting down MessagePool");
 
-    // 清理所有消息
+    // 智能指针自动管理内存，无需手动delete
+    // reset unique_ptr会自动释放内存
     for (auto& msg : messages_) {
         if (msg->buffer) {
-            delete[] static_cast<char*>(msg->buffer);
-            msg->buffer = nullptr;
+            msg->buffer.reset(); // unique_ptr自动释放内存
+            msg->bufferSize = 0;
         }
     }
     messages_.clear();
@@ -105,6 +107,8 @@ std::shared_ptr<PooledMessage> MessagePool::acquireMessage(int currentThreadId) 
     if (messages_.size() < config_.maxPoolSize) {
         auto msg = std::make_shared<PooledMessage>();
         msg->bufferSize = config_.messageBufferSize;
+        // 使用智能指针分配buffer（RAII自动管理）
+        msg->buffer = std::make_unique<uint8_t[]>(msg->bufferSize);
         msg->inUse = true;
         msg->useCount = 0;
         msg->threadAffinity = currentThreadId >= 0 ? currentThreadId : -1;

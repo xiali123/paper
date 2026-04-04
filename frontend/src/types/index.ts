@@ -835,6 +835,46 @@ export {
   safeValidate
 } from './validation'
 
+// Export AI types
+export type {
+  AIReviewResult,
+  LiteratureReview,
+  ResearchPlan,
+  AIChatMessage
+} from './ai'
+
+// Export recommendation types
+export type {
+  RecommendationResult,
+  UserProfile,
+  RecommendationFeedback
+} from './recommendation'
+
+// Export analytics types
+export type {
+  AcademicImpactMetrics,
+  ResearchInterest,
+  DailyBriefing,
+  AcademicGeneNode
+} from './analytics'
+
+// Export collaborative types
+export type {
+  CollaborativeDocument,
+  OTOperation,
+  WritingSuggestion,
+  DocumentVersion,
+  DocumentComment
+} from './collaborative'
+
+// Export search types
+export type {
+  SearchResult,
+  SearchResultItem,
+  AdvancedSearchQuery,
+  SearchSuggestion
+} from './search'
+
 // Default export containing all types
 export default {
   // Enums

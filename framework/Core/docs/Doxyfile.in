@@ -1,0 +1,199 @@
+# Doxyfile configuration for PaperCrawler::Core
+# Generated documentation configuration
+
+# Project info
+PROJECT_NAME           = "PaperCrawler::Core"
+PROJECT_NUMBER         = @PROJECT_VERSION@
+PROJECT_BRIEF          = "High-performance C++ backend framework"
+PROJECT_LOGO           = @CMAKE_SOURCE_DIR@/docs/logo.png
+
+# Output directory
+OUTPUT_DIRECTORY       = @CMAKE_BINARY_DIR@/docs
+
+# Create subdirectories
+CREATE_SUBDIRS         = 0
+
+# Input files
+INPUT                  = @CMAKE_SOURCE_DIR@/include \
+                         @CMAKE_SOURCE_DIR@/examples \
+                         @CMAKE_SOURCE_DIR@/docs
+
+# File patterns
+FILE_PATTERNS          = *.hpp *.cpp *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */build/* */.git/*
+
+# Parse settings
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_LOCAL_METHODS  = NO
+EXTRACT_ANON_NSPACES   = NO
+
+# Optimizations
+OPTIMIZE_OUTPUT_JAVA   = NO
+OPTIMIZE_OUTPUT_VHDL   = NO
+OPTIMIZE_OUTPUT_CXX    = YES
+
+# Type of output
+GENERATE_HTML          = YES
+GENERATE_LATEX         = YES
+GENERATE_XML           = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = YES
+GENERATE_DOCBOOK       = NO
+
+# HTML output settings
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_DYNAMIC_SECTIONS  = YES
+HTML_INDEX_NUM_ENTRIES = 100
+
+# HTML theme (Doxygen Awesome)
+GENERATE_TREEVIEW      = YES
+TREEVIEW_WIDTH         = 250
+DISABLE_INDEX          = NO
+
+# LaTeX output settings
+LATEX_OUTPUT           = latex
+LATEX_CMD_NAME         = latex
+MAKEINDEX_CMD_NAME     = makeindex
+COMPACT_LATEX          = NO
+PDF_HYPERLINKS         = YES
+USE_PDFLATEX           = YES
+LATEX_BATCHMODE        = NO
+LATEX_HIDE_INDICES     = NO
+
+# Man pages
+MAN_OUTPUT             = man
+MAN_EXTENSION          = .3
+MAN_SUBDIR             = NO
+
+# warnings
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+WARN_FORMAT            = "$file:$line: $text"
+
+# Layout
+USE_MDFILE_AS_MAINPAGE = README.md
+
+# Symbols
+LOOKUP_CACHE_SIZE      = 0
+SHOW_INCLUDE_FILES     = YES
+SHOW_USED_FILES        = YES
+SHOW_FILES             = YES
+SHOW_NAMESPACES        = YES
+SHOW_DIRECTORIES       = NO
+
+# Algorithms
+ALPHABETICAL_INDEX     = YES
+IGNORE_PREFIX          = NO
+
+# Graphs
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 4
+DOT_FONTNAME           = Helvetica
+DOT_FONTSIZE           = 10
+CLASS_DIAGRAMS         = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+GRAPHICAL_HIERARCHY    = YES
+DIRECTORY_GRAPH        = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+DOT_GRAPH_MAX_NODES    = 50
+MAX_DOT_GRAPH_DEPTH    = 0
+DOT_TRANSPARENT        = NO
+DOT_MULTI_TARGETS      = YES
+
+# Preprocessor
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = @CMAKE_SOURCE_DIR@/include
+INCLUDE_FILE_PATTERNS  =
+EXPAND_AS_DEFINED      =
+SKIP_FUNCTION_MACROS   = YES
+PREDEFINED             = DOXYGEN_SHOULD_SKIP_THIS
+
+# External references
+TAGFILES               =
+GENERATE_TAGFILE       = PaperCrawlerCore.tag
+ALLEXTERNALS           = NO
+EXTERNAL_GROUPS        = YES
+EXTERNAL_PAGES         = YES
+
+# Perl module
+PERL_PATH              = /usr/bin/perl
+
+# Class diagrams
+CLASS_DIAGRAMS         = YES
+MSCGEN_PATH            =
+HAVE_DOT               = YES
+DOT_FONTNAME           = Helvetica
+DOT_FONTSIZE           = 10
+DOT_FONTSIZE           = 10
+
+# Colors
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 100
+HTML_COLORSTYLE_GAMMA  = 80
+
+# Markdown support
+USE_MDFILE_AS_MAINPAGE = README.md
+TOC_INCLUDE_HEADINGS   = 5
+MARKDOWN_ID_STYLE      = GITHUB
+
+# Search
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+EXTERNAL_SEARCH        = NO
+SEARCHENGINE_URL       =
+
+# Math formulas
+USE_MATHJAX            = YES
+MATHJAX_FORMAT         = HTML-CSS
+MATHJAX_RELPATH        = https://cdn.jsdelivr.net/npm/mathjax@2
+MATHJAX_EXTENSIONS     = MathJax.js?config=TeX-AMS-MML_HTMLorMML
+MATHJAX_CODEFILE       =
+
+# Messages
+WARN_LOGFILE           = @CMAKE_BINARY_DIR@/docs/doxygen_warnings.log
+
+# Examples
+EXAMPLE_PATH           = @CMAKE_SOURCE_DIR@/examples
+EXAMPLE_PATTERNS       = *
+EXAMPLE_RECURSIVE      = YES
+
+# Image paths
+IMAGE_PATH             = @CMAKE_SOURCE_DIR@/docs/images
+
+# Code snippets
+STRIP_CODE_COMMENTS    = YES
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+REFERENCES_LINK_SOURCE = YES
+SOURCE_TOOLTIPS        = YES
+
+# Verbatim headers
+VERBATIM_HEADERS       = YES
+
+# clang-format support
+CLANG_ASSISTED_PARSING = YES
+CLANG_OPTIONS          = -std=c++17
+
+# PlantUML support
+PLANTUML_JAR_PATH      =
+PLANTUML_CFG_FILE      =
+PLANTUML_INCLUDE_PATH  =
+HAVE_PLANTUML          = NO
+
+# Statistics
+STATISTICS_DUMP        = @CMAKE_BINARY_DIR@/docs/doxygen_statistics.log

@@ -1,4 +1,4 @@
-#include "features/infrastructure/MetricsModule.hpp"
+#include "features/MetricsModule.hpp"
 #include <iostream>
 #include <sstream>
 #include <algorithm>

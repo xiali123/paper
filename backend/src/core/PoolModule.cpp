@@ -1,4 +1,4 @@
-#include "features/infrastructure/PoolModule.hpp"
+#include "core/PoolModule.hpp"
 #include "core/MessagePool.hpp"
 #include "core/PoolCoordinator.hpp"
 #include <iostream>
@@ -54,19 +54,9 @@ void PoolModule::cleanup() {
     PoolCoordinator::getInstance().shutdown();
 }
 
-MessagePool& PoolModule::getMessagePool() {
-    return MessagePool::getInstance();
-}
-
-// TODO: 实现MemoryPool后启用
-// MemoryPool& PoolModule::getMemoryPool();
-
-// TODO: 实现ThreadPoolModule后启用
-// ThreadPoolModule& PoolModule::getThreadPool();
-
-PoolModule::AllPoolStats PoolModule::getAllStats() const {
-    AllPoolStats stats;
-    // stats.messagePool = MessagePool::getInstance().getStats();
+PoolStats PoolModule::getStats() const {
+    PoolStats stats;
+    // TODO: 实现完整的池统计
     return stats;
 }
 

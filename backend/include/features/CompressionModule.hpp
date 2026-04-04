@@ -93,7 +93,7 @@ public:
     void setConfig(const CompressionConfig& config) { config_ = config; }
 
     /**
-     * @brief 获取压缩统计
+     * @brief 压缩统计
      */
     struct CompressionStats {
         uint64_t totalCompressed;
@@ -101,7 +101,12 @@ public:
         size_t originalBytes;
         size_t compressedBytes;
         double compressionRatio;
-    } getStats() const;
+    };
+
+    /**
+     * @brief 获取压缩统计
+     */
+    CompressionStats getStats() const;
 
 private:
     CompressionConfig config_;

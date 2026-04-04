@@ -1,0 +1,13 @@
+{
+  "module": "ExportApi",
+  "timestamp": "2026-04-04T03:38:44Z",
+  "total_tests": 3,
+  "passed": 0,
+  "failed": 3,
+  "success_rate": 0,
+  "tests": [
+    {"test":"POST /export/papers","status":"fail","http_code":000,"expected":404}
+    ,{"test":"GET /export/status/:id","status":"fail","http_code":000,"expected":200}
+    ,{"test":"GET /export/download/:id","status":"fail","http_code":000,"expected":404}
+  ]
+}

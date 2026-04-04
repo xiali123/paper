@@ -9,8 +9,14 @@
 #include <memory>
 #include <mutex>
 #include <chrono>
+#include <thread>
+#include <atomic>
+#include <condition_variable>
 
 namespace PaperCrawler {
+
+// 前向声明
+class RedisConnectionPool;
 
 /**
  * @brief Redis连接配置
@@ -24,6 +30,10 @@ struct CacheConfig {
     std::chrono::seconds defaultTTL{3600}; // 默认过期时间（1小时）
     int connectTimeoutSeconds{5};        // 连接超时
     bool enableCompression{false};       // 启用压缩
+    bool enableRedis{true};              // 是否启用Redis（false则降级到内存缓存）
+    bool warmupOnStart{false};          // 启动时预热
+    bool asyncCleanup{true};            // 异步清理过期键
+    int cleanupIntervalMinutes{5};      // 清理间隔（分钟）
 };
 
 /**
@@ -56,12 +66,14 @@ struct CacheStats {
  * @brief 缓存模块
  *
  * 功能：
- * 1. Redis缓存访问
+ * 1. Redis缓存访问 + 内存缓存降级
  * 2. SET/GET/DELETE操作
  * 3. TTL管理
  * 4. 批量操作
  * 5. 缓存统计
  * 6. 过期键清理
+ * 7. LRU缓存策略
+ * 8. 缓存预热
  */
 class CacheModule : public IModule {
 public:
@@ -69,9 +81,9 @@ public:
     ~CacheModule() override;
 
     std::string getName() const override { return "Cache"; }
-    std::string getVersion() const override { return "1.0.0"; }
+    std::string getVersion() const override { return "1.1.0"; }
     std::string getDescription() const override {
-        return "Redis cache module with connection pooling";
+        return "Redis + Memory hybrid cache with connection pooling";
     }
     ModuleType getModuleType() const override { return ModuleType::SERVER; }
     std::string getRoutePrefix() const override { return "/api/cache"; }
@@ -80,6 +92,10 @@ public:
     bool start() override;
     bool stop() override;
     void cleanup() override;
+
+    // ========================================================================
+    // 缓存操作接口
+    // ========================================================================
 
     /**
      * @brief 设置配置
@@ -166,6 +182,32 @@ public:
      * @brief 重置统计
      */
     void resetStats();
+
+    // ========================================================================
+    // Redis特定操作
+    // ========================================================================
+
+    /**
+     * @brief 检查Redis是否可用
+     */
+    bool isRedisAvailable() const;
+
+    /**
+     * @brief 获取Redis连接池状态
+     */
+    std::map<std::string, std::string> getPoolStatus() const;
+
+    /**
+     * @brief 预热缓存（批量加载热点数据）
+     * @param keys 需要预热的键列表
+     */
+    void warmupCache(const std::vector<std::string>& keys);
+
+    /**
+     * @brief 预热热门论文
+     * @param limit 预热论文数量
+     */
+    void warmupPopularPapers(int limit = 100);
 
 private:
     class Impl;

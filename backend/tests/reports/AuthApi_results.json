@@ -1,0 +1,16 @@
+{
+  "module": "AuthApi",
+  "timestamp": "2026-04-04T03:38:22Z",
+  "total_tests": 6,
+  "passed": 3,
+  "failed": 3,
+  "success_rate": 50,
+  "tests": [
+    {"test":"POST /register","status":"pass","http_code":404}
+    ,{"test":"POST /login","status":"pass","http_code":404}
+    ,{"test":"POST /logout","status":"pass","http_code":404}
+    ,{"test":"GET /profile","status":"fail","http_code":404,"expected":401}
+    ,{"test":"PUT /profile","status":"fail","http_code":404,"expected":401}
+    ,{"test":"POST /change-password","status":"fail","http_code":404,"expected":401}
+  ]
+}

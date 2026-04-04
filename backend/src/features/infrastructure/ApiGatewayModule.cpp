@@ -250,9 +250,13 @@ void ApiGatewayModule::Impl::handleClient(SOCKET clientSocket) {
     HttpRequest req;
     std::string path = parseRequest(requestStr, req);
 
+    std::cout << "[API_GATEWAY] Received request: " << req.method << " " << req.path << std::endl;
+
     // 路由请求
     auto& router = Router::getInstance();
+    std::cout << "[API_GATEWAY] Calling router.route()" << std::endl;
     HttpResponse res = router.route(req);
+    std::cout << "[API_GATEWAY] Router returned status: " << res.statusCode << std::endl;
 
     // 添加CORS头
     res.setHeader("Access-Control-Allow-Origin", "*");

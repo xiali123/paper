@@ -13,13 +13,13 @@ std::string UnifiedMessage::toString() const {
 
     // 转换operation枚举
     switch (operation) {
-        case MessageOperation::CREATE: oss << "CREATE"; break;
-        case MessageOperation::READ: oss << "READ"; break;
-        case MessageOperation::UPDATE: oss << "UPDATE"; break;
-        case MessageOperation::DELETE: oss << "DELETE"; break;
-        case MessageOperation::QUERY: oss << "QUERY"; break;
-        case MessageOperation::PING: oss << "PING"; break;
-        case MessageOperation::PONG: oss << "PONG"; break;
+        case MessageOperation::OP_CREATE: oss << "CREATE"; break;
+        case MessageOperation::OP_READ: oss << "READ"; break;
+        case MessageOperation::OP_UPDATE: oss << "UPDATE"; break;
+        case MessageOperation::OP_DELETE: oss << "DELETE"; break;
+        case MessageOperation::OP_QUERY: oss << "QUERY"; break;
+        case MessageOperation::OP_PING: oss << "PING"; break;
+        case MessageOperation::OP_PONG: oss << "PONG"; break;
         default: oss << "CUSTOM(0x" << std::hex << static_cast<int>(operation) << ")"; break;
     }
 

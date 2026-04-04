@@ -1,7 +1,8 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "network/HttpClient.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -9,8 +10,16 @@
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <memory>
 
 namespace PaperCrawler {
+
+// 前向声明
+namespace Network {
+    class HttpClient;
+}
+
+using HttpClientPtr = std::shared_ptr<Network::HttpClient>;
 
 // 前向声明
 struct Paper;
@@ -153,6 +162,17 @@ struct SearchStats {
 /**
  * @brief 搜索API模块
  *
+ * 架构改进：
+ * - 继承BusinessModuleBase获得路由和中间件支持
+ * - 集成Meilisearch搜索引擎（通过HttpClient调用HTTP API）
+ * - 移除Mock搜索结果，使用真实搜索引擎
+ *
+ * Meilisearch集成：
+ * - 基础搜索：POST /indexes/papers/search
+ * - 高级搜索：支持filter、sort、highlight
+ * - 索引更新：POST /indexes/papers/documents
+ * - 搜索建议：GET /indexes/papers/settings/synonyms
+ *
  * 路由：
  * - GET  /api/search              - 基础搜索
  * - POST /api/search/advanced     - 高级搜索
@@ -164,23 +184,20 @@ struct SearchStats {
  * - GET  /api/search/stats        - 搜索统计
  * - POST /api/search/export       - 导出搜索结果
  */
-class SearchApiModule : public IModule {
+class SearchApiModule : public BusinessModuleBase {
 public:
+    // 默认构造函数（用于DLL导出）
     SearchApiModule();
+
+    // 构造函数：可注入HttpClient（用于测试）
+    SearchApiModule(HttpClientPtr httpClient);
     ~SearchApiModule() override;
 
     std::string getName() const override { return "SearchApi"; }
     std::string getVersion() const override { return "1.0.0"; }
     std::string getDescription() const override {
-        return "Advanced search API with full-text, filters, and suggestions";
+        return "Advanced search API with Meilisearch integration";
     }
-    ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
-    std::string getRoutePrefix() const override { return "/api/search"; }
-
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 基础搜索
@@ -256,25 +273,16 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
-    // 搜索索引 (Mock实现，生产环境应使用Elasticsearch)
-    std::map<std::string, std::vector<int>> titleIndex_;
-    std::map<std::string, std::vector<int>> authorIndex_;
-    std::map<std::string, std::vector<int>> keywordIndex_;
-    std::map<int, double> relevanceCache_;
+    // Meilisearch配置
+    std::string meilisearchHost_{"http://localhost:7700"};
+    std::string papersIndex_{"papers"};
+    HttpClientPtr httpClient_;
 
-    // 搜索历史和统计
-    std::map<int, std::vector<SearchHistory>> searchHistory_;
-    std::map<std::string, int> queryFrequency_;
-    std::map<std::string, int> lastDayFrequency_;
-    SearchStats stats_{};
+    void registerRoutes() override;  // BusinessModuleBase要求实现
 
-    mutable std::mutex mutex_;
-
-    // 辅助方法
-    double calculateRelevance(const Paper& paper, const std::string& query);
-    std::vector<std::string> extractKeywords(const std::string& text);
-    std::string highlightText(const std::string& text, const std::string& query);
-    void updateQueryFrequency(const std::string& query);
+    // 辅助方法（调用Meilisearch API）
+    std::string callMeilisearchAPI(const std::string& endpoint, const std::string& jsonData);
+    SearchResult parseMeilisearchResponse(const std::string& response);
     std::vector<TrendingSearch> calculateTrendingSearches();
 };
 

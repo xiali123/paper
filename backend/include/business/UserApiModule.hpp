@@ -1,7 +1,9 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "data/IDatabase.hpp"
+#include "../../core/external/nlohmann/json.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -9,6 +11,7 @@
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <memory>
 
 namespace PaperCrawler {
 
@@ -113,6 +116,11 @@ struct UserStats {
 /**
  * @brief 用户API模块
  *
+ * 架构改进：
+ * - 继承BusinessModuleBase获得路由和中间件支持
+ * - 依赖注入IDatabase接口，松耦合设计
+ * - 移除Mock数据，使用真实数据库
+ *
  * 路由：
  * - GET    /api/users           - 用户列表（分页）
  * - GET    /api/users/:id       - 用户详情
@@ -125,23 +133,20 @@ struct UserStats {
  * - GET    /api/users/me        - 当前用户信息
  * - GET    /api/users/stats     - 用户统计
  */
-class UserApiModule : public IModule {
+class UserApiModule : public BusinessModuleBase {
 public:
-    UserApiModule();
+    // 构造函数
+    UserApiModule();  // 默认构造函数，用于DLL导出
+    explicit UserApiModule(std::shared_ptr<IDatabase> database);
     ~UserApiModule() override;
+
+    // ModuleBase接口：initialize/start/stop/cleanup由基类实现，无需重写
 
     std::string getName() const override { return "UserApi"; }
     std::string getVersion() const override { return "1.0.0"; }
     std::string getDescription() const override {
         return "User management API with CRUD, roles, and authentication";
     }
-    ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
-    std::string getRoutePrefix() const override { return "/api/users"; }
-
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 获取用户列表（分页）
@@ -227,15 +232,41 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
-    // Mock数据存储
-    std::map<int, User> users_;
-    std::map<std::string, int> usernameIndex_;  // username -> id
-    std::map<std::string, int> emailIndex_;     // email -> id
-    int nextId_{1};
-    mutable std::mutex mutex_;
+    // 依赖注入：数据库接口（允许Mock测试）
+    std::shared_ptr<IDatabase> database_;
 
+    void registerRoutes() override;  // BusinessModuleBase要求实现
+
+    // ========================================================================
+    // 辅助函数
+    // ========================================================================
+
+    void ensureDatabaseConnection();  // 懒加载：确保数据库连接可用
+
+    // ========================================================================
+    // HTTP Handler函数
+    // ========================================================================
+
+    HttpResponse handleListUsers(const HttpRequest& req);
+    HttpResponse handleGetUser(const HttpRequest& req);
+    HttpResponse handleCreateUser(const HttpRequest& req);
+    HttpResponse handleUpdateUser(const HttpRequest& req);
+    HttpResponse handleDeleteUser(const HttpRequest& req);
+    HttpResponse handleActivateUser(const HttpRequest& req);
+    HttpResponse handleSuspendUser(const HttpRequest& req);
+    HttpResponse handleChangePassword(const HttpRequest& req);
+    HttpResponse handleGetCurrentUser(const HttpRequest& req);
+    HttpResponse handleGetStats(const HttpRequest& req);
+
+    // ========================================================================
     // 辅助方法
-    User createMockUser(int id);
+    // ========================================================================
+
+    HttpResponse buildJsonResponse(bool success, const std::string& message = "");
+    HttpResponse buildJsonResponse(int statusCode, const std::string& message, const nlohmann::json& data);
+
+    // 辅助方法（用于数据库查询）
+    User createUserFromDbRow(const std::map<std::string, std::string>& row);
     bool isUsernameUnique(const std::string& username);
     bool isEmailUnique(const std::string& email);
     std::string hashPassword(const std::string& password);

@@ -12,44 +12,23 @@
  */
 
 import request from '@/utils/request'
+import {
+  transformAdminUser,
+  transformAdminUserList,
+  transformUpdatePayload,
+  transformAdminStats,
+  transformAuditLogList,
+  transformAdminQueryParams,
+  type FrontendAdminUser as AdminUser,
+  type FrontendUpdateUserPayload as UpdateUserPayload,
+  type FrontendAdminStats as AdminStats,
+  type FrontendAuditLog as AuditLog,
+  type UserRole
+} from '@/api/adapters/adminAdapter'
 
 // ============================================================================
-// Types
+// Types (re-exported from adapter for convenience)
 // ============================================================================
-
-/**
- * User role types
- */
-export type UserRole = 'user' | 'premium' | 'admin' | 'superadmin'
-
-/**
- * User interface for admin operations
- */
-export interface AdminUser {
-  id: number
-  username: string
-  email: string
-  fullName?: string
-  affiliation?: string
-  role: UserRole
-  isActive: boolean
-  isVerified?: boolean
-  createdAt: string
-  lastLoginAt?: string
-  avatarUrl?: string
-  researchInterests?: string
-}
-
-/**
- * User update payload
- */
-export interface UpdateUserPayload {
-  fullName?: string
-  affiliation?: string
-  researchInterests?: string
-  isActive?: boolean
-  role?: UserRole
-}
 
 /**
  * Pagination parameters
@@ -73,41 +52,6 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * Admin statistics
- */
-export interface AdminStats {
-  totalUsers: number
-  activeUsers: number
-  adminUsers: number
-  premiumUsers: number
-  superadminUsers: number
-  regularUsers: number
-  totalPapers: number
-  totalSearches: number
-  recentRegistrations: number
-}
-
-/**
- * Audit log entry
- */
-export interface AuditLog {
-  id: number
-  adminUserId: number
-  adminUsername: string
-  targetUserId?: number
-  action: string
-  entityType: string
-  entityId?: number
-  oldValues: Record<string, any> | null
-  newValues: Record<string, any> | null
-  status: 'success' | 'failed' | 'partial'
-  errorMessage?: string
-  ipAddress?: string
-  requestUserAgent?: string
-  createdAt: string
-}
-
-/**
  * Audit log filters
  */
 export interface AuditLogFilters extends PaginationParams {
@@ -127,13 +71,13 @@ export interface AuditLogFilters extends PaginationParams {
 export async function getAdminStats(): Promise<AdminStats> {
   const response = await request<{
     success: boolean
-    data: AdminStats
+    data: any
   }>({
     url: '/admin/stats',
     method: 'GET'
   })
 
-  return response.data
+  return transformAdminStats(response.data)
 }
 
 /**
@@ -145,10 +89,11 @@ export async function getAdminStats(): Promise<AdminStats> {
 export async function getAdminUsers(
   params: PaginationParams = {}
 ): Promise<PaginatedResponse<AdminUser>> {
+  const backendParams = transformAdminQueryParams(params)
   const response = await request<{
     success: boolean
     data: {
-      users: AdminUser[]
+      users: any[]
       pagination: {
         page: number
         limit: number
@@ -159,11 +104,11 @@ export async function getAdminUsers(
   }>({
     url: '/admin/users',
     method: 'GET',
-    params
+    params: backendParams
   })
 
   return {
-    items: response.data.users,
+    items: transformAdminUserList(response.data.users),
     total: response.data.pagination.total,
     page: response.data.pagination.page,
     limit: response.data.pagination.limit,
@@ -180,13 +125,13 @@ export async function getAdminUsers(
 export async function getAdminUser(userId: number): Promise<AdminUser> {
   const response = await request<{
     success: boolean
-    data: AdminUser
+    data: any
   }>({
     url: `/admin/users/${userId}`,
     method: 'GET'
   })
 
-  return response.data
+  return transformAdminUser(response.data)
 }
 
 /**
@@ -200,16 +145,17 @@ export async function updateAdminUser(
   userId: number,
   data: UpdateUserPayload
 ): Promise<AdminUser> {
+  const backendPayload = transformUpdatePayload(data)
   const response = await request<{
     success: boolean
-    data: AdminUser
+    data: any
   }>({
     url: `/admin/users/${userId}`,
     method: 'PUT',
-    data
+    data: backendPayload
   })
 
-  return response.data
+  return transformAdminUser(response.data)
 }
 
 /**
@@ -239,13 +185,13 @@ export async function deleteAdminUser(userId: number): Promise<{ message: string
 export async function activateUser(userId: number): Promise<AdminUser> {
   const response = await request<{
     success: boolean
-    data: AdminUser
+    data: any
   }>({
     url: `/admin/users/${userId}/activate`,
     method: 'POST'
   })
 
-  return response.data
+  return transformAdminUser(response.data)
 }
 
 /**
@@ -257,13 +203,13 @@ export async function activateUser(userId: number): Promise<AdminUser> {
 export async function deactivateUser(userId: number): Promise<AdminUser> {
   const response = await request<{
     success: boolean
-    data: AdminUser
+    data: any
   }>({
     url: `/admin/users/${userId}/deactivate`,
     method: 'POST'
   })
 
-  return response.data
+  return transformAdminUser(response.data)
 }
 
 /**
@@ -275,10 +221,11 @@ export async function deactivateUser(userId: number): Promise<AdminUser> {
 export async function getAuditLogs(
   filters: AuditLogFilters = {}
 ): Promise<PaginatedResponse<AuditLog>> {
+  const backendParams = transformAdminQueryParams(filters)
   const response = await request<{
     success: boolean
     data: {
-      logs: AuditLog[]
+      logs: any[]
       pagination: {
         page: number
         limit: number
@@ -289,11 +236,11 @@ export async function getAuditLogs(
   }>({
     url: '/admin/audit-logs',
     method: 'GET',
-    params: filters
+    params: backendParams
   })
 
   return {
-    items: response.data.logs,
+    items: transformAuditLogList(response.data.logs),
     total: response.data.pagination.total,
     page: response.data.pagination.page,
     limit: response.data.pagination.limit,

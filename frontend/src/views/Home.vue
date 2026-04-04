@@ -94,6 +94,61 @@
           <p class="features-subtitle">强大的论文检索与分析工具，助力您的研究工作</p>
         </div>
         <div class="features-grid">
+          <div class="feature-card card card-compact" @click="router.push('/ai/review')">
+            <div class="feature-icon-wrapper ai-review">
+              <span class="feature-icon">🧠</span>
+            </div>
+            <h3 class="feature-title">AI审稿人</h3>
+            <p class="feature-description">模拟顶级期刊审稿流程，提供专业评分和改进建议</p>
+            <div class="feature-action">
+              <span class="action-text">立即体验</span>
+              <span class="action-arrow">→</span>
+            </div>
+          </div>
+          <div class="feature-card card card-compact" @click="router.push('/ai/literature-review')">
+            <div class="feature-icon-wrapper ai-literature">
+              <span class="feature-icon">📚</span>
+            </div>
+            <h3 class="feature-title">文献综述生成器</h3>
+            <p class="feature-description">自动生成领域综述，识别研究空白和趋势</p>
+            <div class="feature-action">
+              <span class="action-text">开始生成</span>
+              <span class="action-arrow">→</span>
+            </div>
+          </div>
+          <div class="feature-card card card-compact" @click="router.push('/ai/research-plan')">
+            <div class="feature-icon-wrapper ai-plan">
+              <span class="feature-icon">🎯</span>
+            </div>
+            <h3 class="feature-title">研究计划助手</h3>
+            <p class="feature-description">智能制定研究计划，设定目标和评估可行性</p>
+            <div class="feature-action">
+              <span class="action-text">制定计划</span>
+              <span class="action-arrow">→</span>
+            </div>
+          </div>
+          <div class="feature-card card card-compact" @click="router.push('/ai/history')">
+            <div class="feature-icon-wrapper ai-history">
+              <span class="feature-icon">📜</span>
+            </div>
+            <h3 class="feature-title">AI历史记录</h3>
+            <p class="feature-description">查看所有AI生成记录、搜索历史和导出数据</p>
+            <div class="feature-action">
+              <span class="action-text">查看记录</span>
+              <span class="action-arrow">→</span>
+            </div>
+          </div>
+          <div class="feature-card card card-compact" @click="router.push('/ai/stats')">
+            <div class="feature-icon-wrapper ai-stats">
+              <span class="feature-icon">📊</span>
+            </div>
+            <h3 class="feature-title">AI统计仪表板</h3>
+            <p class="feature-description">使用统计、成本分析、性能指标和优化建议</p>
+            <div class="feature-action">
+              <span class="action-text">查看统计</span>
+              <span class="action-arrow">→</span>
+            </div>
+          </div>
           <div class="feature-card card card-compact">
             <div class="feature-icon-wrapper">
               <span class="feature-icon">🔍</span>
@@ -1111,6 +1166,32 @@ const viewPaper = (paper: any) => {
   justify-content: center;
   transition: all var(--duration-normal);
   box-shadow: 0 10px 25px rgba(102, 126, 234, 0.5);
+}
+
+/* AI Feature Card Icons - Custom Gradients */
+.feature-icon-wrapper.ai-review {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.5);
+}
+
+.feature-icon-wrapper.ai-literature {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  box-shadow: 0 10px 25px rgba(40, 167, 69, 0.5);
+}
+
+.feature-icon-wrapper.ai-plan {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  box-shadow: 0 10px 25px rgba(0, 123, 255, 0.5);
+}
+
+.feature-icon-wrapper.ai-history {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.5);
+}
+
+.feature-icon-wrapper.ai-stats {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.5);
 }
 
 .feature-card:hover .feature-icon-wrapper {

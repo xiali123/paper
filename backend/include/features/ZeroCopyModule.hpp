@@ -4,6 +4,7 @@
 #include "core/ModuleExports.hpp"
 #include <memory>
 #include <string>
+#include <atomic>
 
 namespace PaperCrawler {
 
@@ -31,6 +32,10 @@ public:
     bool start() override;
     bool stop() override;
     void cleanup() override;
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace PaperCrawler

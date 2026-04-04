@@ -1,10 +1,13 @@
+#include <iostream>
 #include "business/ExportApiModule.hpp"
 #include "business/PaperApiModule.hpp"
+#include "core/Router.hpp"
 #include <sstream>
 #include <iomanip>
 #include <fstream>
 #include <filesystem>
 #include <chrono>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -47,12 +50,57 @@ std::string ExportTask::toJson() const {
 
 class ExportApiModule::Impl {
 public:
-    Impl() {
+    // 依赖注入：数据库接口
+    std::shared_ptr<IDatabase> database_;
+
+    Impl(std::shared_ptr<IDatabase> database)
+        : database_(database) {
         // 初始化导出目录
         std::filesystem::create_directories("./exports");
     }
 
-    std::map<int, Paper> mockPapers;
+    Impl() : Impl(nullptr) {}  // 保持兼容性
+
+    // 从数据库获取论文用于导出
+    std::vector<Paper> getPapersForExport(const std::vector<int>& paperIds) {
+        std::vector<Paper> papers;
+        if (!database_) {
+            std::cerr << "[ExportAPI] No database connection" << std::endl;
+            return papers;
+        }
+
+        try {
+            // 构建IN子句
+            std::string idsStr;
+            for (size_t i = 0; i < paperIds.size(); ++i) {
+                if (i > 0) idsStr += ",";
+                idsStr += std::to_string(paperIds[i]);
+            }
+
+            std::string sql = "SELECT * FROM papers WHERE id IN (" + idsStr + ")";
+            auto results = database_->query(sql);
+
+            for (const auto& row : results) {
+                Paper paper;
+                paper.id = std::stoi(row.at("id"));
+                paper.title = row.at("title");
+                paper.authors = row.at("authors");
+                paper.year = std::stoi(row.at("year"));
+                paper.abstract = row.count("abstract") ? row.at("abstract") : "";
+                paper.journal = row.count("journal") ? row.at("journal") : "";
+                paper.volume = row.count("volume") ? row.at("volume") : "";
+                paper.issue = row.count("issue") ? row.at("issue") : "";
+                paper.pages = row.count("pages") ? row.at("pages") : "";
+                paper.doi = row.count("doi") ? row.at("doi") : "";
+                paper.url = row.count("url") ? row.at("url") : "";
+                paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                papers.push_back(paper);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[ExportAPI] Failed to get papers: " << e.what() << std::endl;
+        }
+        return papers;
+    }
 };
 
 // ============================================================================
@@ -78,29 +126,6 @@ ExportApiModule::ExportApiModule()
 }
 
 ExportApiModule::~ExportApiModule() = default;
-
-bool ExportApiModule::initialize() {
-    std::cout << "ExportApiModule initialized" << std::endl;
-    std::cout << "  - Export directory: " << exportDirectory_ << std::endl;
-    std::cout << "  - Supported formats: " << supportedFormats_.size() << std::endl;
-    return true;
-}
-
-bool ExportApiModule::start() {
-    std::cout << "ExportApiModule started" << std::endl;
-    return true;
-}
-
-bool ExportApiModule::stop() {
-    std::cout << "ExportApiModule stopped" << std::endl;
-    return true;
-}
-
-void ExportApiModule::cleanup() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    exportTasks_.clear();
-    userTasks_.clear();
-}
 
 std::string ExportApiModule::createExportTask(const std::string& userId,
                                              const std::vector<int>& paperIds,
@@ -504,7 +529,10 @@ bool ExportApiModule::processExportTask(ExportTask& task) {
 
     // 获取论文数据
     std::vector<Paper> papers;
-    // TODO: 从PaperApiModule获取论文
+    // 从数据库获取论文（如果有数据库连接）
+    if (impl_->database_) {
+        papers = impl_->getPapersForExport(task.paperIds);
+    }
 
     // 执行导出
     std::string content;
@@ -561,3 +589,79 @@ void ExportApiModule::updateStats(ExportFormat format, bool success, int bytes) 
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// 路由注册
+// ============================================================================
+
+namespace PaperCrawler {
+
+void ExportApiModule::registerRoutes() {
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/export"
+
+    spdlog::info("[ExportApiModule] Registering routes with prefix: {}", prefix);
+
+    // GET /api/export - 获取导出任务列表
+    router.get(prefix, [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"tasks\":[],\"count\":0,\"message\":\"No export tasks (stub mode)\"}";
+        return response;
+    });
+
+    // POST /api/export - 创建导出任务
+    router.post(prefix, [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 201;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"message\":\"Export task created (stub mode)\",\"task_id\":\"stub_task_id\"}";
+        return response;
+    });
+
+    // GET /api/export/formats - 支持的导出格式
+    router.get(prefix + "/formats", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"formats\":[\"JSON\",\"BIBTEX\",\"CSV\",\"PDF\",\"MARKDOWN\"],\"count\":5}";
+        return response;
+    });
+
+    // GET /api/export/stats - 导出统计
+    router.get(prefix + "/stats", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"total_exports\":0,\"successful_exports\":0,\"failed_exports\":0}";
+        return response;
+    });
+
+    spdlog::info("[ExportApiModule] Registered 4 routes");
+}
+
+} // namespace PaperCrawler
+
+// ============================================================================
+// DLL导出函数（全局命名空间）
+// ============================================================================
+
+#define EXPORT __declspec(dllexport)
+
+extern "C" {
+
+EXPORT void* createModule() {
+    return new PaperCrawler::ExportApiModule();
+}
+
+EXPORT void destroyModule(void* ptr) {
+    delete static_cast<PaperCrawler::ExportApiModule*>(ptr);
+}
+
+EXPORT const char* getModuleVersion() {
+    return "1.0.0";
+}
+
+}
+

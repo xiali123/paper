@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from '@/utils/notification'
+import { transformApiError, createUserFriendlyMessage, type ApiError } from '@/api/adapters/errorAdapter'
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -131,42 +132,45 @@ service.interceptors.response.use(
             return service(originalRequest)
           }
         } catch (refreshError) {
+          const apiError = transformApiError(refreshError)
           processQueue(refreshError, null)
           // Refresh failed, clear auth and redirect to login
           localStorage.removeItem('auth_tokens')
           if (typeof window !== 'undefined') {
-            ElMessage.error('Session expired. Please login again.')
+            const userMessage = createUserFriendlyMessage(apiError)
+            ElMessage.error(userMessage)
             window.location.href = '/login'
           }
-          return Promise.reject(refreshError)
+          return Promise.reject(apiError)
         } finally {
           isRefreshing = false
         }
       } else {
+        const apiError = transformApiError(new Error('No refresh token available'))
         // No refresh token, clear auth and redirect
         localStorage.removeItem('auth_tokens')
         if (typeof window !== 'undefined') {
-          ElMessage.error('Please login to continue.')
+          ElMessage.error(createUserFriendlyMessage(apiError))
           window.location.href = '/login'
         }
-        return Promise.reject(error)
+        return Promise.reject(apiError)
       }
     }
 
     // Handle other errors
-    const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Request failed'
-
+    const apiError: ApiError = transformApiError(error)
     if (import.meta.env.DEV) {
-      console.error(`❌ API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${duration}ms`)
-      console.error('Status:', error.response?.status, 'Message:', message)
+      console.error(`❌ API Error: ${apiError.config?.method?.toUpperCase()} ${apiError.config?.url} - ${duration}ms`)
+      console.error('Type:', apiError.type, 'Code:', apiError.code, 'Status:', apiError.status)
+      console.error('Message:', apiError.userMessage)
     }
 
-    const rejectionError: any = new Error(message)
-    rejectionError.success = false
-    rejectionError.status = error.response?.status
-    rejectionError.details = error.response?.data
+    // Show user-friendly error message
+    if (apiError.type !== 'NETWORK' && typeof window !== 'undefined') {
+      ElMessage.error(createUserFriendlyMessage(apiError))
+    }
 
-    return Promise.reject(rejectionError)
+    return Promise.reject(apiError)
   }
 )
 

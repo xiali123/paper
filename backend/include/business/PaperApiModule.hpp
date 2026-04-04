@@ -1,7 +1,8 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "data/IDatabase.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -9,6 +10,8 @@
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <sstream>
+#include <memory>
 
 namespace PaperCrawler {
 
@@ -94,6 +97,11 @@ struct PaperStats {
  * 5. PDF文件管理
  * 6. 引用管理
  *
+ * 架构改进：
+ * - 继承BusinessModuleBase获得路由和中间件支持
+ * - 依赖注入IDatabase接口，松耦合设计
+ * - 移除Mock数据，使用真实数据库
+ *
  * 端点：
  * - GET    /api/papers           - 列表（分页）
  * - GET    /api/papers/:id       - 详情
@@ -106,9 +114,13 @@ struct PaperStats {
  * - GET    /api/papers/export    - 导出
  * - POST   /api/papers/:id/favorite - 收藏
  */
-class PaperApiModule : public IModule {
+class PaperApiModule : public BusinessModuleBase {
 public:
+    // 默认构造函数（用于DLL导出）
     PaperApiModule();
+
+    // 构造函数：注入IDatabase依赖
+    explicit PaperApiModule(std::shared_ptr<IDatabase> database);
     ~PaperApiModule() override;
 
     std::string getName() const override { return "PaperApi"; }
@@ -116,13 +128,6 @@ public:
     std::string getDescription() const override {
         return "Paper management API";
     }
-    ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
-    std::string getRoutePrefix() const override { return "/api/papers"; }
-
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 获取论文列表（分页）
@@ -218,7 +223,10 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
-    void registerRoutes();
+    // 依赖注入：数据库接口（允许Mock测试）
+    std::shared_ptr<IDatabase> database_;
+
+    void registerRoutes() override;  // BusinessModuleBase要求实现
     std::string handleListPapers(const std::map<std::string, std::string>& params);
     std::string handleGetPaper(const std::map<std::string, std::string>& params);
     std::string handleCreatePaper(const std::string& body);
@@ -226,6 +234,10 @@ private:
     std::string handleDeletePaper(const std::map<std::string, std::string>& params);
     std::string handleSearch(const std::map<std::string, std::string>& params);
     std::string handleStats();
+    std::string handleExport(const std::map<std::string, std::string>& params);
+    std::string handleFavorite(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleRead(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleTags(const std::map<std::string, std::string>& params, const std::string& body, const std::string& method);
 };
 
 } // namespace PaperCrawler

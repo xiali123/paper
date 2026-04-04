@@ -1,6 +1,7 @@
 #include "core/PluginManager.hpp"
 #include <spdlog/spdlog.h>
 #include <iostream>
+#include <filesystem>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -27,7 +28,7 @@ bool PluginManager::initialize() {
 }
 
 bool PluginManager::loadModule(const std::string& moduleName, const std::string& modulePath) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     spdlog::info("Loading module: {} from {}", moduleName, modulePath);
 
@@ -37,6 +38,7 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         spdlog::error("Failed to load module library: {}", modulePath);
         return false;
     }
+    spdlog::info("DLL loaded successfully");
 
     // 获取导出函数
     auto createFunc = reinterpret_cast<CreateModuleFunc>(
@@ -51,6 +53,7 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         FREE_LIBRARY(handle);
         return false;
     }
+    spdlog::info("createModule symbol found");
 
     // 创建模块实例
     void* modulePtr = createFunc();
@@ -59,6 +62,7 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         FREE_LIBRARY(handle);
         return false;
     }
+    spdlog::info("Module instance created");
 
     auto* module = static_cast<IModule*>(modulePtr);
 
@@ -74,19 +78,22 @@ bool PluginManager::loadModule(const std::string& moduleName, const std::string&
         FREE_LIBRARY(handle);
         return false;
     }
+    spdlog::info("Module initialized");
 
     // 存储模块
     modules_[moduleName] = std::unique_ptr<IModule>(module);
     handles_[moduleName] = handle;
 
-    spdlog::info("Module {} loaded successfully (version: {})",
-        moduleName, module->getVersion());
+    // TODO: 临时禁用getVersion()调用，避免死锁
+    // spdlog::info("Module {} loaded successfully (version: {})",
+    //     moduleName, module->getVersion());
+    spdlog::info("Module {} loaded successfully", moduleName);
 
     return true;
 }
 
 bool PluginManager::unloadModule(const std::string& moduleName) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     auto it = modules_.find(moduleName);
     if (it == modules_.end()) {
@@ -121,7 +128,7 @@ bool PluginManager::unloadModule(const std::string& moduleName) {
 }
 
 IModule* PluginManager::getModule(const std::string& moduleName) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     auto it = modules_.find(moduleName);
     if (it != modules_.end()) {
@@ -131,7 +138,7 @@ IModule* PluginManager::getModule(const std::string& moduleName) {
 }
 
 std::vector<IModule*> PluginManager::getAllModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     std::vector<IModule*> result;
     for (auto& pair : modules_) {
@@ -141,7 +148,7 @@ std::vector<IModule*> PluginManager::getAllModules() {
 }
 
 std::vector<IModule*> PluginManager::getBusinessModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     std::vector<IModule*> result;
     for (auto& pair : modules_) {
@@ -153,7 +160,7 @@ std::vector<IModule*> PluginManager::getBusinessModules() {
 }
 
 std::vector<IModule*> PluginManager::getServerModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     std::vector<IModule*> result;
     for (auto& pair : modules_) {
@@ -165,7 +172,7 @@ std::vector<IModule*> PluginManager::getServerModules() {
 }
 
 bool PluginManager::startAllModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     spdlog::info("Starting all modules...");
 
@@ -194,7 +201,7 @@ bool PluginManager::startAllModules() {
 }
 
 bool PluginManager::stopAllModules() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     spdlog::info("Stopping all modules...");
 
@@ -213,6 +220,82 @@ std::vector<std::string> PluginManager::getLoadedModules() const {
         result.push_back(pair.first);
     }
     return result;
+}
+
+bool PluginManager::scanAndLoadModules(const std::string& modulesDir) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    spdlog::info("Scanning modules directory: {}", modulesDir);
+
+    // 检查目录是否存在
+    namespace fs = std::filesystem;
+    if (!fs::exists(modulesDir)) {
+        spdlog::warn("Modules directory does not exist: {}", modulesDir);
+        return false;
+    }
+
+    size_t loadedCount = 0;
+    size_t failedCount = 0;
+
+    spdlog::info("Starting directory iteration...");
+
+    // 递归扫描所有子目录
+    for (const auto& entry : fs::recursive_directory_iterator(modulesDir)) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+
+        std::string path = entry.path().string();
+        std::string filename = entry.path().filename().string();
+
+        // 检查文件扩展名
+        #ifdef _WIN32
+            if (filename.find(".dll") == std::string::npos) {
+                continue;
+            }
+        #else
+            if (filename.find(".so") == std::string::npos) {
+                continue;
+            }
+        #endif
+
+        // 从文件名提取模块名
+        // 例如：libpaperapi.dll → PaperApi
+        std::string moduleName = filename;
+
+        // 移除lib前缀
+        if (moduleName.find("lib") == 0) {
+            moduleName = moduleName.substr(3);
+        }
+
+        // 移除扩展名
+        size_t dotPos = moduleName.find('.');
+        if (dotPos != std::string::npos) {
+            moduleName = moduleName.substr(0, dotPos);
+        }
+
+        // 首字母大写
+        if (!moduleName.empty()) {
+            moduleName[0] = std::toupper(moduleName[0]);
+        }
+
+        spdlog::info("Found module library: {} -> {}", filename, moduleName);
+
+        // 加载模块
+        spdlog::info("Attempting to load module: {} from {}", moduleName, path);
+        if (loadModule(moduleName, path)) {
+            spdlog::info("Successfully loaded module: {}", moduleName);
+            loadedCount++;
+        } else {
+            spdlog::warn("Failed to load module: {}", moduleName);
+            failedCount++;
+        }
+    }
+
+    spdlog::info("Module scan complete: {} loaded, {} failed",
+                 loadedCount, failedCount);
+
+    return (failedCount == 0);
 }
 
 PluginManager::~PluginManager() {

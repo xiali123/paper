@@ -1,165 +1,14 @@
+#include <iostream>
 #include "data/DatabaseModule.hpp"
-#include "features/infrastructure/ResponseHandlerModule.hpp"
+#include "data/MySqlConnection.hpp"
+#include "features/operations/ResponseHandlerModule.hpp"
+#include "core/ConfigManager.hpp"
 #include <sstream>
 #include <chrono>
 #include <thread>
 #include <algorithm>
 
 namespace PaperCrawler {
-
-// ============================================================================
-// Mock DatabaseConnection 实现（用于开发测试）
-// ============================================================================
-
-/**
- * @brief Mock数据库连接
- * 实际生产环境应该使用MySQL Connector/C++
- */
-class MockDatabaseConnection : public DatabaseConnection {
-public:
-    MockDatabaseConnection(const DatabaseConfig& config)
-        : config_(config), connected_(true), transactionActive_(false) {
-        connectTime_ = std::chrono::system_clock::now();
-        lastActivity_ = connectTime_;
-    }
-
-    std::vector<std::map<std::string, std::string>> query(const std::string& sql) override {
-        lastActivity_ = std::chrono::system_clock::now();
-
-        std::cout << "[MockDB] Query: " << sql << std::endl;
-
-        // Mock数据（模拟papers表查询）
-        std::vector<std::map<std::string, std::string>> results;
-
-        if (sql.find("SELECT") != std::string::npos && sql.find("papers") != std::string::npos) {
-            // 返回mock论文数据
-            std::map<std::string, std::string> row1;
-            row1["id"] = "1";
-            row1["title"] = "Attention Is All You Need";
-            row1["authors"] = "Ashish Vaswani et al.";
-            row1["year"] = "2017";
-            row1["citation_count"] = "50000";
-            results.push_back(row1);
-
-            std::map<std::string, std::string> row2;
-            row2["id"] = "2";
-            row2["title"] = "BERT: Pre-training of Deep Bidirectional Transformers";
-            row2["authors"] = "Jacob Devlin et al.";
-            row2["year"] = "2018";
-            row2["citation_count"] = "80000";
-            results.push_back(row2);
-        } else if (sql.find("SELECT") != std::string::npos && sql.find("users") != std::string::npos) {
-            // 返回mock用户数据
-            std::map<std::string, std::string> row1;
-            row1["id"] = "1";
-            row1["username"] = "admin";
-            row1["email"] = "admin@papercrawler.com";
-            row1["role"] = "admin";
-            results.push_back(row1);
-
-            std::map<std::string, std::string> row2;
-            row2["id"] = "2";
-            row2["username"] = "user";
-            row2["email"] = "user@papercrawler.com";
-            row2["role"] = "user";
-            results.push_back(row2);
-        }
-
-        return results;
-    }
-
-    bool execute(const std::string& sql) override {
-        lastActivity_ = std::chrono::system_clock::now();
-
-        std::cout << "[MockDB] Execute: " << sql << std::endl;
-
-        // Mock执行成功
-        if (sql.find("INSERT") != std::string::npos ||
-            sql.find("UPDATE") != std::string::npos ||
-            sql.find("DELETE") != std::string::npos) {
-            return true;
-        }
-
-        return false;
-    }
-
-    bool beginTransaction() override {
-        std::cout << "[MockDB] BEGIN TRANSACTION" << std::endl;
-        transactionActive_ = true;
-        return true;
-    }
-
-    bool commitTransaction() override {
-        std::cout << "[MockDB] COMMIT" << std::endl;
-        transactionActive_ = false;
-        return true;
-    }
-
-    bool rollbackTransaction() override {
-        std::cout << "[MockDB] ROLLBACK" << std::endl;
-        transactionActive_ = false;
-        return true;
-    }
-
-    uint64_t getLastInsertId() override {
-        return ++lastInsertId_;
-    }
-
-    size_t getAffectedRows() override {
-        return 1; // Mock: 总是返回1行受影响
-    }
-
-    std::string escape(const std::string& str) override {
-        std::string escaped;
-        escaped.reserve(str.size() * 1.1);
-
-        for (char c : str) {
-            if (c == '\'') {
-                escaped += "''";
-            } else if (c == '\\') {
-                escaped += "\\\\";
-            } else if (c == '"') {
-                escaped += "\\\"";
-            } else if (c == '\n') {
-                escaped += "\\n";
-            } else if (c == '\r') {
-                escaped += "\\r";
-            } else if (c == '\t') {
-                escaped += "\\t";
-            } else {
-                escaped += c;
-            }
-        }
-
-        return escaped;
-    }
-
-    bool isConnected() override {
-        return connected_;
-    }
-
-    void close() override {
-        connected_ = false;
-        std::cout << "[MockDB] Connection closed" << std::endl;
-    }
-
-    bool ping() override {
-        std::cout << "[MockDB] Ping" << std::endl;
-        return connected_;
-    }
-
-    std::chrono::system_clock::time_point getLastActivity() const {
-        return lastActivity_;
-    }
-
-private:
-    DatabaseConfig config_;
-    bool connected_;
-    bool transactionActive_;
-    uint64_t lastInsertId_{0};
-    std::chrono::system_clock::time_point connectTime_;
-    std::chrono::system_clock::time_point lastActivity_;
-};
 
 // ============================================================================
 // DatabaseModule 实现
@@ -217,16 +66,22 @@ public:
      * @brief 创建新连接
      */
     std::shared_ptr<DatabaseConnection> createConnection() {
-        // Mock实现：创建Mock连接
-        // 实际生产环境应该创建真实的MySQL连接
-        auto connection = std::make_shared<MockDatabaseConnection>(config_);
+        // 创建真实MySQL连接
+        auto connection = std::make_shared<MySqlConnection>(
+            config_.host,
+            config_.port,
+            config_.username,
+            config_.password,
+            config_.database
+        );
 
         if (connection->isConnected()) {
-            std::cout << "[Database] New connection created" << std::endl;
+            std::cout << "[Database] MySQL connection created successfully" << std::endl;
             return connection;
+        } else {
+            std::cerr << "[Database] Failed to create MySQL connection" << std::endl;
+            return nullptr;
         }
-
-        return nullptr;
     }
 
     /**
@@ -325,37 +180,36 @@ public:
     }
 
     /**
-     * @brief 清理空闲连接
+     * @brief 清理空闲连接（简化版）
+     * 注意：MySqlConnection不支持getLastActivity()，这里只基于连接数量清理
      */
     void cleanupIdleConnections() {
         std::lock_guard<std::mutex> lock(poolMutex_);
 
-        auto now = std::chrono::system_clock::now();
-        size_t removed = 0;
+        // 如果连接数超过初始池大小2倍，则清理多余连接
+        if (totalConnections_ > config_.poolSize * 2) {
+            std::queue<std::shared_ptr<DatabaseConnection>> newPool;
+            size_t removed = 0;
 
-        std::queue<std::shared_ptr<DatabaseConnection>> newPool;
-
-        while (!connectionPool_.empty()) {
-            auto connection = connectionPool_.front();
-            connectionPool_.pop();
-
-            auto lastActivity = std::static_pointer_cast<MockDatabaseConnection>(connection)->getLastActivity();
-            auto idleTime = std::chrono::duration_cast<std::chrono::seconds>(now - lastActivity).count();
-
-            // 如果空闲时间超过5分钟且当前连接数超过初始池大小，则关闭
-            if (idleTime > 300 && totalConnections_ > config_.poolSize) {
+            while (!connectionPool_.empty() && totalConnections_ > config_.poolSize) {
+                auto connection = connectionPool_.front();
+                connectionPool_.pop();
                 connection->close();
                 totalConnections_--;
                 removed++;
-            } else {
-                newPool.push(connection);
             }
-        }
 
-        connectionPool_ = newPool;
+            // 将剩余连接放回池中
+            while (!connectionPool_.empty()) {
+                newPool.push(connectionPool_.front());
+                connectionPool_.pop();
+            }
 
-        if (removed > 0) {
-            std::cout << "[Database] Cleaned up " << removed << " idle connections" << std::endl;
+            connectionPool_ = newPool;
+
+            if (removed > 0) {
+                std::cout << "[Database] Cleaned up " << removed << " idle connections" << std::endl;
+            }
         }
     }
 };
@@ -368,40 +222,35 @@ DatabaseModule::DatabaseModule()
 
 DatabaseModule::~DatabaseModule() = default;
 
-std::string DatabaseModule::getName() const {
-    return "Database";
+bool DatabaseModule::onInitialize() {
+    std::cout << "DatabaseModule::onInitialize" << std::endl;
+
+    // 直接使用硬编码配置（临时方案）
+    DatabaseConfig dbConfig;
+    dbConfig.host = "127.0.0.1";
+    dbConfig.port = 3306;
+    dbConfig.username = "root";
+    dbConfig.password = "123456";
+    dbConfig.database = "papercrawler_db";
+    dbConfig.poolSize = 10;
+    dbConfig.maxPoolSize = 20;
+    dbConfig.connectTimeoutSeconds = 30;
+
+    std::cout << "[Database] Using hardcoded database config:" << std::endl;
+    std::cout << "  User: " << dbConfig.username << std::endl;
+    std::cout << "  Password: " << (dbConfig.password.empty() ? "(empty)" : "(***)") << std::endl;
+    std::cout << "  Host: " << dbConfig.host << ":" << dbConfig.port << std::endl;
+    std::cout << "  Database: " << dbConfig.database << std::endl;
+
+    return impl_->initializePool(dbConfig);
 }
 
-std::string DatabaseModule::getVersion() const {
-    return "1.0.0";
-}
-
-std::string DatabaseModule::getDescription() const {
-    return "MySQL database access module with connection pooling";
-}
-
-ModuleType DatabaseModule::getModuleType() const {
-    return ModuleType::SERVER;
-}
-
-std::string DatabaseModule::getRoutePrefix() const {
-    return "/api/database";
-}
-
-bool DatabaseModule::initialize() {
-    std::cout << "DatabaseModule::initialize" << std::endl;
-
-    // 使用默认配置初始化
-    DatabaseConfig defaultConfig;
-    return impl_->initializePool(defaultConfig);
-}
-
-bool DatabaseModule::start() {
+bool DatabaseModule::onStart() {
     std::cout << "DatabaseModule started" << std::endl;
     return true;
 }
 
-bool DatabaseModule::stop() {
+bool DatabaseModule::onStop() {
     std::cout << "DatabaseModule stopped" << std::endl;
 
     // 清理所有连接
@@ -418,7 +267,7 @@ bool DatabaseModule::stop() {
     return true;
 }
 
-void DatabaseModule::cleanup() {
+void DatabaseModule::onCleanup() {
     // 清理资源
 }
 
@@ -535,12 +384,67 @@ ConnectionPoolStats DatabaseModule::getPoolStats() const {
 bool DatabaseModule::testConnection() {
     auto connection = getConnection();
     if (!connection) {
+        std::cerr << "[Database] Failed to get connection from pool" << std::endl;
         return false;
     }
 
     bool success = connection->ping();
-    returnConnection(connection);
 
+    if (success) {
+        std::cout << "[Database] ✓ Connection ping successful" << std::endl;
+
+        // 查询数据库版本
+        try {
+            auto versionResult = connection->query("SELECT VERSION() as version");
+            if (!versionResult.empty()) {
+                std::cout << "[Database] MySQL Version: " << versionResult[0]["version"] << std::endl;
+            }
+        } catch (...) {}
+
+        // 查询当前数据库名称
+        try {
+            auto dbResult = connection->query("SELECT DATABASE() as current_db");
+            if (!dbResult.empty()) {
+                std::cout << "[Database] Current Database: " << dbResult[0]["current_db"] << std::endl;
+            }
+        } catch (...) {}
+
+        // 查询所有表
+        try {
+            auto tables = connection->query("SHOW TABLES");
+            std::cout << "[Database] Found " << tables.size() << " tables:" << std::endl;
+            for (const auto& table : tables) {
+                std::string tableName = table.begin()->second;
+                std::cout << "[Database]   - " << tableName << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cout << "[Database] Warning: Could not list tables: " << e.what() << std::endl;
+        }
+
+        // 查询users表记录数
+        try {
+            auto userCount = connection->query("SELECT COUNT(*) as count FROM users");
+            if (!userCount.empty()) {
+                std::cout << "[Database] Users table: " << userCount[0]["count"] << " records" << std::endl;
+            }
+        } catch (...) {
+            std::cout << "[Database] Users table: not found or empty" << std::endl;
+        }
+
+        // 查询papers表记录数
+        try {
+            auto paperCount = connection->query("SELECT COUNT(*) as count FROM papers");
+            if (!paperCount.empty()) {
+                std::cout << "[Database] Papers table: " << paperCount[0]["count"] << " records" << std::endl;
+            }
+        } catch (...) {
+            std::cout << "[Database] Papers table: not found or empty" << std::endl;
+        }
+    } else {
+        std::cerr << "[Database] ✗ Connection ping failed" << std::endl;
+    }
+
+    returnConnection(connection);
     return success;
 }
 

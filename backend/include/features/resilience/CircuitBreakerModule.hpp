@@ -8,6 +8,8 @@
 #include <chrono>
 #include <atomic>
 #include <functional>
+#include <mutex>
+#include <stdexcept>
 
 namespace PaperCrawler {
 
@@ -35,6 +37,7 @@ enum class StateTransitionReason {
  * @brief 熔断器统计
  */
 struct CircuitBreakerStats {
+    std::string name;
     CircuitState state{CircuitState::CLOSED};
     uint64_t totalRequests{0};
     uint64_t successfulRequests{0};

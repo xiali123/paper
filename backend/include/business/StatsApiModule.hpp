@@ -1,13 +1,15 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "core/ModuleRegistry.hpp"
 #include <string>
 #include <map>
 #include <vector>
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <optional>
 
 namespace PaperCrawler {
 
@@ -78,24 +80,6 @@ enum class ModuleStatus {
 };
 
 /**
- * @brief 模块信息
- */
-struct ModuleInfo {
-    std::string name;
-    std::string version;
-    std::string description;
-    ModuleStatus status{ModuleStatus::UNLOADED};
-    std::chrono::system_clock::time_point loadedAt;
-    std::chrono::microseconds loadTime{0};
-    uint64_t totalRequests{0};
-    uint64_t failedRequests{0};
-    double successRate{0.0};
-    std::string errorMessage;
-
-    std::string toJSON() const;
-};
-
-/**
  * @brief 性能指标
  */
 struct PerformanceMetrics {
@@ -129,7 +113,7 @@ struct PerformanceMetrics {
  * - GET /api/stats/performance   - 性能指标
  * - GET /api/stats/realtime      - 实时数据流（SSE）
  */
-class StatsApiModule : public IModule {
+class StatsApiModule : public BusinessModuleBase {
 public:
     StatsApiModule();
     ~StatsApiModule() override;
@@ -139,13 +123,6 @@ public:
     std::string getDescription() const override {
         return "System statistics and monitoring API";
     }
-    ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
-    std::string getRoutePrefix() const override { return "/api/stats"; }
-
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 获取系统信息
@@ -214,7 +191,7 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
-    void registerRoutes();
+    void registerRoutes() override;
     std::string handleSystemInfo();
     std::string handleResources();
     std::string handleUptime();

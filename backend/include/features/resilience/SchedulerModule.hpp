@@ -11,13 +11,14 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <optional>
 
 namespace PaperCrawler {
 
 /**
  * @brief 任务ID
  */
-using JobId = std::string;
+using JobId = uint64_t;
 
 /**
  * @brief Cron表达式解析结果
@@ -141,7 +142,7 @@ struct SchedulerConfig {
  * Cron表达式格式：
  * - 分 时 日 月 周
  * - 示例："0 0 * * *" (每天午夜)
- * - 示例："0 */5 * * *" (每5小时)
+ * - 示例："0 0/5 * * *" (每5小时)
  * - 示例："0 9-17 * * 1-5" (周一到周五的9点到17点)
  *
  * 特性：

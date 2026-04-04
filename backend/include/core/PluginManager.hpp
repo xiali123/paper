@@ -75,6 +75,13 @@ public:
      */
     std::vector<std::string> getLoadedModules() const;
 
+    /**
+     * @brief 扫描目录并自动加载所有模块
+     * @param modulesDir 模块目录路径
+     * @return 成功返回true，失败返回false
+     */
+    bool scanAndLoadModules(const std::string& modulesDir);
+
 private:
     PluginManager() = default;
     ~PluginManager();
@@ -85,7 +92,7 @@ private:
 
     std::map<std::string, std::unique_ptr<IModule>> modules_;
     std::map<std::string, ModuleHandle> handles_;
-    mutable std::mutex mutex_;
+    mutable std::recursive_mutex mutex_;
 };
 
 } // namespace PaperCrawler

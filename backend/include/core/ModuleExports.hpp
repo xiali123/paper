@@ -19,19 +19,20 @@ namespace PaperCrawler {
  * @brief Module type enumeration
  */
 enum class ModuleType {
-    SERVER,     // Server module (infrastructure)
-    BUSINESS    // Business module (API handling)
+    SERVER,     // Infrastructure module
+    BUSINESS    // Business API module
 };
 
 /**
  * @brief Module lifecycle state
  */
 enum class ModuleState {
-    UNLOADED,   // Not loaded
-    LOADED,     // Loaded
-    STARTED,    // Started
-    STOPPED,    // Stopped
-    ERROR       // Error state
+    UNLOADED,    // Module not loaded
+    LOADED,      // Module loaded
+    INITIALIZED, // Module initialized
+    STARTED,     // Module started
+    STOPPED,     // Module stopped
+    FAILED       // Error state
 };
 
 /**
@@ -52,6 +53,10 @@ using DestroyModuleFunc = void (*)(void*);
 // Export macro definitions
 #ifdef _WIN32
     #define PAPERCRAWLER_MODULE_EXPORT __declspec(dllexport)
+    #define BUSINESS_API __declspec(dllexport)
+    #define PAPERCRAWLER_API __declspec(dllexport)
 #else
     #define PAPERCRAWLER_MODULE_EXPORT __attribute__((visibility("default")))
+    #define BUSINESS_API __attribute__((visibility("default")))
+    #define PAPERCRAWLER_API __attribute__((visibility("default")))
 #endif

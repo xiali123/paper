@@ -1,0 +1,14 @@
+{
+  "module": "StatsApi",
+  "timestamp": "2026-04-04T03:38:56Z",
+  "total_tests": 4,
+  "passed": 0,
+  "failed": 4,
+  "success_rate": 0,
+  "tests": [
+    {"test":"GET /stats/overview","status":"fail","http_code":000,"expected":200}
+    ,{"test":"GET /stats/papers","status":"fail","http_code":000,"expected":200}
+    ,{"test":"GET /stats/users","status":"fail","http_code":000,"expected":200}
+    ,{"test":"GET /stats/crawler","status":"fail","http_code":000,"expected":200}
+  ]
+}

@@ -1,4 +1,4 @@
-#include "features/performance/CompressionModule.hpp"
+#include "features/CompressionModule.hpp"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
