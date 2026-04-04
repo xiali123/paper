@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Token 测试</title></head>
+<body>
+    <h1>Token 保存测试</h1>
+    <button onclick="testSave()">测试保存</button>
+    <button onclick="testRead()">测试读取</button>
+    <button onclick="clearData()">清除数据</button>
+    <pre id="output"></pre>
+    <script>
+        function testSave() {
+            const tokens = {
+                accessToken: 'test_access_' + Date.now(),
+                refreshToken: 'test_refresh_' + Date.now(),
+                expiresAt: Date.now() + 3600000
+            };
+            localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+            document.getElementById('output').textContent = 
+                '已保存:\n' + JSON.stringify(tokens, null, 2);
+        }
+        function testRead() {
+            const stored = localStorage.getItem('auth_tokens');
+            if (!stored) {
+                document.getElementById('output').textContent = '没有找到数据';
+                return;
+            }
+            const parsed = JSON.parse(stored);
+            document.getElementById('output').textContent = 
+                '读取到:\n' + JSON.stringify(parsed, null, 2) +
+                '\n\n检查:\n' +
+                'accessToken: ' + (parsed.accessToken ? '✅' : '❌') + '\n' +
+                'refreshToken: ' + (parsed.refreshToken ? '✅' : '❌') + '\n' +
+                'expiresAt: ' + (parsed.expiresAt ? '✅' : '❌');
+        }
+        function clearData() {
+            localStorage.removeItem('auth_tokens');
+            document.getElementById('output').textContent = '已清除';
+        }
+    </script>
+</body>
+</html>

@@ -1,262 +1,255 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import type { RouteRecordRaw } from 'vue-router'
-import { setupAuthGuards, redirectIfAuthenticated } from './guards'
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { ElMessage } from 'element-plus'
+import NProgress from 'nprogress'
+import 'nprogress/nprogress.css'
+
+NProgress.configure({ showSpinner: false })
 
 const routes: RouteRecordRaw[] = [
-  // Authentication routes (public)
+  // Authentication Routes
+  {
+    path: '/auth',
+    redirect: '/auth/login'
+  },
+  {
+    path: '/auth/login',
+    name: 'Login',
+    component: () => import('@/views/auth/LoginView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+      title: 'Login',
+      layout: 'auth'
+    }
+  },
+  {
+    path: '/auth/register',
+    name: 'Register',
+    component: () => import('@/views/auth/RegisterView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+      title: 'Register',
+      layout: 'auth'
+    }
+  },
+  {
+    path: '/auth/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/auth/ForgotPasswordView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+      title: 'Forgot Password',
+      layout: 'auth'
+    }
+  },
+  {
+    path: '/auth/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/views/auth/ResetPasswordView.vue'),
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+      title: 'Reset Password',
+      layout: 'auth'
+    }
+  },
+
+  // Legacy Routes (for backward compatibility)
   {
     path: '/login',
-    name: 'Login',
-    component: () => import('../views/Login.vue'),
-    meta: { title: 'Login' },
-    beforeEnter: [redirectIfAuthenticated]
+    redirect: '/auth/login'
   },
   {
     path: '/register',
-    name: 'Register',
-    component: () => import('../views/Register.vue'),
-    meta: { title: 'Register' },
-    beforeEnter: [redirectIfAuthenticated]
+    redirect: '/auth/register'
   },
   {
     path: '/forgot-password',
-    name: 'ForgotPassword',
-    component: () => import('../views/ForgotPassword.vue'),
-    meta: { title: 'Forgot Password' }
+    redirect: '/auth/forgot-password'
   },
   {
     path: '/reset-password',
-    name: 'ResetPassword',
-    component: () => import('../views/ResetPassword.vue'),
-    meta: { title: 'Reset Password' }
+    redirect: '/auth/reset-password'
   },
 
-  // Main routes (require authentication)
+  // Main Application Routes
   {
     path: '/',
-    name: 'Home',
-    component: () => import('../views/Home.vue'),
-    meta: { title: 'Home' }
+    name: 'Layout',
+    component: () => import('@/components/layout/MainLayout.vue'),
+    redirect: '/dashboard',
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '/dashboard',
+        name: 'Dashboard',
+        component: () => import('@/views/dashboard/DashboardView.vue'),
+        meta: { requiresAuth: true, title: 'Dashboard', icon: 'Odometer' }
+      },
+      {
+        path: '/dashboard-old',
+        name: 'DashboardOld',
+        component: () => import('@/views/dashboard/Dashboard.vue'),
+        meta: { requiresAuth: true, title: 'Dashboard (Old)', icon: 'Odometer' }
+      },
+      {
+        path: '/papers',
+        name: 'Papers',
+        component: () => import('@/views/papers/PaperListView.vue'),
+        meta: { requiresAuth: true, title: 'Paper Management', icon: 'Document' }
+      },
+      {
+        path: '/papers/new',
+        name: 'PaperCreate',
+        component: () => import('@/views/papers/PaperEditView.vue'),
+        meta: { requiresAuth: true, title: 'Add Paper' }
+      },
+      {
+        path: '/papers/:id',
+        name: 'PaperDetail',
+        component: () => import('@/views/papers/PaperDetailView.vue'),
+        meta: { requiresAuth: true, title: 'Paper Details' }
+      },
+      {
+        path: '/papers/:id/edit',
+        name: 'PaperEdit',
+        component: () => import('@/views/papers/PaperEditView.vue'),
+        meta: { requiresAuth: true, title: 'Edit Paper' }
+      },
+      {
+        path: '/crawler',
+        name: 'Crawler',
+        redirect: '/crawler/dashboard',
+        meta: { requiresAuth: true, title: 'Crawler Management', icon: 'Connection' }
+      },
+      {
+        path: '/crawler/dashboard',
+        name: 'CrawlerDashboard',
+        component: () => import('@/views/crawler/CrawlerDashboardView.vue'),
+        meta: { requiresAuth: true, title: 'Crawler Dashboard', icon: 'Odometer' }
+      },
+      {
+        path: '/crawler/templates',
+        name: 'TemplateList',
+        component: () => import('@/views/crawler/TemplateListView.vue'),
+        meta: { requiresAuth: true, title: 'Template Management', icon: 'Grid' }
+      },
+      {
+        path: '/crawler/templates/new',
+        name: 'TemplateCreate',
+        component: () => import('@/views/crawler/TemplateEditView.vue'),
+        meta: { requiresAuth: true, title: 'Create Template' }
+      },
+      {
+        path: '/crawler/templates/:id/edit',
+        name: 'TemplateEdit',
+        component: () => import('@/views/crawler/TemplateEditView.vue'),
+        meta: { requiresAuth: true, title: 'Edit Template' }
+      },
+      {
+        path: '/crawler/tasks',
+        name: 'TaskList',
+        component: () => import('@/views/crawler/TaskListView.vue'),
+        meta: { requiresAuth: true, title: 'Task Management', icon: 'List' }
+      },
+      {
+        path: '/crawler/nodes',
+        name: 'NodeManagement',
+        component: () => import('@/views/crawler/NodeManagementView.vue'),
+        meta: { requiresAuth: true, title: 'Node Management', icon: 'Monitor' }
+      },
+      {
+        path: '/search',
+        name: 'Search',
+        component: () => import('@/views/search/SearchPage.vue'),
+        meta: { requiresAuth: true, title: 'Search', icon: 'Search' }
+      },
+      {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('@/views/settings/Settings.vue'),
+        meta: { requiresAuth: true, title: 'Settings', icon: 'Setting' }
+      },
+      {
+        path: '/profile',
+        name: 'Profile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { requiresAuth: true, title: 'Profile', icon: 'User' }
+      }
+    ]
   },
 
-  // Paper Management routes
-  {
-    path: '/papers',
-    name: 'Papers',
-    component: () => import('../views/Papers.vue'),
-    meta: { title: 'My Papers' }
-  },
-  {
-    path: '/papers/:id',
-    name: 'PaperManageDetail',
-    component: () => import('../views/PaperManageDetail.vue'),
-    meta: { title: 'Paper Details' }
-  },
-
-  {
-    path: '/search',
-    name: 'Search',
-    component: () => import('../views/SearchSimple.vue'),
-    meta: { title: 'Search Papers' }
-  },
-  {
-    path: '/search-advanced',
-    name: 'SearchAdvanced',
-    component: () => import('../views/Search.vue'),
-    meta: { title: 'Advanced Search' }
-  },
-  {
-    path: '/stats',
-    name: 'Stats',
-    component: () => import('../views/Stats.vue'),
-    meta: { title: 'Statistics' }
-  },
-
-  // Crawler routes
-  {
-    path: '/crawler',
-    name: 'Crawler',
-    component: () => import('../views/Crawler.vue'),
-    meta: { title: 'Paper Crawler' }
-  },
-  {
-    path: '/paper/:id',
-    name: 'paper-detail',
-    component: () => import('../views/PaperDetail.vue'),
-    props: true,
-    meta: { title: 'Paper Details' }
-  },
-
-  // User routes (require authentication)
-  {
-    path: '/profile',
-    name: 'Profile',
-    component: () => import('../views/Profile.vue'),
-    meta: { title: 'My Profile' }
-  },
-
-  // Admin routes (require admin role)
-  {
-    path: '/admin',
-    name: 'Admin',
-    component: () => import('../views/Admin.vue'),
-    meta: {
-      title: 'Admin Dashboard',
-      requiresAdmin: true
-    }
-  },
-
-  // AI Research Co-Pilot routes
-  {
-    path: '/ai',
-    name: 'AI',
-    redirect: '/ai/review',
-    meta: {
-      title: 'AI Research Co-Pilot',
-      requiresAuth: true
-    }
-  },
-  {
-    path: '/ai/review',
-    name: 'AIReview',
-    component: () => import('../views/ai/AIReviewPage.vue'),
-    meta: {
-      title: 'AI Reviewer - AI Research Co-Pilot',
-      requiresAuth: true,
-      description: 'AI-powered peer review system'
-    }
-  },
-  {
-    path: '/ai/literature-review',
-    name: 'AILiteratureReview',
-    component: () => import('../views/ai/AILiteratureReviewPage.vue'),
-    meta: {
-      title: 'Literature Review - AI Research Co-Pilot',
-      requiresAuth: true,
-      description: 'AI-generated systematic literature reviews'
-    }
-  },
-  {
-    path: '/ai/research-plan',
-    name: 'AIResearchPlan',
-    component: () => import('../views/ai/AIResearchPlanPage.vue'),
-    meta: {
-      title: 'Research Plan - AI Research Co-Pilot',
-      requiresAuth: true,
-      description: 'AI-powered research project planning'
-    }
-  },
-  {
-    path: '/ai/history',
-    name: 'AIHistory',
-    component: () => import('../views/ai/AIHistoryPage.vue'),
-    meta: {
-      title: 'AI History - AI Research Co-Pilot',
-      requiresAuth: true,
-      description: 'View your AI generation history'
-    }
-  },
-  {
-    path: '/ai/stats',
-    name: 'AIStats',
-    component: () => import('../views/ai/AIStatsPage.vue'),
-    meta: {
-      title: 'AI Statistics - AI Research Co-Pilot',
-      requiresAuth: true,
-      description: 'AI usage statistics and cost analysis'
-    }
-  },
-  {
-    path: '/ai/copilot',
-    name: 'AiCopilot',
-    component: () => import('../views/AiCopilot.vue'),
-    meta: {
-      title: 'AI Research Co-Pilot Dashboard',
-      requiresAuth: true
-    }
-  },
-
-  // Recommendations routes
-  {
-    path: '/recommendations',
-    name: 'Recommendations',
-    component: () => import('../views/Recommendations.vue'),
-    meta: {
-      title: 'Recommendations',
-      requiresAuth: true
-    }
-  },
-
-  // Export routes
-  {
-    path: '/export',
-    name: 'Export',
-    component: () => import('../views/Export.vue'),
-    meta: {
-      title: 'Export Papers',
-      requiresAuth: true
-    }
-  },
-
-  // Collections routes
-  {
-    path: '/collections',
-    name: 'Collections',
-    component: () => import('../views/Collections.vue'),
-    meta: {
-      title: 'My Collections',
-      requiresAuth: true
-    }
-  },
-
-  // Journals routes
-  {
-    path: '/journals',
-    name: 'Journals',
-    component: () => import('../views/Journals.vue'),
-    meta: {
-      title: 'Browse Journals',
-      requiresAuth: true
-    }
-  },
-
-  // Analytics routes (TODO: create view)
-  {
-    path: '/analytics',
-    name: 'Analytics',
-    component: () => import('../views/Analytics.vue'),
-    meta: {
-      title: 'Research Analytics',
-      requiresAuth: true
-    }
-  },
-
-  // Collaborative Writing routes (TODO: create view)
-  {
-    path: '/collaborative',
-    name: 'Collaborative',
-    component: () => import('../views/Collaborative.vue'),
-    meta: {
-      title: 'Collaborative Writing',
-      requiresAuth: true
-    }
-  },
-
-  // 404 fallback
+  // 404 Not Found
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('../views/NotFound.vue'),
-    meta: { title: '404 - Page Not Found' }
+    component: () => import('@/views/error/NotFound.vue'),
+    meta: { title: '404 Not Found' }
   }
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
-  routes
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes,
+  scrollBehavior() {
+    return { top: 0 }
+  }
 })
 
-// Setup authentication guards
-setupAuthGuards(router)
+// Navigation Guards
+router.beforeEach(async (to, from, next) => {
+  NProgress.start()
+
+  // Update page title
+  if (to.meta.title) {
+    const title = typeof to.meta.title === 'string' ? to.meta.title : 'PaperCrawler'
+    document.title = `${title} - PaperCrawler`
+  }
+
+  const authStore = useAuthStore()
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+  const guestOnly = to.matched.some((record) => record.meta.guestOnly)
+
+  // Initialize auth store if not already initialized
+  if (!authStore.isAuthenticated && localStorage.getItem('auth_tokens')) {
+    try {
+      await authStore.initializeAuth()
+    } catch (error) {
+      console.error('Auth initialization failed:', error)
+      // Clear invalid tokens
+      authStore.clearAuth()
+    }
+  }
+
+  // Check authentication requirements
+  if (requiresAuth && !authStore.isAuthenticated) {
+    // Redirect to login if trying to access protected route while not authenticated
+    ElMessage.warning('Please login to access this page')
+    next({
+      name: 'Login',
+      query: { redirect: to.fullPath }
+    })
+  } else if (guestOnly && authStore.isAuthenticated) {
+    // Redirect to dashboard if trying to access guest-only route while authenticated
+    next({ name: 'Dashboard' })
+  } else {
+    // Proceed to route
+    next()
+  }
+})
+
+router.afterEach(() => {
+  NProgress.done()
+})
+
+// Handle router errors
+router.onError((error) => {
+  console.error('Router error:', error)
+  NProgress.done()
+  ElMessage.error('An error occurred while navigating')
+})
 
 export default router

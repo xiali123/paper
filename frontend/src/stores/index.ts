@@ -2,15 +2,15 @@ import { createPinia } from 'pinia'
 import { createPersistedState } from 'pinia-plugin-persistedstate'
 import type { App } from 'vue'
 
-// 创建 pinia 实例
+// ============================================================================
+// Pinia Instance Setup
+// ============================================================================
+
 const pinia = createPinia()
 
-// 配置持久化插件
 pinia.use(
   createPersistedState({
-    // 全局默认配置
     storage: localStorage,
-    // 序列化函数
     serializer: {
       deserialize: (value: string) => {
         try {
@@ -32,10 +32,12 @@ pinia.use(
   })
 )
 
-// 开发环境下启用状态监控
+// ============================================================================
+// Development Tools
+// ============================================================================
+
 if (import.meta.env.DEV) {
   pinia.use(({ store }) => {
-    // 监控状态变化
     store.$onAction(({ name, args, after, onError }) => {
       const startTime = Date.now()
       console.log(`[Pinia] 📦 Action: ${name}`, args)
@@ -51,7 +53,6 @@ if (import.meta.env.DEV) {
       })
     })
 
-    // 监控状态变化
     store.$subscribe((mutation, state) => {
       console.log(`[Pinia] 🔄 State changed: ${store.$id}`, {
         mutation,
@@ -61,17 +62,51 @@ if (import.meta.env.DEV) {
   })
 }
 
-// 安装 pinia
+// ============================================================================
+// Installation
+// ============================================================================
+
 export function setupStore(app: App) {
   app.use(pinia)
 }
 
-// 导出 pinia 实例
 export default pinia
 
-// 导出所有 stores
+// ============================================================================
+// New Store Exports (Complete Implementation)
+// ============================================================================
+
+// Core Stores
+export { useAuthStore } from './auth'
+export { usePaperStore } from './paperStore'
+export { useSearchStore } from './searchStore'
+
+// Feature Stores
+export { useCrawlerStore } from './crawlerStore'
+export { useExportStore } from './exportStore'
+export { useStatsStore } from './statsStore'
+export { useAIStore } from './aiStore'
+export { useRecommendationStore } from './recommendationStore'
+export { useUIStore } from './uiStore'
+
+// ============================================================================
+// Legacy Store Exports (Existing - Keep for compatibility)
+// ============================================================================
+
+export * from './user'
+export * from './paper'
+export * from './crawler'
+export * from './app'
+
+// Legacy stores (to be migrated or deprecated)
 export { usePapersStore } from './papers'
-export { useStatsStore } from './stats'
-export { useAppStore } from './app'
+export { useStatsStore as useLegacyStatsStore } from './stats'
 export { useUserStore } from './user'
 export { useSyncStore } from './sync'
+
+// Advanced Feature Stores (Existing)
+export { useAIStore as useAIStoreLegacy } from './ai'
+export { useAnalyticsStore } from './analytics'
+export { useRecommendationsStore } from './recommendations'
+export { useCollaborativeStore } from './collaborative'
+export { usePaperManagementStore } from './paperManagement'

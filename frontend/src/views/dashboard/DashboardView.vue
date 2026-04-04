@@ -338,16 +338,19 @@ const barChartOptions = computed<ChartOptions>(() => ({
 const loadDashboardData = async () => {
   loading.value = true
   try {
-    // 并行加载所有数据
+    // 并行加载所有数据（静默失败，使用默认数据）
     await Promise.all([
-      loadStats(),
-      loadRecentActivities(),
-      loadRecommendations(),
-      loadTodoItems()
+      loadStats().catch(() => {}), // 静默失败
+      loadRecentActivities().catch(() => {}),
+      loadRecommendations().catch(() => {}),
+      loadTodoItems().catch(() => {}),
+      loadGrowthData().catch(() => {}),
+      loadJournalData().catch(() => {}),
+      loadCCFData().catch(() => {})
     ])
   } catch (error) {
     console.error('加载仪表盘数据失败:', error)
-    ElMessage.error('加载数据失败，请稍后重试')
+    // 不显示错误消息，使用空状态
   } finally {
     loading.value = false
   }
@@ -372,7 +375,17 @@ const loadStats = async () => {
     growthRate.totalPapers = 12.5
     growthRate.weeklyNew = 8.3
   } catch (error) {
-    console.error('加载统计数据失败:', error)
+    // 使用空数据而不是抛出错误
+    dashboardStats.value = {
+      totalPapers: 0,
+      weeklyNewPapers: 0,
+      favoriteCount: 0,
+      exportCount: 0,
+      pendingTasks: 0,
+      toReadCount: 0
+    }
+    growthRate.totalPapers = 0
+    growthRate.weeklyNew = 0
   }
 }
 
@@ -388,7 +401,8 @@ const loadGrowthData = async () => {
       new: Math.floor(stat.count * 0.2) // 模拟新增数据
     }))
   } catch (error) {
-    console.error('加载增长趋势数据失败:', error)
+    // 使用空数据
+    paperGrowthData.value = []
   }
 }
 
@@ -404,7 +418,8 @@ const loadJournalData = async () => {
       percentage: journal.percentage || 0
     }))
   } catch (error) {
-    console.error('加载期刊分布数据失败:', error)
+    // 使用空数据
+    journalDistribution.value = []
   }
 }
 
@@ -420,7 +435,12 @@ const loadCCFData = async () => {
       { level: 'CCF-C', count: Math.floor(stats.totalPapers * 0.5), percentage: 0 }
     ]
   } catch (error) {
-    console.error('加载CCF分布数据失败:', error)
+    // 使用空数据
+    ccfDistribution.value = [
+      { level: 'CCF-A', count: 0, percentage: 0 },
+      { level: 'CCF-B', count: 0, percentage: 0 },
+      { level: 'CCF-C', count: 0, percentage: 0 }
+    ]
   }
 }
 
@@ -441,7 +461,8 @@ const loadRecentActivities = async () => {
       }
     }))
   } catch (error) {
-    console.error('加载最近活动失败:', error)
+    // 使用空数据
+    recentActivities.value = []
   }
 }
 
@@ -460,7 +481,9 @@ const loadRecommendations = async () => {
       { keyword: 'Transformer', count: 543, trend: 'up' }
     ]
   } catch (error) {
-    console.error('加载推荐内容失败:', error)
+    // 使用空数据
+    recommendedPapers.value = []
+    trendingSearches.value = []
   }
 }
 
@@ -496,7 +519,8 @@ const loadTodoItems = async () => {
       }
     ]
   } catch (error) {
-    console.error('加载待办事项失败:', error)
+    // 使用空数据
+    todoItems.value = []
   }
 }
 

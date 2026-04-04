@@ -1,0 +1,96 @@
+// Reset CSS
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', Arial, sans-serif;
+  line-height: 1.5;
+  color: $text-primary;
+  background-color: $bg-color-page;
+}
+
+// Remove list styles
+ul,
+ol {
+  list-style: none;
+}
+
+// Remove link styles
+a {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    color: $primary-color;
+  }
+
+  &:active {
+    color: darken($primary-color, 10%);
+  }
+}
+
+// Remove button styles
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// Remove input styles
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// Remove table styles
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+// Remove image styles
+img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+// Remove heading styles
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-weight: 500;
+}
+
+// Remove paragraph styles
+p {
+  margin: 0;
+}

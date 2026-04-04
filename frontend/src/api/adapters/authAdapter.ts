@@ -37,6 +37,15 @@ interface BackendLoginResponse {
 }
 
 /**
+ * 后端注册响应格式（没有 token）
+ */
+interface BackendRegisterResponse {
+  success: boolean
+  message?: string
+  user: BackendUser
+}
+
+/**
  * 后端用户信息格式
  */
 interface BackendUser {
@@ -61,14 +70,14 @@ interface BackendUser {
  * 前端登录请求转后端格式
  *
  * @example
- * // 前端: { email: "user@example.com", password: "pass123" }
- * // 后端: { username: "user@example.com", password: "pass123" }
+ * // 前端: { username: "testuser", password: "pass123" }
+ * // 后端: { username: "testuser", password: "pass123" }
  */
 export const transformLoginRequest = (frontendRequest: LoginRequest): BackendLoginRequest => {
   return {
-    username: frontendRequest.email, // 关键转换：email -> username
+    username: frontendRequest.username || frontendRequest.email, // 支持username或email字段
     password: frontendRequest.password,
-    rememberMe: false, // 前端LoginRequest没有rememberMe字段，默认false
+    rememberMe: frontendRequest.rememberMe || false,
   }
 }
 
@@ -85,6 +94,21 @@ export const transformRegisterRequest = (frontendRequest: RegisterRequest): Reco
   }
 }
 
+/**
+ * 后端注册响应转前端格式
+ * 注册成功后不包含 token，需要单独登录
+ */
+export const transformRegisterResponse = (backendResponse: BackendRegisterResponse): AuthResponse => {
+  return {
+    user: transformUser(backendResponse.user),
+    tokens: {
+      accessToken: '', // 注册后没有 token，需要登录
+      refreshToken: '',
+      expiresAt: 0,
+    }
+  }
+}
+
 // ============================================================================
 // 响应转换函数（后端 -> 前端）
 // ============================================================================
@@ -96,15 +120,20 @@ export const transformRegisterRequest = (frontendRequest: RegisterRequest): Reco
  * // 后端: { success: true, access_token: "xxx", user: { ... } }
  * // 前端: { user: { ... }, tokens: { accessToken: "xxx", ... } }
  */
-export const transformLoginResponse = (backendResponse: BackendLoginResponse): AuthResponse => {
+export const transformLoginResponse = (backendResponse: any): AuthResponse => {
   const backendUser = backendResponse.user
+
+  // 处理后端可能没有 refresh_token 的情况（stub模式）
+  const accessToken = backendResponse.access_token || ''
+  const refreshToken = backendResponse.refresh_token || accessToken // 如果没有refresh_token，复用access_token
+  const expiresIn = backendResponse.expires_in || 3600
 
   return {
     user: transformUser(backendUser),
     tokens: {
-      accessToken: backendResponse.access_token,
-      refreshToken: backendResponse.refresh_token,
-      expiresAt: calculateExpiresAt(backendResponse.expires_in),
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      expiresAt: calculateExpiresAt(expiresIn),
     }
   }
 }
@@ -157,7 +186,8 @@ const splitFullName = (fullName: string): { firstName: string; lastName: string 
 /**
  * 规范化角色名称
  */
-const normalizeRole = (role: string): User['role'] => {
+const normalizeRole = (role: string | undefined): User['role'] => {
+  if (!role) return 'user' // 如果 role 为空，默认为 user
   const normalized = role.toLowerCase()
   if (normalized === 'admin' || normalized === 'superadmin') return 'admin'
   if (normalized === 'premium') return 'premium'

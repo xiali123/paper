@@ -17,6 +17,7 @@ import {
   transformLoginRequest,
   transformLoginResponse,
   transformRegisterRequest,
+  transformRegisterResponse,
   transformUser
 } from '@/api/adapters/authAdapter'
 
@@ -44,8 +45,10 @@ interface BackendLoginResponse {
  * Login request payload
  */
 export interface LoginRequest {
-  email: string
+  username?: string  // 可选：支持用户名登录
+  email?: string     // 可选：支持邮箱登录
   password: string
+  rememberMe?: boolean
 }
 
 /**
@@ -177,10 +180,10 @@ export const authApi = {
     const backendRequest = transformRegisterRequest(data)
 
     // 发送请求到后端
-    const backendResponse = await request.post<BackendLoginResponse>('/api/auth/register', backendRequest)
+    const backendResponse = await request.post<any>('/api/auth/register', backendRequest)
 
-    // 转换响应格式
-    return transformLoginResponse(backendResponse)
+    // 转换响应格式 - 注册响应不包含 token
+    return transformRegisterResponse(backendResponse)
   },
 
   /**

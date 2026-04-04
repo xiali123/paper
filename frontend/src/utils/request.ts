@@ -3,7 +3,7 @@ import { ElMessage } from '@/utils/notification'
 import { transformApiError, createUserFriendlyMessage, type ApiError } from '@/api/adapters/errorAdapter'
 
 const service: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_APP_API_BASE_URL || 'http://localhost:8080',
   timeout: 30000,  // 30秒超时
   headers: {
     'Content-Type': 'application/json'

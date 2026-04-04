@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Token 保存测试</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        .section { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f4f4f5; padding: 10px; border-radius: 4px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Token 保存测试</h1>
+
+    <div class="section">
+        <h3>1. 测试 persistTokens 函数</h3>
+        <button onclick="testPersistTokens()">测试保存完整 Token</button>
+        <pre id="persist-result">等待测试...</pre>
+    </div>
+
+    <div class="section">
+        <h3>2. 检查 localStorage 内容</h3>
+        <button onclick="checkLocalStorage()">检查 localStorage</button>
+        <pre id="storage-result">等待检查...</pre>
+    </div>
+
+    <div class="section">
+        <h3>3. 模拟 AuthStore 逻辑</h3>
+        <button onclick="simulateAuthStore()">模拟 AuthStore</button>
+        <pre id="authstore-result">等待模拟...</pre>
+    </div>
+
+    <div class="section">
+        <h3>4. 检查 AuthTokens 类型</h3>
+        <button onclick="checkAuthTokensType()">检查类型</button>
+        <pre id="type-result">等待检查...</pre>
+    </div>
+
+    <script>
+        // 模拟 persistTokens 函数
+        function persistTokens(tokens) {
+            console.log('persistTokens 被调用，参数:', tokens);
+            console.log('tokens 类型:', typeof tokens);
+            console.log('tokens.accessToken:', tokens.accessToken);
+            console.log('tokens.refreshToken:', tokens.refreshToken);
+            console.log('tokens.expiresAt:', tokens.expiresAt);
+
+            localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+            console.log('已保存到 localStorage');
+        }
+
+        // 测试 persistTokens
+        function testPersistTokens() {
+            const testTokens = {
+                accessToken: 'test_access_token_123',
+                refreshToken: 'test_refresh_token_456',
+                expiresAt: Date.now() + 3600000
+            };
+
+            console.log('测试 Token:', testTokens);
+            persistTokens(testTokens);
+
+            const saved = localStorage.getItem('auth_tokens');
+            const parsed = JSON.parse(saved);
+
+            document.getElementById('persist-result').innerHTML =
+                '<span class="success">✅ 保存成功</span>\n' +
+                '原始 Token:\n' + JSON.stringify(testTokens, null, 2) + '\n\n' +
+                '保存后读取:\n' + JSON.stringify(parsed, null, 2);
+
+            // 验证完整性
+            if (parsed.accessToken === testTokens.accessToken &&
+                parsed.refreshToken === testTokens.refreshToken &&
+                parsed.expiresAt === testTokens.expiresAt) {
+                document.getElementById('persist-result').innerHTML += '\n\n<span class="success">✅ Token 完整性验证通过</span>';
+            } else {
+                document.getElementById('persist-result').innerHTML += '\n\n<span class="error">❌ Token 完整性验证失败</span>';
+            }
+        }
+
+        // 检查 localStorage
+        function checkLocalStorage() {
+            const stored = localStorage.getItem('auth_tokens');
+            if (!stored) {
+                document.getElementById('storage-result').innerHTML = '<span class="error">❌ localStorage 中没有 auth_tokens</span>';
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(stored);
+                document.getElementById('storage-result').innerHTML =
+                    'localStorage 内容:\n' + JSON.stringify(parsed, null, 2) + '\n\n' +
+                    '字段检查:\n' +
+                    '- accessToken: ' + (parsed.accessToken ? '✅ 存在' : '❌ 缺失') + '\n' +
+                    '- refreshToken: ' + (parsed.refreshToken ? '✅ 存在' : '❌ 缺失') + '\n' +
+                    '- expiresAt: ' + (parsed.expiresAt ? '✅ 存在' : '❌ 缺失');
+            } catch (e) {
+                document.getElementById('storage-result').innerHTML = '<span class="error">❌ 解析失败: ' + e.message + '</span>';
+            }
+        }
+
+        // 模拟 AuthStore 逻辑
+        function simulateAuthStore() {
+            const mockUser = {
+                id: 1,
+                username: 'testuser',
+                email: 'test@example.com',
+                fullName: '测试用户',
+                role: 'admin'
+            };
+
+            const mockTokens = {
+                accessToken: `mock_token_${Date.now()}`,
+                refreshToken: `mock_refresh_${Date.now()}`,
+                expiresAt: Date.now() + (24 * 60 * 60 * 1000)
+            };
+
+            console.log('模拟 AuthStore login()');
+            console.log('mockUser:', mockUser);
+            console.log('mockTokens:', mockTokens);
+
+            // 模拟保存
+            localStorage.setItem('auth_user', JSON.stringify(mockUser));
+            persistTokens(mockTokens);
+
+            document.getElementById('authstore-result').innerHTML =
+                '模拟用户:\n' + JSON.stringify(mockUser, null, 2) + '\n\n' +
+                '模拟 Token:\n' + JSON.stringify(mockTokens, null, 2) + '\n\n' +
+                '<span class="success">✅ 模拟完成，请检查 localStorage</span>';
+        }
+
+        // 检查 AuthTokens 类型
+        function checkAuthTokensType() {
+            const token = {
+                accessToken: 'test',
+                refreshToken: 'test',
+                expiresAt: 123456
+            };
+
+            const keys = Object.keys(token);
+            const values = Object.values(token);
+
+            document.getElementById('type-result').innerHTML =
+                'Token 对象结构:\n' +
+                '- 键: ' + JSON.stringify(keys) + '\n' +
+                '- 值: ' + JSON.stringify(values) + '\n' +
+                '- 键数量: ' + keys.length + '\n\n' +
+                '类型检查:\n' +
+                '- accessToken 类型: ' + typeof token.accessToken + '\n' +
+                '- refreshToken 类型: ' + typeof token.refreshToken + '\n' +
+                '- expiresAt 类型: ' + typeof token.expiresAt;
+        }
+
+        // 清除数据
+        function clearData() {
+            localStorage.removeItem('auth_tokens');
+            localStorage.removeItem('auth_user');
+            location.reload();
+        }
+    </script>
+
+    <div class="section">
+        <button onclick="clearData()" style="background: #f56c6c; color: white;">清除所有数据并刷新</button>
+    </div>
+</body>
+</html>

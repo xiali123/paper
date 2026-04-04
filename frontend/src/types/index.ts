@@ -875,6 +875,25 @@ export type {
   SearchSuggestion
 } from './search'
 
+// Export dashboard types
+export type {
+  DashboardStats,
+  QuickAction,
+  RecentActivity,
+  RecommendedPaper,
+  TrendingSearch,
+  TodoItem,
+  CrawlerTask,
+  PaperGrowthData,
+  JournalDistributionData,
+  CCFLevelDistribution,
+  ResearchInterestData,
+  DashboardConfig,
+  WidgetConfig,
+  DashboardData,
+  WeatherInfo
+} from './dashboard'
+
 // Default export containing all types
 export default {
   // Enums

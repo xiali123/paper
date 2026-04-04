@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>认证状态调试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #409EFF; padding-bottom: 10px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #f0f9ff; border-left: 4px solid #409EFF; }
+        .error { background: #fef0f0; border-left: 4px solid #f56c6c; }
+        .info { background: #f4f4f5; border-left: 4px solid #909399; }
+        pre { background: #f4f4f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        button {
+            background: #409EFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #66b1ff; }
+        button.danger { background: #f56c6c; }
+        button.danger:hover { background: #f78989; }
+    </style>
+</head>
+<body>
+    <h1>🔍 认证状态调试工具</h1>
+
+    <div class="card">
+        <h2>1. 本地存储检查</h2>
+        <div id="localStorage-status" class="status info">检查中...</div>
+        <button onclick="checkLocalStorage()">刷新检查</button>
+        <button onclick="clearAuthData()" class="danger">清除认证数据</button>
+    </div>
+
+    <div class="card">
+        <h2>2. API 连接测试</h2>
+        <div id="api-status" class="status info">未测试</div>
+        <button onclick="testBackendAPI()">测试后端 API</button>
+        <button onclick="testLoginAPI()">测试登录 API</button>
+    </div>
+
+    <div class="card">
+        <h2>3. 登录测试</h2>
+        <div style="margin: 10px 0;">
+            <input type="email" id="test-email" placeholder="测试邮箱" value="test@example.com" style="padding: 8px; width: 200px;">
+            <input type="password" id="test-password" placeholder="测试密码" value="password123" style="padding: 8px; width: 150px;">
+        </div>
+        <button onclick="testLogin()">执行登录</button>
+        <div id="login-status" class="status info">未登录</div>
+    </div>
+
+    <div class="card">
+        <h2>4. 路由状态</h2>
+        <div id="route-status" class="status info">
+            当前 URL: <span id="current-url"></span><br>
+            路由路径: <span id="route-path"></span>
+        </div>
+        <button onclick="checkRoute()">检查路由</button>
+        <button onclick="navigateToLogin()">跳转到登录页</button>
+        <button onclick="navigateToDashboard()">跳转到仪表板</button>
+    </div>
+
+    <script>
+        // 更新当前URL
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('route-path').textContent = window.location.pathname;
+
+        // 检查本地存储
+        function checkLocalStorage() {
+            const statusDiv = document.getElementById('localStorage-status');
+            const tokens = localStorage.getItem('auth_tokens');
+            const user = localStorage.getItem('auth_user');
+
+            if (!tokens && !user) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '❌ 未找到认证数据<br>localStorage 为空';
+            } else {
+                statusDiv.className = 'status success';
+                let html = '✅ 找到认证数据<br><br>';
+                if (tokens) {
+                    try {
+                        const tokensObj = JSON.parse(tokens);
+                        html += '<strong> Tokens:</strong><br>';
+                        html += '<pre>' + JSON.stringify(tokensObj, null, 2) + '</pre>';
+                    } catch (e) {
+                        html += '<strong> Tokens:</strong> (解析失败)<br>';
+                        html += '<pre>' + tokens + '</pre>';
+                    }
+                }
+                if (user) {
+                    try {
+                        const userObj = JSON.parse(user);
+                        html += '<strong> User:</strong><br>';
+                        html += '<pre>' + JSON.stringify(userObj, null, 2) + '</pre>';
+                    } catch (e) {
+                        html += '<strong> User:</strong> (解析失败)<br>';
+                        html += '<pre>' + user + '</pre>';
+                    }
+                }
+                statusDiv.innerHTML = html;
+            }
+        }
+
+        // 清除认证数据
+        function clearAuthData() {
+            if (confirm('确定要清除所有认证数据吗？')) {
+                localStorage.removeItem('auth_tokens');
+                localStorage.removeItem('auth_user');
+                checkLocalStorage();
+                alert('认证数据已清除');
+            }
+        }
+
+        // 测试后端 API
+        async function testBackendAPI() {
+            const statusDiv = document.getElementById('api-status');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '测试中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/health');
+                if (response.ok) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ 后端 API 连接正常';
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `❌ 后端返回错误: ${response.status}`;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ 后端连接失败: ${error.message}`;
+            }
+        }
+
+        // 测试登录 API
+        async function testLoginAPI() {
+            const statusDiv = document.getElementById('api-status');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '测试登录 API...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'test@example.com',
+                        password: 'password123'
+                    })
+                });
+
+                const data = await response.json();
+                statusDiv.className = response.ok ? 'status success' : 'status error';
+                statusDiv.innerHTML = `<strong>响应 (${response.status}):</strong><br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ 请求失败: ${error.message}`;
+            }
+        }
+
+        // 测试登录
+        async function testLogin() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            const statusDiv = document.getElementById('login-status');
+
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '登录中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success || data.access_token) {
+                    // 保存到 localStorage
+                    const tokens = {
+                        accessToken: data.access_token,
+                        refreshToken: data.refresh_token || data.access_token,
+                        expiresAt: Date.now() + (data.expires_in || 3600) * 1000
+                    };
+                    localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+
+                    if (data.user) {
+                        localStorage.setItem('auth_user', JSON.stringify(data.user));
+                    }
+
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `✅ 登录成功！<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    checkLocalStorage();
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = `❌ 登录失败<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ 登录失败: ${error.message}`;
+            }
+        }
+
+        // 检查路由
+        function checkRoute() {
+            document.getElementById('current-url').textContent = window.location.href;
+            document.getElementById('route-path').textContent = window.location.pathname;
+        }
+
+        // 跳转到登录页
+        function navigateToLogin() {
+            window.location.href = '/auth/login';
+        }
+
+        // 跳转到仪表板
+        function navigateToDashboard() {
+            window.location.href = '/dashboard';
+        }
+
+        // 页面加载时自动检查
+        window.onload = function() {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>
