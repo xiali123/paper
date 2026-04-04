@@ -1,469 +1,251 @@
-# 📚 测试套件完整指南 (Testing Suite Guide)
+# PaperCrawler 后端 API 测试套件
 
-**版本**: 1.0.0
-**日期**: 2026-04-04
-**项目**: PaperCrawler v1.0.0
+**目录**: `backend/tests/`
+**创建时间**: 2026-04-04
+**分支**: `test/all-modules-api-validation`
 
 ---
 
-## 🎯 测试概览
+## 📋 目录结构
 
-本项目包含3类测试，覆盖从集成到压力的完整验证流程：
-
-| 测试类型 | 目的 | 预计耗时 | 状态 |
-|---------|------|---------|------|
-| **集成测试** | 验证系统各部分协同工作 | 30分钟 | ⏳ 待执行 |
-| **性能测试** | 确认无性能影响 | 45分钟 | ⏳ 待执行 |
-| **压力测试** | 验证高并发场景稳定性 | 60分钟 | ⏳ 待执行 |
-
-**总计**: ~2.5小时
+```
+backend/tests/
+├── api/
+│   ├── run_all_tests.sh          # 主测试执行脚本 ⭐
+│   ├── test_crawler_api.sh      # CrawlerApi测试 (29个端点)
+│   ├── test_auth_api.sh          # AuthApi测试
+│   ├── test_user_api.sh          # UserApi测试
+│   ├── test_paper_api.sh         # PaperApi测试
+│   ├── test_search_api.sh        # SearchApi测试
+│   ├── test_export_api.sh        # ExportApi测试
+│   ├── test_stats_api.sh         # StatsApi测试
+│   ├── test_ai_api.sh            # AiApi测试
+│   └── test_recommendation_api.sh # RecommendationApi测试
+├── lib/
+│   └── test_utils.sh             # 测试工具库
+└── reports/
+    ├── all_modules_test_report.json     # 综合测试报告
+    ├── CrawlerApi_results.json          # CrawlerApi详细报告
+    ├── AuthApi_results.json              # AuthApi详细报告
+    ├── UserApi_results.json              # UserApi详细报告
+    ├── PaperApi_results.json             # PaperApi详细报告
+    ├── SearchApi_results.json            # SearchApi详细报告
+    ├── ExportApi_results.json            # ExportApi详细报告
+    ├── StatsApi_results.json             # StatsApi详细报告
+    ├── AiApi_results.json                # AiApi详细报告
+    └── RecommendationApi_results.json     # RecommendationApi详细报告
+```
 
 ---
 
 ## 🚀 快速开始
 
-### 一键运行所有测试
-```batch
-cd E:\PaperCrawler\backend
-run_all_tests.bat
+### 1. 启动服务器
+
+```bash
+cd backend/build/Release
+./PaperCrawlerServerHotPlug.exe ../../config/modules_auto.json
 ```
 
-### 分步执行测试
-```batch
-# 1. 集成测试
-cd tests\integration
-python test_api_integration.py
+### 2. 运行所有测试
 
-# 2. 性能测试
-cd tests\performance
-python benchmark_api_response.py
-
-# 3. 压力测试
-cd tests\stress
-python stress_test_spike.py
+```bash
+cd backend/tests
+./api/run_all_tests.sh
 ```
 
----
+### 3. 查看测试结果
 
-## 📁 目录结构
+```bash
+# 查看综合报告
+cat backend/tests/reports/all_modules_test_report.json | jq
 
-```
-backend/tests/
-├── integration/                     # 集成测试
-│   ├── test_plan.md                # 测试计划
-│   ├── test_api_integration.py    # API测试脚本
-│   └── test_database_integration.py # 数据库测试脚本
-│
-├── performance/                    # 性能测试
-│   ├── test_plan.md                # 测试计划
-│   ├── benchmark_sql_escape.cpp    # SQL转义性能测试
-│   ├── benchmark_api_response.py   # API响应时间测试
-│   └── benchmark_memory.py        # 内存使用监控
-│
-├── stress/                         # 压力测试
-│   ├── test_plan.md                # 测试计划
-│   ├── stress_test_concurrent_users.py # 并发用户测试
-│   ├── stress_test_spike.py        # 峰值流量测试
-│   ├── stress_test_sql_injection.py # SQL注入压力测试
-│   └── stress_test_endurance.py     # 长时间稳定性测试
-│
-├── security/                        # 安全测试（已完成）
-│   ├── README.md
-│   ├── test_sql_injection.py       # ✅ 已执行，100%通过
-│   └── test_security_standalone.cpp
-│
-├── TEST_RESULT_TEMPLATE.md         # 测试结果模板
-└── run_all_tests.bat               # 一键测试脚本
+# 查看特定模块报告
+cat backend/tests/reports/CrawlerApi_results.json | jq
 ```
 
 ---
 
-## 📋 测试1: 集成测试 (Integration Tests)
+## 📊 测试覆盖范围
 
-### 目的
-验证修复后的系统与现有环境集成无问题
+### CrawlerApi (29个端点 + 1个WebSocket)
 
-### 测试内容
-1. **模块加载测试** - 验证10个模块全部正确加载
-2. **数据库连接测试** - 验证SQL转义不影响数据库操作
-3. **API端点测试** - 验证所有API响应正常
-4. **日志系统测试** - 验证日志正常生成
-5. **配置加载测试** - 验证配置生效
+**模板管理** (9个端点):
+- ✅ GET /api/crawler/templates
+- ✅ POST /api/crawler/templates
+- ✅ GET /api/crawler/templates/:id
+- ✅ PUT /api/crawler/templates/:id
+- ✅ DELETE /api/crawler/templates/:id
+- ✅ POST /api/crawler/templates/validate
+- ✅ POST /api/crawler/templates/:id/test
+- ✅ GET /api/crawler/templates/:id/export
+- ✅ POST /api/crawler/templates/import
 
-### 执行方法
-```batch
-# 方法1: 使用Python脚本
-cd tests\integration
-python test_api_integration.py
-python test_database_integration.py
+**任务管理** (7个端点):
+- ✅ POST /api/crawler/tasks
+- ✅ GET /api/crawler/tasks
+- ✅ GET /api/crawler/tasks/:id
+- ✅ DELETE /api/crawler/tasks/:id
+- ✅ POST /api/crawler/tasks/:id/retry
+- ✅ GET /api/crawler/tasks/:id/logs
+- ✅ GET /api/crawler/tasks/statistics
 
-# 方法2: 手动验证
-# 1. 启动服务器
-cd E:\PaperCrawler\Production
-PaperCrawlerServer.exe
+**定时任务** (7个端点):
+- ✅ POST /api/crawler/schedules
+- ✅ GET /api/crawler/schedules
+- ✅ PUT /api/crawler/schedules/:id
+- ✅ DELETE /api/crawler/schedules/:id
+- ✅ POST /api/crawler/schedules/:id/enable
+- ✅ POST /api/crawler/schedules/:id/disable
+- ✅ POST /api/crawler/schedules/:id/trigger
 
-# 2. 测试健康检查
-curl http://localhost:8080/api/health
+**工作节点** (4个端点):
+- ✅ GET /api/crawler/workers
+- ✅ GET /api/crawler/workers/:id
+- ✅ POST /api/crawler/workers/:id/disable
+- ✅ GET /api/crawler/workers/:id/statistics
 
-# 3. 测试搜索API（含SQL转义验证）
-curl -X POST http://localhost:8080/api/papers/search ^
-  -H "Content-Type: application/json" ^
-  -d "{\"query\":\"admin' OR '1'='1\",\"page\":1,\"limit\":10}"
-```
+**系统统计** (2个端点):
+- ✅ GET /api/crawler/dashboard
+- ✅ GET /api/crawler/statistics
 
-### 验收标准
-- [ ] 10/10模块成功加载
-- [ ] 数据库连接成功
-- [ ] SQL注入防护生效（恶意输入被转义）
-- [ ] 所有API端点响应正常（< 500错误）
-- [ ] 日志文件正常生成
+**WebSocket** (1个端点):
+- ⚠️ WS /api/crawler/ws (需要专门的WebSocket测试工具)
 
-### 文档
-📄 [integration/test_plan.md](tests/integration/test_plan.md)
+### 其他模块
 
----
+| 模块 | 测试端点数 | 主要功能 |
+|------|------------|----------|
+| AuthApi | 6 | 用户认证、授权、profile管理 |
+| UserApi | 5 | 用户CRUD操作 |
+| PaperApi | 4 | 论文搜索、统计 |
+| SearchApi | 2 | 高级搜索 |
+| ExportApi | 3 | 数据导出 |
+| StatsApi | 4 | 统计数据 |
+| AiApi | 4 | AI聊天、摘要、关键词提取 |
+| RecommendationApi | 3 | 论文推荐 |
 
-## ⚡ 测试2: 性能测试 (Performance Tests)
-
-### 目的
-确认SQL转义修复对性能无负面影响
-
-### 测试内容
-1. **SQL转义性能测试** - 验证转义函数< 0.1ms
-2. **API响应时间测试** - 验证平均响应< 100ms
-3. **内存使用监控** - 验证无内存泄漏
-
-### 执行方法
-
-#### SQL转义性能测试
-```batch
-cd tests\performance
-
-# 编译C++性能测试程序
-cl /EHsc /std:c++17 /O2 /Fe:benchmark.exe benchmark_sql_escape.cpp
-
-# 运行
-benchmark.exe
-
-# 预期输出:
-# 测试用例长度: 5 字符
-# 平均耗时: 0.015 μs/次
-# 性能评估: ✓ 优秀 (< 0.1ms)
-```
-
-#### API响应时间测试
-```batch
-cd tests\performance
-
-# 运行Python性能测试
-python benchmark_api_response.py
-
-# 预期输出:
-# 平均响应时间: 45 ms
-# P95响应时间: 95 ms
-# 性能评估: ✓ 优秀
-```
-
-#### 内存监控
-```batch
-cd tests\performance
-
-# 监控1分钟
-python benchmark_memory.py 60
-
-# 预期输出:
-# 内存增长: 2.5 MB
-# 评估: ✓ 内存稳定
-```
-
-### 验收标准
-- [ ] SQL转义平均耗时 < 0.1ms
-- [ ] API平均响应时间 < 100ms
-- [ ] API P95响应时间 < 200ms
-- [ ] 内存增长（1000次查询）< 10MB
-
-### 文档
-📄 [performance/test_plan.md](tests/performance/test_plan.md)
+**总测试端点**: 29 + 6 + 5 + 4 + 2 + 3 + 4 + 4 + 3 = **60**
 
 ---
 
-## 🔥 测试3: 压力测试 (Stress Tests)
+## 📈 测试报告格式
 
-### 目的
-模拟高并发场景，验证系统稳定性
+### 综合报告 (`all_modules_test_report.json`)
 
-### 测试内容
-1. **并发用户测试** - 100个并发用户
-2. **峰值流量测试** - 瞬时200并发
-3. **SQL注入压力测试** - 恶意输入并发攻击
-4. **长时间稳定性测试** - 持续30分钟
-
-### 执行方法
-
-#### 安装工具
-```batch
-# 安装Locust（压力测试工具）
-pip install locust
-pip install requests
-pip install psutil
-```
-
-#### 并发用户测试
-```batch
-cd tests\stress
-
-# 方法1: 使用Locust Web界面（推荐）
-locust -f stress_test_concurrent_users.py --host=http://localhost:8080 --users=100 --spawn-rate=10 --run-time=1m
-
-# 然后访问: http://localhost:8080
-```
-
-#### 峰值流量测试
-```batch
-cd tests\stress
-
-# 模拟200瞬时并发
-python stress_test_spike.py
-
-# 预期输出:
-# 并发用户: 200
-# 成功率: 100%
-# 平均响应时间: 52 ms
-```
-
-#### SQL注入压力测试
-```batch
-cd tests\stress
-
-# 模拟8种攻击载荷，每种100并发
-python stress_test_sql_injection.py
-
-# 预期输出:
-# 攻击载荷: 8种
-# 防护成功率: 100%
-# 结果: ✓ 所有攻击被成功防护
-```
-
-#### 长时间稳定性测试
-```batch
-cd tests\stress
-
-# 运行30分钟稳定性测试
-python stress_test_endurance.py 30
-
-# 预期输出:
-# 测试时长: 30 分钟
-# 错误数: 0
-# 内存增长: < 50 MB
-```
-
-### 验收标准
-- [ ] 100并发用户成功率 > 99%
-- [ ] 200瞬时并发成功率 > 95%
-- [ ] SQL注入防护成功率 100%
-- [ ] 30分钟无崩溃
-- [ ] 内存增长 < 50MB
-
-### 文档
-📄 [stress/test_plan.md](tests/stress/test_plan.md)
-
----
-
-## 🤖 自动化测试工具
-
-### run_all_tests.bat
-**功能**: 一键运行所有测试并生成报告
-
-**使用方法**:
-```batch
-cd E:\PaperCrawler\backend
-run_all_tests.bat
-```
-
-**功能**:
-- ✅ 自动检测服务器状态
-- ✅ 按顺序执行集成、性能、压力测试
-- ✅ 生成详细测试日志
-- ✅ 统计测试结果
-- ✅ 生成测试报告
-
----
-
-## 📊 测试报告
-
-### 使用测试结果模板
-
-1. **复制模板**:
-```batch
-copy tests\TEST_RESULT_TEMPLATE.md test_results_20260404.md
-```
-
-2. **填写测试结果**:
-   - 根据测试日志填写各项指标
-   - 标记通过/失败的测试项
-   - 记录具体数据和观察
-
-3. **生成最终报告**:
-   - 保存为 `test_results_FINAL.md`
-   - 提交给技术负责人审查
-
----
-
-## 📈 测试指标参考
-
-### 正常指标范围
-
-| 指标 | 范围 | 说明 |
-|------|------|------|
-| SQL转义耗时 | < 0.1ms | 转义开销可忽略 |
-| API平均响应 | < 100ms | 用户体验良好 |
-| API P95响应 | < 200ms | 95%用户满意 |
-| 内存增长(30min) | < 50MB | 无内存泄漏 |
-| 并发成功率 | > 99% | 系统稳定 |
-| 峰值成功率 | > 95% | 抗冲击能力强 |
-
-### 异常指标预警
-
-| 指标 | 预警阈值 | 处理建议 |
-|------|---------|---------|
-| SQL转义耗时 | > 1ms | 检查转义函数实现 |
-| API平均响应 | > 200ms | 检查数据库查询性能 |
-| API P95响应 | > 500ms | 系统过载，需要优化 |
-| 内存增长 | > 100MB | 可能存在内存泄漏 |
-| 并发成功率 | < 95% | 系统瓶颈，需要扩容 |
-| 峰值成功率 | < 80% | 抗冲击能力弱 |
-
----
-
-## 🐛 故障排查
-
-### 常见问题
-
-#### Q1: 测试脚本执行失败
-**症状**: Python脚本无法运行
-
-**解决方案**:
-```batch
-# 安装依赖
-pip install requests mysql-connector-python psutil locust
-
-# 如果pip不可用，使用conda
-conda install requests psutil
-```
-
-#### Q2: 服务器未运行
-**症状**: 提示"PaperCrawlerServer.exe 未运行"
-
-**解决方案**:
-```batch
-# 1. 检查进程
-tasklist | findstr PaperCrawlerServer
-
-# 2. 如果未运行，启动服务器
-cd E:\PaperCrawler\Production
-PaperCrawlerServer.exe
-
-# 3. 等待3-5秒后重试测试
-```
-
-#### Q3: API连接超时
-**症状**: 请求超时错误
-
-**解决方案**:
-```batch
-# 1. 检查服务器日志
-type E:\PaperCrawler\Production\logs\papercrawler.log | findstr ERROR
-
-# 2. 检查端口占用
-netstat -ano | findstr :8080
-
-# 3. 检查防火墙
-netsh advfirewall firewall show rule name=all
-
-# 4. 重启服务器
-taskkill /F /IM PaperCrawlerServer.exe
-start PaperCrawlerServer.exe
-```
-
-#### Q4: 内存占用过高
-**症状**: 内存占用持续增长
-
-**解决方案**:
-```batch
-# 1. 监控内存使用
-tasklist | findstr PaperCrawlerServer
-
-# 2. 使用Windows性能监控器
-perfmon
-
-# 3. 检查是否有内存泄漏
-python benchmark_memory.py 60
-
-# 4. 如果确认有泄漏，重启服务器
-taskkill /F /IM PaperCrawlerServer.exe
-start PaperCrawlerServer.exe
+```json
+{
+  "test_run": {
+    "timestamp": "2026-04-04T10:45:00Z",
+    "duration_seconds": 45,
+    "branch": "test/all-modules-api-validation",
+    "commit": "abc123..."
+  },
+  "summary": {
+    "total_modules": 9,
+    "total_tests": 60,
+    "passed": 58,
+    "failed": 2,
+    "success_rate": 96.67
+  },
+  "modules": [
+    {
+      "name": "CrawlerApi",
+      "status": "pass",
+      "total": 29,
+      "passed": 29,
+      "failed": 0
+    }
+  ]
+}
 ```
 
 ---
 
-## 📞 支持联系
+## 🎯 预期测试结果
 
-**测试问题**: test-support@papercrawler.com
-**性能问题**: performance@papercrawler.com
-**紧急联系**: +86-xxx-xxxx-xxxx
+基于Router.dll方案的实施，预期结果：
+
+### 最佳情况 ✅
+
+- **总测试数**: 60+
+- **通过率**: 95%+
+- **失败**: 主要是业务逻辑错误（数据库未连接等），不是路由错误
+
+### 可接受的失败 ⚠️
+
+- **401 Unauthorized**: 认证相关端点（需要先登录）
+- **404 with message**: 业务逻辑未完全实现
+- **500**: 依赖服务未启动
+
+### 不可接受的失败 ❌
+
+- **"Route not found"**: 路由未注册（应该已修复）
+- **连接拒绝**: 服务器未启动
+- **超时**: 服务器崩溃
 
 ---
 
-## ✅ 测试完成清单
+## 🛠️ 高级用法
 
-### 集成测试
-- [ ] 模块加载验证
-- [ ] 数据库连接验证
-- [ ] API端点验证
-- [ ] SQL转义集成验证
-- [ ] 日志系统验证
-- [ ] 配置加载验证
+### 测试单个模块
 
-### 性能测试
-- [ ] SQL转义性能测试
-- [ ] API响应时间测试
-- [ ] 内存使用监控
-- [ ] 性能基准对比
+```bash
+cd backend/tests/api
 
-### 压力测试
-- [ ] 并发用户测试（100并发）
-- [ ] 峰值流量测试（200瞬时）
-- [ ] SQL注入压力测试
-- [ ] 长时间稳定性测试（30分钟）
+# 测试CrawlerApi
+./test_crawler_api.sh
 
-### 文档工作
-- [ ] 测试结果记录
-- [ ] 测试报告生成
-- [ ] 问题汇总
-- [ ] 改进建议
+# 测试AuthApi
+./test_auth_api.sh
+```
+
+### 持续监控
+
+```bash
+# 定期运行测试并记录历史
+while true; do
+    ./run_all_tests.sh
+    sleep 300  # 每5分钟测试一次
+done
+```
+
+---
+
+## 📝 维护指南
+
+### 添加新测试
+
+1. 在对应的模块测试脚本中添加 `test_endpoint()` 调用
+2. 更新测试总数计数
+3. 运行测试验证
+
+### 添加新模块测试
+
+1. 创建 `test_{ModuleName}_api.sh`
+2. 使用 `test_utils.sh` 中的函数
+3. 在 `run_all_tests.sh` 中添加到 `MODULES` 数组
 
 ---
 
 **测试套件版本**: 1.0.0
-**最后更新**: 2026-04-04 01:00
-**维护者**: QA Team
+**最后更新**: 2026-04-04
+**维护者**: Claude Code (Sonnet 4.6)
 
 ---
 
-## 🎯 测试目标
+## 🚀 快速命令参考
 
-### 短期目标（1周内）
-- ✅ 完成集成测试
-- ✅ 完成性能测试
-- ✅ 完成压力测试
-- ✅ 生成测试报告
+```bash
+# 运行所有测试
+cd backend/tests && ./api/run_all_tests.sh
 
-### 长期目标（1月内）
-- ⏳ 集成CI/CD自动化测试
-- ⏳ 每日定时性能监控
-- ⏳ 自动化压力测试
-- ⏳ 测试结果可视化仪表板
+# 查看结果
+cat backend/tests/reports/all_modules_test_report.json | jq '.summary'
 
----
+# 查看失败详情
+cat backend/tests/reports/all_modules_test_report.json | jq '.modules[] | select(.status == "fail")'
 
-**🚀 现在开始测试**: 运行 `run_all_tests.bat`
+# 统计通过率
+cat backend/tests/reports/all_modules_test_report.json | jq '.summary.success_rate'
+```
