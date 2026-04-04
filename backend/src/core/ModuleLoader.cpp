@@ -2,6 +2,7 @@
 #include "core/IModule.hpp"
 #include "core/ModuleBase.hpp"
 #include "core/Router.hpp"
+#include "data/DatabaseModule.hpp"
 #include <spdlog/spdlog.h>
 #include <filesystem>
 #include <algorithm>
@@ -350,6 +351,20 @@ bool ModuleLoader::loadModule(const ModuleMetadata& metadata) {
             businessModule->setRoutePrefix(metadata.routePrefix);
             spdlog::info("[ModuleLoader] Set Router instance and route prefix for module {}: {}",
                         metadata.name, metadata.routePrefix);
+
+            // 🔔 注入数据库连接（直接从DatabaseModule获取IDatabase接口）
+            auto* dbModule = DatabaseModule::getGlobalInstance();
+            if (dbModule) {
+                auto dbInterface = static_cast<IDatabase*>(dbModule);
+                // 创建shared_ptr，但不拥有所有权（DatabaseModule负责生命周期）
+                std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {
+                    // 空删除器
+                });
+                businessModule->setDatabase(dbPtr);
+                spdlog::info("[ModuleLoader] ✅ Injected database connection to module: {}", metadata.name);
+            } else {
+                spdlog::warn("[ModuleLoader] ⚠️ No global DatabaseModule instance, module {} will use fallback connection", metadata.name);
+            }
         }
     }
 

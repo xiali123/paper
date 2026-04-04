@@ -169,6 +169,24 @@ public:
      */
     DatabaseConfig getConfig() const;
 
+    /**
+     * @brief 获取全局DatabaseModule实例（静态方法，用于跨DLL共享）
+     * @return DatabaseModule指针（可能为nullptr）
+     */
+    static DatabaseModule* getGlobalInstance();
+
+    /**
+     * @brief 设置全局DatabaseModule实例（由主程序调用）
+     * @param instance DatabaseModule实例指针
+     */
+    static void setGlobalInstance(DatabaseModule* instance);
+
+    /**
+     * @brief 获取共享数据库连接（静态方法，供所有模块调用）
+     * @return 数据库连接的shared_ptr（可能为nullptr）
+     */
+    static std::shared_ptr<IDatabase> getSharedConnection();
+
     // 模板方法：只需实现具体逻辑，状态管理由基类处理
 protected:
     bool onInitialize() override;
@@ -241,6 +259,9 @@ protected:
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
+
+    // 静态成员：全局实例指针（用于跨DLL共享）
+    static DatabaseModule* globalInstance_;
 
     void registerRoutes();
     std::string handleQuery(const std::string& body);

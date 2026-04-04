@@ -551,10 +551,12 @@ add_library(SystemModules STATIC
     src/data/QueryBuilder.cpp        # 添加QueryBuilder支持
     src/data/DatabaseModule.cpp     # 添加DatabaseModule支持
     src/data/MySqlConnection.cpp     # ⭐ 添加MySqlConnection支持（UserApiModule需要）
+    src/data/SimpleMySQLDatabase.cpp # ⭐ 添加SimpleMySQLDatabase支持（AuthApiModule直接使用）
     src/common/JsonUtils.cpp        # 添加JsonUtils支持（CrawlerApiModule需要）
     src/modules/TemplateCrawlerModule.cpp  # 完整实现（需要gumbo）
-    # 核心框架源文件（MessageBus等）⭐ 新增
+    # 核心框架源文件（MessageBus等）
     src/core/MessageBus.cpp
+    # src/core/SharedBroadcastQueue.cpp  # ⚠️ 暂时移除，使用getDatabaseConnection()方案
     src/core/UnifiedMessage.cpp
     src/core/MessagePool.cpp
     src/core/PoolCoordinator.cpp

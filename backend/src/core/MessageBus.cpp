@@ -15,10 +15,14 @@ void MessageBus::registerHandler(MessageType messageType,
                                 const std::string& moduleName) {
     std::lock_guard<std::mutex> lock(mutex_);
 
+    spdlog::info("[MessageBus] 📝 Registering handler: type={}, module={}",
+                 static_cast<int>(messageType), moduleName);
+
     handlers_[messageType][moduleName] = handler;
 
-    spdlog::debug("Registered handler for type {} from module {}",
-        static_cast<int>(messageType), moduleName);
+    spdlog::info("[MessageBus] ✅ Handler registered successfully. Total handlers for type {}: {}",
+                 static_cast<int>(messageType),
+                 handlers_[messageType].size());
 }
 
 void MessageBus::unregisterHandler(MessageType messageType, const std::string& moduleName) {
@@ -35,17 +39,34 @@ void MessageBus::unregisterHandler(MessageType messageType, const std::string& m
 void MessageBus::send(std::shared_ptr<ModuleMessage> message) {
     totalMessages_++;
 
+    spdlog::info("[MessageBus] 📤 Sending message: type={}, source={}, target={}",
+                 static_cast<int>(message->getType()),
+                 message->getSource(),
+                 message->getTarget());
+
     std::lock_guard<std::mutex> lock(mutex_);
+
+    spdlog::info("[MessageBus] 📊 Total handlers registered: {}", handlers_.size());
 
     auto typeIt = handlers_.find(message->getType());
     if (typeIt != handlers_.end()) {
+        spdlog::info("[MessageBus] ✅ Found {} handlers for message type {}",
+                     typeIt->second.size(),
+                     static_cast<int>(message->getType()));
+
         for (auto& handlerPair : typeIt->second) {
+            spdlog::info("[MessageBus] 🔄 Calling handler: {}", handlerPair.first);
             try {
-                handlerPair.second(message);
+                auto response = handlerPair.second(message);
+                if (response) {
+                    spdlog::info("[MessageBus] ✅ Handler {} returned response", handlerPair.first);
+                }
             } catch (const std::exception& e) {
-                spdlog::error("Message handler error: {}", e.what());
+                spdlog::error("[MessageBus] ❌ Message handler error: {}", e.what());
             }
         }
+    } else {
+        spdlog::warn("[MessageBus] ⚠️ No handlers found for message type {}", static_cast<int>(message->getType()));
     }
 }
 

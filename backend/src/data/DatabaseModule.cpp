@@ -11,6 +11,12 @@
 namespace PaperCrawler {
 
 // ============================================================================
+// 静态成员初始化
+// ============================================================================
+
+DatabaseModule* DatabaseModule::globalInstance_ = nullptr;
+
+// ============================================================================
 // DatabaseModule 实现
 // ============================================================================
 
@@ -516,6 +522,45 @@ bool DatabaseModule::restore(const std::string& backupPath) {
     std::cout << "[Database] Restore from: " << backupPath << std::endl;
     // TODO: 实现实际的恢复逻辑
     return true;
+}
+
+// ============================================================================
+// 静态方法实现（用于跨DLL共享）
+// ============================================================================
+
+DatabaseModule* DatabaseModule::getGlobalInstance() {
+    return globalInstance_;
+}
+
+void DatabaseModule::setGlobalInstance(DatabaseModule* instance) {
+    globalInstance_ = instance;
+}
+
+std::shared_ptr<IDatabase> DatabaseModule::getSharedConnection() {
+    std::cout << "[Database] getSharedConnection() called" << std::endl;
+    if (!globalInstance_) {
+        std::cout << "[Database] ❌ globalInstance_ is nullptr!" << std::endl;
+        return nullptr;
+    }
+
+    std::cout << "[Database] ✅ globalInstance_ exists, testing connection..." << std::endl;
+
+    // 转换为IDatabase接口并测试连接
+    auto dbInterface = static_cast<IDatabase*>(globalInstance_);
+    bool connected = dbInterface->testConnection();
+
+    std::cout << "[Database] testConnection() returned: " << (connected ? "true" : "false") << std::endl;
+
+    if (connected) {
+        // 返回shared_ptr，但不负责删除（由globalInstance_拥有所有权）
+        return std::shared_ptr<IDatabase>(dbInterface, [](IDatabase* ptr) {
+            // 空删除器，因为DatabaseModule拥有生命周期
+            (void)ptr;
+        });
+    }
+
+    std::cout << "[Database] ❌ testConnection() failed, returning nullptr" << std::endl;
+    return nullptr;
 }
 
 // ============================================================================

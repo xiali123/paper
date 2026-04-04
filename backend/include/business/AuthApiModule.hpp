@@ -3,6 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
+#include "data/SimpleMySQLDatabase.hpp"
 #include <string>
 #include <map>
 #include <optional>
@@ -159,8 +160,11 @@ struct AuthStats {
     uint64_t successfulLogins{0};
     uint64_t failedLogins{0};
     uint64_t totalRegistrations{0};
+    uint64_t successfulRegistrations{0};
+    uint64_t failedRegistrations{0};
     uint64_t activeSessions{0};
     std::chrono::system_clock::time_point lastLoginTime;
+    std::chrono::system_clock::time_point lastRegistrationTime;
 };
 
 /**

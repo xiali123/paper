@@ -3,6 +3,7 @@
 #include "core/IModule.hpp"
 #include "core/Router.hpp"
 #include "core/ModuleExports.hpp"
+#include "data/IDatabase.hpp"
 #include <map>
 #include <memory>
 #include <functional>
@@ -242,6 +243,22 @@ public:
     }
 
     /**
+     * @brief 设置数据库连接（由ModuleLoader调用）
+     * @param database 数据库接口指针
+     */
+    void setDatabase(std::shared_ptr<IDatabase> database) {
+        database_ = database;
+    }
+
+    /**
+     * @brief 获取数据库连接
+     * @return 数据库接口指针（可能为nullptr）
+     */
+    std::shared_ptr<IDatabase> getDatabase() const {
+        return database_;
+    }
+
+    /**
      * @brief 初始化并注册路由
      */
     bool initialize() override {
@@ -377,6 +394,7 @@ public:
 
 protected:
     Router* router_ = nullptr;  // Router实例（由ModuleLoader设置）
+    std::shared_ptr<IDatabase> database_;  // 数据库连接（由ModuleLoader注入）
     std::string routePrefix_;  // 路由前缀
     std::map<std::string, RouteHandler> routes_;
     std::vector<std::function<HttpResponse(const HttpRequest&)>> beforeMiddlewares_;

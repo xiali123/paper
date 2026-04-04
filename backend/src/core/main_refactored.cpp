@@ -40,6 +40,7 @@
 #include "core/HttpTypes.hpp"
 #include "core/ConfigManager.hpp"
 #include "core/ServiceContainer.hpp"
+#include "core/SharedBroadcastQueue.hpp"  // ⭐ 新增：共享内存广播队列
 
 // 网络模块
 #include "network/HttpServerModule.hpp"
@@ -350,6 +351,10 @@ int main(int argc, char* argv[]) {
     // 初始化数据库模块
     g_databaseModule->setConfig(dbConfig);
 
+    // 🔔 设置全局DatabaseModule实例，供所有业务模块通过静态方法访问
+    DatabaseModule::setGlobalInstance(g_databaseModule.get());
+    spdlog::info("✅ Set global DatabaseModule instance for all modules");
+
     // 调用基类的initialize()模板方法（会调用onInitialize()）
     auto dbModule = static_cast<ServerModuleBase*>(g_databaseModule.get());
     if (!dbModule->initialize()) {
@@ -383,19 +388,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // 🔔 发送数据库连接可用消息给所有模块（在模块加载之后）
+    // 🔔 数据库连接已通过DatabaseModule::setGlobalInstance()共享给所有业务模块
+    // 业务模块在registerRoutes()中调用DatabaseModule::getSharedConnection()获取共享连接
     if (g_databaseModule) {
-        spdlog::info("Broadcasting database connection to all modules...");
-        auto dbMessage = Messages::DatabaseConnectionMessage::create(
-            std::shared_ptr<IDatabase>(g_databaseModule.get(), [](IDatabase* ptr) {
-                // 不删除，g_databaseModule拥有生命周期
-                (void)ptr;
-            }),
-            true,
-            ""
-        );
-        MessageBus::getInstance().broadcast(dbMessage);
-        spdlog::info("Database connection message sent successfully");
+        spdlog::info("✅ DatabaseModule instance available for business modules via DatabaseModule::getSharedConnection()");
     }
 
     // 注册管理API
@@ -461,7 +457,7 @@ int main(int argc, char* argv[]) {
 }
 
 // ============================================================================
-// 全局数据库访问函数
+// 全局数据库访问函数（已废弃，使用DatabaseModule::getConnection()）
 // ============================================================================
 
 namespace PaperCrawler {
@@ -469,27 +465,10 @@ namespace PaperCrawler {
 /**
  * @brief 获取全局DatabaseModule实例
  * @return DatabaseModule指针（可能为nullptr）
+ * @deprecated 使用 DatabaseModule::getGlobalInstance() 代替
  */
 DatabaseModule* getDatabaseModule() {
     return g_databaseModule.get();
-}
-
-/**
- * @brief 获取数据库连接（用于业务模块）
- * @return 数据库连接的shared_ptr（可能为nullptr）
- */
-std::shared_ptr<IDatabase> getDatabaseConnection() {
-    if (g_databaseModule) {
-        // 通过IDatabase接口调用testConnection()
-        auto dbInterface = static_cast<IDatabase*>(g_databaseModule.get());
-        if (dbInterface->testConnection()) {
-            return std::shared_ptr<IDatabase>(g_databaseModule.get(), [](IDatabase* ptr) {
-                // 不负责删除，因为DatabaseModule拥有生命周期
-                (void)ptr;
-            });
-        }
-    }
-    return nullptr;
 }
 
 } // namespace PaperCrawler
