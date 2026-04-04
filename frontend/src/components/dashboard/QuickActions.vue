@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, markRaw } from 'vue'
 import {
   DocumentAdd,
   Connection,
@@ -44,7 +44,7 @@ import type { QuickAction } from '@/types/dashboard'
 const actions = ref<QuickAction[]>([
   {
     id: 'add-paper',
-    icon: DocumentAdd,
+    icon: markRaw(DocumentAdd),
     label: '添加论文',
     description: '手动添加或导入论文',
     route: '/papers/add',
@@ -52,7 +52,7 @@ const actions = ref<QuickAction[]>([
   },
   {
     id: 'create-crawler',
-    icon: Connection,
+    icon: markRaw(Connection),
     label: '创建爬虫',
     description: '配置新的爬虫任务',
     route: '/crawler',
@@ -60,7 +60,7 @@ const actions = ref<QuickAction[]>([
   },
   {
     id: 'export-data',
-    icon: Download,
+    icon: markRaw(Download),
     label: '导出数据',
     description: '导出论文数据',
     route: '/export',
@@ -68,7 +68,7 @@ const actions = ref<QuickAction[]>([
   },
   {
     id: 'view-stats',
-    icon: DataAnalysis,
+    icon: markRaw(DataAnalysis),
     label: '查看统计',
     description: '查看详细统计数据',
     route: '/stats',
