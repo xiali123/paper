@@ -3,6 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
+#include "../../core/external/nlohmann/json.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -139,11 +140,7 @@ public:
     explicit UserApiModule(std::shared_ptr<IDatabase> database);
     ~UserApiModule() override;
 
-    // ModuleBase接口实现
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
+    // ModuleBase接口：initialize/start/stop/cleanup由基类实现，无需重写
 
     std::string getName() const override { return "UserApi"; }
     std::string getVersion() const override { return "1.0.0"; }
@@ -239,6 +236,28 @@ private:
     std::shared_ptr<IDatabase> database_;
 
     void registerRoutes() override;  // BusinessModuleBase要求实现
+
+    // ========================================================================
+    // HTTP Handler函数
+    // ========================================================================
+
+    HttpResponse handleListUsers(const HttpRequest& req);
+    HttpResponse handleGetUser(const HttpRequest& req);
+    HttpResponse handleCreateUser(const HttpRequest& req);
+    HttpResponse handleUpdateUser(const HttpRequest& req);
+    HttpResponse handleDeleteUser(const HttpRequest& req);
+    HttpResponse handleActivateUser(const HttpRequest& req);
+    HttpResponse handleSuspendUser(const HttpRequest& req);
+    HttpResponse handleChangePassword(const HttpRequest& req);
+    HttpResponse handleGetCurrentUser(const HttpRequest& req);
+    HttpResponse handleGetStats(const HttpRequest& req);
+
+    // ========================================================================
+    // 辅助方法
+    // ========================================================================
+
+    HttpResponse buildJsonResponse(bool success, const std::string& message = "");
+    HttpResponse buildJsonResponse(int statusCode, const std::string& message, const nlohmann::json& data);
 
     // 辅助方法（用于数据库查询）
     User createUserFromDbRow(const std::map<std::string, std::string>& row);

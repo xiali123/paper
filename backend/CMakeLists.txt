@@ -753,7 +753,7 @@ add_dynamic_module_with_system(SearchApiModule
 )
 
 # 阶段6：UserApiModule动态化（已修复SQL注入和编译错误 ✓）
-add_dynamic_module(UserApiModule
+add_dynamic_module_with_system(UserApiModule
     src/business/UserApiModule.cpp
 )
 

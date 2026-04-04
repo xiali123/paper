@@ -1,10 +1,14 @@
 #include <iostream>
 #include "business/UserApiModule.hpp"
 #include "data/DatabaseModule.hpp"
+#include "core/Router.hpp"
+#include "common/JsonUtils.hpp"
+#include "../../core/external/nlohmann/json.hpp"
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
 #include <random>
+#include <chrono>
 
 namespace PaperCrawler {
 
@@ -344,35 +348,61 @@ UserApiModule::UserApiModule(std::shared_ptr<IDatabase> database)
 
 UserApiModule::~UserApiModule() = default;
 
-bool UserApiModule::initialize() {
-    std::cout << "UserApiModule initialized" << std::endl;
-    // 不再显示mock users数量，改用数据库
-    return true;
-}
-
-bool UserApiModule::start() {
-    std::cout << "UserApiModule started" << std::endl;
-    return true;
-}
-
-bool UserApiModule::stop() {
-    std::cout << "UserApiModule stopped" << std::endl;
-    return true;
-}
-
-void UserApiModule::cleanup() {
-    // 不再需要清理内存map，数据存储在数据库中
-    std::cout << "UserApiModule cleanup complete" << std::endl;
-}
-
 void UserApiModule::registerRoutes() {
-    // 注册路由到Router
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix();  // 使用getRoutePrefix()获取动态前缀
+
     std::cout << "UserApiModule registering routes..." << std::endl;
 
-    // TODO: 注册路由
-    // addRoute("/api/users", [this](const HttpRequest& req) {
-    //     return handleListUsers(req);
-    // });
+    // 用户列表（分页）
+    router.get(prefix, [this](const HttpRequest& req) {
+        return handleListUsers(req);
+    });
+
+    // 用户详情
+    router.get(prefix + "/:id", [this](const HttpRequest& req) {
+        return handleGetUser(req);
+    });
+
+    // 创建用户
+    router.post(prefix, [this](const HttpRequest& req) {
+        return handleCreateUser(req);
+    });
+
+    // 更新用户
+    router.put(prefix + "/:id", [this](const HttpRequest& req) {
+        return handleUpdateUser(req);
+    });
+
+    // 删除用户
+    router.del(prefix + "/:id", [this](const HttpRequest& req) {
+        return handleDeleteUser(req);
+    });
+
+    // 激活用户
+    router.post(prefix + "/:id/activate", [this](const HttpRequest& req) {
+        return handleActivateUser(req);
+    });
+
+    // 暂停用户
+    router.post(prefix + "/:id/suspend", [this](const HttpRequest& req) {
+        return handleSuspendUser(req);
+    });
+
+    // 修改密码
+    router.post(prefix + "/:id/password", [this](const HttpRequest& req) {
+        return handleChangePassword(req);
+    });
+
+    // 当前用户信息
+    router.get(prefix + "/me", [this](const HttpRequest& req) {
+        return handleGetCurrentUser(req);
+    });
+
+    // 用户统计
+    router.get(prefix + "/stats", [this](const HttpRequest& req) {
+        return handleGetStats(req);
+    });
 
     std::cout << "UserApiModule routes registered" << std::endl;
 }
@@ -540,6 +570,371 @@ std::string UserApiModule::hashPassword(const std::string& password) {
     // Mock实现 - 生产环境应使用bcrypt
     std::hash<std::string> hasher;
     return "$2b$12$mock_" + std::to_string(hasher(password));
+}
+
+// ============================================================================
+// HTTP Handler函数
+// ============================================================================
+
+HttpResponse UserApiModule::handleListUsers(const HttpRequest& req) {
+    try {
+        // 优雅降级：没有数据库时返回空列表
+        if (!database_) {
+            nlohmann::json response;
+            response["users"] = nlohmann::json::array();
+            response["total"] = 0;
+            response["page"] = 1;
+            response["limit"] = 20;
+            return buildJsonResponse(true, "Users retrieved (no database)", response);
+        }
+
+        // 解析查询参数
+        int page = 1, limit = 20;
+        auto pageIt = req.queryParams.find("page");
+        if (pageIt != req.queryParams.end()) {
+            page = std::stoi(pageIt->second);
+        }
+        auto limitIt = req.queryParams.find("limit");
+        if (limitIt != req.queryParams.end()) {
+            limit = std::stoi(limitIt->second);
+        }
+
+        UserQuery query;
+        query.page = page;
+        query.limit = limit;
+
+        auto users = listUsers(query);
+
+        nlohmann::json response;
+        response["users"] = nlohmann::json::array();
+        for (const auto& user : users) {
+            response["users"].push_back(nlohmann::json::parse(user.toJson()));
+        }
+        response["total"] = users.size();
+        response["page"] = page;
+        response["limit"] = limit;
+
+        return buildJsonResponse(true, "Users retrieved", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleGetUser(const HttpRequest& req) {
+    try {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing user ID");
+        }
+
+        int userId = std::stoi(idIt->second);
+
+        // 优雅降级：没有数据库时返回404
+        if (!database_) {
+            return buildJsonResponse(404, "User not found (no database)");
+        }
+
+        auto userOpt = getUser(userId);
+        if (!userOpt) {
+            return buildJsonResponse(404, "User not found");
+        }
+
+        nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
+        return buildJsonResponse(true, "User retrieved", data);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
+    try {
+        auto jsonOpt = JsonUtils::parse(req.body);
+        if (!jsonOpt.has_value()) {
+            return buildJsonResponse(400, "Invalid JSON format");
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string username = JsonUtils::getValue<std::string>(jsonObj, "username").value_or("");
+        std::string email = JsonUtils::getValue<std::string>(jsonObj, "email").value_or("");
+        std::string password = JsonUtils::getValue<std::string>(jsonObj, "password").value_or("");
+        std::string fullName = JsonUtils::getValue<std::string>(jsonObj, "fullName").value_or("");
+
+        if (username.empty() || email.empty() || password.empty()) {
+            return buildJsonResponse(400, "Missing required fields: username, email, password");
+        }
+
+        // 优雅降级：没有数据库时使用stub实现
+        if (!database_) {
+            int userId = 1000 + (std::rand() % 9000);
+            nlohmann::json data;
+            data["id"] = userId;
+            data["username"] = username;
+            data["email"] = email;
+            data["fullName"] = fullName;
+            data["role"] = "user";
+            data["status"] = "active";
+            data["createdAt"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+
+            return buildJsonResponse(true, "User created successfully (stub mode)", data);
+        }
+
+        UserCreateRequest request;
+        request.username = username;
+        request.email = email;
+        request.password = password;
+        request.fullName = fullName;
+
+        auto userOpt = createUser(request);
+        if (!userOpt) {
+            return buildJsonResponse(500, "Failed to create user");
+        }
+
+        nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
+        return buildJsonResponse(true, "User created successfully", data);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleUpdateUser(const HttpRequest& req) {
+    try {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing user ID");
+        }
+
+        int userId = std::stoi(idIt->second);
+
+        // 优雅降级：没有数据库时返回404
+        if (!database_) {
+            return buildJsonResponse(404, "User not found (no database)");
+        }
+
+        auto jsonOpt = JsonUtils::parse(req.body);
+        if (!jsonOpt.has_value()) {
+            return buildJsonResponse(400, "Invalid JSON format");
+        }
+
+        auto jsonObj = jsonOpt.value();
+        UserUpdateRequest request;
+        request.email = JsonUtils::getValue<std::string>(jsonObj, "email");
+        request.fullName = JsonUtils::getValue<std::string>(jsonObj, "fullName");
+        request.bio = JsonUtils::getValue<std::string>(jsonObj, "bio");
+        request.avatarUrl = JsonUtils::getValue<std::string>(jsonObj, "avatarUrl");
+
+        bool success = updateUser(userId, request);
+        if (!success) {
+            return buildJsonResponse(500, "Failed to update user");
+        }
+
+        auto userOpt = getUser(userId);
+        if (!userOpt) {
+            return buildJsonResponse(404, "User not found");
+        }
+
+        nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
+        return buildJsonResponse(true, "User updated successfully", data);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleDeleteUser(const HttpRequest& req) {
+    try {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing user ID");
+        }
+
+        int userId = std::stoi(idIt->second);
+
+        // 优雅降级：没有数据库时返回404
+        if (!database_) {
+            return buildJsonResponse(404, "User not found (no database)");
+        }
+
+        bool success = deleteUser(userId);
+        if (!success) {
+            return buildJsonResponse(404, "User not found");
+        }
+
+        return buildJsonResponse(true, "User deleted successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleActivateUser(const HttpRequest& req) {
+    try {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing user ID");
+        }
+
+        int userId = std::stoi(idIt->second);
+
+        // 优雅降级：没有数据库时返回404
+        if (!database_) {
+            return buildJsonResponse(404, "User not found (no database)");
+        }
+
+        bool success = activateUser(userId);
+        if (!success) {
+            return buildJsonResponse(404, "User not found");
+        }
+
+        return buildJsonResponse(true, "User activated successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleSuspendUser(const HttpRequest& req) {
+    try {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing user ID");
+        }
+
+        int userId = std::stoi(idIt->second);
+
+        // 优雅降级：没有数据库时返回404
+        if (!database_) {
+            return buildJsonResponse(404, "User not found (no database)");
+        }
+
+        bool success = suspendUser(userId);
+        if (!success) {
+            return buildJsonResponse(404, "User not found");
+        }
+
+        return buildJsonResponse(true, "User suspended successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleChangePassword(const HttpRequest& req) {
+    try {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing user ID");
+        }
+
+        int userId = std::stoi(idIt->second);
+
+        // 优雅降级：没有数据库时返回404
+        if (!database_) {
+            return buildJsonResponse(404, "User not found (no database)");
+        }
+
+        auto jsonOpt = JsonUtils::parse(req.body);
+        if (!jsonOpt.has_value()) {
+            return buildJsonResponse(400, "Invalid JSON format");
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string oldPassword = JsonUtils::getValue<std::string>(jsonObj, "oldPassword").value_or("");
+        std::string newPassword = JsonUtils::getValue<std::string>(jsonObj, "newPassword").value_or("");
+
+        if (oldPassword.empty() || newPassword.empty()) {
+            return buildJsonResponse(400, "Missing required fields: oldPassword, newPassword");
+        }
+
+        PasswordChangeRequest request;
+        request.oldPassword = oldPassword;
+        request.newPassword = newPassword;
+
+        bool success = changePassword(userId, request);
+        if (!success) {
+            return buildJsonResponse(400, "Failed to change password");
+        }
+
+        return buildJsonResponse(true, "Password changed successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
+    try {
+        // TODO: 从JWT token获取当前用户ID
+        // 优雅降级：没有认证时返回404
+        return buildJsonResponse(404, "Current user not found (no authentication)");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::handleGetStats(const HttpRequest& req) {
+    try {
+        // 优雅降级：没有数据库时返回默认统计值
+        if (!database_) {
+            nlohmann::json stats;
+            stats["totalUsers"] = 0;
+            stats["activeUsers"] = 0;
+            stats["inactiveUsers"] = 0;
+            stats["suspendedUsers"] = 0;
+            stats["adminCount"] = 0;
+            stats["userCount"] = 0;
+            stats["guestCount"] = 0;
+            return buildJsonResponse(true, "Stats retrieved (no database)", stats);
+        }
+
+        UserStats stats = getStats();
+
+        nlohmann::json response;
+        response["totalUsers"] = stats.totalUsers;
+        response["activeUsers"] = stats.activeUsers;
+        response["inactiveUsers"] = stats.inactiveUsers;
+        response["suspendedUsers"] = stats.suspendedUsers;
+        response["adminCount"] = stats.adminCount;
+        response["userCount"] = stats.userCount;
+        response["guestCount"] = stats.guestCount;
+
+        return buildJsonResponse(true, "Stats retrieved", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
+}
+
+HttpResponse UserApiModule::buildJsonResponse(bool success, const std::string& message) {
+    HttpResponse response;
+    response.statusCode = success ? 200 : 400;
+    response.headers["Content-Type"] = "application/json";
+
+    nlohmann::json json;
+    json["success"] = success;
+    json["message"] = message;
+
+    response.body = json.dump();
+    return response;
+}
+
+HttpResponse UserApiModule::buildJsonResponse(int statusCode, const std::string& message, const nlohmann::json& data) {
+    HttpResponse response;
+    response.statusCode = statusCode;
+    response.headers["Content-Type"] = "application/json";
+
+    nlohmann::json json;
+    json["success"] = (statusCode >= 200 && statusCode < 300);
+    json["message"] = message;
+    if (!data.is_null()) {
+        json["data"] = data;
+    }
+
+    response.body = json.dump();
+    return response;
 }
 
 } // namespace PaperCrawler
