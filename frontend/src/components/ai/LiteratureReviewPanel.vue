@@ -147,9 +147,6 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { aiCopilotApi } from '@/api/modules/aiCopilot'
-import { useAiStore } from '@/stores/ai'
-
-const aiStore = useAiStore()
 
 const config = ref({
   topic: '',

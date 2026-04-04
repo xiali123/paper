@@ -8,7 +8,7 @@ import { ref, computed } from 'vue'
 import { aiCopilotApi } from '@/api/modules/aiCopilot'
 import type { AIReviewResult, LiteratureReview, ResearchPlan } from '@/types/ai'
 
-export const useAiStore = defineStore('ai', () => {
+export const useAIStore = defineStore('ai', () => {
   // State
   const reviews = ref<AIReviewResult[]>([])
   const literatureReviews = ref<LiteratureReview[]>([])
