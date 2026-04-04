@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/test_utils.sh"
 
 MODULE_NAME="RecommendationApi"
-BASE_URL="/api/recommendations"
+API_PREFIX="/api/recommendations"
 
 echo "=========================================="
 echo "测试模块: $MODULE_NAME"
@@ -14,9 +14,9 @@ echo "=========================================="
 echo ""
 echo "💡 测试推荐接口..."
 
-test_endpoint "GET /recommendations/papers" "GET" "${BASE_URL}/papers?userId=1" "200"
-test_endpoint "GET /recommendations/related" "GET" "${BASE_URL}/related?paperId=1" "200"
-test_endpoint "GET /recommendations/trending" "GET" "${BASE_URL}/trending" "200"
+test_endpoint "GET /recommendations/papers" "GET" "${API_PREFIX}/papers?userId=1" "200"
+test_endpoint "GET /recommendations/related" "GET" "${API_PREFIX}/related?paperId=1" "200"
+test_endpoint "GET /recommendations/trending" "GET" "${API_PREFIX}/trending" "200"
 
 print_summary
 save_results "${SCRIPT_DIR}/../reports/${MODULE_NAME}_results.json" "$MODULE_NAME"

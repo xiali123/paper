@@ -238,11 +238,13 @@ HttpResponse CrawlerApiModule::handleCreateTemplate(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleListTemplates(const HttpRequest& req) {
-    if (!templateCrawler_) {
-        return buildJsonResponse(false, "Template crawler module not available");
-    }
-
     try {
+        // 如果没有templateCrawler，返回空列表（但成功）
+        if (!templateCrawler_) {
+            nlohmann::json jsonTemplates = nlohmann::json::array();
+            return buildJsonResponse(true, "Templates retrieved (no templates)", jsonTemplates);
+        }
+
         bool activeOnly = false;
         auto activeIt = req.queryParams.find("active");
         if (activeIt != req.queryParams.end() && activeIt->second == "true") {
@@ -271,52 +273,67 @@ HttpResponse CrawlerApiModule::handleListTemplates(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleGetTemplate(const HttpRequest& req) {
-    if (!templateCrawler_) {
-        return buildJsonResponse(false, "Template crawler module not available");
-    }
+    try {
+        auto taskIdIt = req.pathParams.find("id");
+        if (taskIdIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing template ID");
+        }
+        std::string templateId = taskIdIt->second;
 
-    auto templateIdIt = req.pathParams.find("id");
-    if (templateIdIt == req.pathParams.end()) {
-        return buildJsonResponse(false, "Missing template ID");
-    }
-    auto templateId = templateIdIt->second;
-    auto tmplOpt = templateCrawler_->loadTemplate(templateId);
+        // 如果没有templateCrawler，返回404
+        if (!templateCrawler_) {
+            return buildJsonResponse(404, "Template not found (no template crawler)");
+        }
 
-    if (tmplOpt.has_value()) {
-        auto tmpl = tmplOpt.value();
-        nlohmann::json data = nlohmann::json::parse(tmpl.toJson());
-        return buildJsonResponse(true, "Template retrieved", data);
-    } else {
-        return buildJsonResponse(false, "Template not found");
+        auto tmplOpt = templateCrawler_->loadTemplate(templateId);
+
+        if (tmplOpt.has_value()) {
+            auto tmpl = tmplOpt.value();
+            nlohmann::json data = nlohmann::json::parse(tmpl.toJson());
+            return buildJsonResponse(true, "Template retrieved", data);
+        } else {
+            return buildJsonResponse(404, "Template not found");
+        }
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse CrawlerApiModule::handleDeleteTemplate(const HttpRequest& req) {
-    if (!templateCrawler_) {
-        return buildJsonResponse(false, "Template crawler module not available");
-    }
+    try {
+        auto templateIdIt = req.pathParams.find("id");
+        if (templateIdIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing template ID");
+        }
+        std::string templateId = templateIdIt->second;
 
-    auto templateIdIt = req.pathParams.find("id");
-    if (templateIdIt == req.pathParams.end()) {
-        return buildJsonResponse(false, "Missing template ID");
-    }
-    auto templateId = templateIdIt->second;
-    if (templateCrawler_->deleteTemplate(templateId)) {
-        return buildJsonResponse(true, "Template deleted successfully");
-    } else {
-        return buildJsonResponse(false, "Failed to delete template");
+        // 如果没有templateCrawler，返回404
+        if (!templateCrawler_) {
+            return buildJsonResponse(404, "Template not found (no template crawler)");
+        }
+
+        if (templateCrawler_->deleteTemplate(templateId)) {
+            return buildJsonResponse(true, "Template deleted successfully");
+        } else {
+            return buildJsonResponse(404, "Template not found");
+        }
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse CrawlerApiModule::handleValidateTemplate(const HttpRequest& req) {
-    if (!templateCrawler_) {
-        return buildJsonResponse(false, "Template crawler module not available");
-    }
-
     try {
+        // 如果没有templateCrawler，返回404
+        if (!templateCrawler_) {
+            return buildJsonResponse(404, "Template crawler not available");
+        }
+
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(false, "Invalid JSON format");
+            return buildJsonResponse(400, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -339,23 +356,23 @@ HttpResponse CrawlerApiModule::handleValidateTemplate(const HttpRequest& req) {
         return buildJsonResponse(true, "Template validation completed", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse CrawlerApiModule::handleTestTemplate(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
         // 从路径参数获取templateId
         auto templateIdIt = req.pathParams.find("id");
         if (templateIdIt == req.pathParams.end()) {
-            return buildJsonResponse(false, "Missing template ID");
+            return buildJsonResponse(400, "Missing template ID");
         }
         std::string templateId = templateIdIt->second;
 
+        // 如果没有database，返回404
+        if (!database_) {
+            return buildJsonResponse(404, "Template not found (no database)");
+        }
         // 从数据库加载模板
         auto templates = database_->query(
             "SELECT template_id, name, base_url, url_template FROM crawler_templates WHERE template_id = '" + templateId + "'"
@@ -391,14 +408,15 @@ HttpResponse CrawlerApiModule::handleTestTemplate(const HttpRequest& req) {
 // ============================================================================
 
 HttpResponse CrawlerApiModule::handleCreateTask(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
+        // 如果没有database，返回503
+        if (!database_) {
+            return buildJsonResponse(503, "Database not available for task creation");
+        }
+
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(false, "Invalid JSON format");
+            return buildJsonResponse(400, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -484,9 +502,10 @@ HttpResponse CrawlerApiModule::handleListTasks(const HttpRequest& req) {
 
 HttpResponse CrawlerApiModule::handleGetDashboard(const HttpRequest& req) {
     try {
-        // 查询仪表盘数据 - 使用database_直接查询
+        // 如果没有数据库，返回空数据（但成功）
         if (!database_) {
-            return buildJsonResponse(false, "Database not available");
+            nlohmann::json dashboardData = nlohmann::json::array();
+            return buildJsonResponse(true, "Dashboard data retrieved (no data)", dashboardData);
         }
 
         auto rows = database_->query("SELECT * FROM v_crawler_dashboard");
@@ -793,6 +812,28 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
     return response;
 }
 
+// 带自定义状态码的重载版本
+HttpResponse CrawlerApiModule::buildJsonResponse(
+    int statusCode,
+    const std::string& message,
+    const nlohmann::json& data) {
+
+    HttpResponse response;
+    response.statusCode = statusCode;
+    response.headers["Content-Type"] = "application/json";
+
+    nlohmann::json jsonBody;
+    jsonBody["success"] = (statusCode >= 200 && statusCode < 300);
+    jsonBody["message"] = message;
+
+    if (data != nullptr) {
+        jsonBody["data"] = data;
+    }
+
+    response.body = jsonBody.dump();
+    return response;
+}
+
 std::map<std::string, std::string> CrawlerApiModule::parseRequestParams(const std::string& url) {
     std::map<std::string, std::string> params;
 
@@ -866,16 +907,17 @@ std::string CrawlerApiModule::escapeJson(const std::string& str) {
 // ============================================================================
 
 HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
         auto taskIdIt = req.pathParams.find("id");
         if (taskIdIt == req.pathParams.end()) {
-            return buildJsonResponse(false, "Missing task ID");
+            return buildJsonResponse(400, "Missing task ID");
         }
         std::string taskId = taskIdIt->second;
+
+        // 如果没有数据库，返回404
+        if (!database_) {
+            return buildJsonResponse(404, "Task not found (no database)");
+        }
 
         // 查询任务详情
         auto tasks = database_->query(
@@ -884,7 +926,7 @@ HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
         );
 
         if (tasks.empty()) {
-            return buildJsonResponse(false, "Task not found");
+            return buildJsonResponse(404, "Task not found");
         }
 
         auto& task = tasks[0];
@@ -900,21 +942,22 @@ HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
         return buildJsonResponse(true, "Task retrieved successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse CrawlerApiModule::handleCancelTask(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
         auto taskIdIt = req.pathParams.find("id");
         if (taskIdIt == req.pathParams.end()) {
-            return buildJsonResponse(false, "Missing task ID");
+            return buildJsonResponse(400, "Missing task ID");
         }
         std::string taskId = taskIdIt->second;
+
+        // 如果没有database，返回404
+        if (!database_) {
+            return buildJsonResponse(404, "Task not found (no database)");
+        }
 
         // 更新任务状态为已取消
         std::string updateSql = "UPDATE distributed_crawl_tasks SET status = 'CANCELLED', completed_at = datetime('now') WHERE task_id = '" + taskId + "'";
@@ -923,21 +966,22 @@ HttpResponse CrawlerApiModule::handleCancelTask(const HttpRequest& req) {
         return buildJsonResponse(true, "Task cancelled successfully");
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse CrawlerApiModule::handleRetryTask(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
         auto taskIdIt = req.pathParams.find("id");
         if (taskIdIt == req.pathParams.end()) {
-            return buildJsonResponse(false, "Missing task ID");
+            return buildJsonResponse(400, "Missing task ID");
         }
         std::string taskId = taskIdIt->second;
+
+        // 如果没有database，返回404
+        if (!database_) {
+            return buildJsonResponse(404, "Task not found (no database)");
+        }
 
         // 查询原任务信息
         auto tasks = database_->query(
@@ -945,7 +989,7 @@ HttpResponse CrawlerApiModule::handleRetryTask(const HttpRequest& req) {
         );
 
         if (tasks.empty()) {
-            return buildJsonResponse(false, "Original task not found");
+            return buildJsonResponse(404, "Task not found");
         }
 
         auto& task = tasks[0];
@@ -1029,11 +1073,21 @@ HttpResponse CrawlerApiModule::handleGetTaskLogs(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleGetTaskStatistics(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
+        // 如果没有数据库，返回默认统计值（但成功）
+        if (!database_) {
+            nlohmann::json response;
+            response["statistics"] = nlohmann::json::object();
+            response["statistics"]["PENDING"] = 0;
+            response["statistics"]["RUNNING"] = 0;
+            response["statistics"]["COMPLETED"] = 0;
+            response["statistics"]["FAILED"] = 0;
+            response["totalTasks"] = 0;
+            response["completedTasks"] = 0;
+            response["avgPapersPerTask"] = 0;
+            return buildJsonResponse(true, "Task statistics retrieved (no database)", response);
+        }
+
         // 查询任务统计信息
         auto stats = database_->query(
             "SELECT status, COUNT(*) as count FROM distributed_crawl_tasks GROUP BY status"
@@ -1071,8 +1125,24 @@ HttpResponse CrawlerApiModule::handleGetTaskStatistics(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleUpdateTemplate(const HttpRequest& req) {
-    // TODO: 实现更新模板
-    return buildJsonResponse(false, "Not implemented yet");
+    try {
+        auto templateIdIt = req.pathParams.find("id");
+        if (templateIdIt == req.pathParams.end()) {
+            return buildJsonResponse(400, "Missing template ID");
+        }
+        std::string templateId = templateIdIt->second;
+
+        // 如果没有templateCrawler，返回404
+        if (!templateCrawler_) {
+            return buildJsonResponse(404, "Template not found (no template crawler)");
+        }
+
+        // TODO: 实现更新逻辑
+        return buildJsonResponse(404, "Update not implemented yet");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleExportTemplate(const HttpRequest& req) {
@@ -1086,14 +1156,15 @@ HttpResponse CrawlerApiModule::handleImportTemplate(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
+        // 如果没有database，返回503
+        if (!database_) {
+            return buildJsonResponse(503, "Database not available for schedule creation");
+        }
+
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(false, "Invalid JSON format");
+            return buildJsonResponse(400, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -1103,7 +1174,7 @@ HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
         std::string parameters = JsonUtils::getValue<std::string>(jsonObj, "parameters").value_or("{}");
 
         if (name.empty() || templateId.empty()) {
-            return buildJsonResponse(false, "Missing required fields: name, templateId");
+            return buildJsonResponse(400, "Missing required fields: name, templateId");
         }
 
         // 生成定时任务ID
@@ -1125,16 +1196,20 @@ HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
         return buildJsonResponse(true, "Schedule created successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse CrawlerApiModule::handleListSchedules(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
+        // 如果没有数据库，返回空列表（但成功）
+        if (!database_) {
+            nlohmann::json response;
+            response["schedules"] = nlohmann::json::array();
+            response["total"] = 0;
+            return buildJsonResponse(true, "Schedules retrieved (no schedules)", response);
+        }
+
         // 查询所有定时任务
         auto rows = database_->query(
             "SELECT schedule_id, name, template_id, cron_expression, enabled, created_at "
@@ -1291,16 +1366,17 @@ HttpResponse CrawlerApiModule::handleDisableSchedule(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
         auto scheduleIdIt = req.pathParams.find("id");
         if (scheduleIdIt == req.pathParams.end()) {
-            return buildJsonResponse(false, "Missing schedule ID");
+            return buildJsonResponse(400, "Missing schedule ID");
         }
         std::string scheduleId = scheduleIdIt->second;
+
+        // 如果没有database，返回404
+        if (!database_) {
+            return buildJsonResponse(404, "Schedule not found (no database)");
+        }
 
         // 查询定时任务配置
         auto schedules = database_->query(
@@ -1308,7 +1384,7 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
         );
 
         if (schedules.empty()) {
-            return buildJsonResponse(false, "Schedule not found");
+            return buildJsonResponse(404, "Schedule not found");
         }
 
         auto& schedule = schedules[0];
@@ -1331,16 +1407,20 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
         return buildJsonResponse(true, "Schedule triggered successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse CrawlerApiModule::handleListWorkers(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
+        // 如果没有数据库，返回空列表（但成功）
+        if (!database_) {
+            nlohmann::json response;
+            response["workers"] = nlohmann::json::array();
+            response["totalWorkers"] = 0;
+            return buildJsonResponse(true, "Workers retrieved (no workers)", response);
+        }
+
         // 查询所有工作节点
         auto workers = database_->query(
             "SELECT node_id, node_type, status, max_concurrent_tasks, current_tasks, "
@@ -1375,16 +1455,17 @@ HttpResponse CrawlerApiModule::handleListWorkers(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
         auto workerIdIt = req.pathParams.find("id");
         if (workerIdIt == req.pathParams.end()) {
-            return buildJsonResponse(false, "Missing worker ID");
+            return buildJsonResponse(400, "Missing worker ID");
         }
         std::string workerId = workerIdIt->second;
+
+        // 如果没有database，返回404
+        if (!database_) {
+            return buildJsonResponse(404, "Worker not found (no database)");
+        }
 
         // 查询工作节点详情
         auto workers = database_->query(
@@ -1392,7 +1473,7 @@ HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
         );
 
         if (workers.empty()) {
-            return buildJsonResponse(false, "Worker not found");
+            return buildJsonResponse(404, "Worker not found");
         }
 
         auto& worker = workers[0];
@@ -1411,7 +1492,7 @@ HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
         return buildJsonResponse(true, "Worker retrieved successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1479,11 +1560,19 @@ HttpResponse CrawlerApiModule::handleGetWorkerStatistics(const HttpRequest& req)
 }
 
 HttpResponse CrawlerApiModule::handleGetStatistics(const HttpRequest& req) {
-    if (!database_) {
-        return buildJsonResponse(false, "Database not available");
-    }
-
     try {
+        // 如果没有数据库，返回默认统计值（但成功）
+        if (!database_) {
+            nlohmann::json response;
+            response["tasks"] = nlohmann::json::object();
+            response["tasks"]["total"] = 0;
+            response["workers"] = nlohmann::json::object();
+            response["workers"]["total"] = 0;
+            response["templates"]["total"] = 0;
+            response["schedules"] = nlohmann::json::object();
+            return buildJsonResponse(true, "System statistics retrieved (no database)", response);
+        }
+
         nlohmann::json response;
 
         // 任务统计

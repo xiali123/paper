@@ -1,0 +1,39 @@
+{
+  "test_run": {
+    "timestamp": "2026-04-04T02:58:55Z",
+    "duration_seconds": 73,
+    "duration_minutes": "1",
+    "branch": "test/all-modules-api-validation",
+    "commit": "717e97b0d1332647d60aa5313809e10e931e3946",
+    "commit_message": "test: 创建完整的API测试套件"
+  },
+  "summary": {
+    "total_modules": 9,
+    "total_tests": 0,
+    "passed": 0,
+    "failed": 1,
+    "success_rate": 0
+  },
+  "modules": [
+    {"name":"CrawlerApi","status":"fail","total":0,"passed":0,"failed":0}
+    ,{"name":"AuthApi","status":"fail","total":0,"passed":0,"failed":0}
+    ,{"name":"UserApi","status":"fail","total":0,"passed":0,"failed":0}
+    ,{"name":"PaperApi","status":"fail","total":0,"passed":0,"failed":0}
+    ,{"name":"ExportApi","status":"fail","total":0,"passed":0,"failed":0}
+    ,{"name":"StatsApi","status":"fail","total":0,"passed":0,"failed":0}
+    ,{"name":"AiApi","status":"fail","total":0,"passed":0,"failed":0}
+    ,{"name":"RecommendationApi","status":"fail","total":0,"passed":0,"failed":0}
+  ],
+  "details": {
+    "router_dll": {
+      "status": "implemented",
+      "file": "backend/build/Release/modules/dynamic/Release/Router.dll",
+      "size": "1.3MB"
+    },
+    "architecture": {
+      "type": "Hot-plug DLL",
+      "modules_loaded": 9,
+      "router_singleton": "shared"
+    }
+  }
+}

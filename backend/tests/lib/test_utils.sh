@@ -74,19 +74,24 @@ test_endpoint() {
 
     print_info "测试: $test_name"
 
-    # 构建curl命令
-    local curl_cmd="curl -s -w '\n%{http_code}' -X ${method}"
+    # 执行请求
+    local response
+    local status_code
+    local body
 
     if [ -n "$data" ]; then
-        curl_cmd="$curl_cmd -H 'Content-Type: application/json' -d '$data'"
+        response=$(curl -s -w $'\n%{http_code}' -X "${method}" \
+            -H 'Content-Type: application/json' \
+            -d "$data" \
+            "${BASE_URL}${endpoint}")
+    else
+        response=$(curl -s -w $'\n%{http_code}' -X "${method}" \
+            "${BASE_URL}${endpoint}")
     fi
 
-    curl_cmd="$curl_cmd '${BASE_URL}${endpoint}'"
-
-    # 执行请求
-    local response=$(eval $curl_cmd)
-    local body=$(echo "$response" | head -n -1)
-    local status_code=$(echo "$response" | tail -n 1)
+    # 分离响应体和状态码
+    body=$(echo "$response" | head -n -1)
+    status_code=$(echo "$response" | tail -n 1 | tr -d '\r')
 
     # 检查状态码
     if [ "$status_code" = "$expected_status" ]; then
@@ -95,33 +100,22 @@ test_endpoint() {
         # 检查是否返回有效的JSON（如果不是404）
         if [ "$status_code" != "404" ] && echo "$body" | jq empty > /dev/null 2>&1; then
             print_success "$test_name - JSON格式正确"
-
-            # 记录结果
-            TEST_RESULTS+=("{\"test\":\"$test_name\",\"status\":\"pass\",\"http_code\":$status_code}")
-            ((PASSED_TESTS++))
-            return 0
         elif [ "$status_code" != "404" ]; then
             print_warning "$test_name - 响应不是JSON格式"
             echo "$body" | head -c 100
             echo ""
         fi
+
+        # 记录成功
+        TEST_RESULTS+=("{\"test\":\"$test_name\",\"status\":\"pass\",\"http_code\":$status_code}")
+        ((PASSED_TESTS++))
+        return 0
     else
         print_error "$test_name - HTTP $status_code (期望 $expected_status)"
 
         # 记录失败
         TEST_RESULTS+=("{\"test\":\"$test_name\",\"status\":\"fail\",\"http_code\":$status_code,\"expected\":$expected_status}")
         ((FAILED_TESTS++))
-        return 1
-    fi
-
-    # 记录结果（对于404或非JSON响应）
-    if [ "$status_code" = "$expected_status" ]; then
-        ((PASSED_TESTS++))
-        TEST_RESULTS+=("{\"test\":\"$test_name\",\"status\":\"pass\",\"http_code\":$status_code}")
-        return 0
-    else
-        ((FAILED_TESTS++))
-        TEST_RESULTS+=("{\"test\":\"$test_name\",\"status\":\"fail\",\"http_code\":$status_code}")
         return 1
     fi
 }

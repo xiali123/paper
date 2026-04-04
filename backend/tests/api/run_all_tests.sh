@@ -12,15 +12,15 @@ REPORT_FILE="${SCRIPT_DIR}/../reports/all_modules_test_report.json"
 
 # 模块列表（按优先级排序）
 MODULES=(
-    "CrawlerApi:tests/api/test_crawler_api.sh"
-    "AuthApi:tests/api/test_auth_api.sh"
-    "UserApi:tests/api/test_user_api.sh"
-    "PaperApi:tests/api/test_paper_api.sh"
-    "SearchApi:tests/api/test_search_api.sh"
-    "ExportApi:tests/api/test_export_api.sh"
-    "StatsApi:tests/api/test_stats_api.sh"
-    "AiApi:tests/api/test_ai_api.sh"
-    "RecommendationApi:tests/api/test_recommendation_api.sh"
+    "CrawlerApi:test_crawler_api.sh"
+    "AuthApi:test_auth_api.sh"
+    "UserApi:test_user_api.sh"
+    "PaperApi:test_paper_api.sh"
+    "SearchApi:test_search_api.sh"
+    "ExportApi:test_export_api.sh"
+    "StatsApi:test_stats_api.sh"
+    "AiApi:test_ai_api.sh"
+    "RecommendationApi:test_recommendation_api.sh"
 )
 
 # 全局统计
@@ -28,6 +28,7 @@ GLOBAL_TOTAL=0
 GLOBAL_PASSED=0
 GLOBAL_FAILED=0
 declare -a MODULE_RESULTS
+declare -g SERVER_PID=""  # 服务器进程ID（全局变量）
 
 echo "=========================================="
 echo "🚀 PaperCrawler 后端 API 测试套件"
@@ -54,6 +55,7 @@ if ! curl -s "${BASE_URL}/api/health" > /dev/null 2>&1; then
     cd - > /dev/null
 else
     print_success "服务器已运行"
+    SERVER_PID=""  # 服务器不是我们启动的
 fi
 
 echo ""
@@ -61,8 +63,12 @@ echo "=========================================="
 echo "开始执行测试..."
 echo "=========================================="
 
-# 执行每个模块的测试
-for module_info in "${MODULES[@]}"; do
+# 执行单个模块测试的函数
+run_module_test() {
+    local module_info="$1"
+    local module_name=""
+    local test_script=""
+
     IFS=':' read -r module_name test_script <<< "$module_info"
 
     echo ""
@@ -74,8 +80,8 @@ for module_info in "${MODULES[@]}"; do
     reset_stats
 
     # 执行测试脚本
-    if [ -f "${SCRIPT_DIR}/../${test_script}" ]; then
-        bash "${SCRIPT_DIR}/../${test_script}"
+    if [ -f "${SCRIPT_DIR}/${test_script}" ]; then
+        bash "${SCRIPT_DIR}/${test_script}"
 
         # 记录结果
         local module_exit_code=$?
@@ -87,10 +93,11 @@ for module_info in "${MODULES[@]}"; do
         # 读取模块结果JSON
         local result_file="${SCRIPT_DIR}/../reports/${module_name}_results.json"
         if [ -f "$result_file" ]; then
-            local module_total=$(grep -o '"total_tests":[0-9]*' "$result_file" | grep -o '[0-9]*')
-            local module_passed=$(grep -o '"passed":[0-9]*' "$result_file" | grep -o '[0-9]*')
-            local module_failed=$(grep -o '"failed":[0-9]*' "$result_file" | grep -o '[0-9]*')
+            local module_total=$(grep -o '"total_tests":[0-9]*' "$result_file" | grep -o '[0-9]*' | head -1)
+            local module_passed=$(grep -o '"passed":[0-9]*' "$result_file" | grep -o '[0-9]*' | head -1)
+            local module_failed=$(grep -o '"failed":[0-9]*' "$result_file" | grep -o '[0-9]*' | head -1)
 
+            # 更新全局统计
             GLOBAL_TOTAL=$((GLOBAL_TOTAL + ${module_total:-0}))
             GLOBAL_PASSED=$((GLOBAL_PASSED + ${module_passed:-0}))
             GLOBAL_FAILED=$((GLOBAL_FAILED + ${module_failed:-0}))
@@ -103,6 +110,11 @@ for module_info in "${MODULES[@]}"; do
         print_error "测试脚本不存在: ${test_script}"
         GLOBAL_FAILED=$((GLOBAL_FAILED + 1))
     fi
+}
+
+# 执行每个模块的测试
+for module_info in "${MODULES[@]}"; do
+    run_module_test "$module_info"
 done
 
 # 计算总测试时间
@@ -115,32 +127,44 @@ echo "=========================================="
 echo "生成综合测试报告..."
 echo "=========================================="
 
+# 计算成功率（整数）
+if [ $GLOBAL_TOTAL -gt 0 ]; then
+    SUCCESS_RATE=$((GLOBAL_PASSED * 100 / GLOBAL_TOTAL))
+else
+    SUCCESS_RATE=0
+fi
+
+# 获取Git信息
+GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+GIT_COMMIT=$(git log -1 --format='%H' 2>/dev/null || echo "unknown")
+GIT_MESSAGE=$(git log -1 --format='%s' 2>/dev/null | sed 's/"/\\"/g' || echo "unknown")
+
 cat > "$REPORT_FILE" << EOF
 {
   "test_run": {
     "timestamp": "$TEST_TIMESTAMP",
     "duration_seconds": $TEST_DURATION,
-    "duration_minutes": $(echo "scale=2; $TEST_DURATION / 60" | bc),
-    "branch": "$(git branch --show-current)",
-    "commit": "$(git log -1 --format='%H')",
-    "commit_message": "$(git log -1 --format='%s' | sed 's/"/"/g')"
+    "duration_minutes": "$(($TEST_DURATION / 60))",
+    "branch": "$GIT_BRANCH",
+    "commit": "$GIT_COMMIT",
+    "commit_message": "$GIT_MESSAGE"
   },
   "summary": {
     "total_modules": 9,
     "total_tests": $GLOBAL_TOTAL,
     "passed": $GLOBAL_PASSED,
     "failed": $GLOBAL_FAILED,
-    "success_rate": $(echo "scale=2; $GLOBAL_PASSED * 100 / ($GLOBAL_TOTAL > 0 ? $GLOBAL_TOTAL : 1)" | bc)
+    "success_rate": $SUCCESS_RATE
   },
   "modules": [
 EOF
 
 # 添加模块结果
-local first=true
+_first=true
 for result in "${MODULE_RESULTS[@]}"; do
-    if [ "$first" = true ]; then
+    if [ "$_first" = true ]; then
         echo "    $result" >> "$REPORT_FILE"
-        first=false
+        _first=false
     else
         echo "    ,$result" >> "$REPORT_FILE"
     fi
@@ -177,8 +201,8 @@ echo -e "失败: ${RED}${GLOBAL_FAILED}${NC}"
 echo "=========================================="
 
 if [ $GLOBAL_TOTAL -gt 0 ]; then
-    SUCCESS_RATE=$(echo "scale=2; $GLOBAL_PASSED * 100 / $GLOBAL_TOTAL" | bc)
-    echo -e "通过率: ${BLUE}${SUCCESS_RATE}%${NC}"
+    _SUCCESS_RATE=$((GLOBAL_PASSED * 100 / GLOBAL_TOTAL))
+    echo -e "通过率: ${BLUE}${_SUCCESS_RATE}%${NC}"
 fi
 
 echo "=========================================="
@@ -198,10 +222,11 @@ echo "   - 综合报告: $REPORT_FILE"
 echo "   - 各模块报告: backend/tests/reports/*_results.json"
 
 # 停止测试服务器（如果是我们启动的）
-if [ ! -z "$SERVER_PID" ]; then
+if [ -n "$SERVER_PID" ]; then
     echo ""
     print_info "停止测试服务器 (PID: $SERVER_PID)..."
     kill $SERVER_PID 2>/dev/null
+    print_success "测试服务器已停止"
 fi
 
-exit $EXIT_CODE
+exit ${EXIT_CODE:-0}

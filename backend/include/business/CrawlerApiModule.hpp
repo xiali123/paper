@@ -338,6 +338,15 @@ private:
     );
 
     /**
+     * @brief 构建JSON响应（带自定义状态码）
+     */
+    HttpResponse buildJsonResponse(
+        int statusCode,
+        const std::string& message = "",
+        const nlohmann::json& data = nullptr
+    );
+
+    /**
      * @brief 解析请求参数
      */
     std::map<std::string, std::string> parseRequestParams(const std::string& url);

@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../lib/test_utils.sh"
 
 MODULE_NAME="AuthApi"
-BASE_URL="/api/auth"
+API_PREFIX="/api/auth"
 
 echo "=========================================="
 echo "测试模块: $MODULE_NAME"
@@ -16,20 +16,20 @@ echo ""
 echo "🔐 测试认证接口..."
 
 # 测试主要端点（根据实际可用端点调整）
-test_endpoint "POST /register" "POST" "${BASE_URL}/register" "404" \
+test_endpoint "POST /register" "POST" "${API_PREFIX}/register" "404" \
     '{"username":"test","password":"test123","email":"test@example.com"}'
 
-test_endpoint "POST /login" "POST" "${BASE_URL}/login" "404" \
+test_endpoint "POST /login" "POST" "${API_PREFIX}/login" "404" \
     '{"username":"test","password":"test123"}'
 
-test_endpoint "POST /logout" "POST" "${BASE_URL}/logout" "404"
+test_endpoint "POST /logout" "POST" "${API_PREFIX}/logout" "404"
 
-test_endpoint "GET /profile" "GET" "${BASE_URL}/profile" "401"
+test_endpoint "GET /profile" "GET" "${API_PREFIX}/profile" "401"
 
-test_endpoint "PUT /profile" "PUT" "${BASE_URL}/profile" "401" \
+test_endpoint "PUT /profile" "PUT" "${API_PREFIX}/profile" "401" \
     '{"email":"newemail@example.com"}'
 
-test_endpoint "POST /change-password" "POST" "${BASE_URL}/change-password" "401" \
+test_endpoint "POST /change-password" "POST" "${API_PREFIX}/change-password" "401" \
     '{"oldPassword":"old","newPassword":"new"}'
 
 print_summary
