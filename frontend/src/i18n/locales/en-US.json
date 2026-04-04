@@ -10,6 +10,7 @@
     "search": "Search",
     "searchPapers": "Search Papers",
     "stats": "Statistics",
+    "statistics": "Statistics",
     "settings": "Settings",
     "about": "About",
     "profile": "Profile",
@@ -19,7 +20,17 @@
     "logout": "Logout",
     "dashboard": "Dashboard",
     "papers": "Papers",
-    "crawler": "Crawler"
+    "allPapers": "All Papers",
+    "favorites": "Favorites",
+    "categories": "Categories",
+    "tags": "Tags",
+    "crawler": "Crawler",
+    "overview": "Overview",
+    "charts": "Charts",
+    "timeline": "Timeline",
+    "export": "Export",
+    "preferences": "Preferences",
+    "system": "System"
   },
   "home": {
     "welcome": "Welcome to PaperCrawler",
@@ -190,7 +201,8 @@
     "active": "Active",
     "inactive": "Inactive",
     "actions": "Actions",
-    "toggleTheme": "Toggle Theme"
+    "toggleTheme": "Toggle Theme",
+    "collapseSidebar": "Collapse Sidebar"
   },
   "error": {
     "networkError": "Network error, please check your connection",

@@ -10,6 +10,7 @@
     "search": "搜索",
     "searchPapers": "搜索论文",
     "stats": "统计",
+    "statistics": "统计分析",
     "settings": "设置",
     "about": "关于",
     "profile": "我的资料",
@@ -19,7 +20,17 @@
     "logout": "登出",
     "dashboard": "仪表板",
     "papers": "论文管理",
-    "crawler": "爬虫管理"
+    "allPapers": "所有论文",
+    "favorites": "收藏夹",
+    "categories": "分类",
+    "tags": "标签",
+    "crawler": "爬虫管理",
+    "overview": "概览",
+    "charts": "图表",
+    "timeline": "时间线",
+    "export": "导出",
+    "preferences": "偏好设置",
+    "system": "系统"
   },
   "home": {
     "welcome": "欢迎使用 PaperCrawler",
@@ -190,7 +201,8 @@
     "active": "活跃",
     "inactive": "未激活",
     "actions": "操作",
-    "toggleTheme": "切换主题"
+    "toggleTheme": "切换主题",
+    "collapseSidebar": "折叠侧边栏"
   },
   "error": {
     "networkError": "网络错误，请检查您的连接",
