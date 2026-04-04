@@ -166,7 +166,11 @@ service.interceptors.response.use(
     }
 
     // Show user-friendly error message
-    if (apiError.type !== 'NETWORK' && typeof window !== 'undefined') {
+    // Skip showing messages for 404 errors (API not implemented yet) in development
+    const is404 = apiError.status === 404 || apiError.code === 'ERR_BAD_REQUEST'
+    const shouldShowMessage = apiError.type !== 'NETWORK' && !is404 && typeof window !== 'undefined'
+
+    if (shouldShowMessage) {
       ElMessage.error(createUserFriendlyMessage(apiError))
     }
 
