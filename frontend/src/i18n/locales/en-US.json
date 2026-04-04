@@ -421,5 +421,28 @@
     "goHome": "Go Home",
     "goBack": "Go Back",
     "helpfulLinks": "Helpful Links"
+  },
+  "route": {
+    "login": "Login",
+    "register": "Register",
+    "forgotPassword": "Forgot Password",
+    "resetPassword": "Reset Password",
+    "dashboard": "Dashboard",
+    "dashboardOld": "Dashboard (Old)",
+    "paperManagement": "Paper Management",
+    "addPaper": "Add Paper",
+    "paperDetails": "Paper Details",
+    "editPaper": "Edit Paper",
+    "crawlerManagement": "Crawler Management",
+    "crawlerDashboard": "Crawler Dashboard",
+    "templateManagement": "Template Management",
+    "createTemplate": "Create Template",
+    "editTemplate": "Edit Template",
+    "taskManagement": "Task Management",
+    "nodeManagement": "Node Management",
+    "search": "Search",
+    "settings": "Settings",
+    "profile": "Profile",
+    "notFound": "404 Not Found"
   }
 }

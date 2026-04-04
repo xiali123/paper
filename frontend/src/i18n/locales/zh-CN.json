@@ -421,5 +421,28 @@
     "goHome": "返回首页",
     "goBack": "返回上一页",
     "helpfulLinks": "常用链接"
+  },
+  "route": {
+    "login": "登录",
+    "register": "注册",
+    "forgotPassword": "忘记密码",
+    "resetPassword": "重置密码",
+    "dashboard": "仪表板",
+    "dashboardOld": "仪表板（旧版）",
+    "paperManagement": "论文管理",
+    "addPaper": "添加论文",
+    "paperDetails": "论文详情",
+    "editPaper": "编辑论文",
+    "crawlerManagement": "爬虫管理",
+    "crawlerDashboard": "爬虫仪表板",
+    "templateManagement": "模板管理",
+    "createTemplate": "创建模板",
+    "editTemplate": "编辑模板",
+    "taskManagement": "任务管理",
+    "nodeManagement": "节点管理",
+    "search": "搜索",
+    "settings": "设置",
+    "profile": "个人资料",
+    "notFound": "404 未找到"
   }
 }

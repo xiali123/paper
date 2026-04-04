@@ -19,7 +19,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       guestOnly: true,
-      title: 'Login',
+      title: 'route.login',
       layout: 'auth'
     }
   },
@@ -30,7 +30,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       guestOnly: true,
-      title: 'Register',
+      title: 'route.register',
       layout: 'auth'
     }
   },
@@ -41,7 +41,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       guestOnly: true,
-      title: 'Forgot Password',
+      title: 'route.forgotPassword',
       layout: 'auth'
     }
   },
@@ -52,7 +52,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       guestOnly: true,
-      title: 'Reset Password',
+      title: 'route.resetPassword',
       layout: 'auth'
     }
   },
@@ -87,97 +87,97 @@ const routes: RouteRecordRaw[] = [
         path: '/dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/DashboardView.vue'),
-        meta: { requiresAuth: true, title: 'Dashboard', icon: 'Odometer' }
+        meta: { requiresAuth: true, title: 'route.dashboard', icon: 'Odometer' }
       },
       {
         path: '/dashboard-old',
         name: 'DashboardOld',
         component: () => import('@/views/dashboard/Dashboard.vue'),
-        meta: { requiresAuth: true, title: 'Dashboard (Old)', icon: 'Odometer' }
+        meta: { requiresAuth: true, title: 'route.dashboardOld', icon: 'Odometer' }
       },
       {
         path: '/papers',
         name: 'Papers',
         component: () => import('@/views/papers/PaperListView.vue'),
-        meta: { requiresAuth: true, title: 'Paper Management', icon: 'Document' }
+        meta: { requiresAuth: true, title: 'route.paperManagement', icon: 'Document' }
       },
       {
         path: '/papers/new',
         name: 'PaperCreate',
         component: () => import('@/views/papers/PaperEditView.vue'),
-        meta: { requiresAuth: true, title: 'Add Paper' }
+        meta: { requiresAuth: true, title: 'route.addPaper' }
       },
       {
         path: '/papers/:id',
         name: 'PaperDetail',
         component: () => import('@/views/papers/PaperDetailView.vue'),
-        meta: { requiresAuth: true, title: 'Paper Details' }
+        meta: { requiresAuth: true, title: 'route.paperDetails' }
       },
       {
         path: '/papers/:id/edit',
         name: 'PaperEdit',
         component: () => import('@/views/papers/PaperEditView.vue'),
-        meta: { requiresAuth: true, title: 'Edit Paper' }
+        meta: { requiresAuth: true, title: 'route.editPaper' }
       },
       {
         path: '/crawler',
         name: 'Crawler',
         redirect: '/crawler/dashboard',
-        meta: { requiresAuth: true, title: 'Crawler Management', icon: 'Connection' }
+        meta: { requiresAuth: true, title: 'route.crawlerManagement', icon: 'Connection' }
       },
       {
         path: '/crawler/dashboard',
         name: 'CrawlerDashboard',
         component: () => import('@/views/crawler/CrawlerDashboardView.vue'),
-        meta: { requiresAuth: true, title: 'Crawler Dashboard', icon: 'Odometer' }
+        meta: { requiresAuth: true, title: 'route.crawlerDashboard', icon: 'Odometer' }
       },
       {
         path: '/crawler/templates',
         name: 'TemplateList',
         component: () => import('@/views/crawler/TemplateListView.vue'),
-        meta: { requiresAuth: true, title: 'Template Management', icon: 'Grid' }
+        meta: { requiresAuth: true, title: 'route.templateManagement', icon: 'Grid' }
       },
       {
         path: '/crawler/templates/new',
         name: 'TemplateCreate',
         component: () => import('@/views/crawler/TemplateEditView.vue'),
-        meta: { requiresAuth: true, title: 'Create Template' }
+        meta: { requiresAuth: true, title: 'route.createTemplate' }
       },
       {
         path: '/crawler/templates/:id/edit',
         name: 'TemplateEdit',
         component: () => import('@/views/crawler/TemplateEditView.vue'),
-        meta: { requiresAuth: true, title: 'Edit Template' }
+        meta: { requiresAuth: true, title: 'route.editTemplate' }
       },
       {
         path: '/crawler/tasks',
         name: 'TaskList',
         component: () => import('@/views/crawler/TaskListView.vue'),
-        meta: { requiresAuth: true, title: 'Task Management', icon: 'List' }
+        meta: { requiresAuth: true, title: 'route.taskManagement', icon: 'List' }
       },
       {
         path: '/crawler/nodes',
         name: 'NodeManagement',
         component: () => import('@/views/crawler/NodeManagementView.vue'),
-        meta: { requiresAuth: true, title: 'Node Management', icon: 'Monitor' }
+        meta: { requiresAuth: true, title: 'route.nodeManagement', icon: 'Monitor' }
       },
       {
         path: '/search',
         name: 'Search',
         component: () => import('@/views/search/SearchPage.vue'),
-        meta: { requiresAuth: true, title: 'Search', icon: 'Search' }
+        meta: { requiresAuth: true, title: 'route.search', icon: 'Search' }
       },
       {
         path: '/settings',
         name: 'Settings',
         component: () => import('@/views/settings/Settings.vue'),
-        meta: { requiresAuth: true, title: 'Settings', icon: 'Setting' }
+        meta: { requiresAuth: true, title: 'route.settings', icon: 'Setting' }
       },
       {
         path: '/profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),
-        meta: { requiresAuth: true, title: 'Profile', icon: 'User' }
+        meta: { requiresAuth: true, title: 'route.profile', icon: 'User' }
       }
     ]
   },
@@ -187,7 +187,7 @@ const routes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/error/NotFound.vue'),
-    meta: { title: '404 Not Found' }
+    meta: { title: 'route.notFound' }
   }
 ]
 
@@ -203,10 +203,10 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   NProgress.start()
 
-  // Update page title
-  if (to.meta.title) {
-    const title = typeof to.meta.title === 'string' ? to.meta.title : 'PaperCrawler'
-    document.title = `${title} - PaperCrawler`
+  // Update page title - i18n translation will be handled by BreadcrumbBar component
+  // Just set a default title here
+  if (!document.title) {
+    document.title = 'PaperCrawler'
   }
 
   const authStore = useAuthStore()
