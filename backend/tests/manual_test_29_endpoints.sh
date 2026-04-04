@@ -41,11 +41,11 @@ test_endpoint() {
 
 # 1-9. 模板管理接口
 test_endpoint "1" "GET /templates" "GET" "$BASE_URL/templates"
-test_endpoint "2" "POST /templates" "POST" "$BASE_URL/templates" '{"name":"测试模板","baseUrl":"https://example.com","selectors":{}}'
+test_endpoint "2" "POST /templates" "POST" "$BASE_URL/templates" '{"name":"Test Template","baseUrl":"https://example.com","selectors":{}}'
 test_endpoint "3" "GET /templates/:id" "GET" "$BASE_URL/templates/1"
-test_endpoint "4" "PUT /templates/:id" "PUT" "$BASE_URL/templates/1" '{"name":"更新后的模板"}'
+test_endpoint "4" "PUT /templates/:id" "PUT" "$BASE_URL/templates/1" '{"name":"Updated Template"}'
 test_endpoint "5" "DELETE /templates/:id" "DELETE" "$BASE_URL/templates/1"
-test_endpoint "6" "POST /templates/validate" "POST" "$BASE_URL/templates/validate" '{"name":"验证模板","baseUrl":"https://example.com"}'
+test_endpoint "6" "POST /templates/validate" "POST" "$BASE_URL/templates/validate" '{"name":"Validated Template","baseUrl":"https://example.com"}'
 test_endpoint "7" "POST /templates/:id/test" "POST" "$BASE_URL/templates/1/test"
 test_endpoint "8" "GET /templates/:id/export" "GET" "$BASE_URL/templates/1/export"
 test_endpoint "9" "POST /templates/import" "POST" "$BASE_URL/templates/import" '{"templates":[]}'
@@ -55,7 +55,7 @@ echo "⚙️ 10-16. 任务管理接口"
 echo ""
 
 # 10-16. 任务管理接口
-test_endpoint "10" "POST /tasks" "POST" "$BASE_URL/tasks" '{"templateId":1,"url":"https://example.com"}'
+test_endpoint "10" "POST /tasks" "POST" "$BASE_URL/tasks" '{"templateId":"tpl_1","priority":"NORMAL"}'
 test_endpoint "11" "GET /tasks" "GET" "$BASE_URL/tasks"
 test_endpoint "12" "GET /tasks/:id" "GET" "$BASE_URL/tasks/1"
 test_endpoint "13" "DELETE /tasks/:id" "DELETE" "$BASE_URL/tasks/1"
@@ -68,7 +68,7 @@ echo "⏰ 17-23. 定时任务接口"
 echo ""
 
 # 17-23. 定时任务接口
-test_endpoint "17" "POST /schedules" "POST" "$BASE_URL/schedules" '{"name":"定时任务","cron":"0 0 * * *","templateId":1}'
+test_endpoint "17" "POST /schedules" "POST" "$BASE_URL/schedules" '{"name":"Scheduled Task","cronExpression":"0 0 * * *","templateId":"tpl_1"}'
 test_endpoint "18" "GET /schedules" "GET" "$BASE_URL/schedules"
 test_endpoint "19" "PUT /schedules/:id" "PUT" "$BASE_URL/schedules/1" '{"cron":"0 1 * * *"}'
 test_endpoint "20" "DELETE /schedules/:id" "DELETE" "$BASE_URL/schedules/1"
