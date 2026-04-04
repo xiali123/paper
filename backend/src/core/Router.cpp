@@ -1,3 +1,6 @@
+// 定义导出宏（Router.dll）
+#define ROUTER_DLL_EXPORTS
+
 #include "core/Router.hpp"
 #include "core/IModule.hpp"
 #include <spdlog/spdlog.h>
@@ -7,8 +10,8 @@
 
 namespace PaperCrawler {
 
-// 全局Router实例（总是定义）
-Router g_routerInstance;
+// 全局Router实例（导出符号）
+ROUTER_API Router g_routerInstance;
 
 Router& Router::getInstance() {
     return g_routerInstance;

@@ -5,13 +5,20 @@
 #include <functional>
 #include "core/HttpTypes.hpp"
 
+// Router.dll导出/导入宏
+#ifdef ROUTER_DLL_EXPORTS
+#define ROUTER_API __declspec(dllexport)
+#else
+#define ROUTER_API __declspec(dllimport)
+#endif
+
 namespace PaperCrawler {
 
 class IModule;
 
 typedef std::function<HttpResponse(const HttpRequest&)> RouteHandler;
 
-class Router {
+class ROUTER_API Router {
 public:
     static Router& getInstance();
 

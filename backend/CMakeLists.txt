@@ -18,7 +18,7 @@ include_directories("C:/Program Files/MySQL/MySQL Server 8.0/include")
 set(CORE_SOURCES
     src/core/PluginManager.cpp
     src/core/MessageBus.cpp
-    src/core/Router.cpp
+    # Router.cpp已移到Router.dll
     src/core/UnifiedMessage.cpp
     src/core/MessagePool.cpp
     src/core/PoolCoordinator.cpp
@@ -410,6 +410,9 @@ if(CURL_FOUND)
     )
 endif()
 
+# 链接Router.dll（共享路由器单例）
+target_link_libraries(PaperCrawlerServerHotPlug PRIVATE Router)
+
 if(WIN32)
     target_link_libraries(PaperCrawlerServerHotPlug
         PRIVATE
@@ -466,9 +469,44 @@ message(STATUS "")
 # ============================================================================
 # 共享系统模块静态库（供业务模块链接）
 # ============================================================================
+# ============================================================================
+# Router.dll - 共享路由器单例
+# ============================================================================
+add_library(Router SHARED
+    src/core/Router.cpp
+)
+
+# 导出所有符号（Windows）
+set_target_properties(Router PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
+
+target_include_directories(Router PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/../core/include
+    ${EXTERNAL_DIR}/spdlog/include
+)
+
+if(WIN32)
+    target_compile_definitions(Router PUBLIC
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+    )
+endif()
+
+# Router.dll输出到modules目录（与其他DLL一起）
+set_target_properties(Router PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic/Release"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic/Release"
+)
+
+# ============================================================================
+# SystemModules - 系统静态库（不包含Router）
+# ============================================================================
 add_library(SystemModules STATIC
     src/features/operations/ResponseHandlerModule.cpp
-    src/core/Router.cpp
+    # Router.cpp已移到Router.dll
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
     src/network/WebSocketModule.cpp  # 添加WebSocketModule支持（CrawlerApiModule需要）
     src/data/PreparedStatement.cpp   # 添加PreparedStatement支持
@@ -508,6 +546,11 @@ target_include_directories(SystemModules PUBLIC
     ${EXTERNAL_DIR}/gumbo/src  # TemplateCrawlerModule需要gumbo
 )
 
+# SystemModules链接Router.dll（现在Router在独立DLL中）
+target_link_libraries(SystemModules PUBLIC
+    Router
+)
+
 if(WIN32)
     target_compile_definitions(SystemModules PUBLIC
         WIN32_LEAN_AND_MEAN
@@ -523,6 +566,7 @@ if(WIN32)
 
     # SystemModules需要的链接库（gumbo已直接编译到SystemModules中）
     target_link_libraries(SystemModules PUBLIC
+        Router  # 链接Router.dll
         ws2_32
         wsock32
         crypt32
