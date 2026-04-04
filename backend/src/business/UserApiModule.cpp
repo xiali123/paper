@@ -353,9 +353,14 @@ void UserApiModule::registerRoutes() {
     std::string prefix = getRoutePrefix();  // 使用getRoutePrefix()获取动态前缀
 
     std::cout << "UserApiModule registering routes..." << std::endl;
+    std::cout << "UserApiModule route prefix: [" << prefix << "]" << std::endl;
+    std::cout << "UserApiModule router address: [" << (void*)&router << "]" << std::endl;
 
     // 用户列表（分页）
-    router.get(prefix, [this](const HttpRequest& req) {
+    std::string listPath = prefix;
+    std::cout << "About to call router.get() with path: [" << listPath << "]" << std::endl;
+    router.get(listPath, [this](const HttpRequest& req) {
+        std::cout << "UserApi: handleListUsers called" << std::endl;
         return handleListUsers(req);
     });
 

@@ -13,11 +13,21 @@ namespace PaperCrawler {
 // 全局Router实例（导出符号）
 ROUTER_API Router g_routerInstance;
 
+// 全局构造函数日志（在DLL加载时执行）
+struct RouterInit {
+    RouterInit() {
+        std::cout << "[ROUTER] Router singleton initialized" << std::endl;
+    }
+};
+static RouterInit routerInit_;
+
 Router& Router::getInstance() {
+    std::cout << "[ROUTER] getInstance() called, address: " << (void*)&g_routerInstance << std::endl;
     return g_routerInstance;
 }
 
 void Router::get(const std::string& path, RouteHandler handler) {
+    std::cout << "[Router::get] Registering GET route: [" << path << "]" << std::endl;
     routes_[RouteKey{"GET", path}] = handler;
     spdlog::info("Registered GET route: {} (total routes: {}, Router instance: {})", path, routes_.size(), (void*)this);
 }
@@ -96,6 +106,9 @@ bool Router::matchPattern(const std::string& pattern,
 }
 
 HttpResponse Router::route(const HttpRequest& request) {
+    std::cout << "[ROUTER] Routing: " << request.method << " " << request.path << std::endl;
+    std::cout << "[ROUTER] Total routes in map: " << routes_.size() << " (Router instance: " << (void*)this << ")" << std::endl;
+
     spdlog::info("Routing: {} {}", request.method, request.path);
     spdlog::info("Total routes in map: {} (Router instance: {})", routes_.size(), (void*)this);
 
