@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include <string>
 #include <vector>
@@ -76,7 +76,7 @@ struct UserInterest {
  * 4. 混合推荐策略
  * 5. 推荐解释
  */
-class RecommendationApiModule : public IModule {
+class RecommendationApiModule : public BusinessModuleBase {
 public:
     RecommendationApiModule();
     ~RecommendationApiModule() override;
@@ -89,10 +89,6 @@ public:
     ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
     std::string getRoutePrefix() const override { return "/api/recommendations"; }
 
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 设置推荐配置
@@ -160,6 +156,8 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
+
+    void registerRoutes() override;
 
     // ========================================================================
     // 推荐算法实现

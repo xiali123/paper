@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
 #include <string>
@@ -91,7 +91,7 @@ struct QuestionResult {
  * 4. 贡献点总结
  * 5. 多语言支持（中文、英文）
  */
-class AiApiModule : public IModule {
+class AiApiModule : public BusinessModuleBase {
 public:
     AiApiModule();
     ~AiApiModule() override;
@@ -104,10 +104,6 @@ public:
     ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
     std::string getRoutePrefix() const override { return "/api/ai"; }
 
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 设置AI配置
@@ -172,6 +168,8 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
+
+    void registerRoutes() override;
 
     // ========================================================================
     // 内部辅助方法

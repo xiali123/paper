@@ -780,7 +780,7 @@ endfunction()
 
 # 将ExportApiModule编译为动态库（阶段1）
 # 导出函数现在直接在ExportApiModule.cpp中
-add_dynamic_module(ExportApiModule
+add_dynamic_module_with_system(ExportApiModule
     src/business/ExportApiModule.cpp
 )
 
@@ -810,12 +810,12 @@ add_dynamic_module_with_system(UserApiModule
 )
 
 # 阶段7：AiApiModule动态化（NEW）
-add_dynamic_module(AiApiModule
+add_dynamic_module_with_system(AiApiModule
     src/business/AiApiModule.cpp
 )
 
 # 阶段8：RecommendationApiModule动态化（NEW）
-add_dynamic_module(RecommendationApiModule
+add_dynamic_module_with_system(RecommendationApiModule
     src/business/RecommendationApiModule.cpp
 )
 

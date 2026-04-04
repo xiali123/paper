@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include <string>
 #include <vector>
@@ -96,7 +96,7 @@ struct ExportStats {
  * - POST /api/export/preview      - 预览导出结果
  * - GET  /api/export/templates    - 获取导出模板
  */
-class ExportApiModule : public IModule {
+class ExportApiModule : public BusinessModuleBase {
 public:
     ExportApiModule();
     ~ExportApiModule() override;
@@ -106,13 +106,6 @@ public:
     std::string getDescription() const override {
         return "Export and download API with multiple format support";
     }
-    ModuleType getModuleType() const override { return ModuleType::BUSINESS; }
-    std::string getRoutePrefix() const override { return "/api/export"; }
-
-    bool initialize() override;
-    bool start() override;
-    bool stop() override;
-    void cleanup() override;
 
     /**
      * @brief 创建导出任务
@@ -217,6 +210,8 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
+
+    void registerRoutes() override;
 
     // 导出任务存储
     std::map<std::string, ExportTask> exportTasks_;

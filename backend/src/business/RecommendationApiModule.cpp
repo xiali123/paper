@@ -1,5 +1,6 @@
 #include "business/RecommendationApiModule.hpp"
 #include "data/DatabaseModule.hpp"
+#include "core/Router.hpp"
 #include <sstream>
 #include <algorithm>
 #include <cmath>
@@ -7,6 +8,7 @@
 #include <thread>
 #include <unordered_map>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -165,28 +167,6 @@ RecommendationApiModule::RecommendationApiModule()
 }
 
 RecommendationApiModule::~RecommendationApiModule() = default;
-
-bool RecommendationApiModule::initialize() {
-    std::cout << "RecommendationApiModule::initialize" << std::endl;
-
-    // TODO: 从ServiceContainer获取依赖
-    RecommendationConfig defaultConfig;
-    return impl_->initialize(defaultConfig, nullptr);
-}
-
-bool RecommendationApiModule::start() {
-    std::cout << "RecommendationApiModule started" << std::endl;
-    return true;
-}
-
-bool RecommendationApiModule::stop() {
-    std::cout << "RecommendationApiModule stopped" << std::endl;
-    return true;
-}
-
-void RecommendationApiModule::cleanup() {
-    // 清理资源
-}
 
 void RecommendationApiModule::setConfig(const RecommendationConfig& config) {
     impl_->config_ = config;
@@ -540,6 +520,55 @@ std::optional<std::vector<RecommendationResult>> RecommendationApiModule::getCac
 
     // TODO: 从Redis缓存获取推荐结果
     return std::nullopt;
+}
+
+// ============================================================================
+// 路由注册
+// ============================================================================
+
+void RecommendationApiModule::registerRoutes() {
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/recommendations"
+
+    spdlog::info("[RecommendationApiModule] Registering routes with prefix: {}", prefix);
+
+    // GET /api/recommendations/papers - 论文推荐
+    router.get(prefix + "/papers", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"recommendations\":[],\"count\":0,\"algorithm\":\"hybrid\"}";
+        return response;
+    });
+
+    // GET /api/recommendations/trending - 热门内容
+    router.get(prefix + "/trending", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"trending\":[],\"count\":0}";
+        return response;
+    });
+
+    // POST /api/recommendations/feedback - 推荐反馈
+    router.post(prefix + "/feedback", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"message\":\"Feedback recorded (stub mode)\"}";
+        return response;
+    });
+
+    // GET /api/recommendations/stats - 推荐统计
+    router.get(prefix + "/stats", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"total_recommendations\":0,\"user_feedback\":0}";
+        return response;
+    });
+
+    spdlog::info("[RecommendationApiModule] Registered 4 routes");
 }
 
 } // namespace PaperCrawler

@@ -1,12 +1,14 @@
 #include "business/AiApiModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "network/HttpClient.hpp"
+#include "core/Router.hpp"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
 #include <chrono>
 #include <thread>
 #include <iomanip>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -187,31 +189,6 @@ AiApiModule::AiApiModule()
 }
 
 AiApiModule::~AiApiModule() = default;
-
-bool AiApiModule::initialize() {
-    std::cout << "AiApiModule::initialize" << std::endl;
-
-    // TODO: 从ServiceContainer获取依赖
-    // auto database = ServiceContainer::instance().getService<IDatabase>();
-    // auto httpClient = ServiceContainer::instance().getService<HttpClient>();
-
-    AiConfig defaultConfig;
-    return impl_->initialize(defaultConfig, nullptr, HttpClientPtr{});
-}
-
-bool AiApiModule::start() {
-    std::cout << "AiApiModule started" << std::endl;
-    return true;
-}
-
-bool AiApiModule::stop() {
-    std::cout << "AiApiModule stopped" << std::endl;
-    return true;
-}
-
-void AiApiModule::cleanup() {
-    // 清理资源
-}
 
 void AiApiModule::setConfig(const AiConfig& config) {
     impl_->config_ = config;
@@ -463,6 +440,55 @@ void AiApiModule::cacheAiResult(const std::string& key, const std::string& resul
 std::optional<std::string> AiApiModule::getCachedResult(const std::string& key) {
     // TODO: 实现缓存查询
     return std::nullopt;
+}
+
+// ============================================================================
+// 路由注册
+// ============================================================================
+
+void AiApiModule::registerRoutes() {
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/ai"
+
+    spdlog::info("[AiApiModule] Registering routes with prefix: {}", prefix);
+
+    // POST /api/ai/summarize - 生成摘要
+    router.post(prefix + "/summarize", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"summary\":\"Generated summary (stub mode)\",\"word_count\":100}";
+        return response;
+    });
+
+    // POST /api/ai/chat - AI对话
+    router.post(prefix + "/chat", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"response\":\"AI response (stub mode)\"}";
+        return response;
+    });
+
+    // POST /api/ai/keywords - 提取关键词
+    router.post(prefix + "/keywords", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"keywords\":[\"keyword1\",\"keyword2\"],\"count\":2}";
+        return response;
+    });
+
+    // GET /api/ai/status - AI服务状态
+    router.get(prefix + "/status", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"status\":\"available\",\"provider\":\"openai\",\"model\":\"gpt-3.5-turbo\"}";
+        return response;
+    });
+
+    spdlog::info("[AiApiModule] Registered 4 routes");
 }
 
 } // namespace PaperCrawler

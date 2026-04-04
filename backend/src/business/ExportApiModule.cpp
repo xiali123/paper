@@ -1,11 +1,13 @@
 #include <iostream>
 #include "business/ExportApiModule.hpp"
 #include "business/PaperApiModule.hpp"
+#include "core/Router.hpp"
 #include <sstream>
 #include <iomanip>
 #include <fstream>
 #include <filesystem>
 #include <chrono>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -124,29 +126,6 @@ ExportApiModule::ExportApiModule()
 }
 
 ExportApiModule::~ExportApiModule() = default;
-
-bool ExportApiModule::initialize() {
-    std::cout << "ExportApiModule initialized" << std::endl;
-    std::cout << "  - Export directory: " << exportDirectory_ << std::endl;
-    std::cout << "  - Supported formats: " << supportedFormats_.size() << std::endl;
-    return true;
-}
-
-bool ExportApiModule::start() {
-    std::cout << "ExportApiModule started" << std::endl;
-    return true;
-}
-
-bool ExportApiModule::stop() {
-    std::cout << "ExportApiModule stopped" << std::endl;
-    return true;
-}
-
-void ExportApiModule::cleanup() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    exportTasks_.clear();
-    userTasks_.clear();
-}
 
 std::string ExportApiModule::createExportTask(const std::string& userId,
                                              const std::vector<int>& paperIds,
@@ -607,6 +586,59 @@ void ExportApiModule::updateStats(ExportFormat format, bool success, int bytes) 
     } else {
         stats_.failedExports++;
     }
+}
+
+} // namespace PaperCrawler
+
+// ============================================================================
+// 路由注册
+// ============================================================================
+
+namespace PaperCrawler {
+
+void ExportApiModule::registerRoutes() {
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/export"
+
+    spdlog::info("[ExportApiModule] Registering routes with prefix: {}", prefix);
+
+    // GET /api/export - 获取导出任务列表
+    router.get(prefix, [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"tasks\":[],\"count\":0,\"message\":\"No export tasks (stub mode)\"}";
+        return response;
+    });
+
+    // POST /api/export - 创建导出任务
+    router.post(prefix, [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 201;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"message\":\"Export task created (stub mode)\",\"task_id\":\"stub_task_id\"}";
+        return response;
+    });
+
+    // GET /api/export/formats - 支持的导出格式
+    router.get(prefix + "/formats", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"formats\":[\"JSON\",\"BIBTEX\",\"CSV\",\"PDF\",\"MARKDOWN\"],\"count\":5}";
+        return response;
+    });
+
+    // GET /api/export/stats - 导出统计
+    router.get(prefix + "/stats", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"total_exports\":0,\"successful_exports\":0,\"failed_exports\":0}";
+        return response;
+    });
+
+    spdlog::info("[ExportApiModule] Registered 4 routes");
 }
 
 } // namespace PaperCrawler
