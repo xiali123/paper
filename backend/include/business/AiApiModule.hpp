@@ -94,6 +94,7 @@ struct QuestionResult {
 class AiApiModule : public BusinessModuleBase {
 public:
     AiApiModule();
+    explicit AiApiModule(std::shared_ptr<IDatabase> database);
     ~AiApiModule() override;
 
     std::string getName() const override { return "AI"; }

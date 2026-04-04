@@ -2,6 +2,8 @@
 #include "business/SearchApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "network/HttpClient.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include <sstream>
 #include <algorithm>
 #include <regex>
@@ -172,14 +174,20 @@ public:
 // ============================================================================
 
 SearchApiModule::SearchApiModule()
-    : SearchApiModule(nullptr) {
-    std::cout << "[SearchApi] SearchApiModule default constructor (httpClient=nullptr)" << std::endl;
+    : SearchApiModule(static_cast<std::shared_ptr<IDatabase>>(nullptr)) {
+    std::cout << "[SearchApi] SearchApiModule default constructor" << std::endl;
 }
 
 SearchApiModule::SearchApiModule(HttpClientPtr httpClient)
     : httpClient_(httpClient ? httpClient : std::make_shared<Network::HttpClient>()),
       impl_(std::make_unique<Impl>(nullptr)) {  // 临时：暂时传入nullptr
     // TODO: 修改构造函数接受IDatabase参数
+}
+
+SearchApiModule::SearchApiModule(std::shared_ptr<IDatabase> database)
+    : httpClient_(std::make_shared<Network::HttpClient>()),
+      impl_(std::make_unique<Impl>(database)) {
+    // TODO: 接收database参数并保存到impl_
 }
 
 SearchApiModule::~SearchApiModule() = default;
@@ -334,6 +342,26 @@ void SearchApiModule::registerRoutes() {
 
     spdlog::info("[SearchApiModule] Registering routes with prefix: {}", prefix);
 
+    // 订阅MessageBus消息
+    auto& messageBus = MessageBus::getInstance();
+    messageBus.registerHandler(MessageType::CUSTOM,
+        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+            if (dbMsg && dbMsg->isSuccess()) {
+                impl_->database_ = dbMsg->getConnection();
+                spdlog::info("[SearchApi] ✅ Received database connection from MessageBus!");
+            }
+            // 返回确认消息
+            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "SearchApi", "DatabaseModule");
+            response->setData("acknowledged", true);
+            response->setData("moduleName", "SearchApi");
+            return response;
+        },
+        "SearchApi"
+    );
+
+    spdlog::info("[SearchApi] Successfully subscribed to database connection messages");
+
     // GET /api/search - 基础搜索
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
@@ -397,19 +425,18 @@ void SearchApiModule::registerRoutes() {
 // DLL导出函数
 // ============================================================================
 
-#define EXPORT __declspec(dllexport)
 
 extern "C" {
 
-EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::SearchApiModule();
 }
 
-EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::SearchApiModule*>(ptr);
 }
 
-EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 

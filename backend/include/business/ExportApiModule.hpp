@@ -2,6 +2,7 @@
 
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "data/IDatabase.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -9,6 +10,7 @@
 #include <chrono>
 #include <mutex>
 #include <functional>
+#include <memory>
 
 namespace PaperCrawler {
 
@@ -99,6 +101,7 @@ struct ExportStats {
 class ExportApiModule : public BusinessModuleBase {
 public:
     ExportApiModule();
+    explicit ExportApiModule(std::shared_ptr<IDatabase> database);
     ~ExportApiModule() override;
 
     std::string getName() const override { return "ExportApi"; }

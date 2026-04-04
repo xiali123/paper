@@ -2,6 +2,8 @@
 #include "business/ExportApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "core/Router.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include <sstream>
 #include <iomanip>
 #include <fstream>
@@ -108,7 +110,25 @@ public:
 // ============================================================================
 
 ExportApiModule::ExportApiModule()
-    : impl_(std::make_unique<Impl>()) {
+    : impl_(std::make_unique<Impl>(nullptr)) {
+
+    // 初始化支持的导出格式
+    supportedFormats_ = {
+        ExportFormat::JSON,
+        ExportFormat::BIBTEX,
+        ExportFormat::ENDNOTE,
+        ExportFormat::CSV,
+        ExportFormat::XML,
+        ExportFormat::MARKDOWN
+    };
+
+    // 初始化默认模板
+    exportTemplates_["default_bibtex"] = "@article{id,\n  title={title},\n  author={author},\n  year={year}\n}";
+    exportTemplates_["default_csv"] = "ID,Title,Author,Year\n";
+}
+
+ExportApiModule::ExportApiModule(std::shared_ptr<IDatabase> database)
+    : impl_(std::make_unique<Impl>(database)) {
 
     // 初始化支持的导出格式
     supportedFormats_ = {
@@ -602,6 +622,26 @@ void ExportApiModule::registerRoutes() {
 
     spdlog::info("[ExportApiModule] Registering routes with prefix: {}", prefix);
 
+    // 订阅MessageBus消息
+    auto& messageBus = MessageBus::getInstance();
+    messageBus.registerHandler(MessageType::CUSTOM,
+        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+            if (dbMsg && dbMsg->isSuccess()) {
+                impl_->database_ = dbMsg->getConnection();
+                spdlog::info("[ExportApi] ✅ Received database connection from MessageBus!");
+            }
+            // 返回确认消息
+            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "ExportApi", "DatabaseModule");
+            response->setData("acknowledged", true);
+            response->setData("moduleName", "ExportApi");
+            return response;
+        },
+        "ExportApi"
+    );
+
+    spdlog::info("[ExportApi] Successfully subscribed to database connection messages");
+
     // GET /api/export - 获取导出任务列表
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
@@ -647,19 +687,18 @@ void ExportApiModule::registerRoutes() {
 // DLL导出函数（全局命名空间）
 // ============================================================================
 
-#define EXPORT __declspec(dllexport)
 
 extern "C" {
 
-EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::ExportApiModule();
 }
 
-EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::ExportApiModule*>(ptr);
 }
 
-EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 

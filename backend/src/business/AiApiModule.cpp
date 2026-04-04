@@ -2,6 +2,8 @@
 #include "data/DatabaseModule.hpp"
 #include "network/HttpClient.hpp"
 #include "core/Router.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -185,7 +187,13 @@ public:
 // ============================================================================
 
 AiApiModule::AiApiModule()
+    : AiApiModule(nullptr) {
+}
+
+AiApiModule::AiApiModule(std::shared_ptr<IDatabase> database)
     : impl_(std::make_unique<Impl>()) {
+    // TODO: 接收database参数并保存到impl_
+    // impl_->database_ = database;
 }
 
 AiApiModule::~AiApiModule() = default;
@@ -451,6 +459,26 @@ void AiApiModule::registerRoutes() {
     std::string prefix = getRoutePrefix(); // "/api/ai"
 
     spdlog::info("[AiApiModule] Registering routes with prefix: {}", prefix);
+
+    // 订阅MessageBus消息
+    auto& messageBus = MessageBus::getInstance();
+    messageBus.registerHandler(MessageType::CUSTOM,
+        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+            if (dbMsg && dbMsg->isSuccess()) {
+                impl_->database_ = dbMsg->getConnection();
+                spdlog::info("[AiApi] ✅ Received database connection from MessageBus!");
+            }
+            // 返回确认消息
+            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "AiApi", "DatabaseModule");
+            response->setData("acknowledged", true);
+            response->setData("moduleName", "AiApi");
+            return response;
+        },
+        "AiApi"
+    );
+
+    spdlog::info("[AiApi] Successfully subscribed to database connection messages");
 
     // POST /api/ai/summarize - 生成摘要
     router.post(prefix + "/summarize", [this](const HttpRequest& req) {

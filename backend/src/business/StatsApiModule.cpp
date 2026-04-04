@@ -3,6 +3,8 @@
 #include "data/IDatabase.hpp"
 #include "core/ModuleRegistry.hpp"
 #include "core/Router.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include "business/JsonHelper.hpp"
 #include <sstream>
 #include <map>
@@ -321,7 +323,13 @@ public:
 // ============================================================================
 
 StatsApiModule::StatsApiModule()
+    : StatsApiModule(nullptr) {
+}
+
+StatsApiModule::StatsApiModule(std::shared_ptr<IDatabase> database)
     : impl_(std::make_unique<Impl>()) {
+    // TODO: 接收database参数并保存到impl_
+    // impl_->database_ = database;
 }
 
 StatsApiModule::~StatsApiModule() = default;
@@ -460,6 +468,26 @@ void StatsApiModule::registerRoutes() {
     std::string prefix = getRoutePrefix(); // "/api/stats"
 
     spdlog::info("[StatsApiModule] Registering routes with prefix: {}", prefix);
+
+    // 订阅MessageBus消息
+    auto& messageBus = MessageBus::getInstance();
+    messageBus.registerHandler(MessageType::CUSTOM,
+        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+            if (dbMsg && dbMsg->isSuccess()) {
+                impl_->database_ = dbMsg->getConnection();
+                spdlog::info("[StatsApi] ✅ Received database connection from MessageBus!");
+            }
+            // 返回确认消息
+            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "StatsApi", "DatabaseModule");
+            response->setData("acknowledged", true);
+            response->setData("moduleName", "StatsApi");
+            return response;
+        },
+        "StatsApi"
+    );
+
+    spdlog::info("[StatsApi] Successfully subscribed to database connection messages");
 
     // GET /api/stats/system - 系统信息
     router.get(prefix + "/system", [this](const HttpRequest& req) {
@@ -633,19 +661,18 @@ void StatsApiModule::monitorLoop() {
 // DLL导出函数
 // ============================================================================
 
-#define EXPORT __declspec(dllexport)
 
 extern "C" {
 
-EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::StatsApiModule();
 }
 
-EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::StatsApiModule*>(ptr);
 }
 
-EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 

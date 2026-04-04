@@ -2,6 +2,8 @@
 #include "business/AuthApiModule.hpp"
 #include "features/SessionModule.hpp"
 #include "data/DatabaseModule.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include "../../core/external/nlohmann/json.hpp"
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -247,6 +249,36 @@ void AuthApiModule::registerRoutes() {
     std::string prefix = getRoutePrefix(); // "/api/auth"
 
     spdlog::info("[AuthApiModule] Registering routes with prefix: {}", prefix);
+
+    // 订阅MessageBus消息
+    try {
+        auto& messageBus = MessageBus::getInstance();
+
+        messageBus.registerHandler(MessageType::CUSTOM,
+            [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+                // 尝试转换为DatabaseConnectionMessage
+                auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+                if (dbMsg && dbMsg->isSuccess()) {
+                    impl_->database_ = dbMsg->getConnection();
+                    spdlog::info("[AuthApi] ✅ Received database connection from MessageBus!");
+                } else {
+                    spdlog::warn("[AuthApi] ⚠️ Database connection message invalid or failed");
+                }
+
+                // 返回确认消息
+                auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "AuthApi", "DatabaseModule");
+                response->setData("acknowledged", true);
+                response->setData("moduleName", "AuthApi");
+                return response;
+            },
+            "AuthApi"
+        );
+
+        spdlog::info("[AuthApi] Successfully subscribed to database connection messages");
+    } catch (const std::exception& e) {
+        spdlog::error("[AuthApi] ❌ Exception subscribing to database messages: {}", e.what());
+        spdlog::warn("[AuthApi] Will continue with stub mode");
+    }
 
     // 辅助函数：检查字符串是否为空
     auto isEmpty = [](const std::string& s) { return s.empty() || s.find_first_not_of(" \t\r\n") == std::string::npos; };
@@ -1154,19 +1186,18 @@ std::string AuthApiModule::handleDeleteSession(const std::map<std::string, std::
 // DLL导出函数
 // ============================================================================
 
-#define EXPORT __declspec(dllexport)
 
 extern "C" {
 
-EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::AuthApiModule();
 }
 
-EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::AuthApiModule*>(ptr);
 }
 
-EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 
