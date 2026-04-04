@@ -321,7 +321,13 @@ public:
 // ============================================================================
 
 StatsApiModule::StatsApiModule()
+    : StatsApiModule(nullptr) {
+}
+
+StatsApiModule::StatsApiModule(std::shared_ptr<IDatabase> database)
     : impl_(std::make_unique<Impl>()) {
+    // TODO: 接收database参数并保存到impl_
+    // impl_->database_ = database;
 }
 
 StatsApiModule::~StatsApiModule() = default;
@@ -633,19 +639,18 @@ void StatsApiModule::monitorLoop() {
 // DLL导出函数
 // ============================================================================
 
-#define EXPORT __declspec(dllexport)
 
 extern "C" {
 
-EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::StatsApiModule();
 }
 
-EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::StatsApiModule*>(ptr);
 }
 
-EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 

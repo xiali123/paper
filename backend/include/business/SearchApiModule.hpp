@@ -3,6 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "network/HttpClient.hpp"
+#include "data/IDatabase.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -191,6 +192,10 @@ public:
 
     // 构造函数：可注入HttpClient（用于测试）
     SearchApiModule(HttpClientPtr httpClient);
+
+    // 构造函数：可注入IDatabase
+    explicit SearchApiModule(std::shared_ptr<IDatabase> database);
+
     ~SearchApiModule() override;
 
     std::string getName() const override { return "SearchApi"; }

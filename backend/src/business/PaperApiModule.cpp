@@ -3,6 +3,8 @@
 #include "business/JsonHelper.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include "../../core/external/nlohmann/json.hpp"
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -712,6 +714,36 @@ void PaperApiModule::registerRoutes() {
 
     spdlog::info("[PaperApiModule] Registering routes with prefix: {}", prefix);
 
+    // 订阅MessageBus消息
+    try {
+        auto& messageBus = MessageBus::getInstance();
+
+        messageBus.registerHandler(MessageType::CUSTOM,
+            [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+                // 尝试转换为DatabaseConnectionMessage
+                auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+                if (dbMsg && dbMsg->isSuccess()) {
+                    database_ = dbMsg->getConnection();
+                    spdlog::info("[PaperApi] ✅ Received database connection from MessageBus!");
+                } else {
+                    spdlog::warn("[PaperApi] ⚠️ Database connection message invalid or failed");
+                }
+
+                // 返回确认消息
+                auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "PaperApi", "DatabaseModule");
+                response->setData("acknowledged", true);
+                response->setData("moduleName", "PaperApi");
+                return response;
+            },
+            "PaperApi"
+        );
+
+        spdlog::info("[PaperApi] Successfully subscribed to database connection messages");
+    } catch (const std::exception& e) {
+        spdlog::error("[PaperApi] ❌ Exception subscribing to database messages: {}", e.what());
+        spdlog::warn("[PaperApi] Will continue with stub mode");
+    }
+
     // GET /api/papers - 论文列表
     router.get(prefix, [this](const HttpRequest& req) {
         // 将查询参数转换为map
@@ -1375,19 +1407,18 @@ std::string PaperApiModule::handleTags(const std::map<std::string, std::string>&
 // DLL导出函数
 // ============================================================================
 
-#define EXPORT __declspec(dllexport)
 
 extern "C" {
 
-EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::PaperApiModule();
 }
 
-EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::PaperApiModule*>(ptr);
 }
 
-EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 

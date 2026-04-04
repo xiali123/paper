@@ -108,7 +108,25 @@ public:
 // ============================================================================
 
 ExportApiModule::ExportApiModule()
-    : impl_(std::make_unique<Impl>()) {
+    : impl_(std::make_unique<Impl>(nullptr)) {
+
+    // 初始化支持的导出格式
+    supportedFormats_ = {
+        ExportFormat::JSON,
+        ExportFormat::BIBTEX,
+        ExportFormat::ENDNOTE,
+        ExportFormat::CSV,
+        ExportFormat::XML,
+        ExportFormat::MARKDOWN
+    };
+
+    // 初始化默认模板
+    exportTemplates_["default_bibtex"] = "@article{id,\n  title={title},\n  author={author},\n  year={year}\n}";
+    exportTemplates_["default_csv"] = "ID,Title,Author,Year\n";
+}
+
+ExportApiModule::ExportApiModule(std::shared_ptr<IDatabase> database)
+    : impl_(std::make_unique<Impl>(database)) {
 
     // 初始化支持的导出格式
     supportedFormats_ = {
@@ -647,19 +665,18 @@ void ExportApiModule::registerRoutes() {
 // DLL导出函数（全局命名空间）
 // ============================================================================
 
-#define EXPORT __declspec(dllexport)
 
 extern "C" {
 
-EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::ExportApiModule();
 }
 
-EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::ExportApiModule*>(ptr);
 }
 
-EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 

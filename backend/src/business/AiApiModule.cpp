@@ -185,7 +185,13 @@ public:
 // ============================================================================
 
 AiApiModule::AiApiModule()
+    : AiApiModule(nullptr) {
+}
+
+AiApiModule::AiApiModule(std::shared_ptr<IDatabase> database)
     : impl_(std::make_unique<Impl>()) {
+    // TODO: 接收database参数并保存到impl_
+    // impl_->database_ = database;
 }
 
 AiApiModule::~AiApiModule() = default;

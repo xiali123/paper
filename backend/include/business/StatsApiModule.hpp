@@ -3,6 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "core/ModuleRegistry.hpp"
+#include "data/IDatabase.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -10,6 +11,7 @@
 #include <mutex>
 #include <functional>
 #include <optional>
+#include <memory>
 
 namespace PaperCrawler {
 
@@ -116,6 +118,7 @@ struct PerformanceMetrics {
 class StatsApiModule : public BusinessModuleBase {
 public:
     StatsApiModule();
+    explicit StatsApiModule(std::shared_ptr<IDatabase> database);
     ~StatsApiModule() override;
 
     std::string getName() const override { return "StatsApi"; }

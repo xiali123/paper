@@ -2,6 +2,7 @@
 
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "data/IDatabase.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -79,6 +80,7 @@ struct UserInterest {
 class RecommendationApiModule : public BusinessModuleBase {
 public:
     RecommendationApiModule();
+    explicit RecommendationApiModule(std::shared_ptr<IDatabase> database);
     ~RecommendationApiModule() override;
 
     std::string getName() const override { return "Recommendation"; }
