@@ -90,6 +90,7 @@
   },
   "papers": {
     "title": "My Papers",
+    "subtitle": "Manage and search your academic papers",
     "addPaper": "Add Paper",
     "editPaper": "Edit Paper",
     "searchPlaceholder": "Search title, authors, abstract...",
@@ -154,7 +155,10 @@
     "uploadPdf": "Upload PDF",
     "noPdf": "No PDF file",
     "pdfPreviewComingSoon": "PDF preview coming soon",
-    "downloadFeatureComingSoon": "Download feature coming soon"
+    "downloadFeatureComingSoon": "Download feature coming soon",
+    "sortBy": "Sort By",
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirmMessage": "Are you sure you want to delete the selected papers? This action cannot be undone."
   },
   "level": {
     "A": "CCF-A (Top-Tier)",

@@ -90,6 +90,7 @@
   },
   "papers": {
     "title": "我的论文",
+    "subtitle": "管理和搜索您的学术文献",
     "addPaper": "添加论文",
     "editPaper": "编辑论文",
     "searchPlaceholder": "搜索标题、作者、摘要...",
@@ -154,7 +155,10 @@
     "uploadPdf": "上传PDF",
     "noPdf": "暂无PDF文件",
     "pdfPreviewComingSoon": "PDF预览功能即将上线",
-    "downloadFeatureComingSoon": "下载功能即将上线"
+    "downloadFeatureComingSoon": "下载功能即将上线",
+    "sortBy": "排序方式",
+    "deleteConfirmTitle": "确认删除",
+    "deleteConfirmMessage": "确定要删除选中的论文吗？此操作无法撤销。"
   },
   "level": {
     "A": "CCF-A (顶刊)",
