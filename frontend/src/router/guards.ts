@@ -15,7 +15,17 @@ import { ElMessage } from '@/utils/notification'
 /**
  * Public routes that don't require authentication
  */
-const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/crawler']
+const publicRoutes = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/login', // Legacy routes for backward compatibility
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/crawler'
+]
 
 /**
  * Check if route is public
@@ -55,14 +65,18 @@ export function setupAuthGuards(router: Router) {
     if (!isPublic && !authStore.isAuthenticated) {
       ElMessage.warning('Please login to access this page')
       return next({
-        path: '/login',
+        path: '/auth/login',
         query: { redirect: to.fullPath }
       })
     }
 
     // If user is authenticated and tries to access login/register
     if (isPublic && authStore.isAuthenticated) {
-      return next('/')
+      // Check if it's an auth page (login/register/etc)
+      if (to.path.startsWith('/auth/') || to.path === '/login' || to.path === '/register') {
+        // 使用 replace 而不是 push，避免累积历史记录
+        return next({ path: '/dashboard', replace: true })
+      }
     }
 
     // Check role-based access
@@ -195,7 +209,7 @@ export function requireAuth(to: any, from: any, next: any) {
   if (!isUserAuthenticated()) {
     ElMessage.warning('Please login to access this page')
     return next({
-      path: '/login',
+      path: '/auth/login',
       query: { redirect: to.fullPath }
     })
   }
@@ -218,7 +232,7 @@ export function requireAdmin(to: any, from: any, next: any) {
   if (!isUserAuthenticated()) {
     ElMessage.warning('Please login to access this page')
     return next({
-      path: '/login',
+      path: '/auth/login',
       query: { redirect: to.fullPath }
     })
   }
@@ -245,7 +259,7 @@ export function requireSuperAdmin(to: any, from: any, next: any) {
   if (!isUserAuthenticated()) {
     ElMessage.warning('Please login to access this page')
     return next({
-      path: '/login',
+      path: '/auth/login',
       query: { redirect: to.fullPath }
     })
   }
@@ -271,7 +285,7 @@ export function requireSuperAdmin(to: any, from: any, next: any) {
  */
 export function redirectIfAuthenticated(to: any, from: any, next: any) {
   if (isUserAuthenticated()) {
-    return next('/')
+    return next('/dashboard')
   }
   next()
 }
