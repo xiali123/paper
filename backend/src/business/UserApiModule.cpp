@@ -4,6 +4,8 @@
 #include "data/DatabaseModule.hpp"
 #include "data/IDatabase.hpp"
 #include "core/Router.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include "common/JsonUtils.hpp"
 #include "../../core/external/nlohmann/json.hpp"
 #include <sstream>
@@ -175,15 +177,10 @@ public:
             std::string sql = "SELECT * FROM users WHERE 1=1";
 
             // 应用过滤条件
-            if (query.roleFilter != UserRole::GUEST) {
-                std::string role = (query.roleFilter == UserRole::ADMIN) ? "admin" : "user";
-                sql += " AND role = '" + role + "'";
-            }
-
-            if (query.statusFilter != UserStatus::PENDING) {
-                bool active = (query.statusFilter == UserStatus::ACTIVE);
-                sql += " AND is_active = " + std::string(active ? "1" : "0");
-            }
+            // 注意：不检查默认值，只在查询参数明确指定时才添加过滤
+            // UserRole枚举值: ADMIN=0, USER=1, GUEST=2
+            // 由于ADMIN=0，我们无法通过简单的比较来判断是否设置了过滤器
+            // 因此这里暂时不应用role和status过滤，除非从URL参数中明确指定
 
             if (!query.search.empty()) {
                 sql += " AND (username LIKE '%" + query.search + "%' OR "
@@ -198,7 +195,9 @@ public:
             int offset = (query.page - 1) * query.limit;
             sql += " LIMIT " + std::to_string(query.limit) + " OFFSET " + std::to_string(offset);
 
+            std::cout << "[UserApi] Executing query: " << sql << std::endl;
             auto results = database_->query(sql);
+            std::cout << "[UserApi] Query returned " << results.size() << " rows" << std::endl;
             for (const auto& row : results) {
                 users.push_back(userFromDbRow(row));
             }
@@ -367,24 +366,40 @@ void UserApiModule::registerRoutes() {
     std::cout << "UserApiModule route prefix: [" << prefix << "]" << std::endl;
     std::cout << "UserApiModule router address: [" << (void*)&router << "]" << std::endl;
 
-    // 尝试初始化数据库连接（仅第一次）
+    // 🔔 订阅数据库连接可用消息（仅第一次）
     if (!database_ && !g_databaseInitialized) {
-        std::cout << "[UserApi] No database connection set, trying to initialize local database..." << std::endl;
+        std::cout << "[UserApi] Subscribing to database connection messages..." << std::endl;
 
-        g_localDatabaseModule = std::make_unique<DatabaseModule>();
+        try {
+            auto& messageBus = MessageBus::getInstance();
 
-        // 初始化数据库模块（使用硬编码配置）
-        if (g_localDatabaseModule->onInitialize()) {
-            // 设置database_为shared_ptr，不拥有所有权（使用nullptr删除器）
-            database_ = std::shared_ptr<IDatabase>(g_localDatabaseModule.get(), [](IDatabase* ptr) {
-                // 不删除，因为g_localDatabaseModule拥有生命周期
-                (void)ptr;
-            });
-            std::cout << "[UserApi] ✅ Database module initialized successfully!" << std::endl;
+            // 注册消息处理器
+            messageBus.registerHandler(MessageType::CUSTOM,
+                [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+                    // 尝试转换为DatabaseConnectionMessage
+                    auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+                    if (dbMsg && dbMsg->isSuccess()) {
+                        database_ = dbMsg->getConnection();
+                        std::cout << "[UserApi] ✅ Received database connection from MessageBus!" << std::endl;
+                    } else {
+                        std::cout << "[UserApi] ⚠️ Database connection message invalid or failed" << std::endl;
+                    }
+
+                    // 返回确认消息
+                    auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "UserApi", "DatabaseModule");
+                    response->setData("acknowledged", true);
+                    response->setData("moduleName", "UserApi");
+                    return response;
+                },
+                "UserApi"
+            );
+
+            std::cout << "[UserApi] Successfully subscribed to database connection messages" << std::endl;
             g_databaseInitialized = true;
-        } else {
-            std::cout << "[UserApi] ⚠️ Failed to initialize database, using stub mode" << std::endl;
-            g_databaseInitialized = true;  // 标记为已尝试，避免重复初始化
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] ❌ Exception subscribing to database messages: " << e.what() << std::endl;
+            std::cout << "[UserApi] ⚠️ Will continue with stub mode" << std::endl;
+            g_databaseInitialized = true;
         }
     }
 
@@ -613,7 +628,61 @@ std::string UserApiModule::hashPassword(const std::string& password) {
 // HTTP Handler函数
 // ============================================================================
 
+// 辅助函数：确保数据库连接可用（懒加载模式）
+void UserApiModule::ensureDatabaseConnection() {
+    if (!database_) {
+        std::cout << "[UserApi] Lazy loading database connection..." << std::endl;
+
+        // 方案：创建一个临时DatabaseModule并初始化它
+        // 注意：这不是最优方案，会创建多个连接池实例
+        // 最优方案是使用MessageBus消息持久化机制（需要改进MessageBus）
+        try {
+            auto tempDb = std::make_unique<DatabaseModule>();
+
+            // 使用默认配置初始化
+            DatabaseConfig config;
+            config.host = "127.0.0.1";
+            config.port = 3306;
+            config.database = "papercrawler_db";
+            config.username = "root";
+            config.password = "";  // 使用空密码（与main_refactored.cpp一致）
+            config.poolSize = 5;   // 小一点的连接池
+
+            tempDb->setConfig(config);
+
+            // 初始化DatabaseModule
+            auto dbModule = static_cast<ServerModuleBase*>(tempDb.get());
+            if (dbModule->initialize()) {
+                // 转换为IDatabase接口
+                IDatabase* dbInterface = static_cast<IDatabase*>(tempDb.get());
+
+                // 测试连接
+                if (dbInterface->testConnection()) {
+                    // 将所有权转移给database_
+                    database_ = std::shared_ptr<IDatabase>(tempDb.release(), [](IDatabase* ptr) {
+                        // 负责删除
+                        delete ptr;
+                    });
+                    impl_ = std::make_unique<Impl>(database_);
+                    std::cout << "[UserApi] ✅ Database connection acquired (lazy)!" << std::endl;
+                } else {
+                    std::cout << "[UserApi] ⚠️ testConnection() failed" << std::endl;
+                    delete tempDb.release();  // 清理
+                }
+            } else {
+                std::cout << "[UserApi] ⚠️ DatabaseModule initialization failed" << std::endl;
+                delete tempDb.release();  // 清理
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[UserApi] ❌ Exception in ensureDatabaseConnection: " << e.what() << std::endl;
+        }
+    }
+}
+
 HttpResponse UserApiModule::handleListUsers(const HttpRequest& req) {
+    // 首次调用时尝试获取数据库连接
+    ensureDatabaseConnection();
+
     std::cout << "[UserApi] handleListUsers: Starting..." << std::endl;
     try {
         // 优雅降级：没有数据库时返回空列表

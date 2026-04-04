@@ -546,11 +546,24 @@ add_library(SystemModules STATIC
     # Router.cpp已移到Router.dll
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
     src/network/WebSocketModule.cpp  # 添加WebSocketModule支持（CrawlerApiModule需要）
-    src/data/PreparedStatement.cpp   # 添加PreparedStatement支持
+    src/data/PreparedStatement.cpp   # 添加PreparedStatement支持（IDatabase版本）
+    src/database/PreparedStatement.cpp  # ⭐ 添加PreparedStatement支持（MySQL版本）
     src/data/QueryBuilder.cpp        # 添加QueryBuilder支持
     src/data/DatabaseModule.cpp     # 添加DatabaseModule支持
+    src/data/MySqlConnection.cpp     # ⭐ 添加MySqlConnection支持（UserApiModule需要）
     src/common/JsonUtils.cpp        # 添加JsonUtils支持（CrawlerApiModule需要）
     src/modules/TemplateCrawlerModule.cpp  # 完整实现（需要gumbo）
+    # 核心框架源文件（MessageBus等）⭐ 新增
+    src/core/MessageBus.cpp
+    src/core/UnifiedMessage.cpp
+    src/core/MessagePool.cpp
+    src/core/PoolCoordinator.cpp
+    src/core/ModuleRegistry.cpp
+    src/core/SmartUnloadStrategy.cpp
+    src/core/HotReloadManager.cpp
+    src/core/EventBusModule.cpp
+    src/core/WatchdogModule.cpp
+    src/core/ConfigManager.cpp
     # Gumbo解析器源文件（直接编译到SystemModules中）
     ${EXTERNAL_DIR}/gumbo/src/attribute.c
     ${EXTERNAL_DIR}/gumbo/src/char_ref.c
@@ -581,11 +594,13 @@ target_include_directories(SystemModules PUBLIC
     ${CURL_DIR}/include  # HttpClient需要CURL头文件
     ${EXTERNAL_DIR}/spdlog/include  # HttpClient需要spdlog
     ${EXTERNAL_DIR}/gumbo/src  # TemplateCrawlerModule需要gumbo
+    "C:/Program Files/MySQL/MySQL Server 8.0/include"  # ⭐ MySqlConnection需要MySQL头文件
 )
 
 # SystemModules链接Router.dll（现在Router在独立DLL中）
 target_link_libraries(SystemModules PUBLIC
     Router
+    "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"  # ⭐ MySqlConnection需要MySQL导入库
 )
 
 if(WIN32)

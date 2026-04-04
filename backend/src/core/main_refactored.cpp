@@ -47,6 +47,10 @@
 // 数据模块
 #include "data/DatabaseModule.hpp"
 
+// 消息模块
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
+
 // JSON library
 #include <spdlog/spdlog.h>
 #include "../../core/external/nlohmann/json.hpp"
@@ -344,7 +348,11 @@ int main(int argc, char* argv[]) {
     }
 
     // 初始化数据库模块
-    if (!g_databaseModule->initialize(dbConfig)) {
+    g_databaseModule->setConfig(dbConfig);
+
+    // 调用基类的initialize()模板方法（会调用onInitialize()）
+    auto dbModule = static_cast<ServerModuleBase*>(g_databaseModule.get());
+    if (!dbModule->initialize()) {
         spdlog::warn("Failed to initialize database module, continuing without database...");
         spdlog::warn("APIs will use stub implementations (no database connection)");
     } else {
@@ -373,6 +381,21 @@ int main(int argc, char* argv[]) {
     if (!loader.startAllModules()) {
         spdlog::error("Failed to start all modules");
         return 1;
+    }
+
+    // 🔔 发送数据库连接可用消息给所有模块（在模块加载之后）
+    if (g_databaseModule) {
+        spdlog::info("Broadcasting database connection to all modules...");
+        auto dbMessage = Messages::DatabaseConnectionMessage::create(
+            std::shared_ptr<IDatabase>(g_databaseModule.get(), [](IDatabase* ptr) {
+                // 不删除，g_databaseModule拥有生命周期
+                (void)ptr;
+            }),
+            true,
+            ""
+        );
+        MessageBus::getInstance().broadcast(dbMessage);
+        spdlog::info("Database connection message sent successfully");
     }
 
     // 注册管理API
@@ -456,11 +479,15 @@ DatabaseModule* getDatabaseModule() {
  * @return 数据库连接的shared_ptr（可能为nullptr）
  */
 std::shared_ptr<IDatabase> getDatabaseConnection() {
-    if (g_databaseModule && g_databaseModule->isConnected()) {
-        return std::shared_ptr<IDatabase>(g_databaseModule.get(), [](IDatabase* ptr) {
-            // 不负责删除，因为DatabaseModule拥有生命周期
-            (void)ptr;
-        });
+    if (g_databaseModule) {
+        // 通过IDatabase接口调用testConnection()
+        auto dbInterface = static_cast<IDatabase*>(g_databaseModule.get());
+        if (dbInterface->testConnection()) {
+            return std::shared_ptr<IDatabase>(g_databaseModule.get(), [](IDatabase* ptr) {
+                // 不负责删除，因为DatabaseModule拥有生命周期
+                (void)ptr;
+            });
+        }
     }
     return nullptr;
 }
