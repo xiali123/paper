@@ -2,8 +2,10 @@
 
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
+#include "core/HttpTypes.hpp"
 #include "modules/TemplateCrawlerModule.hpp"
 #include "modules/DistributedTaskModule.hpp"
+#include "../../core/external/nlohmann/json.hpp"
 #include <memory>
 #include <map>
 #include <string>
@@ -102,55 +104,55 @@ private:
      * @brief 创建模板
      * POST /api/crawler/templates
      */
-    std::string handleCreateTemplate(const std::string& body);
+    HttpResponse handleCreateTemplate(const HttpRequest& req);
 
     /**
      * @brief 列出模板
      * GET /api/crawler/templates
      */
-    std::string handleListTemplates(const std::map<std::string, std::string>& params);
+    HttpResponse handleListTemplates(const HttpRequest& req);
 
     /**
      * @brief 获取模板详情
      * GET /api/crawler/templates/:id
      */
-    std::string handleGetTemplate(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetTemplate(const HttpRequest& req);
 
     /**
      * @brief 更新模板
      * PUT /api/crawler/templates/:id
      */
-    std::string handleUpdateTemplate(const std::map<std::string, std::string>& params, const std::string& body);
+    HttpResponse handleUpdateTemplate(const HttpRequest& req);
 
     /**
      * @brief 删除模板
      * DELETE /api/crawler/templates/:id
      */
-    std::string handleDeleteTemplate(const std::map<std::string, std::string>& params);
+    HttpResponse handleDeleteTemplate(const HttpRequest& req);
 
     /**
      * @brief 验证模板
      * POST /api/crawler/templates/validate
      */
-    std::string handleValidateTemplate(const std::string& body);
+    HttpResponse handleValidateTemplate(const HttpRequest& req);
 
     /**
      * @brief 测试模板
      * POST /api/crawler/templates/:id/test
      */
-    std::string handleTestTemplate(const std::map<std::string, std::string>& params, const std::string& body);
+    HttpResponse handleTestTemplate(const HttpRequest& req);
 
     /**
      * @brief 导出模板
      * GET /api/crawler/templates/:id/export
      */
-    std::string handleExportTemplate(const std::map<std::string, std::string>& params);
+    HttpResponse handleExportTemplate(const HttpRequest& req);
 
     /**
      * @brief 导入模板
      * POST /api/crawler/templates/import
      */
-    std::string handleImportTemplate(const std::string& body);
+    HttpResponse handleImportTemplate(const HttpRequest& req);
 
     // ========================================================================
     // 任务管理接口
@@ -160,43 +162,43 @@ private:
      * @brief 创建爬取任务
      * POST /api/crawler/tasks
      */
-    std::string handleCreateTask(const std::string& body);
+    HttpResponse handleCreateTask(const HttpRequest& req);
 
     /**
      * @brief 列出任务
      * GET /api/crawler/tasks
      */
-    std::string handleListTasks(const std::map<std::string, std::string>& params);
+    HttpResponse handleListTasks(const HttpRequest& req);
 
     /**
      * @brief 获取任务详情
      * GET /api/crawler/tasks/:id
      */
-    std::string handleGetTask(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetTask(const HttpRequest& req);
 
     /**
      * @brief 取消任务
      * DELETE /api/crawler/tasks/:id
      */
-    std::string handleCancelTask(const std::map<std::string, std::string>& params);
+    HttpResponse handleCancelTask(const HttpRequest& req);
 
     /**
      * @brief 重试任务
      * POST /api/crawler/tasks/:id/retry
      */
-    std::string handleRetryTask(const std::map<std::string, std::string>& params);
+    HttpResponse handleRetryTask(const HttpRequest& req);
 
     /**
      * @brief 获取任务日志
      * GET /api/crawler/tasks/:id/logs
      */
-    std::string handleGetTaskLogs(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetTaskLogs(const HttpRequest& req);
 
     /**
      * @brief 获取任务统计
      * GET /api/crawler/tasks/statistics
      */
-    std::string handleGetTaskStatistics(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetTaskStatistics(const HttpRequest& req);
 
     // ========================================================================
     // 定时任务接口
@@ -206,43 +208,43 @@ private:
      * @brief 创建定时任务
      * POST /api/crawler/schedules
      */
-    std::string handleCreateSchedule(const std::string& body);
+    HttpResponse handleCreateSchedule(const HttpRequest& req);
 
     /**
      * @brief 列出定时任务
      * GET /api/crawler/schedules
      */
-    std::string handleListSchedules(const std::map<std::string, std::string>& params);
+    HttpResponse handleListSchedules(const HttpRequest& req);
 
     /**
      * @brief 更新定时任务
      * PUT /api/crawler/schedules/:id
      */
-    std::string handleUpdateSchedule(const std::map<std::string, std::string>& params, const std::string& body);
+    HttpResponse handleUpdateSchedule(const HttpRequest& req);
 
     /**
      * @brief 删除定时任务
      * DELETE /api/crawler/schedules/:id
      */
-    std::string handleDeleteSchedule(const std::map<std::string, std::string>& params);
+    HttpResponse handleDeleteSchedule(const HttpRequest& req);
 
     /**
      * @brief 启用定时任务
      * POST /api/crawler/schedules/:id/enable
      */
-    std::string handleEnableSchedule(const std::map<std::string, std::string>& params);
+    HttpResponse handleEnableSchedule(const HttpRequest& req);
 
     /**
      * @brief 禁用定时任务
      * POST /api/crawler/schedules/:id/disable
      */
-    std::string handleDisableSchedule(const std::map<std::string, std::string>& params);
+    HttpResponse handleDisableSchedule(const HttpRequest& req);
 
     /**
      * @brief 手动触发定时任务
      * POST /api/crawler/schedules/:id/trigger
      */
-    std::string handleTriggerSchedule(const std::map<std::string, std::string>& params);
+    HttpResponse handleTriggerSchedule(const HttpRequest& req);
 
     // ========================================================================
     // 工作节点接口
@@ -252,25 +254,25 @@ private:
      * @brief 列出工作节点
      * GET /api/crawler/workers
      */
-    std::string handleListWorkers(const std::map<std::string, std::string>& params);
+    HttpResponse handleListWorkers(const HttpRequest& req);
 
     /**
      * @brief 获取工作节点详情
      * GET /api/crawler/workers/:id
      */
-    std::string handleGetWorker(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetWorker(const HttpRequest& req);
 
     /**
      * @brief 禁用工作节点
      * POST /api/crawler/workers/:id/disable
      */
-    std::string handleDisableWorker(const std::map<std::string, std::string>& params);
+    HttpResponse handleDisableWorker(const HttpRequest& req);
 
     /**
      * @brief 获取节点统计
      * GET /api/crawler/workers/:id/statistics
      */
-    std::string handleGetWorkerStatistics(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetWorkerStatistics(const HttpRequest& req);
 
     // ========================================================================
     // 系统统计接口
@@ -280,13 +282,13 @@ private:
      * @brief 获取系统仪表盘数据
      * GET /api/crawler/dashboard
      */
-    std::string handleGetDashboard(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetDashboard(const HttpRequest& req);
 
     /**
      * @brief 获取系统统计
      * GET /api/crawler/statistics
      */
-    std::string handleGetStatistics(const std::map<std::string, std::string>& params);
+    HttpResponse handleGetStatistics(const HttpRequest& req);
 
     // ========================================================================
     // WebSocket消息处理
@@ -329,10 +331,10 @@ private:
     /**
      * @brief 构建JSON响应
      */
-    std::string buildJsonResponse(
+    HttpResponse buildJsonResponse(
         bool success,
         const std::string& message = "",
-        const std::map<std::string, std::string>& data = {}
+        const nlohmann::json& data = nullptr
     );
 
     /**

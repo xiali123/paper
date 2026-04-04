@@ -470,6 +470,7 @@ add_library(SystemModules STATIC
     src/features/operations/ResponseHandlerModule.cpp
     src/core/Router.cpp
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
+    src/network/WebSocketModule.cpp  # 添加WebSocketModule支持（CrawlerApiModule需要）
     src/data/PreparedStatement.cpp   # 添加PreparedStatement支持
     src/data/QueryBuilder.cpp        # 添加QueryBuilder支持
     src/data/DatabaseModule.cpp     # 添加DatabaseModule支持
