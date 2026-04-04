@@ -670,50 +670,101 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 节点管理页面现代化样式
+// Modern Node Management Styles
+// ==========================================
+
 .node-management {
-  padding: 20px;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
+// 页面头部
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: $spacing-6;
+  padding: $spacing-8;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  margin-bottom: $spacing-6;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+  }
 
   .page-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: $spacing-3;
     margin: 0;
-    font-size: 24px;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+
+    .el-icon {
+      color: $primary-500;
+    }
   }
 
   .header-actions {
     display: flex;
-    gap: 10px;
+    gap: $spacing-3;
   }
 }
 
+// 统计和图表行
 .stats-row,
 .charts-row {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
+  }
 }
 
+// 统计卡片
 .stat-card {
+  height: 100%;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-md;
+    transform: translateY(-2px);
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-5;
+  }
+
   .stat-content {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: $spacing-5;
 
     .stat-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 10px;
+      width: 56px;
+      height: 56px;
+      border-radius: $border-radius-lg;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 24px;
       color: white;
+      box-shadow: $shadow-sm;
+      flex-shrink: 0;
 
       &.total {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -733,34 +784,77 @@ onMounted(async () => {
     }
 
     .stat-info {
+      flex: 1;
+
       .stat-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #303133;
+        font-size: $font-size-3xl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+        line-height: 1;
+        margin-bottom: $spacing-2;
       }
 
       .stat-label {
-        font-size: 12px;
-        color: #909399;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        font-weight: $font-weight-medium;
       }
     }
   }
 }
 
+// 卡片头部
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: bold;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-base;
 
   span {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: $spacing-2;
+    color: $text-primary;
+  }
+
+  .el-icon {
+    color: $primary-500;
   }
 }
 
+// 图表卡片
 .chart-card {
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+  height: 100%;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  :deep(.el-card__header) {
+    border-bottom: 1px solid $border-light;
+    padding: $spacing-5;
+    background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+
+    .dark & {
+      background: linear-gradient(135deg, $gray-800 0%, $gray-700 100%);
+      border-bottom-color: $gray-700;
+    }
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-5;
+  }
+
   .chart-container {
     min-height: 300px;
     display: flex;
@@ -770,149 +864,323 @@ onMounted(async () => {
     .chart {
       width: 100%;
       height: 300px;
-      background: #f5f7fa;
-      border-radius: 4px;
+      background: $gray-50;
+      border-radius: $border-radius-lg;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #909399;
+      color: $text-secondary;
+      font-size: $font-size-sm;
+
+      .dark & {
+        background: $gray-900;
+      }
     }
   }
 }
 
+// 节点卡片
 .nodes-card {
-  margin-top: 20px;
+  margin-top: $spacing-6;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  :deep(.el-card__header) {
+    border-bottom: 1px solid $border-light;
+    padding: $spacing-5;
+
+    .dark & {
+      border-bottom-color: $gray-700;
+    }
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-5;
+  }
 }
 
+// 空状态
 .empty-state {
-  padding: 60px 0;
+  padding: $spacing-16;
   text-align: center;
+  background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+  border-radius: $border-radius-lg;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+  }
 }
 
+// 节点网格
 .nodes-grid {
   .node-card {
-    margin-bottom: 20px;
+    margin-bottom: $spacing-5;
     height: 100%;
     display: flex;
     flex-direction: column;
+    border: 1px solid $border-light;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
+    transition: all $duration-slow;
+    overflow: hidden;
+
+    &:hover {
+      box-shadow: $shadow-md;
+      transform: translateY(-4px);
+    }
+
+    .dark & {
+      background: $gray-800;
+      border-color: $gray-700;
+    }
+
+    :deep(.el-card__body) {
+      padding: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
 
     .node-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      padding: $spacing-5;
+      background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+      border-bottom: 1px solid $border-light;
+
+      .dark & {
+        background: linear-gradient(135deg, $gray-800 0%, $gray-700 100%);
+        border-bottom-color: $gray-700;
+      }
 
       .node-status {
         display: flex;
         align-items: center;
-        gap: 5px;
-        font-size: 12px;
-        color: #909399;
+        gap: $spacing-2;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        padding: $spacing-2 $spacing-3;
+        border-radius: $border-radius-full;
+
+        &.healthy {
+          background: rgba($success-color, 0.1);
+          color: $success-color;
+        }
+
+        &:not(.healthy) {
+          background: rgba($danger-color, 0.1);
+          color: $danger-color;
+        }
 
         .dot {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #f56c6c;
-        }
+          background: currentColor;
 
-        &.healthy .dot {
-          background: #67c23a;
+          &.healthy {
+            background: $success-color;
+            animation: pulse 2s infinite;
+          }
+
+          &:not(.healthy) {
+            background: $danger-color;
+          }
         }
       }
 
       .more-icon {
         cursor: pointer;
         font-size: 18px;
-        color: #909399;
+        color: $text-secondary;
+        padding: $spacing-2;
+        border-radius: $border-radius-base;
+        transition: all $duration-fast;
 
         &:hover {
-          color: #409eff;
+          color: $primary-600;
+          background: rgba($primary-500, 0.1);
+        }
+
+        .dark &:hover {
+          color: $primary-400;
+          background: rgba($primary-400, 0.1);
         }
       }
     }
 
     .node-body {
       flex: 1;
+      padding: $spacing-5;
 
       .node-name {
-        font-size: 18px;
-        margin: 0 0 15px 0;
-        color: #303133;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+        margin: 0 0 $spacing-4 0;
       }
 
       .node-info {
         .info-item {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 10px;
-          font-size: 14px;
-          color: #606266;
+          gap: $spacing-2;
+          margin-bottom: $spacing-3;
+          font-size: $font-size-sm;
+          color: $text-regular;
+
+          .el-icon {
+            color: $primary-500;
+            font-size: 16px;
+          }
+
+          &:last-child {
+            margin-bottom: 0;
+          }
         }
       }
     }
 
     .node-footer {
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px solid #ebeef5;
+      margin-top: auto;
+      padding: $spacing-4 $spacing-5;
+      border-top: 1px solid $border-light;
+
+      .dark & {
+        border-top-color: $gray-700;
+      }
     }
   }
 }
 
+// 节点详情
 .node-details {
   .performance-metrics {
     .metric-card {
-      background: #f5f7fa;
-      border-radius: 8px;
-      padding: 20px;
+      background: $gray-50;
+      border-radius: $border-radius-lg;
+      padding: $spacing-6;
       text-align: center;
-      margin-bottom: 15px;
+      margin-bottom: $spacing-5;
+      border: 1px solid $border-light;
+      transition: all $duration-fast;
+
+      &:hover {
+        background: $gray-100;
+      }
+
+      .dark & {
+        background: $gray-800;
+        border-color: $gray-700;
+
+        &:hover {
+          background: $gray-700;
+        }
+      }
 
       .metric-label {
-        font-size: 14px;
-        color: #909399;
-        margin-bottom: 10px;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        margin-bottom: $spacing-3;
+        font-weight: $font-weight-medium;
       }
 
       .metric-value {
-        font-size: 28px;
-        font-weight: bold;
-        color: #303133;
+        font-size: $font-size-3xl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
       }
     }
   }
 }
 
-// Responsive
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// 响应式设计
+@media (max-width: 1200px) {
+  .node-management {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
-    gap: 10px;
-    text-align: center;
-  }
+    align-items: flex-start;
+    gap: $spacing-4;
+    padding: $spacing-5;
 
-  .header-actions {
-    width: 100%;
-    justify-content: center;
+    .page-title {
+      font-size: $font-size-2xl;
+    }
 
-    .el-button {
-      flex: 1;
+    .header-actions {
+      width: 100%;
+
+      .el-button {
+        flex: 1;
+      }
     }
   }
 
-  .stat-content {
+  .stat-card .stat-content {
     .stat-icon {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       font-size: 20px;
     }
 
-    .stat-info {
-      .stat-value {
-        font-size: 20px;
-      }
+    .stat-info .stat-value {
+      font-size: $font-size-2xl;
+    }
+  }
+
+  .nodes-grid .node-card .node-body {
+    .node-info .info-item {
+      font-size: $font-size-xs;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding: $spacing-4;
+  }
+
+  .chart-card,
+  .nodes-card,
+  .stat-card {
+    :deep(.el-card__header),
+    :deep(.el-card__body) {
+      padding: $spacing-4;
+    }
+  }
+
+  .nodes-grid .node-card {
+    .node-header {
+      padding: $spacing-4;
+    }
+
+    .node-body {
+      padding: $spacing-4;
+    }
+
+    .node-footer {
+      padding: $spacing-3 $spacing-4;
     }
   }
 }

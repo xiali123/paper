@@ -109,119 +109,119 @@ export interface CollaborationNetwork {
 export const analyticsApi = {
   /**
    * 获取学术影响力指标
-   * GET /api/analytics/impact/:userId
+   * GET /analytics/impact/:userId
    */
   async getImpactMetrics(
     userId: number,
     timeframe: '6months' | '1year' | 'all' = 'all'
   ): Promise<AcademicImpactMetrics[]> {
-    return await request.get(`/api/analytics/impact/${userId}`, {
+    return await request.get(`/analytics/impact/${userId}`, {
       params: { timeframe }
     })
   },
 
   /**
    * 获取研究兴趣演化
-   * GET /api/analytics/interests/:userId
+   * GET /analytics/interests/:userId
    */
   async getResearchInterests(userId: number): Promise<ResearchInterest[]> {
-    return await request.get(`/api/analytics/interests/${userId}`)
+    return await request.get(`/analytics/interests/${userId}`)
   },
 
   /**
    * 生成每日学术简报
-   * POST /api/analytics/briefings/generate
+   * POST /analytics/briefings/generate
    */
   async generateDailyBriefing(req: DailyBriefingRequest): Promise<DailyBriefing> {
-    return await request.post('/api/analytics/briefings/generate', req)
+    return await request.post('/analytics/briefings/generate', req)
   },
 
   /**
    * 获取简报历史
-   * GET /api/analytics/briefings/history
+   * GET /analytics/briefings/history
    */
   async getBriefingHistory(userId: number, page = 1, limit = 20): Promise<{
     briefings: DailyBriefing[]
     total: number
     page: number
   }> {
-    return await request.get('/api/analytics/briefings/history', {
+    return await request.get('/analytics/briefings/history', {
       params: { userId, page, limit }
     })
   },
 
   /**
    * 获取特定日期的简报
-   * GET /api/analytics/briefings/:userId/:date
+   * GET /analytics/briefings/:userId/:date
    */
   async getBriefing(userId: number, date: string): Promise<DailyBriefing> {
-    return await request.get(`/api/analytics/briefings/${userId}/${date}`)
+    return await request.get(`/analytics/briefings/${userId}/${date}`)
   },
 
   /**
    * 获取竞争对手分析
-   * GET /api/analytics/competitors
+   * GET /analytics/competitors
    */
   async getCompetitorsAnalysis(userId: number, limit = 10): Promise<CompetitorAnalysis> {
-    return await request.get('/api/analytics/competitors', {
+    return await request.get('/analytics/competitors', {
       params: { userId, limit }
     })
   },
 
   /**
    * 获取热点趋势分析
-   * GET /api/analytics/trends
+   * GET /analytics/trends
    */
   async getTrendingTopics(
     field: string,
     timeframe: '6months' | '1year' | '2years' = '1year'
   ): Promise<TrendingTopics> {
-    return await request.get('/api/analytics/trends', {
+    return await request.get('/analytics/trends', {
       params: { field, timeframe }
     })
   },
 
   /**
    * 获取引用分析
-   * GET /api/analytics/citations
+   * GET /analytics/citations
    */
   async getCitationAnalysis(paperId: number): Promise<CitationAnalysis> {
-    return await request.get('/api/analytics/citations', {
+    return await request.get('/analytics/citations', {
       params: { paperId }
     })
   },
 
   /**
    * 获取用户引用分析
-   * GET /api/analytics/citations/user/:userId
+   * GET /analytics/citations/user/:userId
    */
   async getUserCitationAnalysis(userId: number): Promise<CitationAnalysis> {
-    return await request.get(`/api/analytics/citations/user/${userId}`)
+    return await request.get(`/analytics/citations/user/${userId}`)
   },
 
   /**
    * 获取合作网络分析
-   * GET /api/analytics/network
+   * GET /analytics/network
    */
   async getCollaborationNetwork(userId: number): Promise<CollaborationNetwork> {
-    return await request.get('/api/analytics/network', {
+    return await request.get('/analytics/network', {
       params: { userId }
     })
   },
 
   /**
    * 构建学术基因图谱
-   * GET /api/analytics/genealogy/:paperId
+   * GET /analytics/genealogy/:paperId
    */
   async buildAcademicGenealogy(paperId: number, maxDepth = 3): Promise<AcademicGeneNode[]> {
-    return await request.get(`/api/analytics/genealogy/${paperId}`, {
+    return await request.get(`/analytics/genealogy/${paperId}`, {
       params: { maxDepth }
     })
   },
 
   /**
    * 获取研究影响力预测
-   * GET /api/analytics/predictions/impact
+   * GET /analytics/predictions/impact
    */
   async predictImpact(userId: number): Promise<{
     predictedPapers: number
@@ -230,14 +230,14 @@ export const analyticsApi = {
     confidence: number
     timeframe: string
   }> {
-    return await request.get('/api/analytics/predictions/impact', {
+    return await request.get('/analytics/predictions/impact', {
       params: { userId }
     })
   },
 
   /**
    * 获取研究建议
-   * GET /api/analytics/suggestions
+   * GET /analytics/suggestions
    */
   async getResearchSuggestions(userId: number): Promise<{
     suggestedTopics: string[]
@@ -252,14 +252,14 @@ export const analyticsApi = {
       matchScore: number
     }>
   }> {
-    return await request.get('/api/analytics/suggestions', {
+    return await request.get('/analytics/suggestions', {
       params: { userId }
     })
   },
 
   /**
    * 获取分析统计信息
-   * GET /api/analytics/stats
+   * GET /analytics/stats
    */
   async getStats(): Promise<{
     totalBriefings: number
@@ -275,12 +275,12 @@ export const analyticsApi = {
       analyses: number
     }>
   }> {
-    return await request.get('/api/analytics/stats')
+    return await request.get('/analytics/stats')
   },
 
   /**
    * 导出分析报告
-   * GET /api/analytics/export/:userId
+   * GET /analytics/export/:userId
    */
   async exportReport(
     userId: number,
@@ -291,7 +291,7 @@ export const analyticsApi = {
     filename: string
     expiresAt: string
   }> {
-    return await request.get(`/api/analytics/export/${userId}`, {
+    return await request.get(`/analytics/export/${userId}`, {
       params: { format, timeframe }
     })
   }

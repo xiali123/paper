@@ -511,85 +511,124 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 现代化论文列表页面样式
+// Modern Paper List View Styles
+// ==========================================
+
 .paper-list-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 24px;
+  gap: $spacing-6;
+  width: 100%;
   max-width: 1600px;
   margin: 0 auto;
 }
 
+// 页面头部
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 24px;
+  gap: $spacing-6;
+  padding: $spacing-6;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    box-shadow: $shadow-md;
+  }
 
   &__content {
     flex: 1;
   }
 
   &__title {
-    margin: 0 0 8px 0;
-    font-size: 28px;
-    font-weight: 700;
-    color: #303133;
+    margin: 0 0 $spacing-2 0;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+    line-height: $line-height-tight;
   }
 
   &__subtitle {
     margin: 0;
-    font-size: 14px;
-    color: #909399;
+    font-size: $font-size-sm;
+    color: $text-secondary;
   }
 
   &__actions {
     display: flex;
-    gap: 12px;
+    gap: $spacing-3;
   }
 }
 
+// 工具栏
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  gap: $spacing-4;
+  padding: $spacing-4;
+  background: #ffffff;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
 
   &__left,
   &__right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: $spacing-3;
+    flex-wrap: wrap;
   }
 }
 
 .search-input {
-  width: 300px;
+  width: 320px;
 }
 
 .filter-badge {
-  margin-left: 4px;
+  margin-left: $spacing-1;
 }
 
 .selected-count {
-  font-size: 14px;
-  color: #606266;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
   white-space: nowrap;
+  padding: $spacing-2 $spacing-3;
+  background: rgba($primary-500, 0.1);
+  border-radius: $border-radius-base;
+  color: $primary-600;
+
+  .dark & {
+    background: rgba($primary-400, 0.1);
+    color: $primary-400;
+  }
 }
 
+// 主内容区域
 .content-container {
   display: flex;
-  gap: 24px;
+  gap: $spacing-6;
   align-items: flex-start;
 }
 
 .filter-panel-wrapper {
   width: 280px;
   flex-shrink: 0;
+
+  :deep(.filter-panel) {
+    position: sticky;
+    top: $spacing-4;
+  }
 }
 
 .papers-container {
@@ -597,45 +636,88 @@ onMounted(() => {
   min-width: 0;
 }
 
+// 论文网格
 .papers-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: $spacing-5;
+  margin-bottom: $spacing-6;
 }
 
 .skeleton-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: $spacing-5;
+  margin-bottom: $spacing-6;
 }
 
 .empty-state {
-  padding: 60px 0;
+  padding: $spacing-16 0;
   text-align: center;
+  background: #ffffff;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
 }
 
 .papers-list {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+  overflow: hidden;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
 }
 
 .title-cell {
   &-authors {
-    font-size: 12px;
-    color: #909399;
-    margin-top: 4px;
+    font-size: $font-size-xs;
+    color: $text-secondary;
+    margin-top: $spacing-1;
   }
 }
 
+// 分页容器
 .pagination-container {
   display: flex;
   justify-content: center;
-  padding: 20px 0;
+  padding: $spacing-6;
+  background: #ffffff;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+}
+
+// 响应式设计
+@media (max-width: 1400px) {
+  .paper-list-view {
+    max-width: 1200px;
+  }
+
+  .search-input {
+    width: 280px;
+  }
 }
 
 @media (max-width: 1200px) {
+  .paper-list-view {
+    max-width: 100%;
+  }
+
   .content-container {
     flex-direction: column;
   }
@@ -647,31 +729,59 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .paper-list-view {
-    padding: 16px;
-    gap: 16px;
+    gap: $spacing-4;
   }
 
   .page-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: $spacing-4;
+    padding: $spacing-5;
+
+    &__title {
+      font-size: $font-size-2xl;
+    }
   }
 
   .toolbar {
     flex-direction: column;
     align-items: stretch;
-  }
+    gap: $spacing-4;
+    padding: $spacing-4;
 
-  .toolbar__left,
-  .toolbar__right {
-    flex-wrap: wrap;
+    &__left,
+    &__right {
+      width: 100%;
+      justify-content: space-between;
+    }
   }
 
   .search-input {
     width: 100%;
   }
 
-  .papers-grid {
+  .papers-grid,
+  .skeleton-grid {
     grid-template-columns: 1fr;
+    gap: $spacing-4;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding: $spacing-4;
+
+    &__actions {
+      width: 100%;
+
+      .el-button {
+        flex: 1;
+      }
+    }
+  }
+
+  .toolbar {
+    padding: $spacing-3;
   }
 }
 </style>

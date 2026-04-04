@@ -109,10 +109,10 @@ export interface CrawlerStats {
 export const crawlerApi = {
   /**
    * 爬取arXiv论文
-   * POST /api/crawler/arxiv
+   * POST /crawler/arxiv
    */
   async crawlArXiv(req: CrawlerSearchRequest): Promise<CrawlerTask> {
-    return await request.post('/api/crawler/arxiv', {
+    return await request.post('/crawler/arxiv', {
       ...req,
       source: 'arxiv'
     })
@@ -120,10 +120,10 @@ export const crawlerApi = {
 
   /**
    * 爬取PubMed论文
-   * POST /api/crawler/pubmed
+   * POST /crawler/pubmed
    */
   async crawlPubMed(req: CrawlerSearchRequest): Promise<CrawlerTask> {
-    return await request.post('/api/crawler/pubmed', {
+    return await request.post('/crawler/pubmed', {
       ...req,
       source: 'pubmed'
     })
@@ -131,10 +131,10 @@ export const crawlerApi = {
 
   /**
    * 爬取Google Scholar论文
-   * POST /api/crawler/scholar
+   * POST /crawler/scholar
    */
   async crawlScholar(req: CrawlerSearchRequest): Promise<CrawlerTask> {
-    return await request.post('/api/crawler/scholar', {
+    return await request.post('/crawler/scholar', {
       ...req,
       source: 'scholar'
     })
@@ -142,10 +142,10 @@ export const crawlerApi = {
 
   /**
    * 爬取IEEE Xplore论文
-   * POST /api/crawler/ieee
+   * POST /crawler/ieee
    */
   async crawlIEEE(req: CrawlerSearchRequest): Promise<CrawlerTask> {
-    return await request.post('/api/crawler/ieee', {
+    return await request.post('/crawler/ieee', {
       ...req,
       source: 'ieeexplore'
     })
@@ -153,10 +153,10 @@ export const crawlerApi = {
 
   /**
    * 爬取ACM Digital Library论文
-   * POST /api/crawler/acm
+   * POST /crawler/acm
    */
   async crawlACM(req: CrawlerSearchRequest): Promise<CrawlerTask> {
-    return await request.post('/api/crawler/acm', {
+    return await request.post('/crawler/acm', {
       ...req,
       source: 'acm'
     })
@@ -164,47 +164,47 @@ export const crawlerApi = {
 
   /**
    * 通用搜索接口
-   * POST /api/crawler/search
+   * POST /crawler/search
    */
   async search(req: CrawlerSearchRequest): Promise<CrawlerTask> {
-    return await request.post('/api/crawler/search', req)
+    return await request.post('/crawler/search', req)
   },
 
   /**
    * 获取爬虫任务状态
-   * GET /api/crawler/task/:id
+   * GET /crawler/task/:id
    */
   async getTaskStatus(taskId: string): Promise<CrawlerTask> {
-    return await request.get(`/api/crawler/task/${taskId}`)
+    return await request.get(`/crawler/task/${taskId}`)
   },
 
   /**
    * 取消爬虫任务
-   * DELETE /api/crawler/task/:id
+   * DELETE /crawler/task/:id
    */
   async cancelTask(taskId: string): Promise<{ success: boolean }> {
-    return await request.delete(`/api/crawler/task/${taskId}`)
+    return await request.delete(`/crawler/task/${taskId}`)
   },
 
   /**
    * 暂停爬虫任务
-   * POST /api/crawler/task/:id/pause
+   * POST /crawler/task/:id/pause
    */
   async pauseTask(taskId: string): Promise<{ success: boolean }> {
-    return await request.post(`/api/crawler/task/${taskId}/pause`)
+    return await request.post(`/crawler/task/${taskId}/pause`)
   },
 
   /**
    * 恢复爬虫任务
-   * POST /api/crawler/task/:id/resume
+   * POST /crawler/task/:id/resume
    */
   async resumeTask(taskId: string): Promise<{ success: boolean }> {
-    return await request.post(`/api/crawler/task/${taskId}/resume`)
+    return await request.post(`/crawler/task/${taskId}/resume`)
   },
 
   /**
    * 保存爬取的论文到数据库
-   * POST /api/crawler/save
+   * POST /crawler/save
    */
   async savePapers(papers: CrawledPaper[]): Promise<{
     success: boolean
@@ -214,74 +214,74 @@ export const crawlerApi = {
     failed: number
     total: number
   }> {
-    return await request.post('/api/crawler/save', { papers })
+    return await request.post('/crawler/save', { papers })
   },
 
   /**
    * 保存单个论文
-   * POST /api/crawler/save-one
+   * POST /crawler/save-one
    */
   async savePaper(paper: CrawledPaper): Promise<{
     success: boolean
     message: string
     paperId?: number
   }> {
-    return await request.post('/api/crawler/save-one', paper)
+    return await request.post('/crawler/save-one', paper)
   },
 
   /**
    * 获取爬取历史
-   * GET /api/crawler/history
+   * GET /crawler/history
    */
   async getHistory(page = 1, limit = 20): Promise<{
     tasks: CrawlerTask[]
     total: number
     page: number
   }> {
-    return await request.get('/api/crawler/history', {
+    return await request.get('/crawler/history', {
       params: { page, limit }
     })
   },
 
   /**
    * 获取爬虫配置
-   * GET /api/crawler/config
+   * GET /crawler/config
    */
   async getConfig(): Promise<CrawlerConfig> {
-    return await request.get('/api/crawler/config')
+    return await request.get('/crawler/config')
   },
 
   /**
    * 更新爬虫配置
-   * PUT /api/crawler/config
+   * PUT /crawler/config
    */
   async updateConfig(config: Partial<CrawlerConfig>): Promise<CrawlerConfig> {
-    return await request.put('/api/crawler/config', config)
+    return await request.put('/crawler/config', config)
   },
 
   /**
    * 获取爬虫统计信息
-   * GET /api/crawler/stats
+   * GET /crawler/stats
    */
   async getStats(): Promise<CrawlerStats> {
-    return await request.get('/api/crawler/stats')
+    return await request.get('/crawler/stats')
   },
 
   /**
    * 测试爬虫连接
-   * GET /api/crawler/test/:source
+   * GET /crawler/test/:source
    */
   async testConnection(source: CrawlerSource): Promise<{
     success: boolean
     latency: number
     message: string
   }> {
-    return await request.get(`/api/crawler/test/${source}`)
+    return await request.get(`/crawler/test/${source}`)
   },
 
   /**
    * 获取支持的爬虫源
-   * GET /api/crawler/sources
+   * GET /crawler/sources
    */
   async getSupportedSources(): Promise<{
     sources: Array<{
@@ -293,12 +293,12 @@ export const crawlerApi = {
       maxLimit: number
     }>
   }> {
-    return await request.get('/api/crawler/sources')
+    return await request.get('/crawler/sources')
   },
 
   /**
    * 批量爬取（多个查询）
-   * POST /api/crawler/batch
+   * POST /crawler/batch
    */
   async batchCrawl(queries: Array<{
     query: string
@@ -310,12 +310,12 @@ export const crawlerApi = {
     totalTasks: number
     estimatedTime: number
   }> {
-    return await request.post('/api/crawler/batch', { queries })
+    return await request.post('/crawler/batch', { queries })
   },
 
   /**
    * 获取批量任务状态
-   * GET /api/crawler/batch/:batchId
+   * GET /crawler/batch/:batchId
    */
   async getBatchStatus(batchId: string): Promise<{
     batchId: string
@@ -324,7 +324,7 @@ export const crawlerApi = {
     totalTasks: number
     tasks: CrawlerTask[]
   }> {
-    return await request.get(`/api/crawler/batch/${batchId}`)
+    return await request.get(`/crawler/batch/${batchId}`)
   }
 }
 

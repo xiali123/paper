@@ -2,282 +2,435 @@
   <div class="ai-research-plan-page">
     <!-- Page Header -->
     <div class="page-header">
-      <div class="container">
-        <nav class="breadcrumb">
-          <router-link to="/">Home</router-link>
-          <span class="separator">/</span>
-          <router-link to="/ai">AI Research Co-Pilot</router-link>
-          <span class="separator">/</span>
-          <span class="current">Research Plan</span>
-        </nav>
-
-        <h1 class="page-title">
-          <i class="fas fa-clipboard-list"></i>
-          AI研究计划助手
-        </h1>
-        <p class="page-subtitle">
-          生成完整的研究项目计划，包含SMART目标、方法论设计和时间安排
-        </p>
+      <h1 class="page-title">
+        <el-icon><Notebook /></el-icon>
+        AI 研究计划助手
+      </h1>
+      <div class="header-actions">
+        <el-button type="primary" :icon="Plus" @click="handleNewPlan">
+          创建计划
+        </el-button>
+        <el-button :icon="Clock" @click="$router.push('/ai/history')">
+          历史记录
+        </el-button>
       </div>
     </div>
 
-    <!-- Page Content -->
-    <div class="page-content">
-      <div class="container">
-        <!-- Info Banner -->
-        <div class="info-banner">
-          <div class="banner-icon">
-            <i class="fas fa-lightbulb"></i>
-          </div>
-          <div class="banner-content">
-            <h3>AI研究计划功能介绍</h3>
-            <p>
-              使用AI技术帮助您快速创建专业的研究项目计划书：
-            </p>
-            <ul>
-              <li><i class="fas fa-check"></i> SMART目标自动设定</li>
-              <li><i class="fas fa-check"></i> 详细的方法论设计</li>
-              <li><i class="fas fa-check"></i> 可视化时间线和阶段规划</li>
-              <li><i class="fas fa-check"></i> 资源需求和预算评估</li>
-              <li><i class="fas fa-check"></i> 风险评估和缓解措施</li>
-            </ul>
-          </div>
-          <div class="banner-metrics">
-            <div class="metric">
-              <span class="value">~18s</span>
-              <span class="label">生成时间</span>
+    <!-- Statistics Cards -->
+    <el-row :gutter="20" class="stats-row">
+      <el-col :xs="24" :sm="12" :md="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-content">
+            <div class="stat-icon total">
+              <el-icon><Document /></el-icon>
             </div>
-            <div class="metric">
-              <span class="value">60</span>
-              <span class="label">最大周期(月)</span>
-            </div>
-            <div class="metric">
-              <span class="value">95%</span>
-              <span class="label">成本降低</span>
+            <div class="stat-info">
+              <div class="stat-value">{{ stats.totalPlans || 0 }}</div>
+              <div class="stat-label">总计划数</div>
             </div>
           </div>
-        </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-content">
+            <div class="stat-icon success">
+              <el-icon><Timer /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">~18s</div>
+              <div class="stat-label">生成时间</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-content">
+            <div class="stat-icon duration">
+              <el-icon><Calendar /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">60</div>
+              <div class="stat-label">最大周期(月)</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-content">
+            <div class="stat-icon cost">
+              <el-icon><Coin /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">95%</div>
+              <div class="stat-label">成本降低</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-        <!-- Research Plan Visualization Component -->
-        <ResearchPlanVisualization />
-      </div>
-    </div>
+    <!-- Main Content -->
+    <el-row :gutter="20" class="main-content">
+      <el-col :xs="24" :lg="16">
+        <el-card shadow="hover" class="plan-card">
+          <template #header>
+            <div class="card-header">
+              <span>
+                <el-icon><Edit /></el-icon>
+                研究计划生成器
+              </span>
+            </div>
+          </template>
+          <ResearchPlanVisualization />
+        </el-card>
+      </el-col>
 
-    <!-- Page Footer -->
-    <div class="page-footer">
-      <div class="container">
-        <div class="footer-links">
-          <router-link to="/ai/literature-review">
-            <i class="fas fa-arrow-left"></i>
-            文献综述生成器
-          </router-link>
-          <router-link to="/ai/review">
-            <i class="fas fa-arrow-left"></i>
-            AI审稿人
-          </router-link>
-        </div>
-      </div>
-    </div>
+      <el-col :xs="24" :lg="8">
+        <el-card shadow="hover" class="info-card">
+          <template #header>
+            <div class="card-header">
+              <span>
+                <el-icon><InfoFilled /></el-icon>
+                功能特点
+              </span>
+            </div>
+          </template>
+          <div class="feature-list">
+            <div class="feature-item">
+              <div class="feature-icon">
+                <el-icon><Medal /></el-icon>
+              </div>
+              <div class="feature-text">
+                <h4>SMART目标</h4>
+                <p>自动设定研究目标</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">
+                <el-icon><Tools /></el-icon>
+              </div>
+              <div class="feature-text">
+                <h4>方法论设计</h4>
+                <p>详细研究方法</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">
+                <el-icon><DataLine /></el-icon>
+              </div>
+              <div class="feature-text">
+                <h4>时间线规划</h4>
+                <p>可视化阶段安排</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <div class="feature-icon">
+                <el-icon><Wallet /></el-icon>
+              </div>
+              <div class="feature-text">
+                <h4>预算评估</h4>
+                <p>资源需求分析</p>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref } from 'vue'
+import {
+  Notebook,
+  Plus,
+  Clock,
+  Document,
+  Timer,
+  Calendar,
+  Coin,
+  Edit,
+  InfoFilled,
+  Medal,
+  Tools,
+  DataLine,
+  Wallet
+} from '@element-plus/icons-vue'
 import ResearchPlanVisualization from '@/components/ai/ResearchPlanVisualization.vue'
 
-onMounted(() => {
-  document.title = 'Research Plan - PaperCrawler AI Research Co-Pilot'
+const stats = ref({
+  totalPlans: 0
 })
+
+const handleNewPlan = () => {
+  console.log('Creating new research plan')
+}
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .ai-research-plan-page {
-  min-height: 100vh;
-  background: #f5f7fa;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 .page-header {
-  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-  color: white;
-  padding: 40px 0;
-  margin-bottom: 30px;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-.breadcrumb {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  font-size: 14px;
+  gap: $spacing-6;
+  padding: $spacing-8;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  margin-bottom: $spacing-6;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    box-shadow: $shadow-md;
+  }
+
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    margin: 0;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+
+    .el-icon {
+      color: #409eff;
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    gap: $spacing-3;
+  }
 }
 
-.breadcrumb a {
-  color: rgba(255, 255, 255, 0.8);
-  text-decoration: none;
-  transition: color 0.3s;
+.stats-row {
+  margin-bottom: $spacing-6;
+
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
+  }
 }
 
-.breadcrumb a:hover {
-  color: white;
+.stat-card {
+  height: 100%;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+  overflow: hidden;
+
+  &:hover {
+    box-shadow: $shadow-md;
+    transform: translateY(-4px);
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-6;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  .stat-content {
+    display: flex;
+    align-items: center;
+    gap: $spacing-5;
+
+    .stat-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: $border-radius-lg;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+      box-shadow: $shadow-sm;
+
+      &.total {
+        background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+        color: white;
+      }
+
+      &.success {
+        background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+        color: white;
+      }
+
+      &.duration {
+        background: linear-gradient(135deg, #e6a23c 0%, #f0c78a 100%);
+        color: white;
+      }
+
+      &.cost {
+        background: linear-gradient(135deg, #f56c6c 0%, #f89898 100%);
+        color: white;
+      }
+    }
+
+    .stat-info {
+      flex: 1;
+
+      .stat-value {
+        font-size: $font-size-3xl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+        line-height: 1;
+        margin-bottom: $spacing-2;
+      }
+
+      .stat-label {
+        font-size: $font-size-sm;
+        color: $text-regular;
+        font-weight: $font-weight-medium;
+      }
+    }
+  }
 }
 
-.breadcrumb .separator {
-  margin: 0 8px;
-  color: rgba(255, 255, 255, 0.6);
+.main-content {
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
+  }
 }
 
-.breadcrumb .current {
-  color: white;
-  font-weight: 500;
+.plan-card,
+.info-card {
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+  height: 100%;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  :deep(.el-card__header) {
+    border-bottom: 1px solid $border-light;
+    padding: $spacing-5;
+    background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+
+    .dark & {
+      background: linear-gradient(135deg, $gray-800 0%, $gray-700 100%);
+      border-bottom-color: $gray-700;
+    }
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-5;
+  }
 }
 
-.page-title {
-  font-size: 2.5rem;
-  margin: 0 0 12px 0;
+.card-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-base;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+    color: $text-primary;
+  }
+
+  .el-icon {
+    color: #409eff;
+  }
 }
 
-.page-subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin: 0;
-}
-
-.page-content {
-  padding-bottom: 40px;
-}
-
-.info-banner {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  display: flex;
-  gap: 24px;
-}
-
-.banner-icon {
-  font-size: 48px;
-  color: #007bff;
-  flex-shrink: 0;
-}
-
-.banner-content {
-  flex: 1;
-}
-
-.banner-content h3 {
-  margin: 0 0 12px 0;
-  color: #2c3e50;
-}
-
-.banner-content p {
-  color: #6c757d;
-  margin-bottom: 12px;
-}
-
-.banner-content ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 8px;
-}
-
-.banner-content li {
-  color: #495057;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.banner-content li i {
-  color: #007bff;
-}
-
-.banner-metrics {
+.feature-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-width: 120px;
-}
+  gap: $spacing-5;
 
-.metric {
-  text-align: center;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
+  .feature-item {
+    display: flex;
+    gap: $spacing-4;
+    align-items: flex-start;
 
-.metric .value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #007bff;
-}
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: $border-radius-lg;
+      background: rgba(#409eff, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #409eff;
 
-.metric .label {
-  display: block;
-  font-size: 12px;
-  color: #6c757d;
-  margin-top: 4px;
-}
+      .dark & {
+        background: rgba($gray-700, 0.5);
+        color: #66b1ff;
+      }
 
-.page-footer {
-  background: white;
-  border-top: 1px solid #e9ecef;
-  padding: 20px 0;
-  margin-top: 40px;
-}
+      .el-icon {
+        font-size: $font-size-xl;
+      }
+    }
 
-.footer-links {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-}
+    .feature-text {
+      flex: 1;
 
-.footer-links a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #007bff;
-  color: white;
-  text-decoration: none;
-  border-radius: 6px;
-  transition: all 0.3s;
-}
+      h4 {
+        margin: 0 0 $spacing-1 0;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
 
-.footer-links a:hover {
-  background: #0056b3;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        .dark & {
+          color: $gray-100;
+        }
+      }
+
+      p {
+        margin: 0;
+        font-size: $font-size-sm;
+        color: $text-regular;
+        line-height: 1.5;
+      }
+    }
+  }
 }
 
 @media (max-width: 768px) {
-  .page-title {
-    font-size: 1.8rem;
-  }
-
-  .info-banner {
+  .page-header {
     flex-direction: column;
-  }
+    align-items: flex-start;
+    gap: $spacing-4;
+    padding: $spacing-5;
 
-  .banner-metrics {
-    flex-direction: row;
-  }
+    .page-title {
+      font-size: $font-size-2xl;
+    }
 
-  .footer-links {
-    flex-direction: column;
+    .header-actions {
+      width: 100%;
+
+      .el-button {
+        flex: 1;
+      }
+    }
   }
 }
 </style>

@@ -46,10 +46,10 @@ export interface RecommendationExplanation {
 export const recommendationsApi = {
   /**
    * 获取个性化推荐
-   * GET /api/recommendations/:userId
+   * GET /recommendations/:userId
    */
   async getPersonalized(req: RecommendationRequest): Promise<RecommendationResult[]> {
-    return await request.get(`/api/recommendations/${req.userId}`, {
+    return await request.get(`/recommendations/${req.userId}`, {
       params: {
         algorithm: req.algorithm || 'hybrid',
         limit: req.limit || 10,
@@ -60,53 +60,53 @@ export const recommendationsApi = {
 
   /**
    * 获取相似论文
-   * GET /api/recommendations/similar/:paperId
+   * GET /recommendations/similar/:paperId
    */
   async getSimilar(paperId: number, limit = 10): Promise<RecommendationResult[]> {
-    return await request.get(`/api/recommendations/similar/${paperId}`, {
+    return await request.get(`/recommendations/similar/${paperId}`, {
       params: { limit }
     })
   },
 
   /**
    * 获取热门论文
-   * GET /api/recommendations/trending
+   * GET /recommendations/trending
    */
   async getTrending(limit = 20, timeWindow: 'day' | 'week' | 'month' = 'week'): Promise<RecommendationResult[]> {
-    return await request.get('/api/recommendations/trending', {
+    return await request.get('/recommendations/trending', {
       params: { limit, time_window: timeWindow }
     })
   },
 
   /**
    * 获取推荐解释
-   * GET /api/recommendations/explain
+   * GET /recommendations/explain
    */
   async explainRecommendation(userId: number, paperId: number): Promise<RecommendationExplanation> {
-    return await request.get('/api/recommendations/explain', {
+    return await request.get('/recommendations/explain', {
       params: { userId, paperId }
     })
   },
 
   /**
    * 提交推荐反馈
-   * POST /api/recommendations/feedback
+   * POST /recommendations/feedback
    */
   async submitFeedback(feedback: RecommendationFeedback): Promise<{ success: boolean }> {
-    return await request.post('/api/recommendations/feedback', feedback)
+    return await request.post('/recommendations/feedback', feedback)
   },
 
   /**
    * 获取用户画像
-   * GET /api/recommendations/profile/:userId
+   * GET /recommendations/profile/:userId
    */
   async getUserProfile(userId: number): Promise<UserProfile> {
-    return await request.get(`/api/recommendations/profile/${userId}`)
+    return await request.get(`/recommendations/profile/${userId}`)
   },
 
   /**
    * 获取推荐系统统计信息
-   * GET /api/recommendations/stats
+   * GET /recommendations/stats
    */
   async getStats(): Promise<{
     totalRecommendations: number
@@ -118,7 +118,7 @@ export const recommendationsApi = {
     }>
     satisfactionRate: number
   }> {
-    return await request.get('/api/recommendations/stats')
+    return await request.get('/recommendations/stats')
   }
 }
 

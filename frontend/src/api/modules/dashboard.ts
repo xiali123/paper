@@ -22,109 +22,109 @@ import type {
 export const dashboardApi = {
   /**
    * 获取仪表盘统计数据
-   * GET /api/dashboard/stats
+   * GET /dashboard/stats
    */
   async getStats(): Promise<DashboardStats> {
-    return await request.get('/api/dashboard/stats')
+    return await request.get('/dashboard/stats')
   },
 
   /**
    * 获取最近活动
-   * GET /api/dashboard/activities
+   * GET /dashboard/activities
    */
   async getRecentActivities(limit: number = 10): Promise<RecentActivity[]> {
-    return await request.get('/api/dashboard/activities', {
+    return await request.get('/dashboard/activities', {
       params: { limit }
     })
   },
 
   /**
    * 获取推荐论文
-   * GET /api/dashboard/recommendations/papers
+   * GET /dashboard/recommendations/papers
    */
   async getRecommendedPapers(limit: number = 5): Promise<RecommendedPaper[]> {
-    return await request.get('/api/dashboard/recommendations/papers', {
+    return await request.get('/dashboard/recommendations/papers', {
       params: { limit }
     })
   },
 
   /**
    * 获取热门搜索
-   * GET /api/dashboard/trending/searches
+   * GET /dashboard/trending/searches
    */
   async getTrendingSearches(limit: number = 10): Promise<TrendingSearch[]> {
-    return await request.get('/api/dashboard/trending/searches', {
+    return await request.get('/dashboard/trending/searches', {
       params: { limit }
     })
   },
 
   /**
    * 获取待办事项
-   * GET /api/dashboard/todos
+   * GET /dashboard/todos
    */
   async getTodoItems(): Promise<TodoItem[]> {
-    return await request.get('/api/dashboard/todos')
+    return await request.get('/dashboard/todos')
   },
 
   /**
    * 更新待办事项状态
-   * PUT /api/dashboard/todos/:id/status
+   * PUT /dashboard/todos/:id/status
    */
   async updateTodoStatus(
     id: string,
     status: TodoItem['status']
   ): Promise<{ success: boolean }> {
-    return await request.put(`/api/dashboard/todos/${id}/status`, { status })
+    return await request.put(`/dashboard/todos/${id}/status`, { status })
   },
 
   /**
    * 获取爬虫任务列表
-   * GET /api/dashboard/crawler-tasks
+   * GET /dashboard/crawler-tasks
    */
   async getCrawlerTasks(): Promise<CrawlerTask[]> {
-    return await request.get('/api/dashboard/crawler-tasks')
+    return await request.get('/dashboard/crawler-tasks')
   },
 
   /**
    * 获取论文增长趋势
-   * GET /api/dashboard/growth
+   * GET /dashboard/growth
    */
   async getPaperGrowth(days: number = 30): Promise<PaperGrowthData[]> {
-    return await request.get('/api/dashboard/growth', {
+    return await request.get('/dashboard/growth', {
       params: { days }
     })
   },
 
   /**
    * 获取期刊分布数据
-   * GET /api/dashboard/distribution/journals
+   * GET /dashboard/distribution/journals
    */
   async getJournalDistribution(): Promise<JournalDistributionData[]> {
-    return await request.get('/api/dashboard/distribution/journals')
+    return await request.get('/dashboard/distribution/journals')
   },
 
   /**
    * 获取CCF等级分布
-   * GET /api/dashboard/distribution/ccf
+   * GET /dashboard/distribution/ccf
    */
   async getCCFDistribution(): Promise<CCFLevelDistribution[]> {
-    return await request.get('/api/dashboard/distribution/ccf')
+    return await request.get('/dashboard/distribution/ccf')
   },
 
   /**
    * 刷新仪表盘数据
-   * POST /api/dashboard/refresh
+   * POST /dashboard/refresh
    */
   async refresh(): Promise<{
     success: boolean
     timestamp: string
   }> {
-    return await request.post('/api/dashboard/refresh')
+    return await request.post('/dashboard/refresh')
   },
 
   /**
    * 获取仪表盘配置
-   * GET /api/dashboard/config
+   * GET /dashboard/config
    */
   async getConfig(): Promise<{
     widgets: Array<{
@@ -136,12 +136,12 @@ export const dashboardApi = {
     layoutMode: string
     refreshInterval: number
   }> {
-    return await request.get('/api/dashboard/config')
+    return await request.get('/dashboard/config')
   },
 
   /**
    * 更新仪表盘配置
-   * PUT /api/dashboard/config
+   * PUT /dashboard/config
    */
   async updateConfig(config: {
     widgets?: Array<{
@@ -152,7 +152,7 @@ export const dashboardApi = {
     layoutMode?: string
     refreshInterval?: number
   }): Promise<{ success: boolean }> {
-    return await request.put('/api/dashboard/config', config)
+    return await request.put('/dashboard/config', config)
   }
 }
 

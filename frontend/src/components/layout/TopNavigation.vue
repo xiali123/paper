@@ -295,66 +295,88 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 现代化顶部导航栏样式
+// Modern Top Navigation Styles
+// ==========================================
+
 .top-navigation {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: var(--z-sticky);
+  left: 0;
+  right: 0;
+  z-index: $z-index-sticky;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-6);
-  padding: var(--space-4) var(--space-6);
-  background: rgba(255, 255, 255, 0.8);
+  gap: $spacing-6;
+  padding: $spacing-4 $spacing-6;
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--gray-200);
-  transition: all var(--duration-base) var(--ease-out);
+  border-bottom: 1px solid $border-light;
+  box-shadow: $shadow-sm;
+  transition: all $duration-base $easing-ease-out;
 
+  // 滚动后的样式
   &--scrolled {
     background: rgba(255, 255, 255, 0.95);
-    box-shadow: var(--shadow-sm);
+    box-shadow: $shadow-md;
+    padding: $spacing-3 $spacing-6;
   }
 
+  // 深色模式
   .dark & {
-    background: rgba(24, 24, 27, 0.8);
-    border-bottom-color: var(--gray-800);
+    background: rgba($gray-900, 0.85);
+    border-bottom-color: $gray-700;
+    box-shadow: $shadow-md;
 
     &--scrolled {
-      background: rgba(24, 24, 27, 0.95);
+      background: rgba($gray-900, 0.95);
+      box-shadow: $shadow-lg;
     }
   }
 }
 
+// Logo 区域
 .top-navigation__logo {
   flex-shrink: 0;
 
   .logo-link {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: $spacing-3;
     text-decoration: none;
-    color: var(--gray-900);
-    transition: opacity var(--duration-fast);
+    color: $text-primary;
+    transition: transform $duration-fast;
 
     &:hover {
-      opacity: 0.8;
+      transform: scale(1.02);
     }
 
     .dark & {
-      color: var(--gray-100);
+      color: $gray-100;
     }
   }
 
   .logo-icon {
-    color: var(--primary-500);
+    width: 36px;
+    height: 36px;
+    color: $primary-500;
+    filter: drop-shadow(0 2px 8px rgba($primary-500, 0.3));
   }
 
   .logo-title {
-    font-size: var(--font-lg);
-    font-weight: var(--font-semibold);
-    color: var(--primary-600);
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    background: linear-gradient(135deg, $primary-600 0%, $primary-500 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
   }
 }
 
+// 导航菜单区域
 .top-navigation__menu {
   flex: 1;
   overflow: hidden;
@@ -365,72 +387,134 @@ onUnmounted(() => {
 
     :deep(.el-menu-item) {
       border-bottom: 2px solid transparent;
+      font-weight: $font-weight-medium;
+      transition: all $duration-fast;
 
       &:hover {
-        background: var(--gray-50);
+        background: rgba($primary-500, 0.08);
+        color: $primary-600;
       }
 
       &.is-active {
-        border-bottom-color: var(--primary-500);
-        color: var(--primary-600);
+        border-bottom-color: $primary-500;
+        color: $primary-600;
+        background: rgba($primary-500, 0.1);
+        font-weight: $font-weight-semibold;
+
+        .dark & {
+          color: $primary-400;
+          border-bottom-color: $primary-400;
+          background: rgba($primary-400, 0.1);
+        }
+      }
+
+      .dark &:hover {
+        background: rgba($primary-400, 0.08);
+        color: $primary-400;
       }
     }
   }
 }
 
+// 右侧操作区域
 .top-navigation__actions {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: $spacing-3;
   flex-shrink: 0;
 
+  // 操作按钮
   .action-button {
     border: none;
     background: transparent;
-    color: var(--gray-700);
+    color: $text-regular;
+    transition: all $duration-fast;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba($primary-500, 0.1);
+      transform: translate(-50%, -50%);
+      transition: width $duration-base, height $duration-base;
+    }
 
     &:hover {
-      background: var(--gray-100);
-      color: var(--primary-600);
+      background: rgba($primary-500, 0.1);
+      color: $primary-600;
+      transform: scale(1.05);
+
+      &::before {
+        width: 40px;
+        height: 40px;
+      }
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
 
     .dark & {
-      color: var(--gray-300);
+      color: $gray-300;
 
       &:hover {
-        background: var(--gray-800);
-        color: var(--primary-400);
+        background: rgba($primary-400, 0.1);
+        color: $primary-400;
+
+        &::before {
+          background: rgba($primary-400, 0.1);
+        }
       }
     }
   }
 
+  // 通知徽章
   .notification-badge {
     :deep(.el-badge__content) {
       transform: translateY(-50%) translateX(100%);
+      box-shadow: $shadow-sm;
     }
   }
 
+  // 用户下拉菜单
   .user-dropdown {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2);
-    border-radius: var(--radius-full);
+    gap: $spacing-3;
+    padding: $spacing-2 $spacing-3;
+    border-radius: $border-radius-full;
     cursor: pointer;
-    transition: background var(--duration-fast);
+    transition: all $duration-fast;
+    background: transparent;
 
     &:hover {
-      background: var(--gray-100);
+      background: rgba($primary-500, 0.1);
+      transform: scale(1.02);
+
+      .dark & {
+        background: rgba($primary-400, 0.1);
+      }
     }
 
-    .dark &:hover {
-      background: var(--gray-800);
+    :deep(.el-avatar) {
+      border: 2px solid rgba($primary-500, 0.2);
+      transition: all $duration-fast;
+
+      &:hover {
+        border-color: $primary-500;
+      }
     }
 
     .user-name {
-      font-size: var(--font-sm);
-      font-weight: var(--font-medium);
-      color: var(--gray-700);
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
       display: none;
 
       @media (min-width: 768px) {
@@ -438,11 +522,12 @@ onUnmounted(() => {
       }
 
       .dark & {
-        color: var(--gray-300);
+        color: $gray-200;
       }
     }
   }
 
+  // 移动端菜单按钮
   .mobile-menu-button {
     display: none;
 
@@ -452,7 +537,7 @@ onUnmounted(() => {
   }
 }
 
-// Mobile Menu
+// 移动端菜单
 .mobile-menu-content {
   height: 100%;
   display: flex;
@@ -462,26 +547,63 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-4);
-    border-bottom: 1px solid var(--gray-200);
+    padding: $spacing-5;
+    border-bottom: 1px solid $border-light;
+    background: linear-gradient(135deg, rgba($primary-500, 0.05) 0%, transparent 100%);
+
+    .dark & {
+      border-bottom-color: $gray-700;
+      background: linear-gradient(135deg, rgba($primary-500, 0.1) 0%, transparent 100%);
+    }
 
     .logo {
       display: flex;
       align-items: center;
-      gap: var(--space-3);
-      font-size: var(--font-lg);
-      font-weight: var(--font-semibold);
-      color: var(--primary-600);
+      gap: $spacing-3;
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      background: linear-gradient(135deg, $primary-600 0%, $primary-500 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
   }
 
   .el-menu {
     flex: 1;
     border-right: none;
+    padding: $spacing-4;
+
+    :deep(.el-menu-item) {
+      border-radius: $border-radius-lg;
+      margin-bottom: $spacing-2;
+      transition: all $duration-fast;
+
+      &:hover {
+        background: rgba($primary-500, 0.1);
+        transform: translateX(4px);
+      }
+
+      &.is-active {
+        background: linear-gradient(90deg, rgba($primary-500, 0.15) 0%, rgba($primary-500, 0.05) 100%);
+        color: $primary-600;
+        font-weight: $font-weight-semibold;
+        border-left: 3px solid $primary-500;
+
+        .dark & {
+          color: $primary-400;
+          border-left-color: $primary-400;
+        }
+      }
+
+      .dark &:hover {
+        background: rgba($primary-400, 0.1);
+      }
+    }
   }
 }
 
-// Responsive Design
+// 响应式设计
 @media (max-width: 1024px) {
   .top-navigation__menu {
     display: none;
@@ -490,18 +612,23 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .top-navigation {
-    padding: var(--space-3) var(--space-4);
-    gap: var(--space-4);
+    padding: $spacing-3 $spacing-4;
+    gap: $spacing-4;
   }
 
   .top-navigation__logo {
     .logo-title {
-      font-size: var(--font-base);
+      font-size: $font-size-base;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
     }
   }
 
   .top-navigation__actions {
-    gap: var(--space-2);
+    gap: $spacing-2;
 
     .user-dropdown .user-name {
       display: none;
@@ -509,9 +636,50 @@ onUnmounted(() => {
   }
 }
 
+@media (max-width: 480px) {
+  .top-navigation {
+    padding: $spacing-2 $spacing-3;
+    gap: $spacing-2;
+  }
+
+  .top-navigation__actions {
+    .action-button {
+      padding: $spacing-1;
+    }
+  }
+}
+
+// 减少动画（辅助功能）
 @media (prefers-reduced-motion: reduce) {
   .top-navigation {
     transition: none;
+
+    &--scrolled {
+      padding: $spacing-4 $spacing-6;
+    }
+  }
+
+  .action-button,
+  .user-dropdown {
+    transition: none;
+    transform: none !important;
+
+    &::before {
+      transition: none;
+    }
+  }
+}
+
+// 打印样式
+@media print {
+  .top-navigation {
+    position: static;
+    box-shadow: none;
+    border: none;
+  }
+
+  .top-navigation__actions {
+    display: none;
   }
 }
 </style>

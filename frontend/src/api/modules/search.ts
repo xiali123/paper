@@ -31,116 +31,116 @@ export interface AdvancedSearchRequest extends AdvancedSearchQuery {
 export const searchApi = {
   /**
    * 基础搜索
-   * GET /api/search
+   * GET /search
    */
   async search(req: SearchRequest): Promise<SearchResult> {
-    return await request.get('/api/search', {
+    return await request.get('/search', {
       params: req
     })
   },
 
   /**
    * 高级搜索
-   * POST /api/search/advanced
+   * POST /search/advanced
    */
   async advancedSearch(req: AdvancedSearchRequest): Promise<SearchResult> {
-    return await request.post('/api/search/advanced', req)
+    return await request.post('/search/advanced', req)
   },
 
   /**
    * 获取搜索建议
-   * GET /api/search/suggestions
+   * GET /search/suggestions
    */
   async getSuggestions(query: string, limit = 10): Promise<SearchSuggestion[]> {
-    return await request.get('/api/search/suggestions', {
+    return await request.get('/search/suggestions', {
       params: { query, limit }
     })
   },
 
   /**
    * 获取热门搜索
-   * GET /api/search/trending
+   * GET /search/trending
    */
   async getTrending(limit = 10): Promise<Array<{
     query: string
     count: number
     trend: 'up' | 'down' | 'stable'
   }>> {
-    return await request.get('/api/search/trending', {
+    return await request.get('/search/trending', {
       params: { limit }
     })
   },
 
   /**
    * 获取搜索历史
-   * GET /api/search/history
+   * GET /search/history
    */
   async getHistory(userId: number, limit = 20): Promise<Array<{
     query: string
     timestamp: string
     resultsCount: number
   }>> {
-    return await request.get('/api/search/history', {
+    return await request.get('/search/history', {
       params: { userId, limit }
     })
   },
 
   /**
    * 保存搜索
-   * POST /api/search/saved
+   * POST /search/saved
    */
   async saveSearch(userId: number, query: string, name?: string): Promise<{ success: boolean }> {
-    return await request.post('/api/search/saved', { userId, query, name })
+    return await request.post('/search/saved', { userId, query, name })
   },
 
   /**
    * 获取已保存搜索
-   * GET /api/search/saved
+   * GET /search/saved
    */
   async getSavedSearches(userId: number): Promise<Array<{
     name: string
     query: string
     createdAt: string
   }>> {
-    return await request.get('/api/search/saved', {
+    return await request.get('/search/saved', {
       params: { userId }
     })
   },
 
   /**
    * 删除已保存搜索
-   * DELETE /api/search/saved/:name
+   * DELETE /search/saved/:name
    */
   async deleteSavedSearch(name: string): Promise<{ success: boolean }> {
-    return await request.delete(`/api/search/saved/${encodeURIComponent(name)}`)
+    return await request.delete(`/search/saved/${encodeURIComponent(name)}`)
   },
 
   /**
    * 清空搜索历史
-   * DELETE /api/search/history
+   * DELETE /search/history
    */
   async clearHistory(userId: number): Promise<{ success: boolean }> {
-    return await request.delete('/api/search/history', {
+    return await request.delete('/search/history', {
       params: { userId }
     })
   },
 
   /**
    * 导出搜索结果
-   * GET /api/search/export
+   * GET /search/export
    */
   async exportResults(searchId: string, format: 'csv' | 'json' | 'excel'): Promise<{
     url: string
     filename: string
   }> {
-    return await request.get('/api/search/export', {
+    return await request.get('/search/export', {
       params: { searchId, format }
     })
   },
 
   /**
    * 获取搜索统计信息
-   * GET /api/search/stats
+   * GET /search/stats
    */
   async getStats(): Promise<{
     totalSearches: number
@@ -154,7 +154,7 @@ export const searchApi = {
       count: number
     }>
   }> {
-    return await request.get('/api/search/stats')
+    return await request.get('/search/stats')
   }
 }
 

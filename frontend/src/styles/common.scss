@@ -1,187 +1,736 @@
-// Common styles
+// ==========================================
+// PaperCrawler 通用组件样式
+// Common Component Styles
+// ==========================================
 
-// Card
+// 1. 卡片组件 (Card)
+// ----------------------------------------------------------
+
 .card {
   background-color: $bg-color;
-  border-radius: $border-radius-base;
-  box-shadow: $box-shadow-base;
-  padding: $spacing-md;
+  border-radius: $card-radius;
+  box-shadow: $card-shadow;
+  padding: $card-padding;
+  transition: all $duration-slow $easing-ease-in-out;
+
+  &:hover {
+    box-shadow: $card-shadow-hover;
+    transform: translateY(-2px);
+  }
+
+  // 卡片标题
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-4;
+    padding-bottom: $spacing-4;
+    border-bottom: 1px solid $border-light;
+
+    .card-title {
+      font-size: $font-size-xl;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+      margin: 0;
+    }
+
+    .card-subtitle {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      margin-top: $spacing-1;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: $spacing-2;
+    }
+  }
+
+  // 卡片内容
+  .card-body {
+    color: $text-regular;
+    line-height: $line-height-relaxed;
+  }
+
+  // 卡片底部
+  .card-footer {
+    margin-top: $spacing-4;
+    padding-top: $spacing-4;
+    border-top: 1px solid $border-light;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
-// Page header
+// 2. 页面头部 (Page Header)
+// ----------------------------------------------------------
+
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: $spacing-md;
-  padding: $spacing-md;
-  background-color: $bg-color;
-  border-radius: $border-radius-base;
-  box-shadow: $box-shadow-base;
+  margin-bottom: $spacing-6;
+  padding: $spacing-6;
+  background: linear-gradient(135deg, $bg-color 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+
+  .page-title-wrapper {
+    flex: 1;
+  }
 
   .page-title {
-    font-size: $font-size-large;
-    font-weight: 500;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
     color: $text-primary;
+    margin: 0;
+    line-height: $line-height-tight;
+  }
+
+  .page-description {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    margin-top: $spacing-2;
+    line-height: $line-height-normal;
+  }
+
+  .page-actions {
+    display: flex;
+    gap: $spacing-3;
+    align-items: center;
+  }
+
+  // 带面包屑的头部
+  &.with-breadcrumb {
+    padding-top: $spacing-4;
+  }
+
+  .breadcrumb {
+    margin-bottom: $spacing-3;
   }
 }
 
-// Page content
+// 3. 页面内容区 (Page Content)
+// ----------------------------------------------------------
+
 .page-content {
-  padding: $spacing-md;
+  padding: $spacing-6;
   background-color: $bg-color;
-  border-radius: $border-radius-base;
-  box-shadow: $box-shadow-base;
-  min-height: calc(100vh - #{$header-height} - #{$spacing-lg} - #{$spacing-lg});
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  min-height: calc(100vh - #{$header-height} - #{$spacing-8} - #{$spacing-8});
+
+  // 空状态
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-12;
+    color: $text-secondary;
+    text-align: center;
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: $spacing-4;
+      color: $gray-300;
+    }
+
+    .empty-title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      margin-bottom: $spacing-2;
+    }
+
+    .empty-description {
+      font-size: $font-size-base;
+      color: $text-secondary;
+      margin-bottom: $spacing-4;
+      max-width: 400px;
+    }
+
+    .empty-action {
+      margin-top: $spacing-4;
+    }
+  }
 }
 
-// Status badge
+// 4. 状态徽章 (Status Badge)
+// ----------------------------------------------------------
+
 .status-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: $border-radius-small;
-  font-size: $font-size-small;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  gap: $spacing-1;
 
   &.status-success {
     background-color: rgba($success-color, 0.1);
     color: $success-color;
+
+    &::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background-color: currentColor;
+      border-radius: 50%;
+    }
   }
 
   &.status-warning {
     background-color: rgba($warning-color, 0.1);
     color: $warning-color;
+
+    &::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background-color: currentColor;
+      border-radius: 50%;
+    }
   }
 
   &.status-danger {
     background-color: rgba($danger-color, 0.1);
     color: $danger-color;
+
+    &::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background-color: currentColor;
+      border-radius: 50%;
+    }
   }
 
   &.status-info {
     background-color: rgba($info-color, 0.1);
     color: $info-color;
-  }
-}
 
-// Loading container
-.loading-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-}
-
-// Empty state
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: $spacing-xl;
-  color: $text-secondary;
-
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: $spacing-md;
+    &::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background-color: currentColor;
+      border-radius: 50%;
+    }
   }
 
-  .empty-text {
-    font-size: $font-size-base;
+  &.status-primary {
+    background-color: rgba($primary-color, 0.1);
+    color: $primary-color;
+
+    &::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background-color: currentColor;
+      border-radius: 50%;
+    }
   }
-}
 
-// Tag
-.tag {
-  display: inline-block;
-  padding: 2px 8px;
-  margin-right: $spacing-sm;
-  margin-bottom: $spacing-sm;
-  background-color: $bg-color-page;
-  border-radius: $border-radius-small;
-  font-size: $font-size-small;
-  color: $text-regular;
-}
-
-// Progress bar
-.progress-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  .progress-label {
-    margin-right: $spacing-md;
-    font-size: $font-size-small;
+  &.status-default {
+    background-color: $gray-100;
     color: $text-secondary;
   }
+}
 
-  .progress-value {
-    margin-left: $spacing-md;
-    font-size: $font-size-small;
-    color: $text-primary;
-    font-weight: 500;
+// 5. 标签/Tag (Tag)
+// ----------------------------------------------------------
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-3;
+  margin-right: $spacing-2;
+  margin-bottom: $spacing-2;
+  background-color: $gray-100;
+  border-radius: $border-radius-base;
+  font-size: $font-size-sm;
+  color: $text-regular;
+  font-weight: $font-weight-normal;
+  transition: all $duration-fast $easing-ease-in-out;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $gray-200;
+    transform: scale(1.05);
+  }
+
+  &.tag-primary {
+    background-color: rgba($primary-color, 0.1);
+    color: $primary-color;
+
+    &:hover {
+      background-color: rgba($primary-color, 0.2);
+    }
+  }
+
+  &.tag-success {
+    background-color: rgba($success-color, 0.1);
+    color: $success-color;
+
+    &:hover {
+      background-color: rgba($success-color, 0.2);
+    }
+  }
+
+  &.tag-warning {
+    background-color: rgba($warning-color, 0.1);
+    color: $warning-color;
+
+    &:hover {
+      background-color: rgba($warning-color, 0.2);
+    }
+  }
+
+  &.tag-danger {
+    background-color: rgba($danger-color, 0.1);
+    color: $danger-color;
+
+    &:hover {
+      background-color: rgba($danger-color, 0.2);
+    }
+  }
+
+  .tag-close {
+    margin-left: $spacing-1;
+    font-size: $font-size-sm;
+    opacity: 0.6;
+    transition: opacity $duration-fast;
+
+    &:hover {
+      opacity: 1;
+    }
   }
 }
 
-// Action buttons
-.action-buttons {
-  display: flex;
-  gap: $spacing-sm;
+// 6. 数据表格 (Data Table)
+// ----------------------------------------------------------
+
+.data-table {
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-4;
+    padding: $spacing-4;
+    background-color: $bg-color;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
+
+    .table-title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+    }
+
+    .table-description {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      margin-top: $spacing-1;
+    }
+
+    .table-actions {
+      display: flex;
+      gap: $spacing-2;
+      align-items: center;
+    }
+  }
+
+  .table-container {
+    background-color: $bg-color;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
+    overflow: hidden;
+
+    :deep(.el-table) {
+      border-radius: $border-radius-lg;
+
+      th {
+        background-color: $table-header-bg !important;
+        color: $text-primary;
+        font-weight: $font-weight-semibold;
+        font-size: $font-size-sm;
+      }
+
+      tr {
+        transition: background-color $duration-fast;
+
+        &:hover {
+          background-color: $table-row-hover-bg !important;
+        }
+      }
+
+      tr.el-table__row--striped {
+        background-color: $table-stripe-bg;
+      }
+    }
+  }
+
+  .table-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-4;
+    background-color: $bg-color;
+    border-top: 1px solid $border-light;
+
+    .table-info {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+    }
+
+    .pagination-wrapper {
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
 }
 
-// Filter form
+// 7. 筛选表单 (Filter Form)
+// ----------------------------------------------------------
+
 .filter-form {
   display: flex;
   flex-wrap: wrap;
-  gap: $spacing-md;
-  margin-bottom: $spacing-md;
-  padding: $spacing-md;
-  background-color: $bg-color;
-  border-radius: $border-radius-base;
-  box-shadow: $box-shadow-base;
+  gap: $spacing-4;
+  margin-bottom: $spacing-6;
+  padding: $spacing-5;
+  background: linear-gradient(135deg, $bg-color 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
 
   .filter-item {
     display: flex;
     align-items: center;
-    gap: $spacing-sm;
+    gap: $spacing-2;
 
     .filter-label {
       white-space: nowrap;
       color: $text-regular;
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      min-width: 80px;
     }
   }
 
   .filter-actions {
     margin-left: auto;
     display: flex;
-    gap: $spacing-sm;
+    gap: $spacing-2;
+    align-items: center;
   }
 }
 
-// Data table
-.data-table {
-  .table-header {
+// 8. 操作按钮组 (Action Buttons)
+// ----------------------------------------------------------
+
+.action-buttons {
+  display: flex;
+  gap: $spacing-2;
+  align-items: center;
+
+  &.vertical {
+    flex-direction: column;
+    gap: $spacing-1;
+  }
+}
+
+// 9. 进度条包装器 (Progress Wrapper)
+// ----------------------------------------------------------
+
+.progress-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-4;
+
+  .progress-label {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    font-weight: $font-weight-medium;
+  }
+
+  .progress-value {
+    font-size: $font-size-sm;
+    color: $text-primary;
+    font-weight: $font-weight-semibold;
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: $gray-200;
+    border-radius: $border-radius-full;
+    overflow: hidden;
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, $primary-500, $primary-400);
+      border-radius: $border-radius-full;
+      transition: width $duration-slow $easing-ease-out;
+    }
+  }
+}
+
+// 10. 加载容器 (Loading Container)
+// ----------------------------------------------------------
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: $spacing-4;
+
+  .loading-text {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+  }
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid $gray-200;
+    border-top-color: $primary-500;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// 11. 统计卡片 (Stats Card)
+// ----------------------------------------------------------
+
+.stats-card {
+  background: linear-gradient(135deg, $bg-color 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  padding: $spacing-6;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow $easing-ease-in-out;
+  cursor: pointer;
+  border: 1px solid $border-light;
+
+  &:hover {
+    box-shadow: $shadow-lg;
+    transform: translateY(-4px);
+    border-color: $primary-200;
+  }
+
+  .stats-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: $spacing-md;
+    margin-bottom: $spacing-4;
+
+    .stats-icon {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: $border-radius-lg;
+      font-size: 24px;
+
+      &.icon-primary {
+        background-color: rgba($primary-500, 0.1);
+        color: $primary-500;
+      }
+
+      &.icon-success {
+        background-color: rgba($success-color, 0.1);
+        color: $success-color;
+      }
+
+      &.icon-warning {
+        background-color: rgba($warning-color, 0.1);
+        color: $warning-color;
+      }
+
+      &.icon-danger {
+        background-color: rgba($danger-color, 0.1);
+        color: $danger-color;
+      }
+    }
+
+    .stats-trend {
+      display: flex;
+      align-items: center;
+      gap: $spacing-1;
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+
+      &.trend-up {
+        color: $success-color;
+      }
+
+      &.trend-down {
+        color: $danger-color;
+      }
+    }
   }
 
-  .table-title {
-    font-size: $font-size-large;
-    font-weight: 500;
-    color: $text-primary;
+  .stats-body {
+    .stats-label {
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      margin-bottom: $spacing-2;
+    }
+
+    .stats-value {
+      font-size: $font-size-3xl;
+      font-weight: $font-weight-bold;
+      color: $text-primary;
+      line-height: 1;
+    }
   }
 
-  .table-actions {
-    display: flex;
-    gap: $spacing-sm;
+  .stats-footer {
+    margin-top: $spacing-4;
+    padding-top: $spacing-4;
+    border-top: 1px solid $border-light;
+
+    .stats-description {
+      font-size: $font-size-xs;
+      color: $text-secondary;
+    }
   }
 }
 
-// Pagination wrapper
-.pagination-wrapper {
+// 12. 时间线 (Timeline)
+// ----------------------------------------------------------
+
+.timeline {
+  .timeline-item {
+    display: flex;
+    gap: $spacing-4;
+    padding-bottom: $spacing-6;
+    position: relative;
+
+    &:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 24px;
+      bottom: 0;
+      width: 2px;
+      background-color: $border-light;
+    }
+
+    .timeline-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background-color: $primary-500;
+      border: 3px solid $bg-color;
+      box-shadow: 0 0 0 2px $primary-200;
+      flex-shrink: 0;
+    }
+
+    .timeline-content {
+      flex: 1;
+      padding: $spacing-4;
+      background-color: $bg-color;
+      border-radius: $border-radius-lg;
+      box-shadow: $shadow-sm;
+
+      .timeline-title {
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+        margin-bottom: $spacing-1;
+      }
+
+      .timeline-description {
+        font-size: $font-size-sm;
+        color: $text-secondary;
+      }
+
+      .timeline-time {
+        font-size: $font-size-xs;
+        color: $text-placeholder;
+        margin-top: $spacing-2;
+      }
+    }
+  }
+}
+
+// 13. 通知/Alert (Alert)
+// ----------------------------------------------------------
+
+.alert {
   display: flex;
-  justify-content: flex-end;
-  margin-top: $spacing-md;
+  align-items: flex-start;
+  gap: $spacing-3;
+  padding: $spacing-4;
+  border-radius: $border-radius-lg;
+  margin-bottom: $spacing-4;
+
+  &.alert-success {
+    background-color: rgba($success-color, 0.1);
+    color: $success-color;
+    border: 1px solid rgba($success-color, 0.2);
+  }
+
+  &.alert-warning {
+    background-color: rgba($warning-color, 0.1);
+    color: $warning-color;
+    border: 1px solid rgba($warning-color, 0.2);
+  }
+
+  &.alert-danger {
+    background-color: rgba($danger-color, 0.1);
+    color: $danger-color;
+    border: 1px solid rgba($danger-color, 0.2);
+  }
+
+  &.alert-info {
+    background-color: rgba($info-color, 0.1);
+    color: $info-color;
+    border: 1px solid rgba($info-color, 0.2);
+  }
+
+  .alert-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .alert-content {
+    flex: 1;
+
+    .alert-title {
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      margin-bottom: $spacing-1;
+    }
+
+    .alert-message {
+      font-size: $font-size-sm;
+      opacity: 0.9;
+    }
+  }
+
+  .alert-close {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity $duration-fast;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
 }

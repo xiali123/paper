@@ -22,7 +22,7 @@
     </div>
 
     <!-- 文献综述 -->
-    <div v-else-if="activeTab === 'review'" class="ai-section">
+    <div v-else-if="activeTab === 'literature'" class="ai-section">
       <LiteratureReviewPanel @review-generated="handleLiteratureReview" />
     </div>
 

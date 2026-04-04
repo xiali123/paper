@@ -448,6 +448,16 @@
     "search": "搜索",
     "settings": "设置",
     "profile": "个人资料",
+    "export": "导出",
     "notFound": "404 未找到"
+  },
+  "ai": {
+    "assistant": "AI 研究副驾驶",
+    "history": "AI 历史记录",
+    "review": "AI 审稿",
+    "literatureReview": "文献综述",
+    "researchPlan": "研究规划",
+    "statistics": "AI 统计",
+    "chat": "AI 对话"
   }
 }

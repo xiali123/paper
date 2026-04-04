@@ -605,247 +605,416 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 任务列表页面现代化样式
+// Modern Task List Styles
+// ==========================================
+
 .task-list {
-  padding: 20px;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
+// 页面头部
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: $spacing-6;
+  padding: $spacing-8;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  margin-bottom: $spacing-6;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+  }
 
   .page-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: $spacing-3;
     margin: 0;
-    font-size: 24px;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+
+    .el-icon {
+      color: $primary-500;
+    }
   }
 
   .header-actions {
     display: flex;
-    gap: 10px;
+    gap: $spacing-3;
   }
 }
 
+// 统计卡片行
 .stats-row {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
+  }
 }
 
 .stat-card {
+  height: 100%;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-md;
+    transform: translateY(-2px);
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
   .stat-content {
     text-align: center;
+    padding: $spacing-5;
 
     .stat-label {
-      font-size: 14px;
-      color: #909399;
-      margin-bottom: 5px;
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      margin-bottom: $spacing-3;
+      font-weight: $font-weight-medium;
     }
 
     .stat-value {
-      font-size: 28px;
-      font-weight: bold;
-      color: #303133;
+      font-size: $font-size-3xl;
+      font-weight: $font-weight-bold;
+      color: $text-primary;
+      line-height: 1;
 
       &.active {
-        color: #e6a23c;
+        color: $warning-color;
       }
 
       &.success {
-        color: #67c23a;
+        color: $success-color;
       }
 
       &.error {
-        color: #f56c6c;
+        color: $danger-color;
       }
     }
   }
 }
 
+// 筛选卡片
 .filter-card {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-4;
+  }
+
+  :deep(.el-tabs__header) {
+    margin: 0;
+  }
+
+  :deep(.el-tabs__nav-wrap::after) {
+    display: none;
+  }
+
+  :deep(.el-tabs__item) {
+    font-weight: $font-weight-medium;
+  }
 }
 
+// 任务卡片
 .tasks-card {
-  min-height: 400px;
-}
+  min-height: 500px;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
 
-.empty-state {
-  padding: 60px 0;
-  text-align: center;
-}
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
 
-.tasks-content {
-  .batch-actions-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background: #f5f7fa;
-    border-radius: 4px;
-    margin-bottom: 15px;
+  :deep(.el-card__header) {
+    border-bottom: 1px solid $border-light;
+    padding: $spacing-5;
 
-    .batch-buttons {
-      display: flex;
-      gap: 10px;
+    .dark & {
+      border-bottom-color: $gray-700;
     }
   }
 
-  .task-item {
+  :deep(.el-card__body) {
+    padding: $spacing-5;
+  }
+}
+
+// 空状态
+.empty-state {
+  padding: $spacing-16;
+  text-align: center;
+  background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+  border-radius: $border-radius-lg;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+  }
+}
+
+// 批量操作栏
+.batch-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-4 $spacing-5;
+  background: linear-gradient(90deg, rgba($primary-500, 0.1) 0%, rgba($primary-500, 0.05) 100%);
+  border-radius: $border-radius-lg;
+  margin-bottom: $spacing-5;
+  border: 1px solid rgba($primary-500, 0.2);
+
+  span {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $primary-600;
+  }
+
+  .dark & span {
+    color: $primary-400;
+  }
+
+  .batch-buttons {
     display: flex;
-    gap: 15px;
-    padding: 20px;
-    border: 1px solid #ebeef5;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    transition: all 0.3s;
+    gap: $spacing-2;
+  }
+}
 
-    &:hover {
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+// 任务项
+.task-item {
+  display: flex;
+  gap: $spacing-4;
+  padding: $spacing-5;
+  background: #ffffff;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-lg;
+  margin-bottom: $spacing-4;
+  transition: all $duration-fast;
+  cursor: pointer;
+
+  &:hover {
+    box-shadow: $shadow-md;
+    border-color: $primary-200;
+    transform: translateX(4px);
+  }
+
+  &.task-selected {
+    background: rgba($primary-500, 0.05);
+    border-color: $primary-500;
+    border-width: 2px;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  .task-checkbox {
+    padding-top: $spacing-2;
+  }
+
+  .task-main {
+    flex: 1;
+    min-width: 0;
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: $spacing-4;
+      gap: $spacing-4;
+
+      .task-title {
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+        flex: 1;
+        min-width: 0;
+
+        .el-icon {
+          color: $primary-500;
+          flex-shrink: 0;
+        }
+      }
+
+      .task-actions {
+        display: flex;
+        gap: $spacing-2;
+        flex-shrink: 0;
+      }
     }
 
-    &.task-selected {
-      background: #f0f9ff;
-      border-color: #409eff;
-    }
+    .task-progress {
+      margin-bottom: $spacing-4;
 
-    .task-checkbox {
-      padding-top: 5px;
-    }
-
-    .task-main {
-      flex: 1;
-
-      .task-header {
+      .progress-info {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
+        margin-top: $spacing-2;
+        font-size: $font-size-sm;
+        color: $text-secondary;
 
-        .task-title {
+        .live-indicator {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 18px;
-          font-weight: bold;
-          color: #303133;
-        }
+          gap: $spacing-2;
+          color: $success-color;
+          font-weight: $font-weight-medium;
 
-        .task-actions {
-          display: flex;
-          gap: 8px;
-        }
-      }
-
-      .task-progress {
-        margin-bottom: 15px;
-
-        .progress-info {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 8px;
-          font-size: 12px;
-          color: #909399;
-
-          .live-indicator {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            color: #67c23a;
-
-            .dot {
-              width: 8px;
-              height: 8px;
-              background: #67c23a;
-              border-radius: 50%;
-              animation: pulse 1.5s infinite;
-            }
+          .dot {
+            width: 8px;
+            height: 8px;
+            background: $success-color;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
           }
         }
       }
+    }
 
-      .task-meta {
+    .task-meta {
+      display: flex;
+      gap: $spacing-6;
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      flex-wrap: wrap;
+
+      span {
         display: flex;
-        gap: 20px;
-        font-size: 12px;
-        color: #909399;
+        align-items: center;
+        gap: $spacing-1;
 
-        span {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .error-message {
-          color: #f56c6c;
+        .el-icon {
+          font-size: 14px;
         }
       }
-    }
 
-    .task-operations {
-      display: flex;
-      align-items: center;
+      .error-message {
+        color: $danger-color;
+      }
     }
+  }
+
+  .task-operations {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 }
 
+// 日志抽屉内容
 .log-content {
   .log-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: $spacing-6;
 
     h3 {
       margin: 0;
-      color: #303133;
+      font-size: $font-size-lg;
+      color: $text-primary;
     }
+  }
+
+  .task-details {
+    margin-bottom: $spacing-6;
   }
 
   .log-entries {
     max-height: 500px;
     overflow-y: auto;
-    background: #f5f7fa;
-    border-radius: 4px;
-    padding: 15px;
+    background: $gray-50;
+    border-radius: $border-radius-lg;
+    padding: $spacing-4;
+
+    .dark & {
+      background: $gray-900;
+    }
+
+    // 自定义滚动条
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba($gray-400, 0.3);
+      border-radius: $border-radius-full;
+    }
 
     .log-entry {
       display: flex;
-      gap: 15px;
-      padding: 8px 0;
-      border-bottom: 1px solid #ebeef5;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
+      gap: $spacing-4;
+      padding: $spacing-3 0;
+      border-bottom: 1px solid $border-light;
+      font-family: $font-family-code;
+      font-size: $font-size-sm;
+      line-height: $line-height-normal;
 
       &:last-child {
         border-bottom: none;
       }
 
       .log-time {
-        color: #909399;
-        min-width: 80px;
+        color: $text-secondary;
+        min-width: 100px;
+        font-size: $font-size-xs;
       }
 
       .log-level {
-        font-weight: bold;
-        min-width: 60px;
+        font-weight: $font-weight-semibold;
+        min-width: 70px;
+        font-size: $font-size-xs;
       }
 
       .log-message {
         flex: 1;
-        color: #303133;
+        color: $text-primary;
+        word-break: break-all;
       }
 
       &.log-info .log-level {
-        color: #409eff;
+        color: $info-color;
       }
 
       &.log-warning .log-level {
-        color: #e6a23c;
+        color: $warning-color;
       }
 
       &.log-error .log-level {
-        color: #f56c6c;
+        color: $danger-color;
       }
     }
   }
@@ -860,36 +1029,51 @@ onMounted(async () => {
   }
 }
 
-// Responsive
+// 响应式设计
+@media (max-width: 1200px) {
+  .task-list {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
-    gap: 10px;
-    text-align: center;
-  }
+    align-items: flex-start;
+    gap: $spacing-4;
+    padding: $spacing-5;
 
-  .header-actions {
-    width: 100%;
-    justify-content: center;
+    .page-title {
+      font-size: $font-size-2xl;
+    }
 
-    .el-button {
-      flex: 1;
+    .header-actions {
+      width: 100%;
+
+      .el-button {
+        flex: 1;
+      }
     }
   }
 
   .task-item {
     flex-direction: column;
+    gap: $spacing-3;
 
     .task-main {
       .task-header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 10px;
+        gap: $spacing-3;
+
+        .task-title {
+          font-size: $font-size-base;
+        }
       }
 
       .task-meta {
         flex-direction: column;
-        gap: 5px;
+        gap: $spacing-2;
       }
     }
 
@@ -901,12 +1085,38 @@ onMounted(async () => {
 
   .batch-actions-bar {
     flex-direction: column;
-    gap: 10px;
+    gap: $spacing-3;
 
     .batch-buttons {
       width: 100%;
       flex-wrap: wrap;
+
+      .el-button {
+        flex: 1;
+      }
     }
+  }
+
+  .stat-card .stat-content .stat-value {
+    font-size: $font-size-2xl;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding: $spacing-4;
+  }
+
+  .tasks-card,
+  .filter-card {
+    :deep(.el-card__header),
+    :deep(.el-card__body) {
+      padding: $spacing-4;
+    }
+  }
+
+  .task-item {
+    padding: $spacing-4;
   }
 }
 </style>

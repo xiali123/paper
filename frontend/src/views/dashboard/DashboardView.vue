@@ -574,64 +574,151 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 现代化仪表盘页面样式
+// Modern Dashboard View Styles
+// ==========================================
+
 .dashboard-view {
-  padding: 24px;
-  background: #f5f7fa;
-  min-height: 100%;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
+// 统计卡片区域
 .dashboard-stats {
-  margin-bottom: 24px;
+  margin-bottom: $spacing-6;
 
-  .el-col {
-    margin-bottom: 20px;
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
   }
 }
 
-.dashboard-charts,
-.dashboard-distributions,
+// 图表区域
+.dashboard-charts {
+  margin-bottom: $spacing-6;
+
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
+  }
+}
+
+// 分布图表区域
+.dashboard-distributions {
+  margin-bottom: $spacing-6;
+
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
+  }
+}
+
+// 活动区域
 .dashboard-activities {
-  margin-bottom: 24px;
+  margin-bottom: $spacing-4;
 
-  .el-col {
-    margin-bottom: 20px;
+  :deep(.el-col) {
+    margin-bottom: $spacing-4;
   }
 }
 
+// 快速操作卡片
 .quick-actions-card {
   height: 100%;
-  border: none;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-md;
+    transform: translateY(-2px);
+  }
 
   :deep(.el-card__body) {
-    padding: 20px;
+    padding: $spacing-5;
+    height: 100%;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+}
+
+// 图表容器卡片
+:deep(.el-card) {
+  border: 1px solid $border-light;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  .el-card__header {
+    border-bottom: 1px solid $border-light;
+    padding: $spacing-5;
+
+    .dark & {
+      border-bottom-color: $gray-700;
+    }
+  }
+
+  .el-card__body {
+    padding: $spacing-5;
   }
 }
 
 // 响应式设计
+@media (max-width: 1400px) {
+  .dashboard-view {
+    max-width: 1200px;
+  }
+}
+
 @media (max-width: 1200px) {
   .dashboard-view {
-    padding: 16px;
+    max-width: 100%;
   }
 
   .dashboard-stats,
   .dashboard-charts,
   .dashboard-distributions,
   .dashboard-activities {
-    margin-bottom: 16px;
+    margin-bottom: $spacing-4;
   }
 }
 
 @media (max-width: 768px) {
-  .dashboard-view {
-    padding: 12px;
-  }
-
   .dashboard-stats,
   .dashboard-charts,
   .dashboard-distributions,
   .dashboard-activities {
+    margin-bottom: $spacing-3;
+
     :deep(.el-col) {
-      margin-bottom: 12px;
+      margin-bottom: $spacing-3;
+    }
+  }
+
+  .quick-actions-card {
+    :deep(.el-card__body) {
+      padding: $spacing-4;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  :deep(.el-card) {
+    .el-card__header,
+    .el-card__body {
+      padding: $spacing-3;
     }
   }
 }

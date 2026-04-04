@@ -514,6 +514,15 @@ void StatsApiModule::registerRoutes() {
         spdlog::info("[StatsApi] Successfully subscribed to database connection messages");
     }
 
+    // GET /api/stats - 论文统计信息（根路由）
+    router.get(prefix, [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = handleStats();
+        return response;
+    });
+
     // GET /api/stats/system - 系统信息
     router.get(prefix + "/system", [this](const HttpRequest& req) {
         HttpResponse response;
@@ -559,7 +568,59 @@ void StatsApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[StatsApiModule] Registered 5 routes");
+    spdlog::info("[StatsApiModule] Registered 6 routes");
+}
+
+std::string StatsApiModule::handleStats() {
+    try {
+        size_t totalPapers = 0;
+        size_t totalJournals = 0;
+        size_t totalAuthors = 0;
+        size_t totalCollections = 0;
+        size_t recentPapersCount = 0;
+
+        if (database_) {
+            // 查询统计数据
+            auto papers = database_->query("SELECT COUNT(*) as count FROM papers");
+            auto journals = database_->query("SELECT COUNT(*) as count FROM journals");
+            auto authors = database_->query("SELECT COUNT(*) as count FROM authors");
+            auto collections = database_->query("SELECT COUNT(*) as count FROM collections");
+
+            totalPapers = papers.empty() ? 0 : std::stoul(papers[0].at("count"));
+            totalJournals = journals.empty() ? 0 : std::stoul(journals[0].at("count"));
+            totalAuthors = authors.empty() ? 0 : std::stoul(authors[0].at("count"));
+            totalCollections = collections.empty() ? 0 : std::stoul(collections[0].at("count"));
+
+            // 获取最近的论文数量（最近7天）
+            auto recentPapers = database_->query(
+                "SELECT COUNT(*) as count FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+            );
+            recentPapersCount = recentPapers.empty() ? 0 : std::stoul(recentPapers[0].at("count"));
+        }
+
+        // 手动构建 JSON 响应
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"success\": true,\n";
+        json << "  \"stats\": {\n";
+        json << "    \"totalPapers\": " << totalPapers << ",\n";
+        json << "    \"totalJournals\": " << totalJournals << ",\n";
+        json << "    \"totalAuthors\": " << totalAuthors << ",\n";
+        json << "    \"totalCollections\": " << totalCollections << ",\n";
+        json << "    \"recentPapers\": " << recentPapersCount << "\n";
+        json << "  }\n";
+        json << "}";
+
+        return json.str();
+    } catch (const std::exception& e) {
+        spdlog::error("[StatsApiModule] Error in handleStats: {}", e.what());
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"success\": false,\n";
+        json << "  \"error\": \"" << e.what() << "\"\n";
+        json << "}";
+        return json.str();
+    }
 }
 
 std::string StatsApiModule::handleSystemInfo() {

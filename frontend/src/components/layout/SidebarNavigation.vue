@@ -75,16 +75,48 @@
           </el-menu-item>
         </el-sub-menu>
 
+        <!-- Search -->
+        <el-menu-item index="/search">
+          <el-icon><Search /></el-icon>
+          <template #title>{{ t('nav.searchPapers') }}</template>
+        </el-menu-item>
+
+        <!-- AI Assistant -->
+        <el-sub-menu index="ai">
+          <template #title>
+            <el-icon><ChatDotRound /></el-icon>
+            <span>AI 助手</span>
+          </template>
+          <el-menu-item index="/ai-copilot">
+            <el-icon><ChatDotRound /></el-icon>
+            <template #title>AI 对话</template>
+          </el-menu-item>
+          <el-menu-item index="/ai/review">
+            <el-icon><DocumentChecked /></el-icon>
+            <template #title>AI 审稿</template>
+          </el-menu-item>
+          <el-menu-item index="/ai/literature-review">
+            <el-icon><Reading /></el-icon>
+            <template #title>文献综述</template>
+          </el-menu-item>
+          <el-menu-item index="/ai/research-plan">
+            <el-icon><Notebook /></el-icon>
+            <template #title>研究计划</template>
+          </el-menu-item>
+          <el-menu-item index="/ai/history">
+            <el-icon><Clock /></el-icon>
+            <template #title>历史记录</template>
+          </el-menu-item>
+          <el-menu-item index="/ai/stats">
+            <el-icon><DataAnalysis /></el-icon>
+            <template #title>使用统计</template>
+          </el-menu-item>
+        </el-sub-menu>
+
         <!-- Crawler -->
         <el-menu-item index="/crawler">
           <el-icon><Connection /></el-icon>
           <template #title>{{ t('nav.crawler') }}</template>
-        </el-menu-item>
-
-        <!-- Search -->
-        <el-menu-item index="/search">
-          <el-icon><Search /></el-icon>
-          <template #title>{{ t('nav.search') }}</template>
         </el-menu-item>
 
         <!-- Statistics -->
@@ -193,7 +225,10 @@ import {
   Expand,
   Fold,
   QuestionFilled,
-  ChatDotRound
+  ChatDotRound,
+  DocumentChecked,
+  Reading,
+  Notebook
 } from '@element-plus/icons-vue'
 import { useUIStore } from '@/stores'
 import { useI18n } from 'vue-i18n'
@@ -230,72 +265,119 @@ function openFeedback() {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 现代化侧边栏导航样式
+// Modern Sidebar Navigation Styles
+// ==========================================
+
 .sidebar-navigation {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: var(--z-fixed);
+  z-index: 1010;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--gray-50);
-  border-right: 1px solid var(--gray-200);
-  transition: width var(--duration-slow) var(--ease-in-out);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-right: 1px solid $border-light;
+  box-shadow: $shadow-lg;
+  transition: width $duration-slow $easing-ease-in-out;
   overflow: hidden;
 
+  // 深色模式
   .dark & {
-    background: var(--gray-900);
-    border-right-color: var(--gray-800);
+    background: linear-gradient(180deg, $gray-900 0%, $gray-800 100%);
+    border-right-color: $gray-700;
+    box-shadow: $shadow-2xl;
   }
 
   &--mobile {
     transform: translateX(-100%);
+    z-index: 1040;
   }
 }
 
+// Logo 区域
 .sidebar-navigation__logo {
   flex-shrink: 0;
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--gray-200);
+  padding: $spacing-5;
+  border-bottom: 1px solid $border-light;
+  background: linear-gradient(135deg, rgba($primary-500, 0.05) 0%, rgba($primary-600, 0.02) 100%);
+  backdrop-filter: blur(10px);
 
   .dark & {
-    border-bottom-color: var(--gray-800);
+    border-bottom-color: $gray-700;
+    background: linear-gradient(135deg, rgba($primary-500, 0.1) 0%, rgba($primary-600, 0.05) 100%);
   }
 
   .logo-link {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: $spacing-3;
     text-decoration: none;
-    color: var(--gray-900);
+    color: $text-primary;
+    transition: transform $duration-fast;
+
+    &:hover {
+      transform: scale(1.02);
+    }
 
     .dark & {
-      color: var(--gray-100);
+      color: $gray-100;
     }
   }
 
   .logo-icon {
     flex-shrink: 0;
-    color: var(--primary-500);
+    width: 32px;
+    height: 32px;
+    color: $primary-500;
+    filter: drop-shadow(0 2px 4px rgba($primary-500, 0.3));
+    transition: all $duration-fast;
   }
 
   .logo-title {
-    font-size: var(--font-lg);
-    font-weight: var(--font-semibold);
-    color: var(--primary-600);
+    font-size: $font-size-lg;
+    font-weight: $font-weight-bold;
+    background: linear-gradient(135deg, $primary-600 0%, $primary-500 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     white-space: nowrap;
+    letter-spacing: -0.5px;
   }
 }
 
+// 折叠按钮区域
 .sidebar-navigation__toggle {
   flex-shrink: 0;
   display: flex;
   justify-content: center;
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--gray-200);
+  padding: $spacing-3;
+  border-bottom: 1px solid $border-light;
+  background: rgba($gray-50, 0.5);
 
   .dark & {
-    border-bottom-color: var(--gray-800);
+    border-bottom-color: $gray-700;
+    background: rgba($gray-800, 0.5);
+  }
+
+  :deep(.el-button) {
+    border: none;
+    background: transparent;
+    color: $text-secondary;
+    transition: all $duration-fast;
+
+    &:hover {
+      background: rgba($primary-500, 0.1);
+      color: $primary-500;
+      transform: scale(1.1);
+    }
+
+    .dark &:hover {
+      background: rgba($primary-500, 0.2);
+      color: $primary-400;
+    }
   }
 
   @media (max-width: 1023px) {
@@ -303,15 +385,16 @@ function openFeedback() {
   }
 }
 
+// 导航菜单区域
 .sidebar-navigation__menu {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--space-2);
+  padding: $spacing-3;
 
-  // Custom scrollbar
+  // 自定义滚动条
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
 
   &::-webkit-scrollbar-track {
@@ -319,11 +402,11 @@ function openFeedback() {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: var(--gray-300);
-    border-radius: var(--radius-full);
+    background: rgba($gray-400, 0.3);
+    border-radius: $border-radius-full;
 
     &:hover {
-      background: var(--gray-400);
+      background: rgba($gray-400, 0.5);
     }
   }
 
@@ -331,77 +414,117 @@ function openFeedback() {
     border-right: none;
     background: transparent;
 
+    // 菜单项样式
     :deep(.el-menu-item) {
-      margin-bottom: var(--space-1);
-      border-radius: var(--radius-md);
-      transition: all var(--duration-fast);
+      margin-bottom: $spacing-1;
+      border-radius: $border-radius-lg;
+      transition: all $duration-fast;
+      color: $text-regular;
+      font-weight: $font-weight-medium;
 
       &:hover {
-        background: var(--gray-100);
+        background: linear-gradient(90deg, rgba($primary-500, 0.1) 0%, transparent 100%);
+        color: $primary-600;
+        transform: translateX(4px);
       }
 
       &.is-active {
-        background: var(--primary-50);
-        color: var(--primary-600);
-        font-weight: var(--font-medium);
+        background: linear-gradient(90deg, rgba($primary-500, 0.15) 0%, rgba($primary-500, 0.05) 100%);
+        color: $primary-600;
+        font-weight: $font-weight-semibold;
+        box-shadow: $shadow-sm;
+        border-left: 3px solid $primary-500;
 
         .dark & {
-          background: var(--primary-900);
-          color: var(--primary-400);
+          background: linear-gradient(90deg, rgba($primary-500, 0.2) 0%, rgba($primary-500, 0.1) 100%);
+          color: $primary-400;
+          border-left-color: $primary-400;
         }
-      }
-    }
-
-    :deep(.el-sub-menu__title) {
-      margin-bottom: var(--space-1);
-      border-radius: var(--radius-md);
-      transition: all var(--duration-fast);
-
-      &:hover {
-        background: var(--gray-100);
       }
 
       .dark &:hover {
-        background: var(--gray-800);
+        background: linear-gradient(90deg, rgba($primary-400, 0.1) 0%, transparent 100%);
+        color: $primary-400;
       }
     }
 
+    // 子菜单标题样式
+    :deep(.el-sub-menu__title) {
+      margin-bottom: $spacing-1;
+      border-radius: $border-radius-lg;
+      transition: all $duration-fast;
+      color: $text-regular;
+      font-weight: $font-weight-medium;
+
+      &:hover {
+        background: linear-gradient(90deg, rgba($gray-200, 0.5) 0%, transparent 100%);
+        color: $text-primary;
+        transform: translateX(2px);
+      }
+
+      .dark &:hover {
+        background: linear-gradient(90deg, rgba($gray-700, 0.5) 0%, transparent 100%);
+        color: $gray-100;
+      }
+    }
+
+    // 子菜单项
     :deep(.el-sub-menu .el-menu-item) {
-      padding-left: 48px !important;
+      padding-left: 52px !important;
+      font-size: $font-size-sm;
+      margin-bottom: $spacing-1;
+
+      &:hover {
+        transform: translateX(6px);
+      }
+    }
+
+    // 图标样式
+    :deep(.el-icon) {
+      width: 20px;
+      height: 20px;
+      margin-right: $spacing-2;
     }
   }
 }
 
+// 底部区域
 .sidebar-navigation__footer {
   flex-shrink: 0;
-  padding: var(--space-4);
-  border-top: 1px solid var(--gray-200);
+  padding: $spacing-4;
+  border-top: 1px solid $border-light;
+  background: linear-gradient(180deg, rgba($gray-50, 0.5) 0%, rgba($gray-100, 0.5) 100%);
+  backdrop-filter: blur(10px);
 
   .dark & {
-    border-top-color: var(--gray-800);
+    border-top-color: $gray-700;
+    background: linear-gradient(180deg, rgba($gray-800, 0.5) 0%, rgba($gray-900, 0.5) 100%);
   }
 
   .footer-content {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: $spacing-3;
   }
 
   .version-info {
     text-align: center;
 
     .version-label {
-      font-size: var(--font-xs);
-      color: var(--gray-500);
-      background: var(--gray-100);
-      padding: var(--space-1) var(--space-2);
-      border-radius: var(--radius-full);
-    }
+      display: inline-block;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+      color: $text-secondary;
+      background: linear-gradient(135deg, $gray-100 0%, $gray-200 100%);
+      padding: $spacing-1 $spacing-3;
+      border-radius: $border-radius-full;
+      border: 1px solid $border-light;
+      letter-spacing: 0.5px;
 
-    .dark & {
-      .version-label {
-        color: var(--gray-400);
-        background: var(--gray-800);
+      .dark & {
+        color: $gray-400;
+        background: linear-gradient(135deg, $gray-700 0%, $gray-800 100%);
+        border-color: $gray-600;
       }
     }
   }
@@ -409,25 +532,44 @@ function openFeedback() {
   .quick-actions {
     display: flex;
     justify-content: center;
-    gap: var(--space-2);
+    gap: $spacing-2;
+
+    :deep(.el-button) {
+      border: none;
+      background: transparent;
+      color: $text-secondary;
+      transition: all $duration-fast;
+
+      &:hover {
+        background: rgba($primary-500, 0.1);
+        color: $primary-600;
+        transform: scale(1.1);
+      }
+
+      .dark &:hover {
+        background: rgba($primary-400, 0.1);
+        color: $primary-400;
+      }
+    }
   }
 }
 
-// Fade transition for collapsed state
+// 折叠状态过渡动画
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity var(--duration-base);
+  transition: all $duration-base $easing-ease-in-out;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+  transform: translateX(-10px);
 }
 
-// Responsive Design
+// 响应式设计
 @media (max-width: 1023px) {
   .sidebar-navigation {
-    width: 240px;
+    width: 260px !important;
     transform: translateX(-100%);
 
     &.sidebar-navigation--mobile {
@@ -441,6 +583,7 @@ function openFeedback() {
   }
 }
 
+// 减少动画（辅助功能）
 @media (prefers-reduced-motion: reduce) {
   .sidebar-navigation {
     transition: none;

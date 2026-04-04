@@ -118,8 +118,47 @@ export const useAuthStore = defineStore(
       loading.value = true
       error.value = null
 
-      console.log('🔵 [AuthStore] Set loading to true, calling authApi.login()')
+      console.log('🔵 [AuthStore] Set loading to true')
 
+      // ✅ Mock模式检查：如果启用了Mock模式，直接返回模拟数据
+      const isMockMode = import.meta.env.VITE_APP_ENABLE_MOCK === 'true'
+      console.log('🔵 [AuthStore] Mock mode:', isMockMode)
+
+      if (isMockMode) {
+        console.log('✅ [AuthStore] Using Mock authentication mode')
+
+        // 创建模拟用户和token
+        const mockUser: User = {
+          id: 1,
+          username: credentials.email.split('@')[0] || credentials.username || 'demo',
+          email: credentials.email,
+          fullName: '开发测试用户',
+          role: 'admin',
+          isActive: true,
+          isVerified: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+
+        const mockTokens: AuthTokens = {
+          accessToken: `mock_token_${Date.now()}`,
+          refreshToken: `mock_refresh_${Date.now()}`,
+          expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24小时
+        }
+
+        // 存储模拟数据
+        user.value = mockUser
+        tokens.value = mockTokens
+        persistTokens(mockTokens)
+
+        console.log('✅ [AuthStore] Mock auth successful, user:', mockUser)
+        console.log('✅ [AuthStore] Mock tokens:', mockTokens)
+
+        loading.value = false
+        return { success: true }
+      }
+
+      console.log('🔵 [AuthStore] Calling authApi.login()')
       try {
         const response = await authApi.login(credentials)
 
@@ -245,6 +284,15 @@ export const useAuthStore = defineStore(
       error.value = null
 
       try {
+        // ✅ Mock模式：不调用后端API，直接返回当前用户
+        const isMockMode = import.meta.env.VITE_APP_ENABLE_MOCK === 'true'
+        const isMockToken = tokens.value?.accessToken.startsWith('mock_token_')
+
+        if (isMockMode || isMockToken) {
+          console.log('✅ [AuthStore] Mock mode: skipping API call, returning current user')
+          return user.value
+        }
+
         const userData = await authApi.getCurrentUser()
         user.value = userData
         return userData
@@ -271,6 +319,31 @@ export const useAuthStore = defineStore(
       }
 
       tokens.value = stored.tokens
+
+      // ✅ Mock模式检查：如果是Mock token，直接使用Mock用户
+      const isMockMode = import.meta.env.VITE_APP_ENABLE_MOCK === 'true'
+      const isMockToken = stored.tokens.accessToken.startsWith('mock_token_')
+
+      if (isMockMode || isMockToken) {
+        console.log('✅ [AuthStore] Detected Mock token/user')
+
+        // 创建Mock用户
+        const mockUser: User = {
+          id: 1,
+          username: 'demo',
+          email: 'demo@example.com',
+          fullName: '开发测试用户',
+          role: 'admin',
+          isActive: true,
+          isVerified: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+
+        user.value = mockUser
+        console.log('✅ [AuthStore] Mock user restored:', mockUser)
+        return true
+      }
 
       // Check if access token is expired
       if (Date.now() > stored.tokens.expiresAt) {

@@ -448,6 +448,16 @@
     "search": "Search",
     "settings": "Settings",
     "profile": "Profile",
+    "export": "Export",
     "notFound": "404 Not Found"
+  },
+  "ai": {
+    "assistant": "AI Research Copilot",
+    "history": "AI History",
+    "review": "AI Review",
+    "literatureReview": "Literature Review",
+    "researchPlan": "Research Plan",
+    "statistics": "AI Statistics",
+    "chat": "AI Chat"
   }
 }

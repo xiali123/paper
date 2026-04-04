@@ -42,7 +42,7 @@
         <div class="settings-card">
           <div class="card-header">
             <div class="header-left">
-              <span class="header-icon">⚙️</span>
+              <el-icon class="header-icon" :size="24"><Setting /></el-icon>
               <h2 class="card-title">账号设置</h2>
             </div>
             <div class="header-tabs">
@@ -68,14 +68,14 @@
                     <div class="form-group">
                       <label class="form-label">用户名</label>
                       <div class="input-wrapper disabled">
-                        <span class="input-icon">👤</span>
+                        <el-icon class="input-icon"><User /></el-icon>
                         <input
                           v-model="profile.username"
                           type="text"
                           disabled
                           class="form-input"
                         />
-                        <span class="input-suffix">🔒</span>
+                        <el-icon class="input-suffix"><Lock /></el-icon>
                       </div>
                       <span class="form-hint">用户名无法修改</span>
                     </div>
@@ -83,14 +83,14 @@
                     <div class="form-group">
                       <label class="form-label">邮箱地址</label>
                       <div class="input-wrapper disabled">
-                        <span class="input-icon">📧</span>
+                        <el-icon class="input-icon"><Message /></el-icon>
                         <input
                           v-model="profile.email"
                           type="email"
                           disabled
                           class="form-input"
                         />
-                        <span class="input-suffix">🔒</span>
+                        <el-icon class="input-suffix"><Lock /></el-icon>
                       </div>
                       <span class="form-hint">邮箱无法修改</span>
                     </div>
@@ -98,7 +98,7 @@
                     <div class="form-group">
                       <label class="form-label">全名</label>
                       <div class="input-wrapper">
-                        <span class="input-icon">📝</span>
+                        <el-icon class="input-icon"><Edit /></el-icon>
                         <input
                           v-model="profile.fullName"
                           type="text"
@@ -111,7 +111,7 @@
                     <div class="form-group">
                       <label class="form-label">所属机构</label>
                       <div class="input-wrapper">
-                        <span class="input-icon">🏢</span>
+                        <el-icon class="input-icon"><OfficeBuilding /></el-icon>
                         <input
                           v-model="profile.affiliation"
                           type="text"
@@ -153,7 +153,7 @@
                   <div class="form-group">
                     <label class="form-label">当前密码</label>
                     <div class="input-wrapper">
-                      <span class="input-icon">🔑</span>
+                      <el-icon class="input-icon"><Lock /></el-icon>
                       <input
                         v-model="passwordForm.currentPassword"
                         :type="showCurrentPassword ? 'text' : 'password'"
@@ -165,7 +165,7 @@
                         @click="showCurrentPassword = !showCurrentPassword"
                         class="input-toggle"
                       >
-                        {{ showCurrentPassword ? '👁️' : '👁️‍🗨️' }}
+                        <el-icon><View v-if="showCurrentPassword" /><Hide v-else /></el-icon>
                       </button>
                     </div>
                   </div>
@@ -173,7 +173,7 @@
                   <div class="form-group">
                     <label class="form-label">新密码</label>
                     <div class="input-wrapper">
-                      <span class="input-icon">🔐</span>
+                      <el-icon class="input-icon"><Lock /></el-icon>
                       <input
                         v-model="passwordForm.newPassword"
                         :type="showNewPassword ? 'text' : 'password'"
@@ -185,7 +185,7 @@
                         @click="showNewPassword = !showNewPassword"
                         class="input-toggle"
                       >
-                        {{ showNewPassword ? '👁️' : '👁️‍🗨️' }}
+                        <el-icon><View v-if="showNewPassword" /><Hide v-else /></el-icon>
                       </button>
                     </div>
                     <div class="password-strength">
@@ -203,7 +203,7 @@
                   <div class="form-group">
                     <label class="form-label">确认新密码</label>
                     <div class="input-wrapper">
-                      <span class="input-icon">✓</span>
+                      <el-icon class="input-icon"><Check /></el-icon>
                       <input
                         v-model="passwordForm.confirmPassword"
                         :type="showConfirmPassword ? 'text' : 'password'"
@@ -216,7 +216,7 @@
                         @click="showConfirmPassword = !showConfirmPassword"
                         class="input-toggle"
                       >
-                        {{ showConfirmPassword ? '👁️' : '👁️‍🗨️' }}
+                        <el-icon><View v-if="showConfirmPassword" /><Hide v-else /></el-icon>
                       </button>
                     </div>
                     <span v-if="passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword" class="form-error">
@@ -254,7 +254,7 @@
                 <div class="notification-items">
                   <div class="notification-item">
                     <div class="item-info">
-                      <span class="item-icon">📧</span>
+                      <el-icon class="item-icon" :size="24"><Message /></el-icon>
                       <div class="item-text">
                         <span class="item-title">邮件通知</span>
                         <span class="item-description">接收重要更新和提醒</span>
@@ -268,7 +268,7 @@
 
                   <div class="notification-item">
                     <div class="item-info">
-                      <span class="item-icon">🔔</span>
+                      <el-icon class="item-icon" :size="24"><Bell /></el-icon>
                       <div class="item-text">
                         <span class="item-title">搜索提醒</span>
                         <span class="item-description">新论文匹配您的搜索条件时通知</span>
@@ -282,7 +282,7 @@
 
                   <div class="notification-item">
                     <div class="item-info">
-                      <span class="item-icon">📊</span>
+                      <el-icon class="item-icon" :size="24"><TrendCharts /></el-icon>
                       <div class="item-text">
                         <span class="item-title">统计报告</span>
                         <span class="item-description">每周发送使用统计报告</span>
@@ -296,7 +296,7 @@
 
                   <div class="notification-item">
                     <div class="item-info">
-                      <span class="item-icon">🎓</span>
+                      <el-icon class="item-icon" :size="24"><Document /></el-icon>
                       <div class="item-text">
                         <span class="item-title">学术动态</span>
                         <span class="item-description">顶刊新发表论文推荐</span>
@@ -327,10 +327,36 @@
 
       <!-- Right Column - Activity & Stats -->
       <div class="activity-column">
+        <!-- Quick Actions Card -->
+        <div class="actions-card">
+          <div class="card-header">
+            <el-icon class="header-icon" :size="20"><Lightning /></el-icon>
+            <h3 class="card-title">快捷操作</h3>
+          </div>
+          <div class="actions-grid">
+            <button @click="router.push('/')" class="action-btn">
+              <el-icon class="action-icon"><Search /></el-icon>
+              <span class="action-text">搜索论文</span>
+            </button>
+            <button @click="router.push('/stats')" class="action-btn">
+              <el-icon class="action-icon"><DataAnalysis /></el-icon>
+              <span class="action-text">查看统计</span>
+            </button>
+            <button @click="exportData" class="action-btn">
+              <el-icon class="action-icon"><Download /></el-icon>
+              <span class="action-text">导出数据</span>
+            </button>
+            <button @click="router.push('/help')" class="action-btn">
+              <el-icon class="action-icon"><QuestionFilled /></el-icon>
+              <span class="action-text">帮助中心</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Account Info Card -->
         <div class="info-card">
           <div class="info-header">
-            <span class="info-icon">ℹ️</span>
+            <el-icon class="info-icon" :size="20"><InfoFilled /></el-icon>
             <h3 class="info-title">账号信息</h3>
           </div>
           <div class="info-content">
@@ -352,7 +378,7 @@
         <!-- Recent Activity Card -->
         <div class="activity-card">
           <div class="card-header">
-            <span class="header-icon">🕐</span>
+            <el-icon class="header-icon" :size="20"><Clock /></el-icon>
             <h3 class="card-title">最近活动</h3>
           </div>
           <div class="activity-list">
@@ -361,42 +387,16 @@
               :key="index"
               class="activity-item"
             >
-              <span class="activity-icon">{{ activity.icon }}</span>
+              <component :is="getActivityIcon(activity.icon)" class="activity-icon" />
               <div class="activity-content">
                 <span class="activity-text">{{ activity.text }}</span>
                 <span class="activity-time">{{ formatRelativeTime(activity.time) }}</span>
               </div>
             </div>
             <div v-if="recentActivities.length === 0" class="empty-state">
-              <span class="empty-icon">📭</span>
+              <el-icon class="empty-icon" :size="48"><Document /></el-icon>
               <span class="empty-text">暂无活动记录</span>
             </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions Card -->
-        <div class="actions-card">
-          <div class="card-header">
-            <span class="header-icon">⚡</span>
-            <h3 class="card-title">快捷操作</h3>
-          </div>
-          <div class="actions-grid">
-            <button @click="router.push('/')" class="action-btn">
-              <span class="action-icon">🔍</span>
-              <span class="action-text">搜索论文</span>
-            </button>
-            <button @click="router.push('/stats')" class="action-btn">
-              <span class="action-icon">📊</span>
-              <span class="action-text">查看统计</span>
-            </button>
-            <button @click="exportData" class="action-btn">
-              <span class="action-icon">📥</span>
-              <span class="action-text">导出数据</span>
-            </button>
-            <button @click="router.push('/help')" class="action-btn">
-              <span class="action-icon">❓</span>
-              <span class="action-text">帮助中心</span>
-            </button>
           </div>
         </div>
       </div>
@@ -418,6 +418,29 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import {
+  User,
+  Message,
+  Lock,
+  Bell,
+  Setting,
+  InfoFilled,
+  Clock,
+  Lightning,
+  Search,
+  DataAnalysis,
+  Download,
+  QuestionFilled,
+  View,
+  Hide,
+  Check,
+  Edit,
+  OfficeBuilding,
+  CircleCheck,
+  Document,
+  Star,
+  TrendCharts
+} from '@element-plus/icons-vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -483,24 +506,19 @@ const notifications = reactive({
 // Recent activities (mock data)
 const recentActivities = ref([
   {
-    icon: '🔍',
+    icon: 'Search',
     text: '搜索了 "machine learning"',
     time: new Date(Date.now() - 5 * 60 * 1000)
   },
   {
-    icon: '📄',
+    icon: 'Document',
     text: '查看了论文 "Deep Learning for CV"',
     time: new Date(Date.now() - 30 * 60 * 1000)
   },
   {
-    icon: '⭐',
+    icon: 'Star',
     text: '收藏了 "Attention Mechanisms"',
     time: new Date(Date.now() - 2 * 60 * 60 * 1000)
-  },
-  {
-    icon: '📊',
-    text: '查看了统计数据',
-    time: new Date(Date.now() - 5 * 60 * 60 * 1000)
   }
 ])
 
@@ -548,6 +566,17 @@ const getRoleLabel = (role: string) => {
     'premium': '高级用户'
   }
   return roles[role] || '用户'
+}
+
+const getActivityIcon = (iconName: string) => {
+  const iconMap: Record<string, any> = {
+    'Search': Search,
+    'Document': Document,
+    'Star': Star,
+    'TrendCharts': TrendCharts,
+    'DataAnalysis': DataAnalysis
+  }
+  return iconMap[iconName] || Document
 }
 
 const formatDate = (date: string | undefined) => {
@@ -674,29 +703,68 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-/* ===================================
-   PROFILE PAGE LAYOUT
-   =================================== */
+<style scoped lang="scss">
+// ==========================================
+// 现代化Profile页面样式
+// Modern Profile Page Styles
+// ==========================================
+
 .profile-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
-  padding-bottom: 40px;
+  background: linear-gradient(135deg, $gray-50 0%, $gray-100 100%);
+  padding: $spacing-6 0;
+  width: 100%;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-900 0%, $gray-800 100%);
+  }
 }
 
-/* ===================================
-   PROFILE HEADER BANNER
-   =================================== */
+// ==========================================
+// PROFILE HEADER BANNER
+// ==========================================
 .profile-header {
-  margin-bottom: 32px;
+  margin-bottom: $spacing-6;
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 $spacing-6;
 }
 
 .header-banner {
   position: relative;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-xl;
   overflow: hidden;
+  border: 1px solid $border-light;
+  transition: all $duration-slow;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+    opacity: 0.05;
+    z-index: 0;
+  }
+
+  &:hover {
+    box-shadow: $shadow-2xl;
+    transform: translateY(-2px);
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+
+    &::before {
+      opacity: 0.1;
+    }
+  }
 }
 
 .banner-bg {
@@ -705,16 +773,20 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 120px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
   opacity: 0.9;
+
+  .dark & {
+    background: linear-gradient(135deg, $primary-400 0%, $primary-500 100%);
+  }
 }
 
 .header-content {
   position: relative;
-  padding: 24px 32px 32px;
+  padding: $spacing-8 $spacing-8 $spacing-10;
   display: flex;
   align-items: flex-end;
-  gap: 24px;
+  gap: $spacing-8;
 }
 
 .user-avatar-large {
@@ -723,162 +795,342 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 50%;
+  background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+  color: #ffffff;
+  border-radius: $border-radius-full;
   font-size: 48px;
-  font-weight: 700;
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
-  border: 4px solid white;
+  font-weight: $font-weight-bold;
+  box-shadow: 0 8px 32px rgba($primary-500, 0.4), inset 0 2px 8px rgba(255, 255, 255, 0.2);
+  border: 4px solid #ffffff;
+  transition: all $duration-slow;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    transition: transform $duration-slow;
+  }
+
+  &:hover {
+    transform: scale(1.08);
+    box-shadow: 0 12px 40px rgba($primary-500, 0.5), inset 0 2px 8px rgba(255, 255, 255, 0.2);
+
+    &::before {
+      transform: translate(25%, 25%);
+    }
+  }
+
+  .dark & {
+    border-color: $gray-800;
+  }
 }
 
 .user-info {
   flex: 1;
-  padding-bottom: 8px;
+  padding-bottom: $spacing-2;
 }
 
 .user-name {
-  margin: 0 0 8px 0;
-  font-size: 32px;
-  font-weight: 700;
-  color: #1f2937;
+  margin: 0 0 $spacing-2 0;
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .user-email {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  color: #6b7280;
+  margin: 0 0 $spacing-3 0;
+  font-size: $font-size-base;
+  color: $text-secondary;
 }
 
 .user-badges {
   display: flex;
-  gap: 8px;
+  gap: $spacing-2;
 }
 
 .badge {
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: $spacing-2 $spacing-4;
+  border-radius: $border-radius-full;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  box-shadow: $shadow-sm;
 }
 
 .badge-role {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba($primary-500, 0.3);
 }
 
 .badge-verified {
-  background: #d1fae5;
-  color: #065f46;
+  background: linear-gradient(135deg, rgba($success-color, 0.15) 0%, rgba($success-color, 0.05) 100%);
+  color: $success-color;
+  border: 1px solid $success-color;
+
+  .dark & {
+    background: linear-gradient(135deg, rgba($success-color, 0.25) 0%, rgba($success-color, 0.1) 100%);
+  }
 }
 
 .user-stats {
   display: flex;
-  gap: 32px;
-  padding-bottom: 8px;
+  gap: $spacing-10;
+  padding-bottom: $spacing-3;
 }
 
 .stat-item {
   text-align: center;
+  position: relative;
+  padding: $spacing-4 $spacing-6;
+  border-radius: $border-radius-xl;
+  background: linear-gradient(135deg, rgba($primary-50, 0.5) 0%, rgba($primary-100, 0.3) 100%);
+  border: 1px solid rgba($primary-200, 0.5);
+  transition: all $duration-fast;
+
+  .dark & {
+    background: linear-gradient(135deg, rgba($gray-700, 0.5) 0%, rgba($gray-800, 0.3) 100%);
+    border-color: rgba($gray-600, 0.5);
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $shadow-lg;
+  }
+
+  // 为每个统计项使用不同的颜色
+  &:nth-child(1) {
+    background: linear-gradient(135deg, rgba($primary-50, 0.6) 0%, rgba($primary-100, 0.4) 100%);
+    border-color: rgba($primary-200, 0.6);
+
+    .dark & {
+      background: linear-gradient(135deg, rgba($primary-900, 0.4) 0%, rgba($primary-800, 0.3) 100%);
+      border-color: rgba($primary-700, 0.5);
+    }
+  }
+
+  &:nth-child(2) {
+    background: linear-gradient(135deg, rgba($warning-color, 0.6) 0%, rgba($warning-color, 0.4) 100%);
+    border-color: rgba($warning-color, 0.6);
+
+    .dark & {
+      background: linear-gradient(135deg, rgba($warning-color, 0.4) 0%, rgba($warning-color, 0.3) 100%);
+      border-color: rgba($warning-color, 0.5);
+    }
+  }
+
+  &:nth-child(3) {
+    background: linear-gradient(135deg, rgba($success-color, 0.6) 0%, rgba($success-color, 0.4) 100%);
+    border-color: rgba($success-color, 0.6);
+
+    .dark & {
+      background: linear-gradient(135deg, rgba($success-color, 0.4) 0%, rgba($success-color, 0.3) 100%);
+      border-color: rgba($success-color, 0.5);
+    }
+  }
 }
 
 .stat-number {
   display: block;
-  font-size: 24px;
-  font-weight: 700;
-  color: #667eea;
-}
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  transition: all $duration-fast;
+  margin-bottom: $spacing-2;
+  letter-spacing: -0.5px;
 
-.stat-label {
-  font-size: 13px;
-  color: #6b7280;
-}
+  // 为每个数字使用不同的渐变色
+  .stat-item:nth-child(1) & {
+    background: linear-gradient(135deg, $primary-600 0%, $primary-500 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 2px 6px rgba($primary-600, 0.4));
 
-/* ===================================
-   MAIN CONTENT GRID
-   =================================== */
-.profile-content {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
+    .dark & {
+      background: linear-gradient(135deg, $primary-400 0%, $primary-300 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 2px 6px rgba($primary-400, 0.4));
+    }
+  }
 
-@media (max-width: 1024px) {
-  .profile-content {
-    grid-template-columns: 1fr;
+  .stat-item:nth-child(2) & {
+    background: linear-gradient(135deg, $warning-color 0%, $warning-color 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 2px 6px rgba($warning-color, 0.4));
+
+    .dark & {
+      background: linear-gradient(135deg, $warning-color 0%, $warning-color 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 2px 6px rgba($warning-color, 0.4));
+    }
+  }
+
+  .stat-item:nth-child(3) & {
+    background: linear-gradient(135deg, $success-color 0%, $success-color 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 2px 6px rgba($success-color, 0.4));
+
+    .dark & {
+      background: linear-gradient(135deg, $success-color 0%, $success-color 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 2px 6px rgba($success-color, 0.4));
+    }
   }
 }
 
-/* ===================================
-   SETTINGS COLUMN (LEFT)
-   =================================== */
+.stat-label {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  .dark & {
+    color: $gray-400;
+  }
+}
+
+// ==========================================
+// MAIN CONTENT GRID
+// ==========================================
+.profile-content {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(380px, 1.2fr);
+  gap: $spacing-8;
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 0 $spacing-6;
+}
+
+@media (max-width: 1200px) {
+  .profile-content {
+    grid-template-columns: 1fr;
+    gap: $spacing-6;
+    padding: 0 $spacing-4;
+  }
+}
+
+// ==========================================
+// SETTINGS COLUMN (LEFT)
+// ==========================================
 .settings-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-xl;
   overflow: hidden;
+  border: 1px solid $border-light;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-2xl;
+    transform: translateY(-2px);
+  }
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    border-color: $gray-700;
+  }
 }
 
 .card-header {
-  padding: 24px 32px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: $spacing-6 $spacing-8;
+  border-bottom: 1px solid $border-light;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-4;
+  background: linear-gradient(90deg, rgba($primary-500, 0.02) 0%, transparent 100%);
+
+  .dark & {
+    border-bottom-color: $gray-700;
+    background: linear-gradient(90deg, rgba($primary-400, 0.05) 0%, transparent 100%);
+  }
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: $spacing-3;
 }
 
 .header-icon {
-  font-size: 24px;
+  color: $primary-600;
+
+  .dark & {
+    color: $primary-400;
+  }
 }
 
 .card-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1f2937;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .header-tabs {
   display: flex;
-  gap: 8px;
+  gap: $spacing-2;
+  flex-wrap: wrap;
 }
 
 .tab-button {
-  padding: 8px 16px;
+  padding: $spacing-2 $spacing-4;
   border: none;
   background: transparent;
-  color: #6b7280;
-  border-radius: 8px;
+  color: $text-secondary;
+  border-radius: $border-radius-base;
   cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 600;
-  font-size: 14px;
-}
+  transition: all $duration-fast;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-base;
 
-.tab-button:hover {
-  background: #f3f4f6;
-}
+  &:hover {
+    background: rgba($primary-500, 0.1);
+    color: $primary-600;
+  }
 
-.tab-button.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  .dark &:hover {
+    background: rgba($primary-400, 0.1);
+    color: $primary-400;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+    color: #ffffff;
+  }
 }
 
 .card-content {
-  padding: 32px;
+  padding: $spacing-8;
 }
 
 .tab-content {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn $duration-base $easing-ease-out;
 }
 
 @keyframes fadeIn {
@@ -886,341 +1138,496 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ===================================
-   FORM STYLES
-   =================================== */
+// ==========================================
+// FORM STYLES
+// ==========================================
 .profile-form,
 .password-form {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: $spacing-8;
 }
 
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: $spacing-5;
 }
 
 .section-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .section-description {
   margin: 0;
-  font-size: 14px;
-  color: #6b7280;
+  font-size: $font-size-sm;
+  color: $text-secondary;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: $spacing-6;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: $spacing-3;
 }
 
 .form-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $text-regular;
+
+  .dark & {
+    color: $gray-300;
+  }
 }
 
 .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-  background: #f9fafb;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
+  background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+  border: 2px solid $border-light;
+  border-radius: $border-radius-lg;
+  transition: all $duration-fast;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 
-.input-wrapper:focus-within {
-  border-color: #667eea;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
+  &:focus-within {
+    border-color: $primary-500;
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba($primary-500, 0.1), inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+  }
 
-.input-wrapper.disabled {
-  background: #f3f4f6;
-  cursor: not-allowed;
+  .dark & {
+    background: linear-gradient(135deg, $gray-700 0%, $gray-800 100%);
+    border-color: $gray-600;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+
+    &:focus-within {
+      background: $gray-800;
+      border-color: $primary-400;
+      box-shadow: 0 0 0 4px rgba($primary-400, 0.1), inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  &.disabled {
+    background: $gray-100;
+    cursor: not-allowed;
+    opacity: 0.7;
+
+    .dark & {
+      background: $gray-800;
+    }
+  }
 }
 
 .input-icon {
-  padding: 0 12px;
-  font-size: 16px;
+  padding: 0 $spacing-3;
+  color: $text-secondary;
 }
 
 .form-input {
   flex: 1;
   border: none;
   background: transparent;
-  padding: 12px 8px;
-  font-size: 14px;
-  color: #1f2937;
+  padding: $spacing-4 $spacing-3;
+  font-size: $font-size-sm;
+  color: $text-primary;
   outline: none;
-}
 
-.form-input:disabled {
-  cursor: not-allowed;
-  color: #9ca3af;
-}
+  .dark & {
+    color: $gray-100;
+  }
 
-.form-input.input-error {
-  border-color: #ef4444;
+  &:disabled {
+    cursor: not-allowed;
+    color: $text-placeholder;
+  }
+
+  &.input-error {
+    border-color: $danger-color;
+  }
 }
 
 .input-suffix {
-  padding: 0 12px;
-  font-size: 14px;
-  color: #9ca3af;
+  padding: 0 $spacing-3;
+  font-size: $font-size-sm;
+  color: $text-placeholder;
 }
 
 .input-toggle {
-  padding: 0 12px;
+  padding: 0 $spacing-3;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
-  transition: transform 0.2s;
-}
+  color: $text-secondary;
+  transition: transform $duration-fast;
 
-.input-toggle:hover {
-  transform: scale(1.1);
+  &:hover {
+    transform: scale(1.1);
+    color: $primary-600;
+  }
 }
 
 .form-hint {
-  font-size: 12px;
-  color: #9ca3af;
+  font-size: $font-size-sm;
+  color: $text-placeholder;
 }
 
 .form-error {
-  font-size: 12px;
-  color: #ef4444;
+  font-size: $font-size-sm;
+  color: $danger-color;
 }
 
-/* Password Strength */
+// Password Strength
 .password-strength {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: $spacing-3;
 }
 
 .strength-bar {
   flex: 1;
-  height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
+  height: 6px;
+  background: $border-light;
+  border-radius: $border-radius-full;
   overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+
+  .dark & {
+    background: $gray-600;
+  }
 }
 
 .strength-fill {
   height: 100%;
-  transition: all 0.3s;
+  transition: all $duration-base;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: inherit;
+    border-radius: inherit;
+    animation: shimmer 2s infinite;
+  }
+
+  &.weak {
+    background: linear-gradient(90deg, $danger-color, darken($danger-color, 20%));
+  }
+
+  &.medium {
+    background: linear-gradient(90deg, $warning-color, darken($warning-color, 20%));
+  }
+
+  &.strong {
+    background: linear-gradient(90deg, $success-color, darken($success-color, 20%));
+  }
 }
 
-.strength-fill.weak {
-  background: #ef4444;
-}
-
-.strength-fill.medium {
-  background: #f59e0b;
-}
-
-.strength-fill.strong {
-  background: #10b981;
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .strength-text {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+
+  .strength-fill.weak + & {
+    color: $danger-color;
+  }
+
+  .strength-fill.medium + & {
+    color: $warning-color;
+  }
+
+  .strength-fill.strong + & {
+    color: $success-color;
+  }
 }
 
-.strength-fill.weak + .strength-text {
-  color: #ef4444;
-}
-
-.strength-fill.medium + .strength-text {
-  color: #f59e0b;
-}
-
-.strength-fill.strong + .strength-text {
-  color: #10b981;
-}
-
-/* Form Actions */
+// Form Actions
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
+  gap: $spacing-4;
+  padding-top: $spacing-6;
+  border-top: 1px solid $border-light;
+
+  .dark & {
+    border-top-color: $gray-700;
+  }
 }
 
 .btn {
-  padding: 12px 24px;
+  padding: $spacing-3 $spacing-6;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: $border-radius-lg;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all $duration-fast;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
+  gap: $spacing-2;
+  box-shadow: $shadow-sm;
+  position: relative;
+  overflow: hidden;
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left $duration-base;
+  }
+
+  &:hover:not(:disabled) {
+    &::before {
+      left: 100%;
+    }
+  }
 }
 
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-}
+  background: $gray-100;
+  color: $text-primary;
 
-.btn-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
+  .dark & {
+    background: $gray-700;
+    color: $gray-300;
+  }
+
+  &:hover:not(:disabled) {
+    background: $gray-200;
+  }
+
+  .dark &:hover:not(:disabled) {
+    background: $gray-600;
+  }
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
+  background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+  color: #ffffff;
 
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba($primary-500, 0.4);
+  }
 }
 
 .loading-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid white;
+  border: 2px solid #ffffff;
   border-top-color: transparent;
-  border-radius: 50%;
+  border-radius: $border-radius-full;
   animation: spin 0.8s linear infinite;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* ===================================
-   NOTIFICATIONS TOGGLES
-   =================================== */
+// ==========================================
+// NOTIFICATIONS TOGGLES
+// ==========================================
 .notification-items {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: $spacing-4;
 }
 
 .notification-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 12px;
-  transition: all 0.2s;
-}
+  padding: $spacing-4 $spacing-5;
+  background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+  border-radius: $border-radius-lg;
+  transition: all $duration-fast;
+  border: 1px solid $border-light;
 
-.notification-item:hover {
-  background: #f3f4f6;
+  &:hover {
+    background: #ffffff;
+    border-color: $primary-300;
+    box-shadow: $shadow-sm;
+    transform: translateX(2px);
+  }
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-700 0%, $gray-800 100%);
+    border-color: $gray-600;
+
+    &:hover {
+      background: $gray-800;
+      border-color: $primary-500;
+    }
+  }
 }
 
 .item-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: $spacing-3;
   flex: 1;
 }
 
 .item-icon {
-  font-size: 24px;
+  color: $primary-600;
+
+  .dark & {
+    color: $primary-400;
+  }
 }
 
 .item-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: $spacing-1;
 }
 
 .item-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .item-description {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: $font-size-sm;
+  color: $text-secondary;
 }
 
 .toggle-switch {
   position: relative;
   width: 48px;
   height: 26px;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: $gray-300;
+    transition: $duration-base;
+    border-radius: $border-radius-full;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+
+    .dark & {
+      background-color: $gray-600;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+
+    &:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #ffffff;
+      transition: $duration-base;
+      border-radius: $border-radius-full;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  input:checked + .toggle-slider {
+    background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+    box-shadow: 0 2px 8px rgba($primary-500, 0.3);
+  }
+
+  input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+  }
+
+  &:hover .toggle-slider {
+    background-color: $gray-400;
+
+    .dark & {
+      background-color: $gray-500;
+    }
+  }
 }
 
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
+// ==========================================
+// ACTIVITY COLUMN (RIGHT)
+// ==========================================
+.activity-column {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-4;
+  align-content: start;
 }
 
-.toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #d1d5db;
-  transition: 0.3s;
-  border-radius: 26px;
-}
-
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 0.3s;
-  border-radius: 50%;
-}
-
-.toggle-switch input:checked + .toggle-slider {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(22px);
-}
-
-/* ===================================
-   ACTIVITY COLUMN (RIGHT)
-   =================================== */
 .info-card,
 .activity-card,
 .actions-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  padding: 24px;
-  margin-bottom: 24px;
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-lg;
+  padding: $spacing-4;
+  border: 1px solid $border-light;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-xl;
+    transform: translateY(-2px);
+    border-color: $primary-200;
+  }
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    border-color: $gray-700;
+
+    &:hover {
+      border-color: $primary-500;
+    }
+  }
+}
+
+.actions-card {
+  grid-column: 1 / -1;
 }
 
 .info-header,
@@ -1228,172 +1635,274 @@ onMounted(() => {
 .actions-card .card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: $spacing-2;
+  margin-bottom: $spacing-3;
 }
 
 .info-icon,
 .activity-card .header-icon,
 .actions-card .header-icon {
-  font-size: 20px;
+  color: $primary-600;
+
+  .dark & {
+    color: $primary-400;
+  }
 }
 
 .info-title,
 .activity-card .card-title,
 .actions-card .card-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1f2937;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
-/* Info Card */
+// Info Card
 .info-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: $spacing-2;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
+  padding: $spacing-1 0;
+  border-bottom: 1px solid $border-light;
 
-.info-row:last-child {
-  border-bottom: none;
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .dark & {
+    border-bottom-color: $gray-700;
+  }
 }
 
 .info-label {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: $font-size-sm;
+  color: $text-secondary;
 }
 
 .info-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .status-active {
-  color: #10b981;
+  color: $success-color;
 }
 
-/* Activity List */
+// Activity List
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: $spacing-2;
 }
 
 .activity-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
+  gap: $spacing-2;
+  padding: $spacing-3;
+  background: linear-gradient(90deg, $gray-50 0%, transparent 100%);
+  border-radius: $border-radius-base;
+  transition: all $duration-fast;
+  border-left: 3px solid transparent;
 
-.activity-item:hover {
-  background: #f3f4f6;
+  &:hover {
+    background: linear-gradient(90deg, rgba($primary-500, 0.1) 0%, transparent 100%);
+    border-left-color: $primary-500;
+    transform: translateX(4px);
+  }
+
+  .dark & {
+    background: linear-gradient(90deg, $gray-700 0%, transparent 100%);
+
+    &:hover {
+      background: linear-gradient(90deg, rgba($primary-400, 0.15) 0%, transparent 100%);
+      border-left-color: $primary-400;
+    }
+  }
 }
 
 .activity-icon {
-  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: $primary-600;
+
+  .dark & {
+    color: $primary-400;
+  }
 }
 
 .activity-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: $spacing-1;
 }
 
 .activity-text {
-  font-size: 14px;
-  color: #1f2937;
+  font-size: $font-size-sm;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .activity-time {
-  font-size: 12px;
-  color: #9ca3af;
+  font-size: $font-size-xs;
+  color: $text-placeholder;
 }
 
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 32px;
+  gap: $spacing-2;
+  padding: $spacing-6 $spacing-4;
   text-align: center;
 }
 
 .empty-icon {
-  font-size: 48px;
+  width: 48px;
+  height: 48px;
   opacity: 0.5;
+  color: $text-secondary;
 }
 
 .empty-text {
-  font-size: 14px;
-  color: #9ca3af;
+  font-size: $font-size-sm;
+  color: $text-placeholder;
 }
 
-/* Actions Grid */
+// Actions Grid
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+}
+
+@media (max-width: 1400px) {
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .action-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
-  background: #f9fafb;
-  border: 2px solid transparent;
-  border-radius: 12px;
+  justify-content: center;
+  gap: $spacing-2;
+  padding: $spacing-4 $spacing-3;
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border: 2px solid $border-light;
+  border-radius: $border-radius-lg;
   cursor: pointer;
-  transition: all 0.2s;
-}
+  transition: all $duration-fast;
+  min-height: 75px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 
-.action-btn:hover {
-  background: white;
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-  transform: translateY(-2px);
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba($primary-500, 0.08) 0%, rgba($primary-600, 0.03) 100%);
+    opacity: 0;
+    transition: opacity $duration-fast;
+  }
+
+  &:hover {
+    background: #ffffff;
+    border-color: $primary-500;
+    box-shadow: 0 6px 16px rgba($primary-500, 0.25), 0 2px 8px rgba($primary-500, 0.15);
+    transform: translateY(-4px);
+
+    &::before {
+      opacity: 1;
+    }
+
+    .action-icon {
+      transform: scale(1.1);
+    }
+  }
+
+  &:active {
+    transform: translateY(-2px);
+  }
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-700 0%, $gray-800 100%);
+    border-color: $gray-600;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+
+    &:hover {
+      background: $gray-800;
+      border-color: $primary-400;
+      box-shadow: 0 6px 16px rgba($primary-400, 0.25), 0 2px 8px rgba($primary-400, 0.15);
+    }
+  }
 }
 
 .action-icon {
-  font-size: 24px;
+  width: 24px;
+  height: 24px;
+  color: $primary-600;
+  margin-bottom: 0;
+
+  .dark & {
+    color: $primary-400;
+  }
 }
 
 .action-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $text-primary;
+  text-align: center;
+  line-height: 1.2;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
-/* ===================================
-   TOAST MESSAGE
-   =================================== */
+// ==========================================
+// TOAST MESSAGE
+// ==========================================
 .toast-message {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: $spacing-6;
+  right: $spacing-6;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  gap: $spacing-3;
+  padding: $spacing-4 $spacing-5;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-2xl;
   z-index: 9999;
-  animation: slideIn 0.3s ease;
+  animation: slideIn $duration-base $easing-ease-out;
+  backdrop-filter: blur(8px);
 }
 
 @keyframes slideIn {
@@ -1408,39 +1917,49 @@ onMounted(() => {
 }
 
 .toast-message.success {
-  background: #d1fae5;
-  color: #065f46;
-  border-left: 4px solid #10b981;
+  background: linear-gradient(135deg, rgba($success-color, 0.95) 0%, rgba($success-color, 0.85) 100%);
+  color: #ffffff;
+  border-left: 4px solid lighten($success-color, 20%);
+  box-shadow: 0 8px 24px rgba($success-color, 0.4);
+
+  .dark & {
+    background: linear-gradient(135deg, rgba($success-color, 0.9) 0%, rgba($success-color, 0.8) 100%);
+  }
 }
 
 .toast-message.error {
-  background: #fee2e2;
-  color: #991b1b;
-  border-left: 4px solid #ef4444;
+  background: linear-gradient(135deg, rgba($danger-color, 0.95) 0%, rgba($danger-color, 0.85) 100%);
+  color: #ffffff;
+  border-left: 4px solid lighten($danger-color, 20%);
+  box-shadow: 0 8px 24px rgba($danger-color, 0.4);
+
+  .dark & {
+    background: linear-gradient(135deg, rgba($danger-color, 0.9) 0%, rgba($danger-color, 0.8) 100%);
+  }
 }
 
 .toast-icon {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
 }
 
 .toast-text {
   flex: 1;
-  font-weight: 600;
+  font-weight: $font-weight-semibold;
 }
 
 .toast-close {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
+  font-size: $font-size-base;
+  padding: $spacing-1;
 }
 
-/* Fade transition */
+// Fade transition
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s;
+  transition: opacity $duration-base;
 }
 
 .fade-enter-from,
@@ -1448,28 +1967,54 @@ onMounted(() => {
   opacity: 0;
 }
 
-/* ===================================
-   RESPONSIVE DESIGN
-   =================================== */
+// ==========================================
+// RESPONSIVE DESIGN
+// ==========================================
+@media (max-width: 1400px) {
+  .activity-column {
+    grid-template-columns: 1fr;
+  }
+
+  .actions-card {
+    grid-column: 1 / -1;
+  }
+
+  .actions-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
+  .profile-page {
+    padding: $spacing-4 0;
+  }
+
+  .profile-header {
+    padding: 0 $spacing-4;
+    margin-bottom: $spacing-4;
+  }
+
   .header-content {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    gap: $spacing-4;
   }
 
   .user-stats {
-    margin-top: 16px;
-  }
-
-  .profile-content {
-    padding: 0 16px;
+    margin-top: $spacing-3;
   }
 
   .card-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: $spacing-3;
   }
 
   .header-tabs {
@@ -1479,8 +2024,9 @@ onMounted(() => {
 
   .tab-button {
     flex: 1;
-    padding: 10px;
+    padding: $spacing-2;
     text-align: center;
+    font-size: $font-size-xs;
   }
 
   .form-grid {
@@ -1495,5 +2041,13 @@ onMounted(() => {
     width: 100%;
     justify-content: center;
   }
+
+  .activity-column {
+    grid-template-columns: 1fr;
+  }
+
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
-</style>
+	</style>

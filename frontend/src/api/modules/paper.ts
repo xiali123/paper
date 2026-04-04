@@ -150,35 +150,35 @@ export const paperApi = {
 
   /**
    * 创建新论文
-   * POST /api/papers
+   * POST /papers
    */
   async create(data: PaperCreateRequest): Promise<Paper> {
-    const backendPaper = await request.post('/api/papers', data)
+    const backendPaper = await request.post('/papers', data)
     return toFrontendPaper(backendPaper)
   },
 
   /**
    * 更新论文信息
-   * PUT /api/papers/:id
+   * PUT /papers/:id
    */
   async update(id: number, data: Partial<PaperCreateRequest>): Promise<Paper> {
-    const backendPaper = await request.put(`/api/papers/${id}`, data)
+    const backendPaper = await request.put(`/papers/${id}`, data)
     return toFrontendPaper(backendPaper)
   },
 
   /**
    * 删除论文
-   * DELETE /api/papers/:id
+   * DELETE /papers/:id
    */
   async delete(id: number): Promise<{ success: boolean }> {
-    return await request.delete(`/api/papers/${id}`)
+    return await request.delete(`/papers/${id}`)
   },
 
   // ==================== 分类和标签管理 ====================
 
   /**
    * 获取所有分类
-   * GET /api/papers/categories
+   * GET /papers/categories
    */
   async getCategories(): Promise<Array<{
     id: number
@@ -186,47 +186,47 @@ export const paperApi = {
     description: string
     paperCount: number
   }>> {
-    return await request.get('/api/papers/categories')
+    return await request.get('/papers/categories')
   },
 
   /**
    * 获取所有标签
-   * GET /api/papers/tags
+   * GET /papers/tags
    */
   async getTags(): Promise<Array<{
     id: number
     name: string
     usageCount: number
   }>> {
-    return await request.get('/api/papers/tags')
+    return await request.get('/papers/tags')
   },
 
   // ==================== 收藏管理 ====================
 
   /**
    * 添加到收藏
-   * POST /api/papers/:id/favorite
+   * POST /papers/:id/favorite
    */
   async addFavorite(userId: number, paperId: number): Promise<{ success: boolean }> {
-    return await request.post(`/api/papers/${paperId}/favorite`, { userId })
+    return await request.post(`/papers/${paperId}/favorite`, { userId })
   },
 
   /**
    * 取消收藏
-   * DELETE /api/papers/:id/favorite
+   * DELETE /papers/:id/favorite
    */
   async removeFavorite(userId: number, paperId: number): Promise<{ success: boolean }> {
-    return await request.delete(`/api/papers/${paperId}/favorite`, {
+    return await request.delete(`/papers/${paperId}/favorite`, {
       data: { userId }
     })
   },
 
   /**
    * 获取用户收藏列表
-   * GET /api/users/:id/favorites
+   * GET /users/:id/favorites
    */
   async getFavorites(userId: number, page = 1, limit = 20): Promise<PaginatedResponse<Paper>> {
-    const backendResponse = await request.get(`/api/users/${userId}/favorites`, {
+    const backendResponse = await request.get(`/users/${userId}/favorites`, {
       params: { page, limit }
     })
 
@@ -242,18 +242,18 @@ export const paperApi = {
 
   /**
    * 添加到阅读历史
-   * POST /api/papers/:id/history
+   * POST /papers/:id/history
    */
   async addToHistory(userId: number, paperId: number): Promise<{ success: boolean }> {
-    return await request.post(`/api/papers/${paperId}/history`, { userId })
+    return await request.post(`/papers/${paperId}/history`, { userId })
   },
 
   /**
    * 获取阅读历史
-   * GET /api/users/:id/history
+   * GET /users/:id/history
    */
   async getHistory(userId: number, limit = 20): Promise<Paper[]> {
-    const backendResponse = await request.get(`/api/users/${userId}/history`, {
+    const backendResponse = await request.get(`/users/${userId}/history`, {
       params: { limit }
     })
     return transformPaperList(backendResponse.papers || backendResponse.data || [])
@@ -261,17 +261,17 @@ export const paperApi = {
 
   /**
    * 清空阅读历史
-   * DELETE /api/users/:id/history
+   * DELETE /users/:id/history
    */
   async clearHistory(userId: number): Promise<{ success: boolean }> {
-    return await request.delete(`/api/users/${userId}/history`)
+    return await request.delete(`/users/${userId}/history`)
   },
 
   // ==================== 统计信息 ====================
 
   /**
    * 获取论文统计信息
-   * GET /api/papers/stats
+   * GET /papers/stats
    */
   async getStats(): Promise<{
     totalPapers: number
@@ -287,7 +287,7 @@ export const paperApi = {
       count: number
     }>
   }> {
-    return await request.get('/api/papers/stats')
+    return await request.get('/papers/stats')
   }
 }
 

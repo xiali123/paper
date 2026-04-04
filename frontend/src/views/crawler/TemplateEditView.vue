@@ -515,49 +515,111 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 现代化模板编辑页面样式
+// Modern Template Edit Page Styles
+// ==========================================
+
 .template-edit {
-  padding: 20px;
+  padding: $spacing-6;
+  min-height: calc(100vh - 120px);
+  background: linear-gradient(135deg, $gray-50 0%, $gray-100 100%);
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-900 0%, $gray-800 100%);
+  }
 }
 
+// Page Header
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+  padding: $spacing-6 $spacing-8;
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-md;
+  border: 1px solid $border-light;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    border-color: $gray-700;
+  }
 
   .page-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: $spacing-3;
     margin: 0;
-    font-size: 24px;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+
+    .dark & {
+      color: $gray-100;
+    }
+
+    .el-icon {
+      color: $primary-600;
+
+      .dark & {
+        color: $primary-400;
+      }
+    }
   }
 
   .header-actions {
     display: flex;
-    gap: 10px;
+    gap: $spacing-3;
   }
 }
 
+// Form Card
 .form-card {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+  border-radius: $border-radius-xl;
+  border: 1px solid $border-light;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-lg;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
 }
 
 .form-tip {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 5px;
+  font-size: $font-size-xs;
+  color: $text-secondary;
+  margin-top: $spacing-2;
+  display: flex;
+  align-items: center;
+  gap: $spacing-1;
+
+  &:before {
+    content: '💡';
+  }
 }
 
 .limit-display {
-  margin-left: 10px;
-  color: #409eff;
-  font-weight: bold;
+  margin-left: $spacing-3;
+  color: $primary-600;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-sm;
+
+  .dark & {
+    color: $primary-400;
+  }
 }
 
 .option-label {
-  margin-left: 10px;
-  color: #606266;
+  margin-left: $spacing-3;
+  color: $text-secondary;
+  font-size: $font-size-sm;
 }
 
 .source-option {
@@ -567,70 +629,138 @@ onMounted(async () => {
   width: 100%;
 }
 
+// Card Headers
 .card-header {
-  font-weight: bold;
+  font-weight: $font-weight-bold;
 
   span {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: $spacing-2;
+    color: $text-primary;
+
+    .dark & {
+      color: $gray-100;
+    }
+
+    .el-icon {
+      color: $primary-600;
+
+      .dark & {
+        color: $primary-400;
+      }
+    }
   }
 }
 
+// Test Card
 .test-card {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+  border-radius: $border-radius-xl;
+  border: 1px solid $border-light;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
 }
 
 .test-content {
   .test-result {
-    margin-top: 20px;
+    margin-top: $spacing-6;
 
     .samples-preview {
-      margin-top: 15px;
+      margin-top: $spacing-5;
 
       h4 {
-        margin: 0 0 10px 0;
-        font-size: 14px;
-        color: #606266;
+        margin: 0 0 $spacing-4 0;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+
+        .dark & {
+          color: $gray-100;
+        }
       }
 
       .sample-item {
-        padding: 10px;
-        background: #f5f7fa;
-        border-radius: 4px;
-        margin-bottom: 8px;
+        padding: $spacing-4;
+        background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+        border-radius: $border-radius-base;
+        margin-bottom: $spacing-3;
+        border: 1px solid $border-light;
+        transition: all $duration-fast;
+
+        &:hover {
+          border-color: $primary-300;
+          box-shadow: $shadow-sm;
+        }
+
+        .dark & {
+          background: $gray-700;
+          border-color: $gray-600;
+
+          &:hover {
+            border-color: $primary-500;
+          }
+        }
 
         .sample-title {
-          font-weight: bold;
-          color: #303133;
-          margin-bottom: 5px;
+          font-weight: $font-weight-semibold;
+          color: $text-primary;
+          margin-bottom: $spacing-2;
+
+          .dark & {
+            color: $gray-100;
+          }
         }
 
         .sample-authors {
-          font-size: 12px;
-          color: #909399;
+          font-size: $font-size-xs;
+          color: $text-secondary;
         }
       }
     }
   }
 }
 
+// Tips Card
 .tips-card {
+  border-radius: $border-radius-xl;
+  border: 1px solid $border-light;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
   .tips-content {
     .el-alert {
       :deep(.el-alert__title) {
-        font-size: 14px;
+        font-size: $font-size-sm;
       }
+
+      margin-bottom: $spacing-3 !important;
     }
   }
 }
 
-// Responsive
+// Responsive Design
 @media (max-width: 768px) {
+  .template-edit {
+    padding: $spacing-4;
+  }
+
   .page-header {
     flex-direction: column;
-    gap: 10px;
+    gap: $spacing-4;
+    padding: $spacing-4 $spacing-5;
     text-align: center;
+
+    .page-title {
+      font-size: $font-size-xl;
+      justify-content: center;
+    }
   }
 
   .header-actions {
@@ -640,6 +770,10 @@ onMounted(async () => {
     .el-button {
       flex: 1;
     }
+  }
+
+  .el-col {
+    margin-bottom: $spacing-4;
   }
 }
 </style>

@@ -52,60 +52,60 @@ export interface AIChatRequest {
 export const aiCopilotApi = {
   /**
    * 生成AI审稿报告
-   * POST /api/ai-copilot/review
+   * POST /ai-copilot/review
    */
   async generateReview(req: AIReviewRequest): Promise<AIReviewResult> {
-    return await request.post('/api/ai-copilot/review', req)
+    return await request.post('/ai-copilot/review', req)
   },
 
   /**
    * 生成文献综述
-   * POST /api/ai-copilot/literature-review/generate
+   * POST /ai-copilot/literature-review/generate
    */
   async generateLiteratureReview(req: LiteratureReviewRequest): Promise<LiteratureReview> {
-    return await request.post('/api/ai-copilot/literature-review/generate', req)
+    return await request.post('/ai-copilot/literature-review/generate', req)
   },
 
   /**
    * 生成研究规划
-   * POST /api/ai-copilot/research-plan/generate
+   * POST /ai-copilot/research-plan/generate
    */
   async generateResearchPlan(req: ResearchPlanRequest): Promise<ResearchPlan> {
-    return await request.post('/api/ai-copilot/research-plan/generate', req)
+    return await request.post('/ai-copilot/research-plan/generate', req)
   },
 
   /**
    * AI对话
-   * POST /api/ai-copilot/chat
+   * POST /ai-copilot/chat
    */
   async chat(req: AIChatRequest): Promise<AIChatMessage> {
-    return await request.post('/api/ai-copilot/chat', req)
+    return await request.post('/ai-copilot/chat', req)
   },
 
   /**
    * 获取审稿历史
-   * GET /api/ai-copilot/reviews/history
+   * GET /ai-copilot/reviews/history
    */
   async getReviewHistory(page = 1, limit = 20): Promise<{
     reviews: AIReviewResult[]
     total: number
     page: number
   }> {
-    return await request.get('/api/ai-copilot/reviews/history', {
+    return await request.get('/ai-copilot/reviews/history', {
       params: { page, limit }
     })
   },
 
   /**
    * 获取文献综述历史
-   * GET /api/ai-copilot/literature-reviews
+   * GET /ai-copilot/literature-reviews
    */
   async getLiteratureReviews(page = 1, limit = 20): Promise<{
     reviews: LiteratureReview[]
     total: number
     page: number
   }> {
-    return await request.get('/api/ai-copilot/literature-reviews', {
+    return await request.get('/ai-copilot/literature-reviews', {
       params: { page, limit }
     })
   }
@@ -118,10 +118,10 @@ export const aiCopilotApi = {
 export const aiServiceApi = {
   /**
    * 生成论文摘要
-   * POST /api/ai/papers/:id/summary
+   * POST /ai/papers/:id/summary
    */
   async generatePaperSummary(paperId: number, language: 'zh' | 'en' = 'zh', maxLength: number = 500) {
-    return await request.post(`/api/ai/papers/${paperId}/summary`, {
+    return await request.post(`/ai/papers/${paperId}/summary`, {
       language,
       maxLength
     })
@@ -129,10 +129,10 @@ export const aiServiceApi = {
 
   /**
    * 批量生成论文摘要
-   * POST /api/ai/papers/batch-summary
+   * POST /ai/papers/batch-summary
    */
   async batchGenerateSummaries(paperIds: number[], language: 'zh' | 'en' = 'zh', maxLength: number = 500) {
-    return await request.post('/api/ai/papers/batch-summary', {
+    return await request.post('/ai/papers/batch-summary', {
       paperIds,
       language,
       maxLength
@@ -141,10 +141,10 @@ export const aiServiceApi = {
 
   /**
    * 基于论文内容回答问题
-   * POST /api/ai/papers/:id/questions
+   * POST /ai/papers/:id/questions
    */
   async askQuestion(paperId: number, question: string, language: 'zh' | 'en' = 'zh') {
-    return await request.post(`/api/ai/papers/${paperId}/questions`, {
+    return await request.post(`/ai/papers/${paperId}/questions`, {
       question,
       language
     })
@@ -152,36 +152,36 @@ export const aiServiceApi = {
 
   /**
    * 提取论文关键词
-   * GET /api/ai/papers/:id/keywords
+   * GET /ai/papers/:id/keywords
    */
   async extractKeywords(paperId: number, count: number = 10) {
-    return await request.get(`/api/ai/papers/${paperId}/keywords`, {
+    return await request.get(`/ai/papers/${paperId}/keywords`, {
       params: { count }
     })
   },
 
   /**
    * 总结论文主要贡献
-   * GET /api/ai/papers/:id/contributions
+   * GET /ai/papers/:id/contributions
    */
   async summarizeContributions(paperId: number) {
-    return await request.get(`/api/ai/papers/${paperId}/contributions`)
+    return await request.get(`/ai/papers/${paperId}/contributions`)
   },
 
   /**
    * 比较多篇论文的异同
-   * POST /api/ai/papers/compare
+   * POST /ai/papers/compare
    */
   async comparePapers(paperIds: number[]) {
-    return await request.post('/api/ai/papers/compare', { paperIds })
+    return await request.post('/ai/papers/compare', { paperIds })
   },
 
   /**
    * 获取AI模块统计信息
-   * GET /api/ai/stats
+   * GET /ai/stats
    */
   async getStats() {
-    return await request.get('/api/ai/stats')
+    return await request.get('/ai/stats')
   }
 }
 

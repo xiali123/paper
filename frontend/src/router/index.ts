@@ -167,11 +167,78 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/search/SearchPage.vue'),
         meta: { requiresAuth: true, title: 'route.search', icon: 'Search' }
       },
+      // AI Assistant Routes
+      {
+        path: '/ai-copilot',
+        name: 'AICopilot',
+        component: () => import('@/views/AiCopilot.vue'),
+        meta: { requiresAuth: true, title: 'ai.assistant', icon: 'ChatDotRound' }
+      },
+      {
+        path: '/ai/review',
+        name: 'AIReview',
+        component: () => import('@/views/ai/AIReviewPage.vue'),
+        meta: { requiresAuth: true, title: 'ai.review', icon: 'DocumentChecked' }
+      },
+      {
+        path: '/ai/literature-review',
+        name: 'AILiteratureReview',
+        component: () => import('@/views/ai/AILiteratureReviewPage.vue'),
+        meta: { requiresAuth: true, title: 'ai.literatureReview', icon: 'Reading' }
+      },
+      {
+        path: '/ai/research-plan',
+        name: 'AIResearchPlan',
+        component: () => import('@/views/ai/AIResearchPlanPage.vue'),
+        meta: { requiresAuth: true, title: 'ai.researchPlan', icon: 'Notebook' }
+      },
+      {
+        path: '/ai/history',
+        name: 'AIHistory',
+        component: () => import('@/views/ai/AIHistoryPage.vue'),
+        meta: { requiresAuth: true, title: 'ai.history', icon: 'Clock' }
+      },
+      {
+        path: '/ai/stats',
+        name: 'AIStats',
+        component: () => import('@/views/ai/AIStatsPage.vue'),
+        meta: { requiresAuth: true, title: 'ai.statistics', icon: 'DataAnalysis' }
+      },
+      {
+        path: '/statistics',
+        name: 'Statistics',
+        component: () => import('@/views/Stats.vue'),
+        meta: { requiresAuth: true, title: 'route.statistics', icon: 'DataAnalysis' }
+      },
+      {
+        path: '/statistics/overview',
+        redirect: '/statistics'
+      },
+      {
+        path: '/statistics/charts',
+        redirect: '/statistics'
+      },
+      {
+        path: '/statistics/timeline',
+        redirect: '/statistics'
+      },
+      {
+        path: '/export',
+        name: 'Export',
+        component: () => import('@/views/Export.vue'),
+        meta: { requiresAuth: true, title: 'route.export', icon: 'Download' }
+      },
       {
         path: '/settings',
         name: 'Settings',
         component: () => import('@/views/settings/Settings.vue'),
         meta: { requiresAuth: true, title: 'route.settings', icon: 'Setting' }
+      },
+      {
+        path: '/settings/:tab',
+        redirect: to => {
+          return { path: '/settings', query: { tab: to.params.tab } }
+        }
       },
       {
         path: '/profile',

@@ -323,13 +323,19 @@ defineExpose({
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 现代化搜索栏组件样式
+// Modern SearchBar Component Styles
+// ==========================================
+
 .search-bar {
   position: relative;
   display: flex;
-  gap: var(--space-3);
+  gap: $spacing-4;
   align-items: center;
-  max-width: 600px;
+  max-width: 700px;
   width: 100%;
+  margin: 0 auto;
 }
 
 .search-bar__input-wrapper {
@@ -337,34 +343,63 @@ defineExpose({
   flex: 1;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: white;
-  border: 2px solid var(--gray-300);
-  border-radius: var(--radius-full);
-  transition: all var(--duration-base);
+  gap: $spacing-4;
+  padding: $spacing-5 $spacing-6;
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border: 3px solid $border-light;
+  border-radius: $border-radius-2xl;
+  transition: all $duration-fast;
+  box-shadow: $shadow-lg;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    border-color: $gray-600;
+  }
 
   .search-bar--focused & {
-    border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    border-color: $primary-400;
+    box-shadow: 0 0 0 6px rgba($primary-500, 0.15), $shadow-2xl;
+    transform: translateY(-2px);
+  }
+
+  &:hover {
+    border-color: rgba($primary-300, 0.5);
   }
 }
 
 .search-bar__icon {
-  color: var(--gray-500);
+  width: 24px;
+  height: 24px;
+  color: $primary-500;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba($primary-500, 0.3));
+
+  .dark & {
+    color: $primary-400;
+    filter: drop-shadow(0 2px 4px rgba($primary-400, 0.3));
+  }
 }
 
 .search-bar__input {
   flex: 1;
   border: none;
   outline: none;
-  font-size: var(--font-base);
-  color: var(--gray-900);
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  color: $text-primary;
   background: transparent;
 
   &::placeholder {
-    color: var(--gray-400);
+    color: $text-secondary;
+    font-weight: $font-weight-normal;
+  }
+
+  .dark & {
+    color: $gray-100;
+
+    &::placeholder {
+      color: $gray-500;
+    }
   }
 }
 
@@ -372,49 +407,68 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border: none;
-  background: var(--gray-200);
-  border-radius: var(--radius-full);
-  color: var(--gray-600);
+  background: linear-gradient(135deg, $gray-200 0%, $gray-300 100%);
+  border-radius: $border-radius-full;
+  color: $text-secondary;
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all $duration-fast;
+  box-shadow: $shadow-sm;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-700 0%, $gray-600 100%);
+    color: $gray-300;
+  }
 
   &:hover {
-    background: var(--gray-300);
+    background: linear-gradient(135deg, $danger-color 0%, rgba($danger-color, 0.8) 100%);
+    color: #ffffff;
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: $shadow-md;
   }
 
   &:focus-visible {
-    outline: 2px solid var(--primary-500);
+    outline: 3px solid rgba($primary-500, 0.3);
     outline-offset: 2px;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
 .search-bar__button {
-  padding: var(--space-3) var(--space-6);
+  padding: $spacing-5 $spacing-8;
   border: none;
-  background: var(--primary-500);
-  color: white;
-  font-size: var(--font-sm);
-  font-weight: var(--font-medium);
-  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+  color: #ffffff;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  border-radius: $border-radius-2xl;
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all $duration-fast;
   white-space: nowrap;
+  box-shadow: $shadow-lg;
+  letter-spacing: 0.5px;
 
   &:hover:not(:disabled) {
-    background: var(--primary-600);
+    background: linear-gradient(135deg, $primary-600 0%, $primary-700 100%);
+    transform: translateY(-3px);
+    box-shadow: $shadow-xl;
   }
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
   }
 
   &:focus-visible {
-    outline: 2px solid var(--primary-500);
-    outline-offset: 2px;
+    outline: 3px solid rgba($primary-500, 0.4);
+    outline-offset: 3px;
   }
 }
 
@@ -422,115 +476,248 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: var(--gray-100);
-  border-radius: var(--radius-full);
-  color: var(--gray-700);
+  width: 52px;
+  height: 52px;
+  border: 2px solid $border-light;
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border-radius: $border-radius-2xl;
+  color: $text-secondary;
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all $duration-fast;
+  box-shadow: $shadow-md;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    border-color: $gray-600;
+    color: $gray-400;
+  }
 
   &:hover {
-    background: var(--gray-200);
+    border-color: $primary-400;
+    color: $primary-600;
+    background: linear-gradient(135deg, $primary-50 0%, rgba($primary-100, 0.5) 100%);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: $shadow-lg;
+  }
+
+  .dark &:hover {
+    background: linear-gradient(135deg, rgba($primary-900, 0.4) 0%, rgba($primary-800, 0.3) 100%);
+    color: $primary-400;
   }
 
   &:focus-visible {
-    outline: 2px solid var(--primary-500);
-    outline-offset: 2px;
+    outline: 3px solid rgba($primary-500, 0.4);
+    outline-offset: 3px;
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
   }
 }
 
 .search-bar__advanced-panel {
   position: absolute;
-  top: calc(100% + var(--space-2));
+  top: calc(100% + $spacing-4);
   left: 0;
   right: 0;
-  background: white;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--gray-200);
-  z-index: var(--z-dropdown);
-  padding: var(--space-4);
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-2xl;
+  border: 2px solid rgba($primary-200, 0.5);
+  z-index: 1000;
+  padding: $spacing-6;
+  animation: slideDown 0.3s ease-out;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    border-color: $gray-600;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .search-bar__suggestions,
 .search-bar__history {
   position: absolute;
-  top: calc(100% + var(--space-2));
+  top: calc(100% + $spacing-4);
   left: 0;
   right: 0;
-  background: white;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--gray-200);
-  z-index: var(--z-dropdown);
-  max-height: 300px;
+  background: linear-gradient(135deg, #ffffff 0%, $gray-50 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-2xl;
+  border: 2px solid rgba($primary-200, 0.5);
+  z-index: 1000;
+  max-height: 400px;
   overflow-y: auto;
+  animation: slideDown 0.3s ease-out;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    border-color: $gray-600;
+  }
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba($gray-400, 0.3);
+    border-radius: $border-radius-full;
+
+    &:hover {
+      background: rgba($gray-400, 0.5);
+    }
+  }
 }
 
 .search-bar__suggestion,
 .search-bar__history-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  gap: $spacing-4;
+  padding: $spacing-5 $spacing-6;
   cursor: pointer;
-  transition: background var(--duration-fast);
+  transition: all $duration-fast;
+  border-left: 3px solid transparent;
 
   &:hover,
   &--active {
-    background: var(--gray-50);
+    background: linear-gradient(90deg, rgba($primary-50, 0.8) 0%, transparent 100%);
+    border-left-color: $primary-500;
+    transform: translateX(4px);
+  }
+
+  .dark &:hover,
+  .dark &--active {
+    background: linear-gradient(90deg, rgba($primary-900, 0.4) 0%, transparent 100%);
+    border-left-color: $primary-400;
+  }
+}
+
+.search-bar__suggestion-icon,
+.search-bar__history-icon {
+  width: 20px;
+  height: 20px;
+  color: $primary-500;
+  flex-shrink: 0;
+
+  .dark & {
+    color: $primary-400;
   }
 }
 
 .search-bar__suggestion-text {
   flex: 1;
-  font-size: var(--font-sm);
-  color: var(--gray-900);
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .search-bar__suggestion-count {
-  font-size: var(--font-xs);
-  color: var(--gray-500);
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $text-secondary;
+  padding: $spacing-2 $spacing-4;
+  background: linear-gradient(135deg, $gray-100 0%, $gray-200 100%);
+  border-radius: $border-radius-full;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-700 0%, $gray-800 100%);
+    color: $gray-400;
+  }
+}
+
+.search-bar__history-item span {
+  flex: 1;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  color: $text-primary;
+
+  .dark & {
+    color: $gray-100;
+  }
 }
 
 .search-bar__history-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--gray-200);
-  font-size: var(--font-xs);
-  color: var(--gray-600);
+  padding: $spacing-4 $spacing-6;
+  border-bottom: 2px solid $border-light;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  color: $text-primary;
+  background: linear-gradient(135deg, rgba($primary-50, 0.5) 0%, rgba($primary-100, 0.3) 100%);
+
+  .dark & {
+    border-bottom-color: $gray-700;
+    color: $gray-100;
+    background: linear-gradient(135deg, rgba($gray-700, 0.5) 0%, rgba($gray-800, 0.3) 100%);
+  }
 }
 
 .search-bar__history-clear {
   border: none;
   background: transparent;
-  color: var(--primary-600);
+  color: $danger-color;
   cursor: pointer;
-  font-size: var(--font-xs);
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  padding: $spacing-2 $spacing-4;
+  border-radius: $border-radius-base;
+  transition: all $duration-fast;
 
   &:hover {
-    text-decoration: underline;
+    background: rgba($danger-color, 0.1);
+    transform: scale(1.05);
   }
 }
 
-// Responsive
-@media (max-width: 640px) {
+// Responsive Design
+@media (max-width: 768px) {
   .search-bar {
     max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .search-bar__input-wrapper {
+    order: 1;
+    min-width: 0;
   }
 
   .search-bar__button {
-    display: none;
+    order: 3;
+    width: 100%;
+    flex: 1;
+  }
+
+  .search-bar__advanced-toggle {
+    order: 2;
   }
 
   .search-bar__advanced-panel {
     position: relative;
     top: 0;
-    margin-top: var(--space-2);
+    margin-top: $spacing-4;
   }
 }
 </style>

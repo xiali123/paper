@@ -1,19 +1,28 @@
+// ==========================================
+// PaperCrawler 主样式入口
+// Main Styles Entry Point
+// ==========================================
+
 @import './variables.scss';
 @import './reset.scss';
 @import './common.scss';
+@import './page-container.scss';
 @import './transition.scss';
 
-// Global styles
+// 1. 全局基础样式 (Global Base Styles)
+// ----------------------------------------------------------
+
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', Arial, sans-serif;
+  font-family: $font-family-base;
   font-size: $font-size-base;
+  line-height: $line-height-normal;
   color: $text-primary;
   background-color: $bg-color-page;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #app {
@@ -21,24 +30,36 @@ body {
   overflow: hidden;
 }
 
-// Scrollbar styling
+// 2. 滚动条样式 (Scrollbar Styling)
+// ----------------------------------------------------------
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: $scrollbar-width;
+  height: $scrollbar-width;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
+  background-color: $scrollbar-thumb-color;
+  border-radius: $border-radius-full;
+  transition: background-color $duration-fast;
 
   &:hover {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: $scrollbar-thumb-color-hover;
   }
 }
 
 ::-webkit-scrollbar-track {
-  background-color: transparent;
+  background-color: $scrollbar-track-color;
 }
+
+// Firefox scrollbar
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $scrollbar-thumb-color $scrollbar-track-color;
+}
+
+// 3. 工具类 (Utility Classes)
+// ----------------------------------------------------------
 
 // Clear float
 .clearfix::after {
@@ -62,7 +83,55 @@ body {
   text-overflow: ellipsis;
 }
 
-// Flex layout
+.text-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Text alignment
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-justify {
+  text-align: justify;
+}
+
+// Font weights
+.font-light {
+  font-weight: $font-weight-light;
+}
+
+.font-normal {
+  font-weight: $font-weight-normal;
+}
+
+.font-medium {
+  font-weight: $font-weight-medium;
+}
+
+.font-semibold {
+  font-weight: $font-weight-semibold;
+}
+
+.font-bold {
+  font-weight: $font-weight-bold;
+}
+
+// 4. Flexbox 布局工具类 (Flex Layout Utilities)
+// ----------------------------------------------------------
+
 .flex {
   display: flex;
 }
@@ -96,76 +165,165 @@ body {
   flex-direction: column;
 }
 
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-nowrap {
+  flex-wrap: nowrap;
+}
+
 .flex-1 {
   flex: 1;
 }
 
-// Margin and padding helpers
-@each $size in (xs, sm, md, lg, xl) {
-  $value: map-get((xs: $spacing-xs, sm: $spacing-sm, md: $spacing-md, lg: $spacing-lg, xl: $spacing-xl), $size);
+.flex-auto {
+  flex: auto;
+}
 
+.flex-none {
+  flex: none;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-end {
+  align-items: flex-end;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-stretch {
+  align-items: stretch;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-around {
+  justify-content: space-around;
+}
+
+// 5. 间距工具类 (Spacing Utilities)
+// ----------------------------------------------------------
+
+// Margin utilities
+@each $size, $value in (
+  '0': $spacing-0,
+  '1': $spacing-1,
+  '2': $spacing-2,
+  '3': $spacing-3,
+  '4': $spacing-4,
+  '5': $spacing-5,
+  '6': $spacing-6,
+  '8': $spacing-8,
+  '10': $spacing-10,
+  '12': $spacing-12,
+  '16': $spacing-16,
+  '20': $spacing-20
+) {
   .m-#{$size} {
-    margin: $value;
+    margin: $value !important;
   }
 
   .mt-#{$size} {
-    margin-top: $value;
+    margin-top: $value !important;
   }
 
   .mr-#{$size} {
-    margin-right: $value;
+    margin-right: $value !important;
   }
 
   .mb-#{$size} {
-    margin-bottom: $value;
+    margin-bottom: $value !important;
   }
 
   .ml-#{$size} {
-    margin-left: $value;
+    margin-left: $value !important;
   }
 
   .mx-#{$size} {
-    margin-left: $value;
-    margin-right: $value;
+    margin-left: $value !important;
+    margin-right: $value !important;
   }
 
   .my-#{$size} {
-    margin-top: $value;
-    margin-bottom: $value;
-  }
-
-  .p-#{$size} {
-    padding: $value;
-  }
-
-  .pt-#{$size} {
-    padding-top: $value;
-  }
-
-  .pr-#{$size} {
-    padding-right: $value;
-  }
-
-  .pb-#{$size} {
-    padding-bottom: $value;
-  }
-
-  .pl-#{$size} {
-    padding-left: $value;
-  }
-
-  .px-#{$size} {
-    padding-left: $value;
-    padding-right: $value;
-  }
-
-  .py-#{$size} {
-    padding-top: $value;
-    padding-bottom: $value;
+    margin-top: $value !important;
+    margin-bottom: $value !important;
   }
 }
 
-// Width and height helpers
+// Padding utilities
+@each $size, $value in (
+  '0': $spacing-0,
+  '1': $spacing-1,
+  '2': $spacing-2,
+  '3': $spacing-3,
+  '4': $spacing-4,
+  '5': $spacing-5,
+  '6': $spacing-6,
+  '8': $spacing-8,
+  '10': $spacing-10,
+  '12': $spacing-12,
+  '16': $spacing-16,
+  '20': $spacing-20
+) {
+  .p-#{$size} {
+    padding: $value !important;
+  }
+
+  .pt-#{$size} {
+    padding-top: $value !important;
+  }
+
+  .pr-#{$size} {
+    padding-right: $value !important;
+  }
+
+  .pb-#{$size} {
+    padding-bottom: $value !important;
+  }
+
+  .pl-#{$size} {
+    padding-left: $value !important;
+  }
+
+  .px-#{$size} {
+    padding-left: $value !important;
+    padding-right: $value !important;
+  }
+
+  .py-#{$size} {
+    padding-top: $value !important;
+    padding-bottom: $value !important;
+  }
+}
+
+// 6. 宽高工具类 (Width & Height Utilities)
+// ----------------------------------------------------------
+
 .w-full {
   width: 100%;
 }
@@ -174,11 +332,248 @@ body {
   height: 100%;
 }
 
-// Cursor helpers
+.w-screen {
+  width: 100vw;
+}
+
+.h-screen {
+  height: 100vh;
+}
+
+.w-auto {
+  width: auto;
+}
+
+.h-auto {
+  height: auto;
+}
+
+// 7. 光标工具类 (Cursor Utilities)
+// ----------------------------------------------------------
+
 .cursor-pointer {
   cursor: pointer;
 }
 
 .cursor-not-allowed {
   cursor: not-allowed;
+}
+
+.cursor-move {
+  cursor: move;
+}
+
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+// 8. 圆角工具类 (Border Radius Utilities)
+// ----------------------------------------------------------
+
+.rounded-none {
+  border-radius: $border-radius-none;
+}
+
+.rounded-sm {
+  border-radius: $border-radius-sm;
+}
+
+.rounded {
+  border-radius: $border-radius-base;
+}
+
+.rounded-md {
+  border-radius: $border-radius-md;
+}
+
+.rounded-lg {
+  border-radius: $border-radius-lg;
+}
+
+.rounded-xl {
+  border-radius: $border-radius-xl;
+}
+
+.rounded-2xl {
+  border-radius: $border-radius-2xl;
+}
+
+.rounded-full {
+  border-radius: $border-radius-full;
+}
+
+// 9. 阴影工具类 (Shadow Utilities)
+// ----------------------------------------------------------
+
+.shadow-none {
+  box-shadow: $shadow-none;
+}
+
+.shadow-sm {
+  box-shadow: $shadow-sm;
+}
+
+.shadow {
+  box-shadow: $shadow-base;
+}
+
+.shadow-md {
+  box-shadow: $shadow-md;
+}
+
+.shadow-lg {
+  box-shadow: $shadow-lg;
+}
+
+.shadow-xl {
+  box-shadow: $shadow-xl;
+}
+
+.shadow-2xl {
+  box-shadow: $shadow-2xl;
+}
+
+// 10. 显示/隐藏工具类 (Display Utilities)
+// ----------------------------------------------------------
+
+.hidden {
+  display: none;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+.visible {
+  visibility: visible;
+}
+
+// 11. 位置工具类 (Position Utilities)
+// ----------------------------------------------------------
+
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.fixed {
+  position: fixed;
+}
+
+.sticky {
+  position: sticky;
+}
+
+// 12. 溢出工具类 (Overflow Utilities)
+// ----------------------------------------------------------
+
+.overflow-auto {
+  overflow: auto;
+}
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.overflow-visible {
+  overflow: visible;
+}
+
+.overflow-scroll {
+  overflow: scroll;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+// 13. 透明度工具类 (Opacity Utilities)
+// ----------------------------------------------------------
+
+.opacity-0 {
+  opacity: 0;
+}
+
+.opacity-25 {
+  opacity: 0.25;
+}
+
+.opacity-50 {
+  opacity: 0.5;
+}
+
+.opacity-75 {
+  opacity: 0.75;
+}
+
+.opacity-100 {
+  opacity: 1;
+}
+
+// 14. 过渡工具类 (Transition Utilities)
+// ----------------------------------------------------------
+
+.transition {
+  transition: all $duration-base $easing-ease-in-out;
+}
+
+.transition-fast {
+  transition: all $duration-fast $easing-ease-in-out;
+}
+
+.transition-slow {
+  transition: all $duration-slow $easing-ease-in-out;
+}
+
+// 15. 元素显示控制 (Element Display Control)
+// ----------------------------------------------------------
+
+.block {
+  display: block;
+}
+
+.inline-block {
+  display: inline-block;
+}
+
+.inline {
+  display: inline;
+}
+
+// 16. 响应式工具类 (Responsive Utilities)
+// ----------------------------------------------------------
+
+@media (max-width: $breakpoint-sm) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: $breakpoint-md) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+@media (max-width: $breakpoint-md) {
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+@media (min-width: $breakpoint-md) {
+  .show-desktop {
+    display: block !important;
+  }
 }

@@ -78,34 +78,34 @@ export interface ExportStats {
 export const exportApi = {
   /**
    * 导出搜索结果
-   * POST /api/export/search
+   * POST /export/search
    */
   async exportSearch(req: ExportRequest): Promise<ExportTask> {
-    return await request.post('/api/export/search', req)
+    return await request.post('/export/search', req)
   },
 
   /**
    * 按ID导出论文
-   * POST /api/export/papers
+   * POST /export/papers
    */
   async exportPapers(req: ExportRequest): Promise<ExportTask> {
-    return await request.post('/api/export/papers', req)
+    return await request.post('/export/papers', req)
   },
 
   /**
    * 批量导出（支持大文件）
-   * POST /api/export/batch
+   * POST /export/batch
    */
   async batchExport(req: BatchExportRequest): Promise<ExportTask> {
-    return await request.post('/api/export/batch', req)
+    return await request.post('/export/batch', req)
   },
 
   /**
    * 导出为CSV
-   * GET /api/export/csv
+   * GET /export/csv
    */
   async exportToCSV(params: any): Promise<Blob> {
-    return await request.get('/api/export/csv', {
+    return await request.get('/export/csv', {
       params,
       responseType: 'blob'
     })
@@ -113,10 +113,10 @@ export const exportApi = {
 
   /**
    * 导出为JSON
-   * GET /api/export/json
+   * GET /export/json
    */
   async exportToJSON(params: any): Promise<Blob> {
-    return await request.get('/api/export/json', {
+    return await request.get('/export/json', {
       params,
       responseType: 'blob'
     })
@@ -124,10 +124,10 @@ export const exportApi = {
 
   /**
    * 导出为Excel
-   * GET /api/export/excel
+   * GET /export/excel
    */
   async exportToExcel(params: any): Promise<Blob> {
-    return await request.get('/api/export/excel', {
+    return await request.get('/export/excel', {
       params,
       responseType: 'blob'
     })
@@ -135,10 +135,10 @@ export const exportApi = {
 
   /**
    * 导出为BibTeX
-   * GET /api/export/bibtex
+   * GET /export/bibtex
    */
   async exportToBibTeX(params: any): Promise<Blob> {
-    return await request.get('/api/export/bibtex', {
+    return await request.get('/export/bibtex', {
       params,
       responseType: 'blob'
     })
@@ -146,10 +146,10 @@ export const exportApi = {
 
   /**
    * 导出为PDF
-   * GET /api/export/pdf
+   * GET /export/pdf
    */
   async exportToPDF(params: any): Promise<Blob> {
-    return await request.get('/api/export/pdf', {
+    return await request.get('/export/pdf', {
       params,
       responseType: 'blob'
     })
@@ -157,10 +157,10 @@ export const exportApi = {
 
   /**
    * 导出为Word
-   * GET /api/export/word
+   * GET /export/word
    */
   async exportToWord(params: any): Promise<Blob> {
-    return await request.get('/api/export/word', {
+    return await request.get('/export/word', {
       params,
       responseType: 'blob'
     })
@@ -168,63 +168,63 @@ export const exportApi = {
 
   /**
    * 获取导出任务状态
-   * GET /api/export/status/:id
+   * GET /export/status/:id
    */
   async getExportStatus(exportId: string): Promise<ExportTask> {
-    return await request.get(`/api/export/status/${exportId}`)
+    return await request.get(`/export/status/${exportId}`)
   },
 
   /**
    * 下载导出文件
-   * GET /api/export/download/:id
+   * GET /export/download/:id
    */
   async downloadExport(exportId: string): Promise<Blob> {
-    return await request.get(`/api/export/download/${exportId}`, {
+    return await request.get(`/export/download/${exportId}`, {
       responseType: 'blob'
     })
   },
 
   /**
    * 取消导出任务
-   * DELETE /api/export/status/:id
+   * DELETE /export/status/:id
    */
   async cancelExport(exportId: string): Promise<{ success: boolean }> {
-    return await request.delete(`/api/export/status/${exportId}`)
+    return await request.delete(`/export/status/${exportId}`)
   },
 
   /**
    * 获取导出历史
-   * GET /api/export/history
+   * GET /export/history
    */
   async getExportHistory(page = 1, limit = 20): Promise<{
     exports: ExportTask[]
     total: number
     page: number
   }> {
-    return await request.get('/api/export/history', {
+    return await request.get('/export/history', {
       params: { page, limit }
     })
   },
 
   /**
    * 删除导出文件
-   * DELETE /api/export/file/:id
+   * DELETE /export/file/:id
    */
   async deleteExportFile(exportId: string): Promise<{ success: boolean }> {
-    return await request.delete(`/api/export/file/${exportId}`)
+    return await request.delete(`/export/file/${exportId}`)
   },
 
   /**
    * 获取导出统计信息
-   * GET /api/export/stats
+   * GET /export/stats
    */
   async getStats(): Promise<ExportStats> {
-    return await request.get('/api/export/stats')
+    return await request.get('/export/stats')
   },
 
   /**
    * 获取支持的导出格式
-   * GET /api/export/formats
+   * GET /export/formats
    */
   async getSupportedFormats(): Promise<{
     formats: Array<{
@@ -234,7 +234,7 @@ export const exportApi = {
       maxRecords: number
     }>
   }> {
-    return await request.get('/api/export/formats')
+    return await request.get('/export/formats')
   },
 
   /**

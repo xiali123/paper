@@ -1,0 +1,537 @@
+// ==========================================
+// PaperCrawler 页面容器样式系统
+// Page Container Styles
+// ==========================================
+//
+// 此文件定义了所有标准页面应使用的统一容器样式
+// 使用方法：在页面组件的根元素上添加相应的 class
+//
+// ==========================================
+
+// 1. 标准页面容器
+// -------------------------------------------
+
+.page-container {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-6;
+}
+
+// 2. 页面头部样式
+// -------------------------------------------
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-6;
+  padding: $spacing-8;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+    box-shadow: $shadow-md;
+  }
+
+  // 紧凑样式
+  &.compact {
+    padding: $spacing-5;
+  }
+
+  // 无阴影样式
+  &.flat {
+    box-shadow: none;
+    background: transparent;
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__title {
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+    margin: 0 0 $spacing-2 0;
+    line-height: $line-height-tight;
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+
+    .el-icon {
+      color: $primary-500;
+    }
+  }
+
+  &__subtitle {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    margin: 0;
+    line-height: $line-height-normal;
+  }
+
+  &__description {
+    font-size: $font-size-base;
+    color: $text-regular;
+    margin: $spacing-2 0 0 0;
+    line-height: $line-height-relaxed;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $spacing-3;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  // 响应式
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-4;
+    padding: $spacing-5;
+
+    &__title {
+      font-size: $font-size-2xl;
+    }
+
+    &__actions {
+      width: 100%;
+
+      .el-button {
+        flex: 1;
+      }
+    }
+  }
+}
+
+// 3. 内容卡片容器
+// -------------------------------------------
+
+.content-card {
+  background: #ffffff;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+  overflow: hidden;
+  transition: all $duration-slow;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  &__header {
+    padding: $spacing-6;
+    border-bottom: 1px solid $border-light;
+    background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+
+    .dark & {
+      background: linear-gradient(135deg, $gray-800 0%, $gray-700 100%);
+      border-bottom-color: $gray-700;
+    }
+
+    &.no-border {
+      border-bottom: none;
+    }
+  }
+
+  &__title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+  }
+
+  &__actions {
+    margin-top: $spacing-4;
+    display: flex;
+    gap: $spacing-2;
+  }
+
+  &__body {
+    padding: $spacing-6;
+  }
+
+  &__footer {
+    padding: $spacing-4 $spacing-6;
+    border-top: 1px solid $border-light;
+    background: $gray-50;
+
+    .dark & {
+      background: $gray-800;
+      border-top-color: $gray-700;
+    }
+  }
+}
+
+// 4. 工具栏样式
+// -------------------------------------------
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-4;
+  padding: $spacing-4;
+  background: #ffffff;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+  flex-wrap: wrap;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  &__section {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    flex-wrap: wrap;
+
+    &.left {
+      flex: 1;
+      min-width: 0;
+    }
+
+    &.right {
+      flex-shrink: 0;
+    }
+  }
+
+  &__group {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+  }
+
+  // 响应式
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $spacing-3;
+
+    &__section {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+}
+
+// 5. 分隔样式
+// -------------------------------------------
+
+.page-divider {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    $border-light 50%,
+    transparent 100%
+  );
+  border: none;
+  margin: $spacing-8 0;
+
+  &.thick {
+    height: 2px;
+  }
+
+  &.dashed {
+    background: none;
+    border-top: 1px dashed $border-light;
+    border-bottom: none;
+  }
+}
+
+// 6. 网格布局系统
+// -------------------------------------------
+
+.page-grid {
+  display: grid;
+  gap: $spacing-6;
+
+  // 2列布局
+  &.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  // 3列布局
+  &.cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  // 4列布局
+  &.cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  // 自适应布局
+  &.auto {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+
+  // 响应式
+  @media (max-width: 1024px) {
+    &.cols-3,
+    &.cols-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    &.cols-2,
+    &.cols-3,
+    &.cols-4,
+    &.auto {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+// 7. 内容布局
+// -------------------------------------------
+
+.content-layout {
+  display: flex;
+  gap: $spacing-6;
+  align-items: flex-start;
+
+  // 侧边栏布局
+  &.with-sidebar {
+    .content-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .content-sidebar {
+      width: 280px;
+      flex-shrink: 0;
+
+      > * {
+        position: sticky;
+        top: $spacing-4;
+      }
+    }
+  }
+
+  // 响应式
+  @media (max-width: 1024px) {
+    &.with-sidebar {
+      flex-direction: column;
+
+      .content-sidebar {
+        width: 100%;
+      }
+    }
+  }
+}
+
+// 8. 页面段落
+// -------------------------------------------
+
+.page-section {
+  margin-bottom: $spacing-8;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &__title {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+    margin: 0 0 $spacing-4 0;
+    padding-bottom: $spacing-3;
+    border-bottom: 2px solid $border-light;
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+
+    .el-icon {
+      color: $primary-500;
+    }
+  }
+
+  &__content {
+    color: $text-regular;
+    line-height: $line-height-relaxed;
+  }
+}
+
+// 9. 空状态容器
+// -------------------------------------------
+
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-16;
+  background: #ffffff;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  border: 1px solid $border-light;
+  text-align: center;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  &__icon {
+    font-size: 64px;
+    color: $text-placeholder;
+    margin-bottom: $spacing-6;
+  }
+
+  &__title {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+    margin: 0 0 $spacing-3 0;
+  }
+
+  &__description {
+    font-size: $font-size-base;
+    color: $text-secondary;
+    margin: 0 0 $spacing-6 0;
+    max-width: 500px;
+  }
+
+  &__action {
+    margin-top: $spacing-4;
+  }
+}
+
+// 10. 加载状态容器
+// -------------------------------------------
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-16;
+  gap: $spacing-4;
+
+  &__spinner {
+    width: 48px;
+    height: 48px;
+  }
+
+  &__text {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+  }
+}
+
+// 11. 响应式容器宽度
+// -------------------------------------------
+
+.container {
+  &-sm {
+    max-width: 640px;
+  }
+
+  &-md {
+    max-width: 768px;
+  }
+
+  &-lg {
+    max-width: 1024px;
+  }
+
+  &-xl {
+    max-width: 1280px;
+  }
+
+  &-2xl {
+    max-width: 1600px;
+  }
+
+  &-full {
+    max-width: 100%;
+  }
+}
+
+// 12. 辅助类
+// -------------------------------------------
+
+.gap-2 { gap: $spacing-2; }
+.gap-3 { gap: $spacing-3; }
+.gap-4 { gap: $spacing-4; }
+.gap-5 { gap: $spacing-5; }
+.gap-6 { gap: $spacing-6; }
+.gap-8 { gap: $spacing-8; }
+
+.p-4 { padding: $spacing-4; }
+.p-5 { padding: $spacing-5; }
+.p-6 { padding: $spacing-6; }
+.p-8 { padding: $spacing-8; }
+
+.mt-4 { margin-top: $spacing-4; }
+.mt-6 { margin-top: $spacing-6; }
+.mb-4 { margin-bottom: $spacing-4; }
+.mb-6 { margin-bottom: $spacing-6; }
+
+// 13. 深色模式适配
+// -------------------------------------------
+
+.dark {
+  // 文字颜色调整
+  .text-primary {
+    color: $gray-100;
+  }
+
+  .text-regular {
+    color: $gray-300;
+  }
+
+  .text-secondary {
+    color: $gray-400;
+  }
+
+  // 背景调整
+  .bg-white {
+    background-color: $gray-800;
+  }
+
+  .bg-gray-50 {
+    background-color: $gray-900;
+  }
+}
+
+// 14. 打印样式
+// -------------------------------------------
+
+@media print {
+  .page-header,
+  .toolbar,
+  .content-card__footer {
+    display: none;
+  }
+
+  .content-card {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+}

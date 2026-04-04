@@ -195,6 +195,7 @@ private:
     std::unique_ptr<Impl> impl_;
 
     void registerRoutes() override;
+    std::string handleStats();
     std::string handleSystemInfo();
     std::string handleResources();
     std::string handleUptime();

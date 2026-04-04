@@ -105,110 +105,110 @@ export interface UserStats {
 export const userApi = {
   /**
    * 获取用户列表
-   * GET /api/users
+   * GET /users
    */
   async getUsers(params?: UserListParams): Promise<UserListResponse> {
-    return await request.get('/api/users', { params })
+    return await request.get('/users', { params })
   },
 
   /**
    * 获取单个用户详情
-   * GET /api/users/:id
+   * GET /users/:id
    */
   async getUser(id: number): Promise<User> {
-    return await request.get(`/api/users/${id}`)
+    return await request.get(`/users/${id}`)
   },
 
   /**
    * 创建新用户
-   * POST /api/users
+   * POST /users
    */
   async createUser(data: CreateUserRequest): Promise<User> {
-    return await request.post('/api/users', data)
+    return await request.post('/users', data)
   },
 
   /**
    * 更新用户信息
-   * PUT /api/users/:id
+   * PUT /users/:id
    */
   async updateUser(id: number, data: UpdateUserRequest): Promise<User> {
-    return await request.put(`/api/users/${id}`, data)
+    return await request.put(`/users/${id}`, data)
   },
 
   /**
    * 删除用户
-   * DELETE /api/users/:id
+   * DELETE /users/:id
    */
   async deleteUser(id: number): Promise<{ success: boolean }> {
-    return await request.delete(`/api/users/${id}`)
+    return await request.delete(`/users/${id}`)
   },
 
   /**
    * 激活用户
-   * POST /api/users/:id/activate
+   * POST /users/:id/activate
    */
   async activateUser(id: number): Promise<{ success: boolean }> {
-    return await request.post(`/api/users/${id}/activate`)
+    return await request.post(`/users/${id}/activate`)
   },
 
   /**
    * 暂停用户
-   * POST /api/users/:id/suspend
+   * POST /users/:id/suspend
    */
   async suspendUser(id: number, reason?: string): Promise<{ success: boolean }> {
-    return await request.post(`/api/users/${id}/suspend`, { reason })
+    return await request.post(`/users/${id}/suspend`, { reason })
   },
 
   /**
    * 修改用户密码（管理员）
-   * PUT /api/users/:id/password
+   * PUT /users/:id/password
    */
   async changeUserPassword(id: number, newPassword: string): Promise<{ success: boolean }> {
-    return await request.put(`/api/users/${id}/password`, { newPassword })
+    return await request.put(`/users/${id}/password`, { newPassword })
   },
 
   /**
    * 重置用户密码
-   * POST /api/users/:id/reset-password
+   * POST /users/:id/reset-password
    */
   async resetUserPassword(id: number): Promise<{
     success: boolean
     temporaryPassword: string
   }> {
-    return await request.post(`/api/users/${id}/reset-password`)
+    return await request.post(`/users/${id}/reset-password`)
   },
 
   /**
    * 获取用户统计信息
-   * GET /api/users/stats
+   * GET /users/stats
    */
   async getStats(): Promise<UserStats> {
-    return await request.get('/api/users/stats')
+    return await request.get('/users/stats')
   },
 
   /**
    * 搜索用户
-   * GET /api/users/search
+   * GET /users/search
    */
   async searchUsers(query: string, limit = 20): Promise<User[]> {
-    return await request.get('/api/users/search', {
+    return await request.get('/users/search', {
       params: { query, limit }
     })
   },
 
   /**
    * 按角色查询用户
-   * GET /api/users/by-role
+   * GET /users/by-role
    */
   async getUsersByRole(role: UserRole, page = 1, limit = 20): Promise<UserListResponse> {
-    return await request.get('/api/users/by-role', {
+    return await request.get('/users/by-role', {
       params: { role, page, limit }
     })
   },
 
   /**
    * 获取用户活动日志
-   * GET /api/users/:id/activity
+   * GET /users/:id/activity
    */
   async getUserActivity(id: number, page = 1, limit = 50): Promise<{
     activities: Array<{
@@ -222,14 +222,14 @@ export const userApi = {
     total: number
     page: number
   }> {
-    return await request.get(`/api/users/${id}/activity`, {
+    return await request.get(`/users/${id}/activity`, {
       params: { page, limit }
     })
   },
 
   /**
    * 获取用户登录历史
-   * GET /api/users/:id/login-history
+   * GET /users/:id/login-history
    */
   async getLoginHistory(id: number, limit = 20): Promise<Array<{
     loginAt: string
@@ -237,14 +237,14 @@ export const userApi = {
     userAgent: string
     successful: boolean
   }>> {
-    return await request.get(`/api/users/${id}/login-history`, {
+    return await request.get(`/users/${id}/login-history`, {
       params: { limit }
     })
   },
 
   /**
    * 批量操作用户
-   * POST /api/users/batch
+   * POST /users/batch
    */
   async batchOperation(operation: 'activate' | 'suspend' | 'delete', userIds: number[]): Promise<{
     success: boolean
@@ -254,44 +254,44 @@ export const userApi = {
       error: string
     }>
   }> {
-    return await request.post('/api/users/batch', { operation, userIds })
+    return await request.post('/users/batch', { operation, userIds })
   },
 
   /**
    * 导出用户列表
-   * GET /api/users/export
+   * GET /users/export
    */
   async exportUsers(format: 'csv' | 'json' | 'excel' = 'csv'): Promise<{
     url: string
     filename: string
     expiresAt: string
   }> {
-    return await request.get('/api/users/export', {
+    return await request.get('/users/export', {
       params: { format }
     })
   },
 
   /**
    * 获取用户权限设置
-   * GET /api/users/:id/permissions
+   * GET /users/:id/permissions
    */
   async getUserPermissions(id: number): Promise<{
     permissions: string[]
     roles: UserRole[]
     customPermissions: Record<string, boolean>
   }> {
-    return await request.get(`/api/users/${id}/permissions`)
+    return await request.get(`/users/${id}/permissions`)
   },
 
   /**
    * 更新用户权限
-   * PUT /api/users/:id/permissions
+   * PUT /users/:id/permissions
    */
   async updateUserPermissions(
     id: number,
     permissions: string[]
   ): Promise<{ success: boolean }> {
-    return await request.put(`/api/users/${id}/permissions`, { permissions })
+    return await request.put(`/users/${id}/permissions`, { permissions })
   }
 }
 

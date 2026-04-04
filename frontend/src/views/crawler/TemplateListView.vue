@@ -473,70 +473,218 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+// ==========================================
+// 模板列表页面现代化样式
+// Modern Template List Styles
+// ==========================================
+
 .template-list {
-  padding: 20px;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
+// 页面头部
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: $spacing-6;
+  padding: $spacing-8;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  margin-bottom: $spacing-6;
+
+  .dark & {
+    background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
+  }
 
   .page-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: $spacing-3;
     margin: 0;
-    font-size: 24px;
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+
+    .el-icon {
+      color: $primary-500;
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    gap: $spacing-3;
   }
 }
 
+// 筛选卡片
 .filter-card {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-5;
+  }
+
+  :deep(.el-form--inline .el-form-item) {
+    margin-right: $spacing-4;
+    margin-bottom: $spacing-2;
+  }
 }
 
+// 视图切换
 .view-toggle {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
   display: flex;
   justify-content: flex-end;
+
+  :deep(.el-radio-group) {
+    background: #ffffff;
+    padding: $spacing-1;
+    border-radius: $border-radius-lg;
+    border: 1px solid $border-light;
+    box-shadow: $shadow-sm;
+
+    .dark & {
+      background: $gray-800;
+      border-color: $gray-700;
+    }
+
+    .el-radio-button {
+      margin: 0;
+      padding: $spacing-3 $spacing-4;
+      border-radius: $border-radius-base;
+
+      .el-radio-button__inner {
+        font-weight: $font-weight-medium;
+      }
+    }
+  }
 }
 
+// 表格卡片
 .table-card {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-5;
+  }
+
+  :deep(.el-table) {
+    border-radius: $border-radius-lg;
+
+    th {
+      background: $gray-50 !important;
+      color: $text-primary;
+      font-weight: $font-weight-semibold;
+    }
+
+    tr {
+      &:hover {
+        background: $gray-100 !important;
+      }
+
+      &.el-table__row--striped {
+        background: rgba($gray-100, 0.5);
+      }
+    }
+
+    .dark & {
+      th {
+        background: $gray-700 !important;
+        color: $gray-200;
+      }
+
+      tr:hover {
+        background: $gray-700 !important;
+      }
+
+      tr.el-table__row--striped {
+        background: rgba($gray-700, 0.5);
+      }
+    }
+  }
 }
 
+// 网格视图
 .grid-view {
-  margin-bottom: 20px;
+  margin-bottom: $spacing-6;
+
+  :deep(.el-col) {
+    margin-bottom: $spacing-5;
+  }
 }
 
+// 模板卡片
 .template-card {
-  margin-bottom: 20px;
   height: 100%;
+  border: 1px solid $border-light;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-sm;
+  transition: all $duration-slow;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s;
 
   &:hover {
+    box-shadow: $shadow-lg;
     transform: translateY(-4px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-color: $primary-200;
+  }
+
+  .dark &:hover {
+    border-color: $primary-400;
+  }
+
+  :deep(.el-card__body) {
+    padding: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .template-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    padding: $spacing-5;
+    background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
+    border-bottom: 1px solid $border-light;
+
+    .dark & {
+      background: linear-gradient(135deg, $gray-800 0%, $gray-700 100%);
+      border-bottom-color: $gray-700;
+    }
 
     .template-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 10px;
+      width: 56px;
+      height: 56px;
+      border-radius: $border-radius-lg;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 24px;
       color: white;
+      box-shadow: $shadow-sm;
+      flex-shrink: 0;
 
       &.arxiv {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -562,84 +710,197 @@ onMounted(() => {
     .more-icon {
       cursor: pointer;
       font-size: 20px;
-      color: #909399;
+      color: $text-secondary;
+      padding: $spacing-2;
+      border-radius: $border-radius-base;
+      transition: all $duration-fast;
 
       &:hover {
-        color: #409eff;
+        color: $primary-600;
+        background: rgba($primary-500, 0.1);
+      }
+
+      .dark &:hover {
+        color: $primary-400;
+        background: rgba($primary-400, 0.1);
       }
     }
   }
 
   .template-body {
     flex: 1;
+    padding: $spacing-5;
+    display: flex;
+    flex-direction: column;
 
     .template-name {
-      font-size: 18px;
-      margin: 0 0 10px 0;
-      color: #303133;
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $text-primary;
+      margin: 0 0 $spacing-3 0;
+      line-height: $line-height-tight;
     }
 
     .template-query {
-      color: #606266;
-      font-size: 14px;
-      margin: 10px 0;
-      min-height: 40px;
+      color: $text-regular;
+      font-size: $font-size-sm;
+      margin: $spacing-3 0;
+      line-height: $line-height-relaxed;
+      min-height: 48px;
+      padding: $spacing-3;
+      background: $gray-50;
+      border-radius: $border-radius-base;
+      border: 1px solid $border-light;
+
+      .dark & {
+        background: $gray-800;
+        border-color: $gray-700;
+      }
     }
 
     .template-meta {
       display: flex;
       justify-content: space-between;
-      font-size: 12px;
-      color: #909399;
-      margin: 15px 0;
+      font-size: $font-size-sm;
+      color: $text-secondary;
+      margin-top: auto;
+      padding-top: $spacing-4;
 
       span {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: $spacing-2;
+        font-weight: $font-weight-medium;
+      }
+
+      .el-icon {
+        font-size: 16px;
       }
     }
   }
 
   .template-footer {
     display: flex;
-    gap: 10px;
-    padding-top: 15px;
-    border-top: 1px solid #ebeef5;
+    gap: $spacing-3;
+    padding: $spacing-4 $spacing-5;
+    border-top: 1px solid $border-light;
+
+    .dark & {
+      border-top-color: $gray-700;
+    }
 
     .el-button {
       flex: 1;
+      font-weight: $font-weight-medium;
     }
   }
 }
 
+// 批量操作栏
 .batch-actions {
   position: fixed;
-  bottom: 20px;
+  bottom: $spacing-6;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1000;
-  min-width: 400px;
+  z-index: 1030;
+  min-width: 500px;
+  animation: slideUp $duration-slow $easing-ease-out;
+
+  :deep(.el-card) {
+    background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
+    border: none;
+    box-shadow: $shadow-lg;
+
+    .el-card__body {
+      padding: $spacing-4 $spacing-5;
+    }
+  }
 
   .batch-content {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    gap: $spacing-6;
+
+    span {
+      color: white;
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+    }
 
     .batch-buttons {
       display: flex;
-      gap: 10px;
+      gap: $spacing-3;
     }
   }
 }
 
-// Responsive
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+// 响应式设计
+@media (max-width: 1200px) {
+  .template-list {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
-    gap: 10px;
-    text-align: center;
+    align-items: flex-start;
+    gap: $spacing-4;
+    padding: $spacing-5;
+
+    .page-title {
+      font-size: $font-size-2xl;
+    }
+
+    .header-actions {
+      width: 100%;
+
+      .el-button {
+        flex: 1;
+      }
+    }
+  }
+
+  .filter-card {
+    :deep(.el-form--inline .el-form-item) {
+      display: block;
+      margin-right: 0;
+      margin-bottom: $spacing-4;
+    }
+
+    :deep(.el-form-item__content) {
+      width: 100%;
+
+      .el-input,
+      .el-select {
+        width: 100%;
+      }
+    }
+  }
+
+  .view-toggle {
+    justify-content: center;
+  }
+
+  .template-card {
+    .template-body {
+      .template-meta {
+        flex-direction: column;
+        gap: $spacing-2;
+      }
+    }
   }
 
   .batch-actions {
@@ -649,16 +910,53 @@ onMounted(() => {
 
     .batch-content {
       flex-direction: column;
-      gap: 10px;
+      gap: $spacing-3;
 
       .batch-buttons {
         width: 100%;
-        justify-content: center;
+        display: flex;
+        flex-direction: column;
 
         .el-button {
-          flex: 1;
+          width: 100%;
         }
       }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding: $spacing-4;
+  }
+
+  .filter-card,
+  .table-card {
+    :deep(.el-card__body) {
+      padding: $spacing-4;
+    }
+  }
+
+  .template-card .template-header {
+    padding: $spacing-4;
+
+    .template-icon {
+      width: 48px;
+      height: 48px;
+      font-size: 20px;
+    }
+  }
+
+  .template-card .template-body {
+    padding: $spacing-4;
+  }
+
+  .template-card .template-footer {
+    padding: $spacing-3 $spacing-4;
+    flex-direction: column;
+
+    .el-button {
+      width: 100%;
     }
   }
 }
