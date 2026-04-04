@@ -54,7 +54,7 @@ void CrawlerApiModule::setWebSocket(std::shared_ptr<WebSocketModule> module) {
 
 void CrawlerApiModule::registerRoutes() {
     auto& router = Router::getInstance();
-    std::string prefix = getRoutePrefix();
+    std::string prefix = "/api/crawler";  // TODO: 使用getRoutePrefix() - 当前返回空字符串
 
     // ========================================================================
     // 模板管理接口

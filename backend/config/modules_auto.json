@@ -209,6 +209,50 @@
           "optional": true
         }
       ]
+    },
+    {
+      "name": "CrawlerApi",
+      "version": "1.0.0",
+      "description": "Crawler system REST API and WebSocket interface",
+      "type": "BUSINESS",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/crawler",
+      "libraryPath": "./modules/dynamic/Release/libCrawlerApiModule.dll",
+      "loadPriority": 50,
+      "endpoints": [
+        "POST /api/crawler/templates",
+        "GET /api/crawler/templates",
+        "GET /api/crawler/templates/:id",
+        "PUT /api/crawler/templates/:id",
+        "DELETE /api/crawler/templates/:id",
+        "POST /api/crawler/templates/validate",
+        "POST /api/crawler/templates/:id/test",
+        "GET /api/crawler/templates/:id/export",
+        "POST /api/crawler/templates/import",
+        "POST /api/crawler/tasks",
+        "GET /api/crawler/tasks",
+        "GET /api/crawler/tasks/:id",
+        "DELETE /api/crawler/tasks/:id",
+        "POST /api/crawler/tasks/:id/retry",
+        "GET /api/crawler/tasks/:id/logs",
+        "GET /api/crawler/tasks/statistics",
+        "POST /api/crawler/schedules",
+        "GET /api/crawler/schedules",
+        "PUT /api/crawler/schedules/:id",
+        "DELETE /api/crawler/schedules/:id",
+        "POST /api/crawler/schedules/:id/enable",
+        "POST /api/crawler/schedules/:id/disable",
+        "POST /api/crawler/schedules/:id/trigger",
+        "GET /api/crawler/workers",
+        "GET /api/crawler/workers/:id",
+        "POST /api/crawler/workers/:id/disable",
+        "GET /api/crawler/workers/:id/statistics",
+        "GET /api/crawler/dashboard",
+        "GET /api/crawler/statistics",
+        "WS /api/crawler/ws"
+      ],
+      "dependencies": []
     }
   ]
 }
