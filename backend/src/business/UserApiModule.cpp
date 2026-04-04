@@ -582,15 +582,21 @@ std::string UserApiModule::hashPassword(const std::string& password) {
 // ============================================================================
 
 HttpResponse UserApiModule::handleListUsers(const HttpRequest& req) {
+    std::cout << "[UserApi] handleListUsers: Starting..." << std::endl;
     try {
         // 优雅降级：没有数据库时返回空列表
         if (!database_) {
+            std::cout << "[UserApi] handleListUsers: No database, returning empty list" << std::endl;
             nlohmann::json response;
             response["users"] = nlohmann::json::array();
             response["total"] = 0;
             response["page"] = 1;
             response["limit"] = 20;
-            return buildJsonResponse(true, "Users retrieved (no database)", response);
+
+            std::cout << "[UserApi] handleListUsers: Calling buildJsonResponse with statusCode 200..." << std::endl;
+            auto result = buildJsonResponse(200, "Users retrieved (no database)", response);
+            std::cout << "[UserApi] handleListUsers: Built response statusCode=" << result.statusCode << " statusText=" << result.statusText << std::endl;
+            return result;
         }
 
         // 解析查询参数
@@ -619,7 +625,7 @@ HttpResponse UserApiModule::handleListUsers(const HttpRequest& req) {
         response["page"] = page;
         response["limit"] = limit;
 
-        return buildJsonResponse(true, "Users retrieved", response);
+        return buildJsonResponse(200, "Users retrieved", response);
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -646,7 +652,7 @@ HttpResponse UserApiModule::handleGetUser(const HttpRequest& req) {
         }
 
         nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
-        return buildJsonResponse(true, "User retrieved", data);
+        return buildJsonResponse(200, "User retrieved", data);
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -654,9 +660,12 @@ HttpResponse UserApiModule::handleGetUser(const HttpRequest& req) {
 }
 
 HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
+    std::cout << "[UserApi] handleCreateUser: Starting..." << std::endl;
     try {
+        std::cout << "[UserApi] handleCreateUser: Parsing JSON body..." << std::endl;
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
+            std::cout << "[UserApi] handleCreateUser: Invalid JSON format" << std::endl;
             return buildJsonResponse(400, "Invalid JSON format");
         }
 
@@ -682,7 +691,7 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
             data["status"] = "active";
             data["createdAt"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
-            return buildJsonResponse(true, "User created successfully (stub mode)", data);
+            return buildJsonResponse(200, "User created successfully (stub mode)", data);
         }
 
         UserCreateRequest request;
@@ -697,7 +706,7 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
         }
 
         nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
-        return buildJsonResponse(true, "User created successfully", data);
+        return buildJsonResponse(200, "User created successfully", data);
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -741,7 +750,7 @@ HttpResponse UserApiModule::handleUpdateUser(const HttpRequest& req) {
         }
 
         nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
-        return buildJsonResponse(true, "User updated successfully", data);
+        return buildJsonResponse(200, "User updated successfully", data);
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -767,7 +776,7 @@ HttpResponse UserApiModule::handleDeleteUser(const HttpRequest& req) {
             return buildJsonResponse(404, "User not found");
         }
 
-        return buildJsonResponse(true, "User deleted successfully");
+        return buildJsonResponse(200, "User deleted successfully");
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -793,7 +802,7 @@ HttpResponse UserApiModule::handleActivateUser(const HttpRequest& req) {
             return buildJsonResponse(404, "User not found");
         }
 
-        return buildJsonResponse(true, "User activated successfully");
+        return buildJsonResponse(200, "User activated successfully");
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -819,7 +828,7 @@ HttpResponse UserApiModule::handleSuspendUser(const HttpRequest& req) {
             return buildJsonResponse(404, "User not found");
         }
 
-        return buildJsonResponse(true, "User suspended successfully");
+        return buildJsonResponse(200, "User suspended successfully");
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -862,7 +871,7 @@ HttpResponse UserApiModule::handleChangePassword(const HttpRequest& req) {
             return buildJsonResponse(400, "Failed to change password");
         }
 
-        return buildJsonResponse(true, "Password changed successfully");
+        return buildJsonResponse(200, "Password changed successfully");
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
@@ -892,7 +901,7 @@ HttpResponse UserApiModule::handleGetStats(const HttpRequest& req) {
             stats["adminCount"] = 0;
             stats["userCount"] = 0;
             stats["guestCount"] = 0;
-            return buildJsonResponse(true, "Stats retrieved (no database)", stats);
+            return buildJsonResponse(200, "Stats retrieved (no database)", stats);
         }
 
         UserStats stats = getStats();
@@ -906,7 +915,7 @@ HttpResponse UserApiModule::handleGetStats(const HttpRequest& req) {
         response["userCount"] = stats.userCount;
         response["guestCount"] = stats.guestCount;
 
-        return buildJsonResponse(true, "Stats retrieved", response);
+        return buildJsonResponse(200, "Stats retrieved", response);
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));
