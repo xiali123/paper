@@ -159,7 +159,12 @@ service.interceptors.response.use(
 
     // Handle other errors
     const apiError: ApiError = transformApiError(error)
-    if (import.meta.env.DEV) {
+
+    // Check if this is a 404 error (API not implemented yet)
+    const is404 = apiError.status === 404 || apiError.code === 'ERR_BAD_REQUEST'
+
+    // Only log errors in development, and skip 404 errors entirely
+    if (import.meta.env.DEV && !is404) {
       console.error(`❌ API Error: ${apiError.config?.method?.toUpperCase()} ${apiError.config?.url} - ${duration}ms`)
       console.error('Type:', apiError.type, 'Code:', apiError.code, 'Status:', apiError.status)
       console.error('Message:', apiError.userMessage)
@@ -167,7 +172,6 @@ service.interceptors.response.use(
 
     // Show user-friendly error message
     // Skip showing messages for 404 errors (API not implemented yet) in development
-    const is404 = apiError.status === 404 || apiError.code === 'ERR_BAD_REQUEST'
     const shouldShowMessage = apiError.type !== 'NETWORK' && !is404 && typeof window !== 'undefined'
 
     if (shouldShowMessage) {
