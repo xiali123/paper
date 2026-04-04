@@ -766,6 +766,7 @@ void PaperApiModule::registerRoutes() {
         spdlog::error("[PaperApi] ❌ Exception subscribing to database messages: {}", e.what());
         spdlog::warn("[PaperApi] Will continue with stub mode");
     }
+    }
 
     // GET /api/papers - 论文列表
     router.get(prefix, [this](const HttpRequest& req) {

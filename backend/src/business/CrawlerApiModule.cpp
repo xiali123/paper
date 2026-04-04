@@ -105,9 +105,6 @@ void CrawlerApiModule::registerRoutes() {
 
         spdlog::info("[CrawlerApi] Successfully subscribed to database connection messages");
     }
-    );
-
-    spdlog::info("[CrawlerApi] Successfully subscribed to database connection messages");
 
     // ========================================================================
     // 模板管理接口

@@ -59,9 +59,9 @@ set(SOURCES
     src/core/Config.cpp
     src/core/Logger.cpp
     src/network/HttpClient.cpp
-    src/parser/HtmlParser.cpp
-    src/parser/DblpParser.cpp
-    src/parser/HuibanParser.cpp
+    # src/parser/HtmlParser.cpp  # 暂时注释，文件不存在
+    # src/parser/DblpParser.cpp   # 暂时注释，文件不存在
+    # src/parser/HuibanParser.cpp  # 暂时注释，文件不存在
     src/database/DatabaseManager.cpp
     src/database/PaperRepository.cpp
     src/database/JournalRepository.cpp

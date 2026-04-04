@@ -582,6 +582,7 @@ void RecommendationApiModule::registerRoutes() {
     );
 
     spdlog::info("[RecommendationApi] Successfully subscribed to database connection messages");
+    }
 
     // GET /api/recommendations/papers - 论文推荐
     router.get(prefix + "/papers", [this](const HttpRequest& req) {

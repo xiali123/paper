@@ -365,26 +365,26 @@ void SearchApiModule::registerRoutes() {
 
     // 🔔 优先级3：回退到MessageBus（保留原有逻辑）
     if (!database_) {
-    std::string prefix = getRoutePrefix(); // "/api/search"
-    // 订阅MessageBus消息
-    auto& messageBus = MessageBus::getInstance();
-    messageBus.registerHandler(MessageType::CUSTOM,
-        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
-            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
-            if (dbMsg && dbMsg->isSuccess()) {
-                impl_->database_ = dbMsg->getConnection();
-                spdlog::info("[SearchApi] ✅ Received database connection from MessageBus!");
-            }
-            // 返回确认消息
-            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "SearchApi", "DatabaseModule");
-            response->setData("acknowledged", true);
-            response->setData("moduleName", "SearchApi");
-            return response;
-        },
-        "SearchApi"
-    );
+        // 订阅MessageBus消息
+        auto& messageBus = MessageBus::getInstance();
+        messageBus.registerHandler(MessageType::CUSTOM,
+            [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+                auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+                if (dbMsg && dbMsg->isSuccess()) {
+                    impl_->database_ = dbMsg->getConnection();
+                    spdlog::info("[SearchApi] ✅ Received database connection from MessageBus!");
+                }
+                // 返回确认消息
+                auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "SearchApi", "DatabaseModule");
+                response->setData("acknowledged", true);
+                response->setData("moduleName", "SearchApi");
+                return response;
+            },
+            "SearchApi"
+        );
 
-    spdlog::info("[SearchApi] Successfully subscribed to database connection messages");
+        spdlog::info("[SearchApi] Successfully subscribed to database connection messages");
+    }
 
     // GET /api/search - 基础搜索
     router.get(prefix, [this](const HttpRequest& req) {

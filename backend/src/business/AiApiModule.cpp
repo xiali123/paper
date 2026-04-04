@@ -502,6 +502,7 @@ void AiApiModule::registerRoutes() {
     );
 
     spdlog::info("[AiApi] Successfully subscribed to database connection messages");
+    }
 
     // POST /api/ai/summarize - 生成摘要
     router.post(prefix + "/summarize", [this](const HttpRequest& req) {

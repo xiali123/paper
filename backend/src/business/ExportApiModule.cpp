@@ -665,6 +665,7 @@ void ExportApiModule::registerRoutes() {
     );
 
     spdlog::info("[ExportApi] Successfully subscribed to database connection messages");
+    }
 
     // GET /api/export - 获取导出任务列表
     router.get(prefix, [this](const HttpRequest& req) {

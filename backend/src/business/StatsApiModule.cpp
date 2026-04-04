@@ -1,5 +1,6 @@
 #include <iostream>
 #include "business/StatsApiModule.hpp"
+#include "data/DatabaseModule.hpp"
 #include "data/IDatabase.hpp"
 #include "core/ModuleRegistry.hpp"
 #include "core/Router.hpp"
