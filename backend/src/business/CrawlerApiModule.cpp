@@ -5,6 +5,8 @@
 #include "data/IDatabase.hpp"
 #include "data/PreparedStatement.hpp"
 #include "core/Services.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include "features/LoggingModule.hpp"
 #include "common/JsonUtils.hpp"
 #include <iostream>
@@ -57,6 +59,26 @@ void CrawlerApiModule::registerRoutes() {
     std::string prefix = getRoutePrefix();  // 使用getRoutePrefix()
 
     spdlog::info("[CrawlerApi] registerRoutes() called, prefix = '{}'", prefix);
+
+    // 订阅MessageBus消息
+    auto& messageBus = MessageBus::getInstance();
+    messageBus.registerHandler(MessageType::CUSTOM,
+        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+            if (dbMsg && dbMsg->isSuccess()) {
+                database_ = dbMsg->getConnection();
+                spdlog::info("[CrawlerApi] ✅ Received database connection from MessageBus!");
+            }
+            // 返回确认消息
+            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "CrawlerApi", "DatabaseModule");
+            response->setData("acknowledged", true);
+            response->setData("moduleName", "CrawlerApi");
+            return response;
+        },
+        "CrawlerApi"
+    );
+
+    spdlog::info("[CrawlerApi] Successfully subscribed to database connection messages");
 
     // ========================================================================
     // 模板管理接口

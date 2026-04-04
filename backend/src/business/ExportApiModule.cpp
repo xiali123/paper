@@ -2,6 +2,8 @@
 #include "business/ExportApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "core/Router.hpp"
+#include "core/MessageBus.hpp"
+#include "messages/DatabaseConnectionMessage.hpp"
 #include <sstream>
 #include <iomanip>
 #include <fstream>
@@ -619,6 +621,26 @@ void ExportApiModule::registerRoutes() {
     std::string prefix = getRoutePrefix(); // "/api/export"
 
     spdlog::info("[ExportApiModule] Registering routes with prefix: {}", prefix);
+
+    // 订阅MessageBus消息
+    auto& messageBus = MessageBus::getInstance();
+    messageBus.registerHandler(MessageType::CUSTOM,
+        [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
+            auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
+            if (dbMsg && dbMsg->isSuccess()) {
+                impl_->database_ = dbMsg->getConnection();
+                spdlog::info("[ExportApi] ✅ Received database connection from MessageBus!");
+            }
+            // 返回确认消息
+            auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "ExportApi", "DatabaseModule");
+            response->setData("acknowledged", true);
+            response->setData("moduleName", "ExportApi");
+            return response;
+        },
+        "ExportApi"
+    );
+
+    spdlog::info("[ExportApi] Successfully subscribed to database connection messages");
 
     // GET /api/export - 获取导出任务列表
     router.get(prefix, [this](const HttpRequest& req) {
