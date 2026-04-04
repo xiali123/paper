@@ -174,7 +174,7 @@
   </div>
 </template>
 
-<script setup lang="ts" generic="T extends Record<string, any>>
+<script setup lang="ts" generic="T extends Record<string, any> ">
 import { ref, computed, watch } from 'vue'
 
 /**
