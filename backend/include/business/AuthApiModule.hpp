@@ -296,8 +296,9 @@ private:
     std::string handleGetCurrentUser(const std::map<std::string, std::string>& headers);
     std::string handleRegister(const std::string& body);
     std::string handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers);
-    std::string handleInitiatePasswordReset(const std::string& body);
-    std::string handleCompletePasswordReset(const std::string& body);
+    std::string handleResetPassword(const std::string& body);
+    std::string handleGetSessions(const std::map<std::string, std::string>& headers);
+    std::string handleDeleteSession(const std::map<std::string, std::string>& params, const std::map<std::string, std::string>& headers);
 
     AuthConfig config_;
     AuthStats stats_;

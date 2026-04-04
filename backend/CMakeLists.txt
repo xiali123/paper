@@ -795,7 +795,7 @@ add_dynamic_module_with_system(PaperApiModule
 )
 
 # 阶段4：AuthApiModule动态化
-add_dynamic_module(AuthApiModule
+add_dynamic_module_with_system(AuthApiModule
     src/business/AuthApiModule.cpp
 )
 

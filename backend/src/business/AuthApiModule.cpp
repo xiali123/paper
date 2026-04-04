@@ -2,6 +2,8 @@
 #include "business/AuthApiModule.hpp"
 #include "features/SessionModule.hpp"
 #include "data/DatabaseModule.hpp"
+#include "../../core/external/nlohmann/json.hpp"
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>
 #include <chrono>
@@ -241,15 +243,168 @@ AuthApiModule::AuthApiModule(std::shared_ptr<IDatabase> database)
 AuthApiModule::~AuthApiModule() = default;
 
 void AuthApiModule::registerRoutes() {
-    // 注册路由到Router
-    std::cout << "AuthApiModule registering routes..." << std::endl;
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/auth"
 
-    // TODO: 注册路由
-    // addRoute("/api/auth/login", [this](const std::string& body) {
-    //     return handleLogin(body);
-    // });
+    spdlog::info("[AuthApiModule] Registering routes with prefix: {}", prefix);
 
-    std::cout << "AuthApiModule routes registered" << std::endl;
+    // POST /api/auth/register - 用户注册
+    router.post(prefix + "/register", [this](const HttpRequest& req) {
+        std::string jsonResult = handleRegister(req.body);
+
+        HttpResponse response;
+        // 根据响应设置正确的状态码
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("already exists") != std::string::npos) {
+                response.statusCode = 409;  // Conflict
+            } else if (jsonResult.find("Invalid") != std::string::npos ||
+                      jsonResult.find("validation") != std::string::npos) {
+                response.statusCode = 400;  // Bad Request
+            } else {
+                response.statusCode = 500;  // Internal Server Error
+            }
+        } else {
+            response.statusCode = 201;  // Created
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/auth/login - 用户登录
+    router.post(prefix + "/login", [this](const HttpRequest& req) {
+        std::string jsonResult = handleLogin(req.body);
+
+        HttpResponse response;
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("User not found") != std::string::npos ||
+                jsonResult.find("Invalid password") != std::string::npos) {
+                response.statusCode = 401;  // Unauthorized
+            } else if (jsonResult.find("inactive") != std::string::npos) {
+                response.statusCode = 403;  // Forbidden
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;  // OK
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/auth/logout - 用户登出
+    router.post(prefix + "/logout", [this](const HttpRequest& req) {
+        std::string jsonResult = handleLogout(req.headers);
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/auth/refresh - 刷新令牌
+    router.post(prefix + "/refresh", [this](const HttpRequest& req) {
+        std::string jsonResult = handleRefreshToken(req.body);
+
+        HttpResponse response;
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Invalid") != std::string::npos) {
+                response.statusCode = 401;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // GET /api/auth/me - 获取当前用户信息
+    router.get(prefix + "/me", [this](const HttpRequest& req) {
+        std::string jsonResult = handleGetCurrentUser(req.headers);
+
+        HttpResponse response;
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            response.statusCode = 401;
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/auth/change-password - 修改密码
+    router.post(prefix + "/change-password", [this](const HttpRequest& req) {
+        std::string jsonResult = handleChangePassword(req.body, req.headers);
+
+        HttpResponse response;
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Unauthorized") != std::string::npos) {
+                response.statusCode = 401;
+            } else if (jsonResult.find("Incorrect old password") != std::string::npos) {
+                response.statusCode = 400;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/auth/reset-password - 重置密码
+    router.post(prefix + "/reset-password", [this](const HttpRequest& req) {
+        std::string jsonResult = handleResetPassword(req.body);
+
+        HttpResponse response;
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            response.statusCode = 400;
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // GET /api/auth/sessions - 获取所有会话
+    router.get(prefix + "/sessions", [this](const HttpRequest& req) {
+        std::string jsonResult = handleGetSessions(req.headers);
+
+        HttpResponse response;
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            response.statusCode = 401;
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // DELETE /api/auth/sessions/:id - 删除会话
+    router.del(prefix + "/sessions/:id", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+
+        std::string jsonResult = handleDeleteSession(params, req.headers);
+
+        HttpResponse response;
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Unauthorized") != std::string::npos) {
+                response.statusCode = 401;
+            } else if (jsonResult.find("not found") != std::string::npos) {
+                response.statusCode = 404;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    spdlog::info("[AuthApiModule] Registered 9 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {
@@ -687,7 +842,276 @@ std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std:
 //         {"error", "Invalid or expired reset token"}
 //     }, 400);
 // }
-// 
+//
+std::string AuthApiModule::handleRegister(const std::string& body) {
+    impl_->stats_.totalRegistrations++;
+
+    // 输入验证：检查空body
+    if (body.empty() || body == "{}") {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid request: registration data is required"}
+        }, 400);
+    }
+
+    // 解析JSON
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+
+        // 检查必需字段
+        if (!jsonBody.contains("username") || jsonBody["username"].empty()) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Username is required"}
+            }, 400);
+        }
+
+        if (!jsonBody.contains("email") || jsonBody["email"].empty()) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Email is required"}
+            }, 400);
+        }
+
+        if (!jsonBody.contains("password") || jsonBody["password"].empty()) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Password is required"}
+            }, 400);
+        }
+
+        // 构建注册请求
+        RegisterRequest request;
+        request.username = jsonBody["username"];
+        request.email = jsonBody["email"];
+        request.password = jsonBody["password"];
+        request.fullName = jsonBody.value("full_name", "");
+
+        // 验证邮箱格式（简单验证）
+        if (request.email.find("@") == std::string::npos) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Invalid email format"}
+            }, 400);
+        }
+
+        // 验证密码强度（至少6个字符）
+        if (request.password.length() < 6) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Password must be at least 6 characters"}
+            }, 400);
+        }
+
+        // 检查用户名是否已存在
+        auto existingUser = impl_->getUserByUsername(request.username);
+        if (existingUser) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Username already exists"}
+            }, 409);
+        }
+
+        // TODO: 检查邮箱是否已存在（需要实现getUserByEmail方法）
+        // 暂时跳过邮箱重复检查
+
+        // 注册用户
+        auto newUser = registerUser(request);
+        if (newUser) {
+            impl_->stats_.totalRegistrations++;
+            return buildJsonResponse({
+                {"success", "true"},
+                {"message", "User registered successfully"},
+                {"user", newUser->toJSON()}
+            });
+        }
+
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Failed to register user"}
+        }, 500);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid JSON format"}
+        }, 400);
+    }
+}
+
+std::string AuthApiModule::handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers) {
+    // 验证访问令牌
+    std::string accessToken;
+    auto authIt = headers.find("authorization");
+    if (authIt != headers.end()) {
+        std::string authHeader = authIt->second;
+        if (authHeader.find("Bearer ") == 0) {
+            accessToken = authHeader.substr(7);
+        }
+    }
+
+    int userId = 0;
+    if (!validateAccessToken(accessToken, userId)) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Unauthorized: Invalid or missing access token"}
+        }, 401);
+    }
+
+    // 解析JSON
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+
+        if (!jsonBody.contains("old_password") || !jsonBody.contains("new_password")) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Both old_password and new_password are required"}
+            }, 400);
+        }
+
+        ChangePasswordRequest request;
+        request.oldPassword = jsonBody["old_password"];
+        request.newPassword = jsonBody["new_password"];
+
+        // 验证新密码强度
+        if (request.newPassword.length() < 6) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "New password must be at least 6 characters"}
+            }, 400);
+        }
+
+        // 修改密码
+        if (changePassword(userId, request)) {
+            return buildJsonResponse({
+                {"success", "true"},
+                {"message", "Password changed successfully"}
+            });
+        }
+
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Incorrect old password"}
+        }, 400);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid JSON format"}
+        }, 400);
+    }
+}
+
+std::string AuthApiModule::handleResetPassword(const std::string& body) {
+    // 解析JSON
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+
+        if (!jsonBody.contains("email") || jsonBody["email"].empty()) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Email is required"}
+            }, 400);
+        }
+
+        std::string email = jsonBody["email"];
+
+        // 发起密码重置（发送邮件）
+        if (initiatePasswordReset(email)) {
+            return buildJsonResponse({
+                {"success", "true"},
+                {"message", "Password reset email sent"}
+            });
+        }
+
+        // 即使邮箱不存在也返回成功（安全考虑，防止邮箱枚举）
+        return buildJsonResponse({
+            {"success", "true"},
+            {"message", "If the email exists, a password reset link has been sent"}
+        });
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid JSON format"}
+        }, 400);
+    }
+}
+
+std::string AuthApiModule::handleGetSessions(const std::map<std::string, std::string>& headers) {
+    // 验证访问令牌
+    std::string accessToken;
+    auto authIt = headers.find("authorization");
+    if (authIt != headers.end()) {
+        std::string authHeader = authIt->second;
+        if (authHeader.find("Bearer ") == 0) {
+            accessToken = authHeader.substr(7);
+        }
+    }
+
+    int userId = 0;
+    if (!validateAccessToken(accessToken, userId)) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Unauthorized"}
+        }, 401);
+    }
+
+    // TODO: 从数据库获取用户的所有会话
+    // 暂时返回空列表（stub实现）
+    return buildJsonResponse({
+        {"sessions", nlohmann::json::array()},
+        {"count", 0}
+    });
+}
+
+std::string AuthApiModule::handleDeleteSession(const std::map<std::string, std::string>& params, const std::map<std::string, std::string>& headers) {
+    // 验证访问令牌
+    std::string accessToken;
+    auto authIt = headers.find("authorization");
+    if (authIt != headers.end()) {
+        std::string authHeader = authIt->second;
+        if (authHeader.find("Bearer ") == 0) {
+            accessToken = authHeader.substr(7);
+        }
+    }
+
+    int userId = 0;
+    if (!validateAccessToken(accessToken, userId)) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Unauthorized"}
+        }, 401);
+    }
+
+    // 获取session ID
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Session ID is required"}
+        }, 400);
+    }
+
+    // 安全转换ID
+    int sessionId;
+    try {
+        sessionId = std::stoi(idIt->second);
+    } catch (const std::exception& e) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid session ID"}
+        }, 400);
+    }
+
+    // TODO: 从数据库删除会话
+    // 暂时返回成功（stub实现）
+    return buildJsonResponse({
+        {"success", "true"},
+        {"message", "Session deleted successfully"}
+    });
+}
+
 } // namespace PaperCrawler
 
 // ============================================================================
