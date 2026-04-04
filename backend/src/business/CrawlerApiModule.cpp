@@ -526,23 +526,240 @@ void CrawlerApiModule::handleWebSocketMessage(const WebSocketMessage& message) {
 }
 
 void CrawlerApiModule::handleWorkerRegister(const WebSocketMessage& message) {
-    // TODO: WebSocket功能暂未实现
+    if (!database_) {
+        return;
+    }
+
+    try {
+        // 解析注册消息
+        auto jsonOpt = JsonUtils::parse(message.data);
+        if (!jsonOpt.has_value()) {
+            return;
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string workerId = JsonUtils::getValue<std::string>(jsonObj, "workerId").value_or("");
+        std::string workerType = JsonUtils::getValue<std::string>(jsonObj, "workerType").value_or("HYBRID");
+        int maxTasks = JsonUtils::getValue<int>(jsonObj, "maxTasks").value_or(5);
+
+        if (workerId.empty()) {
+            return;
+        }
+
+        // 检查工作节点是否已存在
+        auto existingWorkers = database_->query(
+            "SELECT node_id FROM worker_nodes WHERE node_id = '" + workerId + "'"
+        );
+
+        if (existingWorkers.empty()) {
+            // 新工作节点，插入记录
+            std::string insertSql =
+                "INSERT INTO worker_nodes (node_id, node_type, status, max_concurrent_tasks, current_tasks, created_at) "
+                "VALUES ('" + workerId + "', '" + workerType + "', 'ONLINE', " +
+                std::to_string(maxTasks) + ", 0, datetime('now'))";
+            database_->execute(insertSql);
+        } else {
+            // 已存在，更新状态
+            std::string updateSql =
+                "UPDATE worker_nodes SET status = 'ONLINE', last_seen = datetime('now') "
+                "WHERE node_id = '" + workerId + "'";
+            database_->execute(updateSql);
+        }
+
+        // 发送确认消息
+        if (websocket_) {
+            nlohmann::json response;
+            response["type"] = "register_confirm";
+            response["workerId"] = workerId;
+            response["status"] = "REGISTERED";
+            response["timestamp"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            websocket_->send(message.connectionId, response.dump());
+        }
+
+    } catch (const std::exception& e) {
+        // 静默处理错误
+    }
 }
 
 void CrawlerApiModule::handleWorkerHeartbeat(const WebSocketMessage& message) {
-    // TODO: WebSocket功能暂未实现
+    if (!database_) {
+        return;
+    }
+
+    try {
+        // 解析心跳消息
+        auto jsonOpt = JsonUtils::parse(message.data);
+        if (!jsonOpt.has_value()) {
+            return;
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string workerId = JsonUtils::getValue<std::string>(jsonObj, "workerId").value_or("");
+        int currentTasks = JsonUtils::getValue<int>(jsonObj, "currentTasks").value_or(0);
+        std::string status = JsonUtils::getValue<std::string>(jsonObj, "status").value_or("ONLINE");
+
+        if (workerId.empty()) {
+            return;
+        }
+
+        // 更新工作节点心跳
+        std::string updateSql =
+            "UPDATE worker_nodes SET "
+            "current_tasks = " + std::to_string(currentTasks) + ", "
+            "status = '" + status + "', "
+            "last_seen = datetime('now') "
+            "WHERE node_id = '" + workerId + "'";
+        database_->execute(updateSql);
+
+        // 发送心跳响应
+        if (websocket_) {
+            nlohmann::json response;
+            response["type"] = "heartbeat_ack";
+            response["workerId"] = workerId;
+            response["timestamp"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            websocket_->send(message.connectionId, response.dump());
+        }
+
+    } catch (const std::exception& e) {
+        // 静默处理错误
+    }
 }
 
 void CrawlerApiModule::handleTaskResult(const WebSocketMessage& message) {
-    // TODO: WebSocket功能暂未实现
+    if (!database_) {
+        return;
+    }
+
+    try {
+        // 解析任务结果消息
+        auto jsonOpt = JsonUtils::parse(message.data);
+        if (!jsonOpt.has_value()) {
+            return;
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string taskId = JsonUtils::getValue<std::string>(jsonObj, "taskId").value_or("");
+        std::string status = JsonUtils::getValue<std::string>(jsonObj, "status").value_or("COMPLETED");
+        int papersFound = JsonUtils::getValue<int>(jsonObj, "papersFound").value_or(0);
+
+        if (taskId.empty()) {
+            return;
+        }
+
+        // 更新任务状态
+        std::string updateSql =
+            "UPDATE distributed_crawl_tasks SET "
+            "status = '" + status + "', "
+            "papers_found = " + std::to_string(papersFound) + ", "
+            "completed_at = datetime('now') "
+            "WHERE task_id = '" + taskId + "'";
+        database_->execute(updateSql);
+
+        // 发送确认消息
+        if (websocket_) {
+            nlohmann::json response;
+            response["type"] = "result_ack";
+            response["taskId"] = taskId;
+            response["status"] = "RECEIVED";
+            response["timestamp"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            websocket_->send(message.connectionId, response.dump());
+        }
+
+    } catch (const std::exception& e) {
+        // 静默处理错误
+    }
 }
 
 void CrawlerApiModule::handleTaskProgress(const WebSocketMessage& message) {
-    // TODO: WebSocket功能暂未实现
+    if (!database_) {
+        return;
+    }
+
+    try {
+        // 解析任务进度消息
+        auto jsonOpt = JsonUtils::parse(message.data);
+        if (!jsonOpt.has_value()) {
+            return;
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string taskId = JsonUtils::getValue<std::string>(jsonObj, "taskId").value_or("");
+        int progress = JsonUtils::getValue<int>(jsonObj, "progress").value_or(0);
+        std::string message_text = JsonUtils::getValue<std::string>(jsonObj, "message").value_or("");
+
+        if (taskId.empty()) {
+            return;
+        }
+
+        // 更新任务进度（如果有相关字段）
+        // 目前数据库表可能没有progress字段，先记录到日志
+        // TODO: 如果需要进度跟踪，可以添加task_progress表
+
+        // 广播进度更新到所有订阅的客户端
+        if (websocket_) {
+            nlohmann::json response;
+            response["type"] = "progress_update";
+            response["taskId"] = taskId;
+            response["progress"] = progress;
+            response["message"] = message_text;
+            response["timestamp"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+
+            // 广播到所有连接
+            websocket_->publish("/task_progress", response.dump());
+        }
+
+    } catch (const std::exception& e) {
+        // 静默处理错误
+    }
 }
 
 void CrawlerApiModule::handleErrorReport(const WebSocketMessage& message) {
-    // TODO: WebSocket功能暂未实现
+    if (!database_) {
+        return;
+    }
+
+    try {
+        // 解析错误报告消息
+        auto jsonOpt = JsonUtils::parse(message.data);
+        if (!jsonOpt.has_value()) {
+            return;
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string taskId = JsonUtils::getValue<std::string>(jsonObj, "taskId").value_or("");
+        std::string workerId = JsonUtils::getValue<std::string>(jsonObj, "workerId").value_or("");
+        std::string errorType = JsonUtils::getValue<std::string>(jsonObj, "errorType").value_or("UNKNOWN");
+        std::string errorMessage = JsonUtils::getValue<std::string>(jsonObj, "errorMessage").value_or("");
+
+        if (taskId.empty()) {
+            return;
+        }
+
+        // 更新任务状态为失败
+        std::string updateSql =
+            "UPDATE distributed_crawl_tasks SET "
+            "status = 'FAILED', "
+            "error_message = '" + errorMessage + "', "
+            "completed_at = datetime('now') "
+            "WHERE task_id = '" + taskId + "'";
+        database_->execute(updateSql);
+
+        // 记录错误到日志表（如果存在）
+        // TODO: 创建error_logs表来记录详细错误
+
+        // 发送确认消息
+        if (websocket_) {
+            nlohmann::json response;
+            response["type"] = "error_ack";
+            response["taskId"] = taskId;
+            response["status"] = "RECORDED";
+            response["timestamp"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            websocket_->send(message.connectionId, response.dump());
+        }
+
+    } catch (const std::exception& e) {
+        // 静默处理错误
+    }
 }
 
 
@@ -685,38 +902,253 @@ HttpResponse CrawlerApiModule::handleImportTemplate(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
-    // TODO: 实现创建定时任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto jsonOpt = JsonUtils::parse(req.body);
+        if (!jsonOpt.has_value()) {
+            return buildJsonResponse(false, "Invalid JSON format");
+        }
+
+        auto jsonObj = jsonOpt.value();
+        std::string name = JsonUtils::getValue<std::string>(jsonObj, "name").value_or("");
+        std::string templateId = JsonUtils::getValue<std::string>(jsonObj, "templateId").value_or("");
+        std::string cronExpression = JsonUtils::getValue<std::string>(jsonObj, "cronExpression").value_or("");
+        std::string parameters = JsonUtils::getValue<std::string>(jsonObj, "parameters").value_or("{}");
+
+        if (name.empty() || templateId.empty()) {
+            return buildJsonResponse(false, "Missing required fields: name, templateId");
+        }
+
+        // 生成定时任务ID
+        std::string scheduleId = "schedule_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+
+        // 创建定时任务记录
+        std::string insertSql =
+            "INSERT INTO scheduled_tasks (schedule_id, name, template_id, cron_expression, parameters, enabled, created_at) "
+            "VALUES ('" + scheduleId + "', '" + name + "', '" + templateId + "', '" +
+            cronExpression + "', '" + parameters + "', 1, datetime('now'))";
+        database_->execute(insertSql);
+
+        nlohmann::json response;
+        response["scheduleId"] = scheduleId;
+        response["name"] = name;
+        response["templateId"] = templateId;
+        response["enabled"] = true;
+
+        return buildJsonResponse(true, "Schedule created successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleListSchedules(const HttpRequest& req) {
-    // TODO: 实现列出定时任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        // 查询所有定时任务
+        auto rows = database_->query(
+            "SELECT schedule_id, name, template_id, cron_expression, enabled, created_at "
+            "FROM scheduled_tasks ORDER BY created_at DESC"
+        );
+
+        nlohmann::json schedules = nlohmann::json::array();
+        for (const auto& row : rows) {
+            nlohmann::json schedule;
+            schedule["scheduleId"] = row.at("schedule_id");
+            schedule["name"] = row.at("name");
+            schedule["templateId"] = row.at("template_id");
+            schedule["cronExpression"] = row.at("cron_expression");
+            schedule["enabled"] = row.at("enabled") == "1";
+            schedule["createdAt"] = row.at("created_at");
+            schedules.push_back(schedule);
+        }
+
+        nlohmann::json response;
+        response["schedules"] = schedules;
+        response["total"] = schedules.size();
+
+        return buildJsonResponse(true, "Schedules retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleUpdateSchedule(const HttpRequest& req) {
-    // TODO: 实现更新定时任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto scheduleIdIt = req.pathParams.find("id");
+        if (scheduleIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing schedule ID");
+        }
+        std::string scheduleId = scheduleIdIt->second;
+
+        auto jsonOpt = JsonUtils::parse(req.body);
+        if (!jsonOpt.has_value()) {
+            return buildJsonResponse(false, "Invalid JSON format");
+        }
+
+        auto jsonObj = jsonOpt.value();
+
+        // 构建更新SQL
+        std::string updateSql = "UPDATE scheduled_tasks SET ";
+        bool hasUpdate = false;
+
+        if (jsonObj.contains("name")) {
+            std::string name = jsonObj["name"];
+            updateSql += "name = '" + name + "'";
+            hasUpdate = true;
+        }
+
+        if (jsonObj.contains("cronExpression")) {
+            std::string cron = jsonObj["cronExpression"];
+            if (hasUpdate) updateSql += ", ";
+            updateSql += "cron_expression = '" + cron + "'";
+            hasUpdate = true;
+        }
+
+        if (jsonObj.contains("parameters")) {
+            std::string params = jsonObj["parameters"];
+            if (hasUpdate) updateSql += ", ";
+            updateSql += "parameters = '" + params + "'";
+            hasUpdate = true;
+        }
+
+        if (!hasUpdate) {
+            return buildJsonResponse(false, "No fields to update");
+        }
+
+        updateSql += " WHERE schedule_id = '" + scheduleId + "'";
+        database_->execute(updateSql);
+
+        return buildJsonResponse(true, "Schedule updated successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleDeleteSchedule(const HttpRequest& req) {
-    // TODO: 实现删除定时任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto scheduleIdIt = req.pathParams.find("id");
+        if (scheduleIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing schedule ID");
+        }
+        std::string scheduleId = scheduleIdIt->second;
+
+        // 删除定时任务
+        std::string deleteSql = "DELETE FROM scheduled_tasks WHERE schedule_id = '" + scheduleId + "'";
+        database_->execute(deleteSql);
+
+        return buildJsonResponse(true, "Schedule deleted successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleEnableSchedule(const HttpRequest& req) {
-    // TODO: 实现启用定时任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto scheduleIdIt = req.pathParams.find("id");
+        if (scheduleIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing schedule ID");
+        }
+        std::string scheduleId = scheduleIdIt->second;
+
+        // 启用定时任务
+        std::string updateSql = "UPDATE scheduled_tasks SET enabled = 1 WHERE schedule_id = '" + scheduleId + "'";
+        database_->execute(updateSql);
+
+        return buildJsonResponse(true, "Schedule enabled successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleDisableSchedule(const HttpRequest& req) {
-    // TODO: 实现禁用定时任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto scheduleIdIt = req.pathParams.find("id");
+        if (scheduleIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing schedule ID");
+        }
+        std::string scheduleId = scheduleIdIt->second;
+
+        // 禁用定时任务
+        std::string updateSql = "UPDATE scheduled_tasks SET enabled = 0 WHERE schedule_id = '" + scheduleId + "'";
+        database_->execute(updateSql);
+
+        return buildJsonResponse(true, "Schedule disabled successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
-    // TODO: 实现触发定时任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto scheduleIdIt = req.pathParams.find("id");
+        if (scheduleIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing schedule ID");
+        }
+        std::string scheduleId = scheduleIdIt->second;
+
+        // 查询定时任务配置
+        auto schedules = database_->query(
+            "SELECT template_id, parameters FROM scheduled_tasks WHERE schedule_id = '" + scheduleId + "'"
+        );
+
+        if (schedules.empty()) {
+            return buildJsonResponse(false, "Schedule not found");
+        }
+
+        auto& schedule = schedules[0];
+        std::string templateId = schedule.at("template_id");
+        std::string parameters = schedule.at("parameters");
+
+        // 创建新任务
+        std::string taskId = "task_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+
+        std::string insertSql =
+            "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
+            "VALUES ('" + taskId + "', '" + templateId + "', 'PENDING', 'NORMAL', datetime('now'))";
+        database_->execute(insertSql);
+
+        nlohmann::json response;
+        response["scheduleId"] = scheduleId;
+        response["taskId"] = taskId;
+        response["templateId"] = templateId;
+
+        return buildJsonResponse(true, "Schedule triggered successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleListWorkers(const HttpRequest& req) {
