@@ -1,6 +1,8 @@
 #include <iostream>
+#include <fstream>
 #include "business/UserApiModule.hpp"
 #include "data/DatabaseModule.hpp"
+#include "data/IDatabase.hpp"
 #include "core/Router.hpp"
 #include "common/JsonUtils.hpp"
 #include "../../core/external/nlohmann/json.hpp"
@@ -11,6 +13,15 @@
 #include <chrono>
 
 namespace PaperCrawler {
+
+// ============================================================================
+// 本地数据库模块实例
+// ============================================================================
+
+namespace {
+    std::unique_ptr<DatabaseModule> g_localDatabaseModule;
+    bool g_databaseInitialized = false;
+}
 
 // ============================================================================
 // 辅助函数：JSON序列化
@@ -355,6 +366,27 @@ void UserApiModule::registerRoutes() {
     std::cout << "UserApiModule registering routes..." << std::endl;
     std::cout << "UserApiModule route prefix: [" << prefix << "]" << std::endl;
     std::cout << "UserApiModule router address: [" << (void*)&router << "]" << std::endl;
+
+    // 尝试初始化数据库连接（仅第一次）
+    if (!database_ && !g_databaseInitialized) {
+        std::cout << "[UserApi] No database connection set, trying to initialize local database..." << std::endl;
+
+        g_localDatabaseModule = std::make_unique<DatabaseModule>();
+
+        // 初始化数据库模块（使用硬编码配置）
+        if (g_localDatabaseModule->onInitialize()) {
+            // 设置database_为shared_ptr，不拥有所有权（使用nullptr删除器）
+            database_ = std::shared_ptr<IDatabase>(g_localDatabaseModule.get(), [](IDatabase* ptr) {
+                // 不删除，因为g_localDatabaseModule拥有生命周期
+                (void)ptr;
+            });
+            std::cout << "[UserApi] ✅ Database module initialized successfully!" << std::endl;
+            g_databaseInitialized = true;
+        } else {
+            std::cout << "[UserApi] ⚠️ Failed to initialize database, using stub mode" << std::endl;
+            g_databaseInitialized = true;  // 标记为已尝试，避免重复初始化
+        }
+    }
 
     // 用户列表（分页）
     std::string listPath = prefix;
