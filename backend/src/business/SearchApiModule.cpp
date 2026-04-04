@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <regex>
 #include <cmath>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -328,11 +329,66 @@ std::vector<TrendingSearch> SearchApiModule::calculateTrendingSearches() {
 }
 
 void SearchApiModule::registerRoutes() {
-    // 注册路由到Router
-    std::cout << "SearchApiModule registering routes..." << std::endl;
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix(); // "/api/search"
 
-    // TODO: 注册路由
-    std::cout << "SearchApiModule routes registered" << std::endl;
+    spdlog::info("[SearchApiModule] Registering routes with prefix: {}", prefix);
+
+    // GET /api/search - 基础搜索
+    router.get(prefix, [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"message\":\"Search endpoint (stub mode)\",\"results\":[],\"total\":0,\"query\":\"\"}";
+        return response;
+    });
+
+    // POST /api/search/advanced - 高级搜索
+    router.post(prefix + "/advanced", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"message\":\"Advanced search (stub mode)\",\"results\":[],\"total\":0}";
+        return response;
+    });
+
+    // GET /api/search/suggest - 搜索建议
+    router.get(prefix + "/suggest", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"suggestions\":[],\"count\":0}";
+        return response;
+    });
+
+    // GET /api/search/trending - 热门搜索
+    router.get(prefix + "/trending", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"trending\":[],\"count\":0}";
+        return response;
+    });
+
+    // GET /api/search/history - 搜索历史
+    router.get(prefix + "/history", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"history\":[],\"count\":0}";
+        return response;
+    });
+
+    // GET /api/search/stats - 搜索统计
+    router.get(prefix + "/stats", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        response.body = "{\"success\":\"true\",\"total_searches\":0,\"unique_queries\":0,\"average_results\":0}";
+        return response;
+    });
+
+    spdlog::info("[SearchApiModule] Registered 6 routes");
 }
 
 } // namespace PaperCrawler
