@@ -862,28 +862,208 @@ std::string CrawlerApiModule::escapeJson(const std::string& str) {
 // ============================================================================
 
 HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
-    // TODO: 实现获取任务详情
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto taskIdIt = req.pathParams.find("id");
+        if (taskIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing task ID");
+        }
+        std::string taskId = taskIdIt->second;
+
+        // 查询任务详情
+        auto tasks = database_->query(
+            "SELECT task_id, template_id, status, priority, papers_found, created_at, completed_at "
+            "FROM distributed_crawl_tasks WHERE task_id = '" + taskId + "'"
+        );
+
+        if (tasks.empty()) {
+            return buildJsonResponse(false, "Task not found");
+        }
+
+        auto& task = tasks[0];
+        nlohmann::json response;
+        response["taskId"] = task.at("task_id");
+        response["templateId"] = task.at("template_id");
+        response["status"] = task.at("status");
+        response["priority"] = task.at("priority");
+        response["papersFound"] = task.at("papers_found");
+        response["createdAt"] = task.at("created_at");
+        response["completedAt"] = task.at("completed_at");
+
+        return buildJsonResponse(true, "Task retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleCancelTask(const HttpRequest& req) {
-    // TODO: 实现取消任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto taskIdIt = req.pathParams.find("id");
+        if (taskIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing task ID");
+        }
+        std::string taskId = taskIdIt->second;
+
+        // 更新任务状态为已取消
+        std::string updateSql = "UPDATE distributed_crawl_tasks SET status = 'CANCELLED', completed_at = datetime('now') WHERE task_id = '" + taskId + "'";
+        database_->execute(updateSql);
+
+        return buildJsonResponse(true, "Task cancelled successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleRetryTask(const HttpRequest& req) {
-    // TODO: 实现重试任务
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto taskIdIt = req.pathParams.find("id");
+        if (taskIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing task ID");
+        }
+        std::string taskId = taskIdIt->second;
+
+        // 查询原任务信息
+        auto tasks = database_->query(
+            "SELECT template_id, priority FROM distributed_crawl_tasks WHERE task_id = '" + taskId + "'"
+        );
+
+        if (tasks.empty()) {
+            return buildJsonResponse(false, "Original task not found");
+        }
+
+        auto& task = tasks[0];
+        std::string templateId = task.at("template_id");
+        std::string priority = task.at("priority");
+
+        // 创建新任务（重试）
+        std::string newTaskId = "task_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+
+        std::string insertSql =
+            "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
+            "VALUES ('" + newTaskId + "', '" + templateId + "', 'PENDING', '" + priority + "', datetime('now'))";
+        database_->execute(insertSql);
+
+        nlohmann::json response;
+        response["originalTaskId"] = taskId;
+        response["newTaskId"] = newTaskId;
+        response["templateId"] = templateId;
+
+        return buildJsonResponse(true, "Task retry created successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleGetTaskLogs(const HttpRequest& req) {
-    // TODO: 实现获取任务日志
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto taskIdIt = req.pathParams.find("id");
+        if (taskIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing task ID");
+        }
+        std::string taskId = taskIdIt->second;
+
+        // 查询任务日志（如果存在task_logs表）
+        // 暂时返回任务状态作为"日志"
+        auto tasks = database_->query(
+            "SELECT status, created_at, completed_at, error_message "
+            "FROM distributed_crawl_tasks WHERE task_id = '" + taskId + "'"
+        );
+
+        if (tasks.empty()) {
+            return buildJsonResponse(false, "Task not found");
+        }
+
+        auto& task = tasks[0];
+        nlohmann::json response;
+        response["taskId"] = taskId;
+        response["logs"] = nlohmann::json::array();
+
+        // 添加状态变更日志
+        nlohmann::json log1;
+        log1["timestamp"] = task.at("created_at");
+        log1["event"] = "Task created";
+        log1["status"] = "PENDING";
+        response["logs"].push_back(log1);
+
+        nlohmann::json log2;
+        log2["timestamp"] = task.at("created_at");
+        log2["event"] = "Current status";
+        log2["status"] = task.at("status");
+        response["logs"].push_back(log2);
+
+        if (!task.at("error_message").empty() && task.at("error_message") != "NULL") {
+            nlohmann::json log3;
+            log3["timestamp"] = task.at("completed_at");
+            log3["event"] = "Error occurred";
+            log3["message"] = task.at("error_message");
+            response["logs"].push_back(log3);
+        }
+
+        return buildJsonResponse(true, "Task logs retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleGetTaskStatistics(const HttpRequest& req) {
-    // TODO: 实现获取任务统计
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        // 查询任务统计信息
+        auto stats = database_->query(
+            "SELECT status, COUNT(*) as count FROM distributed_crawl_tasks GROUP BY status"
+        );
+
+        nlohmann::json response;
+        response["statistics"] = nlohmann::json::object();
+        int totalTasks = 0;
+
+        for (const auto& row : stats) {
+            std::string status = row.at("status");
+            int count = std::stoi(row.at("count"));
+            response["statistics"][status] = count;
+            totalTasks += count;
+        }
+
+        response["totalTasks"] = totalTasks;
+
+        // 添加额外统计
+        auto completedStats = database_->query(
+            "SELECT COUNT(*) as count, AVG(papers_found) as avg_papers "
+            "FROM distributed_crawl_tasks WHERE status = 'COMPLETED'"
+        );
+
+        if (!completedStats.empty()) {
+            response["completedTasks"] = completedStats[0].at("count");
+            response["avgPapersPerTask"] = completedStats[0].at("avg_papers");
+        }
+
+        return buildJsonResponse(true, "Task statistics retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleUpdateTemplate(const HttpRequest& req) {
@@ -1152,28 +1332,212 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
 }
 
 HttpResponse CrawlerApiModule::handleListWorkers(const HttpRequest& req) {
-    // TODO: 实现列出工作节点
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        // 查询所有工作节点
+        auto workers = database_->query(
+            "SELECT node_id, node_type, status, max_concurrent_tasks, current_tasks, "
+            "tasks_completed, tasks_failed, created_at, last_seen "
+            "FROM worker_nodes ORDER BY last_seen DESC"
+        );
+
+        nlohmann::json response;
+        response["workers"] = nlohmann::json::array();
+
+        for (const auto& row : workers) {
+            nlohmann::json worker;
+            worker["nodeId"] = row.at("node_id");
+            worker["nodeType"] = row.at("node_type");
+            worker["status"] = row.at("status");
+            worker["maxConcurrentTasks"] = std::stoi(row.at("max_concurrent_tasks"));
+            worker["currentTasks"] = std::stoi(row.at("current_tasks"));
+            worker["tasksCompleted"] = row.at("tasks_completed");
+            worker["tasksFailed"] = row.at("tasks_failed");
+            worker["createdAt"] = row.at("created_at");
+            worker["lastSeen"] = row.at("last_seen");
+            response["workers"].push_back(worker);
+        }
+
+        response["totalWorkers"] = response["workers"].size();
+
+        return buildJsonResponse(true, "Workers retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
-    // TODO: 实现获取工作节点详情
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto workerIdIt = req.pathParams.find("id");
+        if (workerIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing worker ID");
+        }
+        std::string workerId = workerIdIt->second;
+
+        // 查询工作节点详情
+        auto workers = database_->query(
+            "SELECT * FROM worker_nodes WHERE node_id = '" + workerId + "'"
+        );
+
+        if (workers.empty()) {
+            return buildJsonResponse(false, "Worker not found");
+        }
+
+        auto& worker = workers[0];
+        nlohmann::json response;
+        response["nodeId"] = worker.at("node_id");
+        response["nodeType"] = worker.at("node_type");
+        response["status"] = worker.at("status");
+        response["maxConcurrentTasks"] = std::stoi(worker.at("max_concurrent_tasks"));
+        response["currentTasks"] = std::stoi(worker.at("current_tasks"));
+        response["tasksCompleted"] = worker.at("tasks_completed");
+        response["tasksFailed"] = worker.at("tasks_failed");
+        response["ipAddress"] = worker.at("ip_address");
+        response["createdAt"] = worker.at("created_at");
+        response["lastSeen"] = worker.at("last_seen");
+
+        return buildJsonResponse(true, "Worker retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleDisableWorker(const HttpRequest& req) {
-    // TODO: 实现禁用工作节点
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto workerIdIt = req.pathParams.find("id");
+        if (workerIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing worker ID");
+        }
+        std::string workerId = workerIdIt->second;
+
+        // 禁用工作节点
+        std::string updateSql = "UPDATE worker_nodes SET status = 'DISABLED' WHERE node_id = '" + workerId + "'";
+        database_->execute(updateSql);
+
+        return buildJsonResponse(true, "Worker disabled successfully");
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleGetWorkerStatistics(const HttpRequest& req) {
-    // TODO: 实现获取节点统计
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        auto workerIdIt = req.pathParams.find("id");
+        if (workerIdIt == req.pathParams.end()) {
+            return buildJsonResponse(false, "Missing worker ID");
+        }
+        std::string workerId = workerIdIt->second;
+
+        // 查询工作节点统计
+        auto workers = database_->query(
+            "SELECT tasks_completed, tasks_failed FROM worker_nodes WHERE node_id = '" + workerId + "'"
+        );
+
+        if (workers.empty()) {
+            return buildJsonResponse(false, "Worker not found");
+        }
+
+        auto& worker = workers[0];
+        int completed = worker.at("tasks_completed").empty() ? 0 : std::stoi(worker.at("tasks_completed"));
+        int failed = worker.at("tasks_failed").empty() ? 0 : std::stoi(worker.at("tasks_failed"));
+        int total = completed + failed;
+
+        nlohmann::json response;
+        response["workerId"] = workerId;
+        response["tasksCompleted"] = completed;
+        response["tasksFailed"] = failed;
+        response["totalTasks"] = total;
+        response["successRate"] = total > 0 ? (completed * 100.0 / total) : 100.0;
+
+        return buildJsonResponse(true, "Worker statistics retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 HttpResponse CrawlerApiModule::handleGetStatistics(const HttpRequest& req) {
-    // TODO: 实现获取系统统计
-    return buildJsonResponse(false, "Not implemented yet");
+    if (!database_) {
+        return buildJsonResponse(false, "Database not available");
+    }
+
+    try {
+        nlohmann::json response;
+
+        // 任务统计
+        auto taskStats = database_->query(
+            "SELECT status, COUNT(*) as count FROM distributed_crawl_tasks GROUP BY status"
+        );
+
+        response["tasks"] = nlohmann::json::object();
+        int totalTasks = 0;
+        for (const auto& row : taskStats) {
+            std::string status = row.at("status");
+            int count = std::stoi(row.at("count"));
+            response["tasks"][status] = count;
+            totalTasks += count;
+        }
+        response["tasks"]["total"] = totalTasks;
+
+        // 工作节点统计
+        auto workerStats = database_->query(
+            "SELECT status, COUNT(*) as count FROM worker_nodes GROUP BY status"
+        );
+
+        response["workers"] = nlohmann::json::object();
+        int totalWorkers = 0;
+        for (const auto& row : workerStats) {
+            std::string status = row.at("status");
+            int count = std::stoi(row.at("count"));
+            response["workers"][status] = count;
+            totalWorkers += count;
+        }
+        response["workers"]["total"] = totalWorkers;
+
+        // 模板统计
+        auto templateStats = database_->query(
+            "SELECT COUNT(*) as count FROM crawler_templates"
+        );
+
+        if (!templateStats.empty()) {
+            response["templates"]["total"] = templateStats[0].at("count");
+        }
+
+        // 定时任务统计
+        auto scheduleStats = database_->query(
+            "SELECT enabled, COUNT(*) as count FROM scheduled_tasks GROUP BY enabled"
+        );
+
+        response["schedules"] = nlohmann::json::object();
+        for (const auto& row : scheduleStats) {
+            std::string enabled = row.at("enabled") == "1" ? "enabled" : "disabled";
+            int count = std::stoi(row.at("count"));
+            response["schedules"][enabled] = count;
+        }
+
+        return buildJsonResponse(true, "System statistics retrieved successfully", response);
+
+    } catch (const std::exception& e) {
+        return buildJsonResponse(false, "Exception: " + std::string(e.what()));
+    }
 }
 
 } // namespace PaperCrawler
