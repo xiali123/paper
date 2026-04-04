@@ -234,6 +234,10 @@ private:
     std::string handleDeletePaper(const std::map<std::string, std::string>& params);
     std::string handleSearch(const std::map<std::string, std::string>& params);
     std::string handleStats();
+    std::string handleExport(const std::map<std::string, std::string>& params);
+    std::string handleFavorite(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleRead(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleTags(const std::map<std::string, std::string>& params, const std::string& body, const std::string& method);
 };
 
 } // namespace PaperCrawler

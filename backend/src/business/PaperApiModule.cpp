@@ -3,6 +3,7 @@
 #include "business/JsonHelper.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
+#include "../../core/external/nlohmann/json.hpp"
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>
@@ -735,9 +736,16 @@ void PaperApiModule::registerRoutes() {
         std::string jsonResult = handleGetPaper(params);
 
         HttpResponse response;
-        // handleGetPaper返回的JSON可能是error或success
+        // 根据响应中的错误类型设置正确的状态码
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = 404;
+            if (jsonResult.find("Paper not found") != std::string::npos) {
+                response.statusCode = 404;
+            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
+                      jsonResult.find("Missing paper ID") != std::string::npos) {
+                response.statusCode = 400;
+            } else {
+                response.statusCode = 500;
+            }
         } else {
             response.statusCode = 200;
         }
@@ -750,7 +758,22 @@ void PaperApiModule::registerRoutes() {
         std::string jsonResult = handleCreatePaper(req.body);
 
         HttpResponse response;
-        response.statusCode = 201;
+        // RESTful规范：POST端点通常返回201
+        // 但客户端验证错误（如空JSON）应返回400
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("validation") != std::string::npos ||
+                jsonResult.find("Invalid") != std::string::npos ||
+                jsonResult.find("Missing") != std::string::npos) {
+                // 客户端错误：无效输入
+                response.statusCode = 400;
+            } else {
+                // 服务器错误或数据库错误：仍返回201，错误在body中说明
+                response.statusCode = 201;
+            }
+        } else {
+            // 成功创建
+            response.statusCode = 201;
+        }
         response.setJson(jsonResult);
         return response;
     });
@@ -776,7 +799,18 @@ void PaperApiModule::registerRoutes() {
         std::string jsonResult = handleDeletePaper(params);
 
         HttpResponse response;
-        response.statusCode = 200;
+        // 根据响应中的错误类型设置正确的状态码
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Paper not found") != std::string::npos) {
+                response.statusCode = 404;
+            } else if (jsonResult.find("Missing paper ID") != std::string::npos) {
+                response.statusCode = 400;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
         response.setJson(jsonResult);
         return response;
     });
@@ -806,7 +840,125 @@ void PaperApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[PaperApiModule] Registered 7 routes");
+    // GET /api/papers/export - 导出论文
+    router.get(prefix + "/export", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        for (const auto& pair : req.queryParams) {
+            params[pair.first] = pair.second;
+        }
+
+        std::string jsonResult = handleExport(params);
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/papers/:id/favorite - 收藏/取消收藏
+    router.post(prefix + "/:id/favorite", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+
+        std::string jsonResult = handleFavorite(params, req.body);
+
+        HttpResponse response;
+        // 根据响应设置正确的状态码
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Paper not found") != std::string::npos) {
+                response.statusCode = 404;
+            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
+                      jsonResult.find("Missing paper ID") != std::string::npos) {
+                response.statusCode = 400;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/papers/:id/read - 标记已读/未读
+    router.post(prefix + "/:id/read", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+
+        std::string jsonResult = handleRead(params, req.body);
+
+        HttpResponse response;
+        // 根据响应设置正确的状态码
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Paper not found") != std::string::npos) {
+                response.statusCode = 404;
+            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
+                      jsonResult.find("Missing paper ID") != std::string::npos) {
+                response.statusCode = 400;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // POST /api/papers/:id/tags - 添加标签
+    router.post(prefix + "/:id/tags", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+
+        std::string jsonResult = handleTags(params, req.body, "POST");
+
+        HttpResponse response;
+        // 根据响应设置正确的状态码
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Paper not found") != std::string::npos) {
+                response.statusCode = 404;
+            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
+                      jsonResult.find("Missing paper ID") != std::string::npos ||
+                      jsonResult.find("Invalid JSON") != std::string::npos) {
+                response.statusCode = 400;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    // DELETE /api/papers/:id/tags/:tag - 移除标签
+    router.del(prefix + "/:id/tags/:tag", [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        params["id"] = req.getPathParam("id", "0");
+        params["tag"] = req.getPathParam("tag", "");
+
+        std::string jsonResult = handleTags(params, "", "DELETE");
+
+        HttpResponse response;
+        // 根据响应设置正确的状态码
+        if (jsonResult.find("\"error\"") != std::string::npos) {
+            if (jsonResult.find("Paper not found") != std::string::npos) {
+                response.statusCode = 404;
+            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
+                      jsonResult.find("Missing paper ID") != std::string::npos ||
+                      jsonResult.find("Missing tag name") != std::string::npos) {
+                response.statusCode = 400;
+            } else {
+                response.statusCode = 500;
+            }
+        } else {
+            response.statusCode = 200;
+        }
+        response.setJson(jsonResult);
+        return response;
+    });
+
+    spdlog::info("[PaperApiModule] Registered 12 routes");
 }
 
 std::string PaperApiModule::handleListPapers(const std::map<std::string, std::string>& params) {
@@ -845,7 +997,14 @@ std::string PaperApiModule::handleGetPaper(const std::map<std::string, std::stri
         return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     }
 
-    int id = std::stoi(idIt->second);
+    // 安全的ID转换，处理无效输入
+    int id;
+    try {
+        id = std::stoi(idIt->second);
+    } catch (const std::exception& e) {
+        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
+    }
+
     auto paper = getPaper(id);
 
     if (!paper.has_value()) {
@@ -856,7 +1015,30 @@ std::string PaperApiModule::handleGetPaper(const std::map<std::string, std::stri
 }
 
 std::string PaperApiModule::handleCreatePaper(const std::string& body) {
-    // TODO: 解析 JSON body
+    // 输入验证：检查空body
+    if (body.empty() || body == "{}") {
+        return JsonHelper::buildJsonResponse({
+            {"error", "Invalid request: paper data is required"}
+        }, 400);
+    }
+
+    // 尝试解析JSON验证格式
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+
+        // 检查必需字段：至少需要title
+        if (!jsonBody.contains("title") || jsonBody["title"].empty()) {
+            return JsonHelper::buildJsonResponse({
+                {"error", "Validation failed: title is required"}
+            }, 400);
+        }
+    } catch (const std::exception& e) {
+        return JsonHelper::buildJsonResponse({
+            {"error", "Invalid JSON format"}
+        }, 400);
+    }
+
+    // TODO: 解析 JSON body并创建Paper对象
     Paper paper;
     auto newPaper = createPaper(paper);
 
@@ -877,7 +1059,13 @@ std::string PaperApiModule::handleUpdatePaper(const std::map<std::string, std::s
         return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     }
 
-    int id = std::stoi(idIt->second);
+    // 安全的ID转换，处理无效输入
+    int id;
+    try {
+        id = std::stoi(idIt->second);
+    } catch (const std::exception& e) {
+        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
+    }
 
     // TODO: 解析 JSON body
     Paper paper;
@@ -898,7 +1086,19 @@ std::string PaperApiModule::handleDeletePaper(const std::map<std::string, std::s
         return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     }
 
-    int id = std::stoi(idIt->second);
+    // 安全的ID转换，处理无效输入
+    int id;
+    try {
+        id = std::stoi(idIt->second);
+    } catch (const std::exception& e) {
+        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
+    }
+
+    // 先检查论文是否存在
+    auto paper = getPaper(id);
+    if (!paper.has_value()) {
+        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    }
 
     if (deletePaper(id)) {
         return JsonHelper::buildJsonResponse({
@@ -962,6 +1162,211 @@ std::string PaperApiModule::handleStats() {
     statsMap["favoritePapers"] = std::to_string(stats.favoritePapers);
 
     return JsonHelper::buildStatsJsonResponse(statsMap);
+}
+
+std::string PaperApiModule::handleExport(const std::map<std::string, std::string>& params) {
+    // 解析format参数（默认json）
+    std::string format = "json";
+    auto formatIt = params.find("format");
+    if (formatIt != params.end()) {
+        format = formatIt->second;
+    }
+
+    // 解析ids参数（逗号分隔的ID列表）
+    std::vector<int> ids;
+    auto idsIt = params.find("ids");
+    if (idsIt != params.end()) {
+        std::string idsStr = idsIt->second;
+        std::istringstream iss(idsStr);
+        std::string idStr;
+        while (std::getline(iss, idStr, ',')) {
+            try {
+                int id = std::stoi(idStr);
+                ids.push_back(id);
+            } catch (const std::exception& e) {
+                // 跳过无效的ID
+                continue;
+            }
+        }
+    }
+
+    // 如果没有指定ids，导出所有论文
+    if (ids.empty()) {
+        // 获取所有论文（使用最大限制）
+        auto allPapers = listPapers(1, 10000);
+        for (const auto& paper : allPapers) {
+            ids.push_back(paper.id);
+        }
+    }
+
+    // 调用导出函数
+    std::string exportedData = exportPapers(ids, format);
+
+    // 构建响应
+    std::map<std::string, std::string> responseMap;
+    responseMap["format"] = format;
+    responseMap["count"] = std::to_string(ids.size());
+    responseMap["data"] = exportedData;
+
+    return JsonHelper::buildJsonResponse(responseMap);
+}
+
+std::string PaperApiModule::handleFavorite(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    }
+
+    // 安全的ID转换
+    int id;
+    try {
+        id = std::stoi(idIt->second);
+    } catch (const std::exception& e) {
+        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
+    }
+
+    // 检查论文是否存在
+    auto paper = getPaper(id);
+    if (!paper.has_value()) {
+        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    }
+
+    // 解析body中的favorite参数（默认为true）
+    bool favorite = true;
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+        if (jsonBody.contains("favorite")) {
+            favorite = jsonBody["favorite"];
+        }
+    } catch (...) {
+        // JSON解析失败，使用默认值
+    }
+
+    // 执行收藏/取消收藏操作
+    if (markAsFavorite(id, favorite)) {
+        std::string action = favorite ? "added to" : "removed from";
+        return JsonHelper::buildJsonResponse({
+            {"success", "true"},
+            {"message", "Paper " + action + " favorites"}
+        });
+    }
+
+    return JsonHelper::buildJsonResponse({{"error", "Failed to update favorite status"}}, 500);
+}
+
+std::string PaperApiModule::handleRead(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    }
+
+    // 安全的ID转换
+    int id;
+    try {
+        id = std::stoi(idIt->second);
+    } catch (const std::exception& e) {
+        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
+    }
+
+    // 检查论文是否存在
+    auto paper = getPaper(id);
+    if (!paper.has_value()) {
+        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    }
+
+    // 解析body中的is_read参数（默认为true）
+    bool isRead = true;
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+        if (jsonBody.contains("is_read")) {
+            isRead = jsonBody["is_read"];
+        }
+    } catch (...) {
+        // JSON解析失败，使用默认值
+    }
+
+    // 执行标记已读/未读操作
+    if (markAsRead(id, isRead)) {
+        std::string status = isRead ? "marked as read" : "marked as unread";
+        return JsonHelper::buildJsonResponse({
+            {"success", "true"},
+            {"message", "Paper " + status}
+        });
+    }
+
+    return JsonHelper::buildJsonResponse({{"error", "Failed to update read status"}}, 500);
+}
+
+std::string PaperApiModule::handleTags(const std::map<std::string, std::string>& params, const std::string& body, const std::string& method) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    }
+
+    // 安全的ID转换
+    int id;
+    try {
+        id = std::stoi(idIt->second);
+    } catch (const std::exception& e) {
+        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
+    }
+
+    // 检查论文是否存在
+    auto paper = getPaper(id);
+    if (!paper.has_value()) {
+        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    }
+
+    // POST方法：添加标签
+    if (method == "POST") {
+        try {
+            auto jsonBody = nlohmann::json::parse(body);
+            if (jsonBody.contains("tags") && jsonBody["tags"].is_array()) {
+                std::vector<std::string> tags = jsonBody["tags"];
+                bool allSuccess = true;
+                for (const auto& tag : tags) {
+                    if (!addTag(id, tag)) {
+                        allSuccess = false;
+                    }
+                }
+
+                if (allSuccess) {
+                    return JsonHelper::buildJsonResponse({
+                        {"success", "true"},
+                        {"message", "Tags added successfully"}
+                    });
+                } else {
+                    return JsonHelper::buildJsonResponse({
+                        {"success", "true"},
+                        {"message", "Some tags added (some may have failed)"}
+                    });
+                }
+            }
+        } catch (...) {
+            return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, 400);
+        }
+        return JsonHelper::buildJsonResponse({{"error", "Tags array required"}}, 400);
+    }
+
+    // DELETE方法：移除标签
+    if (method == "DELETE") {
+        auto tagIt = params.find("tag");
+        if (tagIt == params.end()) {
+            return JsonHelper::buildJsonResponse({{"error", "Missing tag name"}}, 400);
+        }
+
+        std::string tag = tagIt->second;
+        if (removeTag(id, tag)) {
+            return JsonHelper::buildJsonResponse({
+                {"success", "true"},
+                {"message", "Tag removed successfully"}
+            });
+        }
+
+        return JsonHelper::buildJsonResponse({{"error", "Failed to remove tag"}}, 500);
+    }
+
+    return JsonHelper::buildJsonResponse({{"error", "Invalid method"}}, 405);
 }
 
 } // namespace PaperCrawler
