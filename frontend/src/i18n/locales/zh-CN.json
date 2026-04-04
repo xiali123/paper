@@ -179,7 +179,18 @@
     "poweredBy": "Powered by Vue 3 + C++ REST API",
     "version": "版本",
     "docs": "文档",
-    "github": "GitHub"
+    "github": "GitHub",
+    "description": "PaperCrawler 是一个强大的学术论文搜索与分析平台，帮助研究者快速发现和管理学术资源。",
+    "quickLinks": "快速链接",
+    "resources": "资源",
+    "documentation": "文档",
+    "support": "支持",
+    "legal": "法律",
+    "rights": "版权所有",
+    "changelog": "更新日志",
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "license": "开源协议"
   },
   "common": {
     "loading": "加载中...",

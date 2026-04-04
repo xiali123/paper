@@ -179,7 +179,18 @@
     "poweredBy": "Powered by Vue 3 + C++ REST API",
     "version": "Version",
     "docs": "Docs",
-    "github": "GitHub"
+    "github": "GitHub",
+    "description": "PaperCrawler is a powerful academic paper search and analysis platform that helps researchers quickly discover and manage academic resources.",
+    "quickLinks": "Quick Links",
+    "resources": "Resources",
+    "documentation": "Documentation",
+    "support": "Support",
+    "legal": "Legal",
+    "rights": "All Rights Reserved",
+    "changelog": "Changelog",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "license": "License"
   },
   "common": {
     "loading": "Loading...",
