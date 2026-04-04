@@ -338,8 +338,10 @@ std::vector<TrendingSearch> SearchApiModule::calculateTrendingSearches() {
 }
 
 void SearchApiModule::registerRoutes() {
+    auto& router = Router::getInstance();
+    std::string prefix = getRoutePrefix();
 
-
+    spdlog::info("[SearchApiModule] Registering routes with prefix: {}", prefix);
     // 🔔 优先级1：使用ModuleLoader注入的数据库连接
     database_ = getDatabase();
     if (database_) {
@@ -364,8 +366,6 @@ void SearchApiModule::registerRoutes() {
     // 🔔 优先级3：回退到MessageBus（保留原有逻辑）
     if (!database_) {
     std::string prefix = getRoutePrefix(); // "/api/search"
-
-
     // 订阅MessageBus消息
     auto& messageBus = MessageBus::getInstance();
     messageBus.registerHandler(MessageType::CUSTOM,
@@ -448,8 +448,6 @@ void SearchApiModule::registerRoutes() {
 // ============================================================================
 // DLL导出函数
 // ============================================================================
-
-
 extern "C" {
 
 PAPERCRAWLER_API void* createModule() {
