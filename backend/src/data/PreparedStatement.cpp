@@ -10,31 +10,31 @@ namespace PaperCrawler {
 // PreparedStatement实现
 // ============================================================================
 
-PreparedStatement::PreparedStatement(std::shared_ptr<IDatabase> database, const std::string& sql)
+DataPreparedStatement::PreparedStatement(std::shared_ptr<IDatabase> database, const std::string& sql)
     : database_(database), sql_(sql) {
 }
 
-PreparedStatement& PreparedStatement::bind(int index, const ParameterValue& value) {
+PreparedStatement& DataPreparedStatement::bind(int index, const ParameterValue& value) {
     positionalParams_[index] = value;
     return *this;
 }
 
-PreparedStatement& PreparedStatement::bind(const std::string& name, const ParameterValue& value) {
+PreparedStatement& DataPreparedStatement::bind(const std::string& name, const ParameterValue& value) {
     namedParams_[name] = value;
     return *this;
 }
 
-std::vector<std::map<std::string, std::string>> PreparedStatement::query() {
+std::vector<std::map<std::string, std::string>> DataPreparedStatement::query() {
     std::string finalSQL = buildFinalSQL();
     return database_->query(finalSQL);
 }
 
-bool PreparedStatement::execute() {
+bool DataPreparedStatement::execute() {
     std::string finalSQL = buildFinalSQL();
     return database_->execute(finalSQL);
 }
 
-int PreparedStatement::executeAndReturnId() {
+int DataPreparedStatement::executeAndReturnId() {
     execute();
     // TODO: 获取LAST_INSERT_ID()
     // 简化实现：查询最后插入的ID
@@ -45,7 +45,7 @@ int PreparedStatement::executeAndReturnId() {
     return -1;
 }
 
-std::string PreparedStatement::buildFinalSQL() {
+std::string DataPreparedStatement::buildFinalSQL() {
     std::string result = sql_;
 
     // 替换位置参数 (?)
@@ -75,7 +75,7 @@ std::string PreparedStatement::buildFinalSQL() {
     return result;
 }
 
-std::string PreparedStatement::escapeValue(const ParameterValue& value) {
+std::string DataPreparedStatement::escapeValue(const ParameterValue& value) {
     std::ostringstream oss;
 
     std::visit([&oss](auto&& arg) {
@@ -96,7 +96,7 @@ std::string PreparedStatement::escapeValue(const ParameterValue& value) {
     return oss.str();
 }
 
-std::string PreparedStatement::escapeSql(const std::string& str) {
+std::string DataPreparedStatement::escapeSql(const std::string& str) {
     std::string escaped;
     for (char c : str) {
         if (c == '\'') {
@@ -110,12 +110,12 @@ std::string PreparedStatement::escapeSql(const std::string& str) {
     return escaped;
 }
 
-void PreparedStatement::clear() {
+void DataPreparedStatement::clear() {
     positionalParams_.clear();
     namedParams_.clear();
 }
 
-std::string PreparedStatement::getSQL() const {
+std::string DataPreparedStatement::getSQL() const {
     return sql_;
 }
 

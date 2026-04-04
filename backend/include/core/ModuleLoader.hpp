@@ -185,9 +185,9 @@ private:
     std::string inferRoutePrefix(const std::string& moduleName);
 
 private:
-    // 模块存储
+    // 模块存储（使用自定义deleter以支持DLL模块的destroyFunc）
     std::map<std::string, ModuleMetadata> modulesMetadata_;
-    std::map<std::string, std::unique_ptr<IModule>> modules_;
+    std::map<std::string, std::unique_ptr<IModule, std::function<void(IModule*)>>> modules_;
 
     // 配置
     std::string configPath_;

@@ -71,6 +71,9 @@ public:
     // 依赖注入：数据库接口
     std::shared_ptr<IDatabase> database_;
 
+    // 默认构造函数：database可以在后续设置
+    Impl() : database_(nullptr) {}
+
     // 构造函数：接受数据库依赖
     explicit Impl(std::shared_ptr<IDatabase> database)
         : database_(database) {
@@ -355,7 +358,7 @@ UserApiModule::UserApiModule()
 
 UserApiModule::UserApiModule(std::shared_ptr<IDatabase> database)
     : database_(database),
-      impl_(database ? std::make_unique<Impl>(database) : nullptr) {}
+      impl_(std::make_unique<Impl>()) {}
 
 UserApiModule::~UserApiModule() = default;
 
@@ -389,7 +392,7 @@ void UserApiModule::registerRoutes() {
     }
 
     // 🔔 优先级3：回退到MessageBus（保留原有逻辑，虽然不会成功）
-    if (!database_ && !g_databaseInitialized) {
+    if (!impl_->database_ && !g_databaseInitialized) {
         std::cout << "[UserApi] Subscribing to database connection messages..." << std::endl;
 
         try {

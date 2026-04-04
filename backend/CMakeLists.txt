@@ -37,7 +37,8 @@ set(DATA_SOURCES
     src/data/CacheModule.cpp
     src/data/FileStorageModule.cpp
     src/data/MySqlConnection.cpp
-    src/database/PreparedStatement.cpp
+    # 只保留MySQL版本的PreparedStatement（在database目录中）
+    src/database/PreparedStatement.cpp  # MySQL版本（所有模块通过IDatabase接口使用）
     src/data/RedisConnection.cpp
     src/data/RedisConnectionPool.cpp
 )
@@ -546,11 +547,10 @@ add_library(SystemModules STATIC
     # Router.cpp已移到Router.dll
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
     src/network/WebSocketModule.cpp  # 添加WebSocketModule支持（CrawlerApiModule需要）
-    src/data/PreparedStatement.cpp   # 添加PreparedStatement支持（IDatabase版本）
-    src/database/PreparedStatement.cpp  # ⭐ 添加PreparedStatement支持（MySQL版本）
+    src/database/PreparedStatement.cpp  # ⭐ MySQL版本的PreparedStatement实现（所有模块通过IDatabase接口使用）
     src/data/QueryBuilder.cpp        # 添加QueryBuilder支持
-    src/data/DatabaseModule.cpp     # 添加DatabaseModule支持
-    src/data/MySqlConnection.cpp     # ⭐ 添加MySqlConnection支持（UserApiModule需要）
+    src/data/DatabaseModule.cpp     # 添加DatabaseModule支持（已在DATA_SOURCES中）
+    src/data/MySqlConnection.cpp     # ⭐ 添加MySqlConnection支持（已在DATA_SOURCES中）
     src/data/SimpleMySQLDatabase.cpp # ⭐ 添加SimpleMySQLDatabase支持（AuthApiModule直接使用）
     src/common/JsonUtils.cpp        # 添加JsonUtils支持（CrawlerApiModule需要）
     src/modules/TemplateCrawlerModule.cpp  # 完整实现（需要gumbo）

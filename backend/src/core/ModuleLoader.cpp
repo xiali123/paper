@@ -378,8 +378,15 @@ bool ModuleLoader::loadModule(const ModuleMetadata& metadata) {
         return false;
     }
 
-    // 存储模块
-    modules_[metadata.name] = std::unique_ptr<IModule>(module);
+    // 存储模块（使用自定义deleter确保DLL的destroyFunc被调用）
+    modules_[metadata.name] = std::unique_ptr<IModule, std::function<void(IModule*)>>(
+        module,
+        [destroyFunc](IModule* ptr) {
+            if (destroyFunc) {
+                destroyFunc(ptr);
+            }
+        }
+    );
     modulesMetadata_[metadata.name] = mutableMetadata;
 
     spdlog::info("[ModuleLoader] Module {} loaded successfully", metadata.name);

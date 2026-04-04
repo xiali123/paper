@@ -168,6 +168,20 @@ public:
             // Debug: Log parsed request
             spdlog::info("Request: {} {}", request.method, request.path);
 
+            // Handle OPTIONS preflight requests for CORS
+            if (request.method == "OPTIONS") {
+                spdlog::info("Handling OPTIONS preflight request");
+                HttpResponse optionsResponse;
+                optionsResponse.statusCode = 200;
+                optionsResponse.setHeader("Access-Control-Allow-Origin", "*");
+                optionsResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                optionsResponse.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+                optionsResponse.setHeader("Access-Control-Max-Age", "86400");
+                std::string responseStr = formatResponse(optionsResponse);
+                send(clientSocket, responseStr.c_str(), responseStr.length(), 0);
+                return;
+            }
+
             // Set client info
             char clientIP[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &clientAddr.sin_addr, clientIP, INET_ADDRSTRLEN);
@@ -314,6 +328,13 @@ public:
         // Headers
         for (const auto& header : response.headers) {
             oss << header.first << ": " << header.second << "\r\n";
+        }
+
+        // Add CORS headers if not already present
+        if (response.headers.find("Access-Control-Allow-Origin") == response.headers.end()) {
+            oss << "Access-Control-Allow-Origin: *\r\n";
+            oss << "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n";
+            oss << "Access-Control-Allow-Headers: Content-Type, Authorization\r\n";
         }
 
         // Content-Length

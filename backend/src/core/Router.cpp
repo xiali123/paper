@@ -106,19 +106,31 @@ bool Router::matchPattern(const std::string& pattern,
 }
 
 HttpResponse Router::route(const HttpRequest& request) {
-    std::cout << "[ROUTER] Routing: " << request.method << " " << request.path << std::endl;
+    std::cout << "[ROUTER] ===== ROUTING START =====" << std::endl;
+    std::cout << "[ROUTER] Request: " << request.method << " " << request.path << std::endl;
     std::cout << "[ROUTER] Total routes in map: " << routes_.size() << " (Router instance: " << (void*)this << ")" << std::endl;
 
     spdlog::info("Routing: {} {}", request.method, request.path);
     spdlog::info("Total routes in map: {} (Router instance: {})", routes_.size(), (void*)this);
 
+    // 🔍 调试：打印所有同方法的路由
+    std::cout << "[ROUTER] All registered routes:" << std::endl;
+    for (const auto& pair : routes_) {
+        if (pair.first.method == request.method) {
+            std::cout << "[ROUTER]   - " << pair.first.method << " " << pair.first.pattern << std::endl;
+        }
+    }
+
     // 第一轮：优先匹配精确路径（不包含路径参数的路由）
+    std::cout << "[ROUTER] Phase 1: Exact matching (no path params)" << std::endl;
     for (const auto& pair : routes_) {
         if (pair.first.method == request.method) {
             // 检查是否是精确匹配路由（pattern 中不包含 ':'）
             if (pair.first.pattern.find(':') == std::string::npos) {
-                spdlog::debug("Comparing '{}' with '{}'", pair.first.pattern, request.path);
+                std::cout << "[ROUTER] Comparing: '" << pair.first.pattern << "' == '" << request.path << "' ? " << std::endl;
+                spdlog::info("Comparing: '{}' == '{}'", pair.first.pattern, request.path);
                 if (pair.first.pattern == request.path) {
+                    std::cout << "[ROUTER] ✅ MATCH FOUND!" << std::endl;
                     spdlog::info("Exact route matched: {} {}", pair.first.method, pair.first.pattern);
 
                     try {
@@ -134,6 +146,8 @@ HttpResponse Router::route(const HttpRequest& request) {
                         errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
                         return errorResponse;
                     }
+                } else {
+                    std::cout << "[ROUTER] ❌ No match" << std::endl;
                 }
             }
         }

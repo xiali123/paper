@@ -3,6 +3,7 @@
 #include "business/UnifiedAIWorkflow.hpp"
 #include "data/IDatabase.hpp"
 #include "data/PreparedStatement.hpp"
+using DataPreparedStatement = PreparedStatement;
 #include "data/QueryBuilder.hpp"
 #include "network/WebSocketModule.hpp"
 #include <sstream>

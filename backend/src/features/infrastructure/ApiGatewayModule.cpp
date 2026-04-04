@@ -252,6 +252,22 @@ void ApiGatewayModule::Impl::handleClient(SOCKET clientSocket) {
 
     std::cout << "[API_GATEWAY] Received request: " << req.method << " " << req.path << std::endl;
 
+    // 处理OPTIONS预检请求
+    if (req.method == "OPTIONS") {
+        std::cout << "[API_GATEWAY] Handling OPTIONS preflight request" << std::endl;
+        HttpResponse res;
+        res.statusCode = 200;
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        res.setHeader("Access-Control-Max-Age", "86400"); // 24小时
+        res.body = "";
+        std::string responseStr = buildResponse(res);
+        send(clientSocket, responseStr.c_str(), static_cast<int>(responseStr.length()), 0);
+        closesocket(clientSocket);
+        return;
+    }
+
     // 路由请求
     auto& router = Router::getInstance();
     std::cout << "[API_GATEWAY] Calling router.route()" << std::endl;

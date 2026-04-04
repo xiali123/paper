@@ -5,7 +5,6 @@
 #include "modules/DistributedTaskModule.hpp"
 #include "network/WebSocketModule.hpp"
 #include "data/IDatabase.hpp"
-#include "data/PreparedStatement.hpp"
 #include "core/Services.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
@@ -549,19 +548,17 @@ HttpResponse CrawlerApiModule::handleListTasks(const HttpRequest& req) {
         int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 100;
         int offset = req.queryParams.count("offset") ? std::stoi(req.queryParams.at("offset")) : 0;
 
-        QueryBuilder queryBuilder(database_);
-        queryBuilder.select(std::vector<std::string>{"task_id", "template_id", "status", "priority", "created_at"})
-            .from("distributed_crawl_tasks");
+        // 构建SQL查询（使用IDatabase接口，和其他模块保持一致）
+        std::string sql = "SELECT task_id, template_id, status, priority, created_at "
+                         "FROM distributed_crawl_tasks";
 
         if (!statusFilter.empty()) {
-            queryBuilder.where("status", "=", statusFilter);
+            sql += " WHERE status = '" + statusFilter + "'";
         }
 
-        queryBuilder.orderBy("created_at", false)
-            .limit(limit)
-            .offset(offset);
+        sql += " ORDER BY created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
 
-        auto rows = queryBuilder.query();
+        auto rows = database_->query(sql);
 
         // 构建JSON数组
         nlohmann::json tasks = nlohmann::json::array();

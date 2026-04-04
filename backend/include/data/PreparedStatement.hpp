@@ -25,19 +25,19 @@ using ParameterValue = std::variant<
  *
  * 防止SQL注入，提供类型安全的参数绑定
  */
-class PreparedStatement {
+class DataPreparedStatement {
 public:
-    PreparedStatement(
+    DataPreparedStatement(
         std::shared_ptr<IDatabase> database,
         const std::string& sql
     );
-    ~PreparedStatement() = default;
+    ~DataPreparedStatement() = default;
 
     /**
      * @brief 绑定参数（链式调用）
      */
-    PreparedStatement& bind(int index, const ParameterValue& value);
-    PreparedStatement& bind(const std::string& name, const ParameterValue& value);
+    DataPreparedStatement& bind(int index, const ParameterValue& value);
+    DataPreparedStatement& bind(const std::string& name, const ParameterValue& value);
 
     /**
      * @brief 执行查询（SELECT）
@@ -90,6 +90,9 @@ private:
      */
     static std::string escapeSql(const std::string& str);
 };
+
+// 类型别名：保持向后兼容，允许继续使用PreparedStatement名称
+using PreparedStatement = DataPreparedStatement;
 
 /**
  * @brief Query Builder（查询构建器）

@@ -3,6 +3,7 @@
 #include "data/IDatabase.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
+using DataPreparedStatement = PreparedStatement;
 #include "modules/CrawlerModule.hpp"
 #include "features/LoggingModule.hpp"
 #include "spdlog/spdlog.h"
