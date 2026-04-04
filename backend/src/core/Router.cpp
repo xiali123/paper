@@ -7,14 +7,16 @@
 
 namespace PaperCrawler {
 
+// 全局Router实例（总是定义）
+Router g_routerInstance;
+
 Router& Router::getInstance() {
-    static Router instance;
-    return instance;
+    return g_routerInstance;
 }
 
 void Router::get(const std::string& path, RouteHandler handler) {
     routes_[RouteKey{"GET", path}] = handler;
-    spdlog::debug("Registered GET route: {}", path);
+    spdlog::info("Registered GET route: {} (total routes: {}, Router instance: {})", path, routes_.size(), (void*)this);
 }
 
 void Router::post(const std::string& path, RouteHandler handler) {
@@ -92,12 +94,14 @@ bool Router::matchPattern(const std::string& pattern,
 
 HttpResponse Router::route(const HttpRequest& request) {
     spdlog::info("Routing: {} {}", request.method, request.path);
+    spdlog::info("Total routes in map: {} (Router instance: {})", routes_.size(), (void*)this);
 
     // 第一轮：优先匹配精确路径（不包含路径参数的路由）
     for (const auto& pair : routes_) {
         if (pair.first.method == request.method) {
             // 检查是否是精确匹配路由（pattern 中不包含 ':'）
             if (pair.first.pattern.find(':') == std::string::npos) {
+                spdlog::debug("Comparing '{}' with '{}'", pair.first.pattern, request.path);
                 if (pair.first.pattern == request.path) {
                     spdlog::info("Exact route matched: {} {}", pair.first.method, pair.first.pattern);
 

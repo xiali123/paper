@@ -1,5 +1,6 @@
 #include "core/ModuleLoader.hpp"
 #include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include "core/Router.hpp"
 #include <spdlog/spdlog.h>
 #include <filesystem>
@@ -333,7 +334,26 @@ bool ModuleLoader::loadModule(const ModuleMetadata& metadata) {
 
     auto* module = static_cast<IModule*>(modulePtr);
 
-    // 初始化模块
+    // 注册路由（如果是业务模块）- 必须在initialize()之前
+    // 因为BusinessModuleBase::initialize()会调用registerRoutes()
+    ModuleMetadata mutableMetadata = metadata;
+    mutableMetadata.handle = handle;
+    mutableMetadata.loadTime = std::chrono::system_clock::now();
+    mutableMetadata.healthStatus = ModuleHealthStatus::HEALTHY;
+
+    if (metadata.type == ModuleType::BUSINESS) {
+        // 先设置路由前缀和Router实例
+        if (auto* businessModule = dynamic_cast<BusinessModuleBase*>(module)) {
+            // 设置Router实例（确保使用主程序的Router）
+            businessModule->setRouter(&Router::getInstance());
+            // 设置路由前缀
+            businessModule->setRoutePrefix(metadata.routePrefix);
+            spdlog::info("[ModuleLoader] Set Router instance and route prefix for module {}: {}",
+                        metadata.name, metadata.routePrefix);
+        }
+    }
+
+    // 初始化模块（这里会调用registerRoutes()，此时Router和前缀都已设置）
     if (!module->initialize()) {
         spdlog::error("[ModuleLoader] Failed to initialize module: {}", metadata.name);
         if (destroyFunc) {
@@ -341,18 +361,6 @@ bool ModuleLoader::loadModule(const ModuleMetadata& metadata) {
         }
         FREE_LIBRARY(handle);
         return false;
-    }
-
-    // 注册路由（如果是业务模块）
-    ModuleMetadata mutableMetadata = metadata;
-    mutableMetadata.handle = handle;
-    mutableMetadata.loadTime = std::chrono::system_clock::now();
-    mutableMetadata.healthStatus = ModuleHealthStatus::HEALTHY;
-
-    if (metadata.type == ModuleType::BUSINESS) {
-        if (!registerModuleRoutes(module, mutableMetadata)) {
-            spdlog::warn("[ModuleLoader] Route registration had issues for module: {}", metadata.name);
-        }
     }
 
     // 存储模块
@@ -371,6 +379,12 @@ bool ModuleLoader::registerModuleRoutes(IModule* module, const ModuleMetadata& m
     spdlog::info("[ModuleLoader] Registering routes for module: {} -> {}", metadata.name, metadata.routePrefix);
 
     try {
+        // 如果是业务模块，先设置路由前缀
+        if (auto* businessModule = dynamic_cast<BusinessModuleBase*>(module)) {
+            businessModule->setRoutePrefix(metadata.routePrefix);
+            spdlog::info("[ModuleLoader] Set route prefix for module {}: {}", metadata.name, metadata.routePrefix);
+        }
+
         // 调用模块的registerRoutes方法
         // 这里假设模块实现了registerRoutes方法
         // 或者我们可以通过Router的registerModuleRoutes方法来注册

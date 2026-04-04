@@ -54,14 +54,18 @@ void CrawlerApiModule::setWebSocket(std::shared_ptr<WebSocketModule> module) {
 
 void CrawlerApiModule::registerRoutes() {
     auto& router = Router::getInstance();
-    std::string prefix = "/api/crawler";  // TODO: 使用getRoutePrefix() - 当前返回空字符串
+    std::string prefix = getRoutePrefix();  // 使用getRoutePrefix()
+
+    spdlog::info("[CrawlerApi] registerRoutes() called, prefix = '{}'", prefix);
 
     // ========================================================================
     // 模板管理接口
     // ========================================================================
 
     // POST /api/crawler/templates
-    router.post(prefix + "/templates", [this](const HttpRequest& req) {
+    std::string templatesPath = prefix + "/templates";
+    spdlog::info("[CrawlerApi] Registering POST {}", templatesPath);
+    router.post(templatesPath, [this](const HttpRequest& req) {
         return handleCreateTemplate(req);
     });
 

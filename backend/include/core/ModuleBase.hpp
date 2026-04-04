@@ -13,6 +13,9 @@
 
 namespace PaperCrawler {
 
+// Router前向声明（已在Router.hpp中包含）
+class Router;
+
 /**
  * @brief 服务器模块基类
  *
@@ -218,6 +221,8 @@ protected:
  *
  * 适用模块：PaperApiModule, AuthApiModule, UserApiModule等
  */
+class Router;  // 前向声明
+
 class BusinessModuleBase : public IModule {
 public:
     virtual ~BusinessModuleBase() = default;
@@ -227,6 +232,13 @@ public:
      */
     ModuleType getModuleType() const override {
         return ModuleType::BUSINESS;
+    }
+
+    /**
+     * @brief 设置Router实例（由ModuleLoader调用）
+     */
+    void setRouter(Router* router) {
+        router_ = router;
     }
 
     /**
@@ -364,9 +376,36 @@ public:
     }
 
 protected:
+    Router* router_ = nullptr;  // Router实例（由ModuleLoader设置）
+    std::string routePrefix_;  // 路由前缀
     std::map<std::string, RouteHandler> routes_;
     std::vector<std::function<HttpResponse(const HttpRequest&)>> beforeMiddlewares_;
     std::vector<std::function<void(HttpResponse&)>> afterMiddlewares_;
+
+    /**
+     * @brief 获取Router实例（优先使用注入的，否则使用全局单例）
+     */
+    Router& getRouter() {
+        if (router_) {
+            return *router_;
+        }
+        return Router::getInstance();
+    }
+
+public:
+    /**
+     * @brief 设置路由前缀
+     */
+    void setRoutePrefix(const std::string& prefix) {
+        routePrefix_ = prefix;
+    }
+
+    /**
+     * @brief 获取路由前缀
+     */
+    std::string getRoutePrefix() const {
+        return routePrefix_;
+    }
 };
 
 } // namespace PaperCrawler

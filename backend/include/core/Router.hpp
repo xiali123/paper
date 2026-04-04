@@ -26,9 +26,11 @@ public:
     void registerModuleRoutes(const std::string& prefix, IModule* module);
     void printRoutes() const;
 
+    // 构造/析构函数必须公开以支持全局实例
+    Router() = default;
+    ~Router() = default;
+
 private:
-    Router() {}
-    ~Router() {}
     Router(const Router&) = delete;
     Router& operator=(const Router&) = delete;
 
