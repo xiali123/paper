@@ -52,60 +52,60 @@ export interface AIChatRequest {
 export const aiCopilotApi = {
   /**
    * 生成AI审稿报告
-   * POST /ai-copilot/review
+   * POST /api/ai-co-pilot/review
    */
   async generateReview(req: AIReviewRequest): Promise<AIReviewResult> {
-    return await request.post('/ai-copilot/review', req)
+    return await request.post('/api/ai-co-pilot/review', req)
   },
 
   /**
    * 生成文献综述
-   * POST /ai-copilot/literature-review/generate
+   * POST /api/ai-co-pilot/literature-review/generate
    */
   async generateLiteratureReview(req: LiteratureReviewRequest): Promise<LiteratureReview> {
-    return await request.post('/ai-copilot/literature-review/generate', req)
+    return await request.post('/api/ai-co-pilot/literature-review/generate', req)
   },
 
   /**
    * 生成研究规划
-   * POST /ai-copilot/research-plan/generate
+   * POST /api/ai-co-pilot/research-plan/generate
    */
   async generateResearchPlan(req: ResearchPlanRequest): Promise<ResearchPlan> {
-    return await request.post('/ai-copilot/research-plan/generate', req)
+    return await request.post('/api/ai-co-pilot/research-plan/generate', req)
   },
 
   /**
    * AI对话
-   * POST /ai-copilot/chat
+   * POST /api/ai-co-pilot/chat
    */
   async chat(req: AIChatRequest): Promise<AIChatMessage> {
-    return await request.post('/ai-copilot/chat', req)
+    return await request.post('/api/ai-co-pilot/chat', req)
   },
 
   /**
    * 获取审稿历史
-   * GET /ai-copilot/reviews/history
+   * GET /api/ai-co-pilot/reviews
    */
   async getReviewHistory(page = 1, limit = 20): Promise<{
     reviews: AIReviewResult[]
     total: number
     page: number
   }> {
-    return await request.get('/ai-copilot/reviews/history', {
+    return await request.get('/api/ai-co-pilot/reviews', {
       params: { page, limit }
     })
   },
 
   /**
    * 获取文献综述历史
-   * GET /ai-copilot/literature-reviews
+   * GET /api/ai-co-pilot/literature-reviews
    */
   async getLiteratureReviews(page = 1, limit = 20): Promise<{
     reviews: LiteratureReview[]
     total: number
     page: number
   }> {
-    return await request.get('/ai-copilot/literature-reviews', {
+    return await request.get('/api/ai-co-pilot/literature-reviews', {
       params: { page, limit }
     })
   }

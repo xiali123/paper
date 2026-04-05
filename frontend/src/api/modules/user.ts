@@ -108,7 +108,7 @@ export const userApi = {
    * GET /users
    */
   async getUsers(params?: UserListParams): Promise<UserListResponse> {
-    return await request.get('/users', { params })
+    return await request.get('/api/users', { params })
   },
 
   /**
