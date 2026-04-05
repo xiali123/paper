@@ -37,7 +37,7 @@
               <el-checkbox
                 v-for="paper in availablePapers"
                 :key="paper.id"
-                :label="paper.id"
+                :value="paper.id"
               >
                 <div class="paper-item">
                   <div class="paper-title">{{ paper.title }}</div>
@@ -50,8 +50,8 @@
 
         <el-form-item label="综述深度">
           <el-radio-group v-model="config.depth">
-            <el-radio label="brief">简要综述</el-radio>
-            <el-radio label="comprehensive">全面综述</el-radio>
+            <el-radio value="brief">简要综述</el-radio>
+            <el-radio value="comprehensive">全面综述</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -66,8 +66,8 @@
 
         <el-form-item label="语言">
           <el-radio-group v-model="config.language">
-            <el-radio label="zh">中文</el-radio>
-            <el-radio label="en">English</el-radio>
+            <el-radio value="zh">中文</el-radio>
+            <el-radio value="en">English</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -240,102 +240,176 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .literature-review-panel {
-  padding: 24px;
+  padding: 16px;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
 }
 
 .panel-header h2 {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   margin: 0;
+  color: #1f2937;
 }
 
 .config-section {
-  margin-bottom: 32px;
-  padding: 24px;
-  background: #f5f7fa;
+  margin-bottom: 20px;
+  padding: 20px;
+  background: white;
   border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  :deep(.el-form-item__label) {
+    font-weight: 600;
+    color: #374151;
+  }
 }
 
 .paper-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.paper-selector :deep(.el-checkbox-group) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.paper-selector :deep(.el-checkbox) {
+  margin: 0;
+  width: 100%;
+}
+
+.paper-selector :deep(.el-checkbox__input) {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+}
+
+.paper-selector :deep(.el-checkbox__label) {
+  width: 100%;
+  padding: 12px 12px 12px 36px;
+  background: white;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  display: block;
+  min-height: 60px;
+  position: relative;
+}
+
+.paper-selector :deep(.el-checkbox:hover .el-checkbox__label) {
+  background: #f3f4f6;
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+}
+
+.paper-selector :deep(.el-checkbox.is-checked .el-checkbox__label) {
+  background: #ecf5ff;
+  border-color: #409eff;
 }
 
 .paper-item {
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.paper-item:hover {
-  background: #ecf5ff;
+  width: 100%;
 }
 
 .paper-title {
   font-weight: 600;
   color: #303133;
   margin-bottom: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .paper-authors {
-  font-size: 13px;
+  font-size: 12px;
   color: #606266;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .review-result {
   background: white;
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e4e7ed;
 }
 
 .result-header {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e4e7ed;
 }
 
 .result-header h3 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  margin: 0 0 12px 0;
+  margin: 0 0 10px 0;
+  color: #1f2937;
 }
 
 .meta-info {
   display: flex;
-  gap: 16px;
-  font-size: 14px;
+  gap: 12px;
+  font-size: 13px;
   color: #909399;
+  flex-wrap: wrap;
+}
+
+.meta-info span {
+  padding: 4px 10px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  font-weight: 500;
 }
 
 .review-content {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .content-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border-left: 3px solid #409eff;
 }
 
 .content-section h4 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  margin: 0 0 12px 0;
-  color: #303133;
+  margin: 0 0 10px 0;
+  color: #409eff;
 }
 
 .content-section p {
   line-height: 1.8;
   color: #606266;
   margin: 0;
+  font-size: 14px;
 }
 
 .content-section ul {
@@ -347,13 +421,15 @@ onMounted(() => {
   line-height: 1.8;
   color: #606266;
   margin-bottom: 8px;
+  font-size: 14px;
 }
 
 .result-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   padding-top: 16px;
   border-top: 1px solid #e4e7ed;
+  flex-wrap: wrap;
 }
 
 .loading-state {
@@ -362,20 +438,59 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: #909399;
+  color: #606266;
+  background: #f9fafb;
+  border-radius: 12px;
 }
 
 .loading-state .el-icon {
   font-size: 48px;
   margin-bottom: 16px;
+  color: #409eff;
 }
 
 .loading-state p {
   margin: 0 0 24px 0;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #606266;
 }
 
 .loading-state .el-progress {
   width: 300px;
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .literature-review-panel {
+    padding: 12px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .panel-header h2 {
+    font-size: 18px;
+    text-align: center;
+  }
+
+  .config-section {
+    padding: 16px;
+  }
+
+  .paper-selector :deep(.el-checkbox-group) {
+    grid-template-columns: 1fr;
+  }
+
+  .result-actions {
+    flex-direction: column;
+  }
+
+  .result-actions .el-button {
+    width: 100%;
+  }
 }
 </style>

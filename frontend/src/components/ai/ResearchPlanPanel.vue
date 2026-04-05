@@ -37,9 +37,9 @@
 
         <el-form-item label="目标受众">
           <el-radio-group v-model="config.targetAudience">
-            <el-radio label="academic">学术界</el-radio>
-            <el-radio label="industry">工业界</el-radio>
-            <el-radio label="both">学术界与工业界</el-radio>
+            <el-radio value="academic">学术界</el-radio>
+            <el-radio value="industry">工业界</el-radio>
+            <el-radio value="both">学术界与工业界</el-radio>
           </el-radio-group>
         </el-form-item>
 
