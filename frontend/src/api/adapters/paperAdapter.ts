@@ -165,7 +165,10 @@ export interface UpdatePaperRequest {
 /**
  * Convert timestamp string to ISO 8601 format
  */
-function toISO8601(timestamp: string | number): string {
+function toISO8601(timestamp: string | number | undefined | null): string {
+  if (!timestamp) {
+    return new Date().toISOString()  // Fallback to current time
+  }
   if (typeof timestamp === 'number') {
     return new Date(timestamp * 1000).toISOString()
   }
@@ -210,7 +213,10 @@ function stringToNumber(year: string | undefined): number {
 /**
  * Convert year number to string
  */
-function numberToString(year: number): string {
+function numberToString(year: number | undefined): string {
+  if (year === undefined || year === null) {
+    return ''
+  }
   return year.toString()
 }
 
@@ -224,9 +230,16 @@ function numberToString(year: number): string {
  * @param backendPaper - Backend Paper object
  * @returns Frontend Paper object
  */
-export function toFrontendPaper(backendPaper: BackendPaper): FrontendPaper {
+export function toFrontendPaper(backendPaper: any): FrontendPaper {
+  if (!backendPaper) {
+    throw new Error('toFrontendPaper: backendPaper is null or undefined')
+  }
+
+  // Debug logging
+  console.log('[toFrontendPaper] Input:', backendPaper)
+
   return {
-    id: backendPaper.id,
+    id: backendPaper.id || 0,
     userId: 0,  // Backend doesn't provide userId, set to default
     title: backendPaper.title || '',
     authors: backendPaper.authors || '',

@@ -163,6 +163,47 @@ add_executable(test_export_check test_export_check.cpp)
 if(WIN32)
     target_link_libraries(test_export_check PRIVATE)
 endif()
+
+# 数据库拷贝工具
+add_executable(run_database_copy run_database_copy.cpp)
+target_link_libraries(run_database_copy PRIVATE SystemModules)
+if(WIN32)
+    target_link_libraries(run_database_copy PRIVATE
+        "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+        ws2_32
+    )
+endif()
+
+# 数据库schema检查工具
+add_executable(check_schema check_schema.cpp)
+target_link_libraries(check_schema PRIVATE SystemModules)
+if(WIN32)
+    target_link_libraries(check_schema PRIVATE
+        "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+        ws2_32
+    )
+endif()
+
+# 测试数据插入工具
+add_executable(insert_test_papers insert_test_papers.cpp)
+target_link_libraries(insert_test_papers PRIVATE SystemModules)
+if(WIN32)
+    target_link_libraries(insert_test_papers PRIVATE
+        "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+        ws2_32
+    )
+endif()
+
+# 测试数据插入工具（修正版）
+add_executable(insert_papers_correct insert_papers_correct.cpp)
+target_link_libraries(insert_papers_correct PRIVATE SystemModules)
+if(WIN32)
+    target_link_libraries(insert_papers_correct PRIVATE
+        "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+        ws2_32
+    )
+endif()
+
 if(WIN32)
     target_link_libraries(test_crawler PRIVATE)
 endif()
@@ -554,6 +595,8 @@ add_library(SystemModules STATIC
     src/data/SimpleMySQLDatabase.cpp # ⭐ 添加SimpleMySQLDatabase支持（AuthApiModule直接使用）
     src/common/JsonUtils.cpp        # 添加JsonUtils支持（CrawlerApiModule需要）
     src/modules/TemplateCrawlerModule.cpp  # 完整实现（需要gumbo）
+    # ⭐ 安全模块支持（AuthApiModule需要SecurityModule的密码哈希/验证功能）
+    ${SECURITY_SOURCES}
     # 核心框架源文件（MessageBus等）
     src/core/MessageBus.cpp
     # src/core/SharedBroadcastQueue.cpp  # ⚠️ 暂时移除，使用getDatabaseConnection()方案
@@ -946,11 +989,11 @@ endif()
 
 # message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with nlohmann/json)")
 
-# DistributedTaskModule - 分布式任务调度
+# DistributedTaskModule - 分布式任务调度 (临时禁用，编译错误)
 # 详见: DISTRIBUTED_TASK_MODULE_ANALYSIS.md
-add_dynamic_module_with_system(DistributedTaskModule
-    src/modules/DistributedTaskModule.cpp
-)
+# add_dynamic_module_with_system(DistributedTaskModule
+#     src/modules/DistributedTaskModule.cpp
+# )
 
 # CrawlerApiModule - 爬虫API接口
 add_dynamic_module_with_system(CrawlerApiModule

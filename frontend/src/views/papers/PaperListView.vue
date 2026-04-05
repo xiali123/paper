@@ -3,8 +3,8 @@
     <!-- Page Header -->
     <div class="page-header">
       <div class="page-header__content">
-        <h1 class="page-header__title">{{ $t('papers.title') || '论文管理' }}</h1>
-        <p class="page-header__subtitle">{{ $t('papers.subtitle') || '管理和浏览您的论文收藏' }}</p>
+        <h1 class="page-header__title">{{ pageTitle }}</h1>
+        <p class="page-header__subtitle">{{ pageSubtitle }}</p>
       </div>
       <div class="page-header__actions">
         <el-button type="primary" :icon="Plus" @click="handleCreate">
@@ -213,7 +213,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { usePaperStore } from '@/stores/paperStore'
 import { storeToRefs } from 'pinia'
 import type { Paper } from '@/api/modules/papers'
@@ -234,7 +234,39 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 const paperStore = usePaperStore()
+
+// 根据路由设置页面标题
+const pageTitle = computed(() => {
+  const routeName = route.name as string
+  switch (routeName) {
+    case 'PaperFavorites':
+      return '收藏的论文'
+    case 'PaperCategories':
+      return '论文分类'
+    case 'PaperTags':
+      return '论文标签'
+    case 'Papers':
+    default:
+      return '论文管理'
+  }
+})
+
+const pageSubtitle = computed(() => {
+  const routeName = route.name as string
+  switch (routeName) {
+    case 'PaperFavorites':
+      return '查看您收藏的所有论文'
+    case 'PaperCategories':
+      return '按分类浏览论文'
+    case 'PaperTags':
+      return '按标签查找论文'
+    case 'Papers':
+    default:
+      return '管理和浏览您的论文收藏'
+  }
+})
 
 const {
   papers,
@@ -504,8 +536,42 @@ const confirmDelete = async () => {
   }
 }
 
+// 根据路由应用过滤器
+const applyRouteBasedFilters = () => {
+  const routeName = route.name as string
+
+  // 清除之前的过滤器
+  paperStore.clearFilters()
+
+  // 根据路由名称设置不同的过滤器
+  switch (routeName) {
+    case 'PaperFavorites':
+      paperStore.setFilters({ isBookmarked: true })
+      break
+    case 'PaperCategories':
+      // 可以添加分类相关的默认过滤器
+      paperStore.setFilters({ category: '' })
+      break
+    case 'PaperTags':
+      // 标签页面不需要特殊过滤器，可以在UI中选择标签
+      break
+    case 'Papers':
+    default:
+      // 默认不设置过滤器
+      break
+  }
+}
+
 // Lifecycle
 onMounted(() => {
+  // 根据路由设置不同的过滤器
+  applyRouteBasedFilters()
+  fetchPapers()
+})
+
+// 监听路由变化
+watch(() => route.name, () => {
+  applyRouteBasedFilters()
   fetchPapers()
 })
 </script>

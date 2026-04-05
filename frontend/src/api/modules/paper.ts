@@ -62,7 +62,7 @@ export const paperApi = {
    */
   async search(params: SearchParams): Promise<SearchResult> {
     const backendParams = transformQueryParams(params)
-    const backendResponse = await request.get('/papers/search', { params: backendParams })
+    const backendResponse = await request.get('/api/papers/search', { params: backendParams })
 
     // Transform backend response to frontend format
     return {
@@ -79,7 +79,10 @@ export const paperApi = {
    * @returns Basic paper information
    */
   async getById(id: string | number): Promise<Paper> {
-    const backendPaper = await request.get(`/papers/${id}`)
+    const response = await request.get(`/api/papers/${id}`)
+    // Backend returns wrapped response: {papers: [...], total, page, limit}
+    // Extract the first (and only) paper from the array
+    const backendPaper = response.data?.papers?.[0] || response.data?.paper || response.data
     return toFrontendPaper(backendPaper)
   },
 
@@ -89,7 +92,7 @@ export const paperApi = {
    * @returns Extended paper details with citations, references, etc.
    */
   async getDetail(id: string | number): Promise<PaperDetail> {
-    const backendDetail = await request.get(`/papers/${id}/detail`)
+    const backendDetail = await request.get(`/api/papers/${id}/detail`)
     // Transform paper data within detail
     return {
       ...backendDetail,
@@ -103,8 +106,8 @@ export const paperApi = {
    * @returns Array of recent papers
    */
   async getRecent(limit: number = 20): Promise<Paper[]> {
-    // 后端没有 /papers/recent 路由，使用 /papers 并限制返回数量
-    const backendPapers = await request.get('/papers', { params: { limit, pageSize: limit } })
+    // 后端没有 /papers/recent 路由，使用 /api/papers 并限制返回数量
+    const backendPapers = await request.get('/api/papers', { params: { limit, pageSize: limit } })
     return transformPaperList(backendPapers.papers || backendPapers.data || [])
   },
 
@@ -116,7 +119,7 @@ export const paperApi = {
    */
   async getPaged(page: number, pageSize: number = 20): Promise<PaginatedResponse<Paper>> {
     const backendParams = transformPaginationParams({ page, pageSize })
-    const backendResponse = await request.get('/papers', { params: backendParams })
+    const backendResponse = await request.get('/api/papers', { params: backendParams })
 
     return transformPaginationResponse({
       items: transformPaperList(backendResponse.papers || backendResponse.data || []),
@@ -134,7 +137,7 @@ export const paperApi = {
    */
   async getPagedOffset(offset: number, limit: number = 20): Promise<PaginatedResponse<Paper>> {
     const backendParams = transformPaginationParams({ page: 1, pageSize: limit })
-    const backendResponse = await request.get('/papers', {
+    const backendResponse = await request.get('/api/papers', {
       params: { ...backendParams, offset }
     })
 
@@ -153,7 +156,7 @@ export const paperApi = {
    * POST /papers
    */
   async create(data: PaperCreateRequest): Promise<Paper> {
-    const backendPaper = await request.post('/papers', data)
+    const backendPaper = await request.post('/api/papers', data)
     return toFrontendPaper(backendPaper)
   },
 
@@ -162,7 +165,7 @@ export const paperApi = {
    * PUT /papers/:id
    */
   async update(id: number, data: Partial<PaperCreateRequest>): Promise<Paper> {
-    const backendPaper = await request.put(`/papers/${id}`, data)
+    const backendPaper = await request.put(`/api/papers/${id}`, data)
     return toFrontendPaper(backendPaper)
   },
 
@@ -171,7 +174,7 @@ export const paperApi = {
    * DELETE /papers/:id
    */
   async delete(id: number): Promise<{ success: boolean }> {
-    return await request.delete(`/papers/${id}`)
+    return await request.delete(`/api/papers/${id}`)
   },
 
   // ==================== 分类和标签管理 ====================
@@ -186,7 +189,7 @@ export const paperApi = {
     description: string
     paperCount: number
   }>> {
-    return await request.get('/papers/categories')
+    return await request.get('/api/papers/categories')
   },
 
   /**
@@ -198,7 +201,7 @@ export const paperApi = {
     name: string
     usageCount: number
   }>> {
-    return await request.get('/papers/tags')
+    return await request.get('/api/papers/tags')
   },
 
   // ==================== 收藏管理 ====================
@@ -208,7 +211,7 @@ export const paperApi = {
    * POST /papers/:id/favorite
    */
   async addFavorite(userId: number, paperId: number): Promise<{ success: boolean }> {
-    return await request.post(`/papers/${paperId}/favorite`, { userId })
+    return await request.post(`/api/papers/${paperId}/favorite`, { userId })
   },
 
   /**
@@ -216,7 +219,7 @@ export const paperApi = {
    * DELETE /papers/:id/favorite
    */
   async removeFavorite(userId: number, paperId: number): Promise<{ success: boolean }> {
-    return await request.delete(`/papers/${paperId}/favorite`, {
+    return await request.delete(`/api/papers/${paperId}/favorite`, {
       data: { userId }
     })
   },
@@ -245,7 +248,7 @@ export const paperApi = {
    * POST /papers/:id/history
    */
   async addToHistory(userId: number, paperId: number): Promise<{ success: boolean }> {
-    return await request.post(`/papers/${paperId}/history`, { userId })
+    return await request.post(`/api/papers/${paperId}/history`, { userId })
   },
 
   /**
@@ -287,7 +290,7 @@ export const paperApi = {
       count: number
     }>
   }> {
-    return await request.get('/papers/stats')
+    return await request.get('/api/papers/stats')
   }
 }
 

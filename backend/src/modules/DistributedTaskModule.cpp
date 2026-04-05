@@ -3,7 +3,7 @@
 #include "data/IDatabase.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
-using DataPreparedStatement = PreparedStatement;
+using DataPreparedStatement = PaperCrawler::PreparedStatement;
 #include "modules/CrawlerModule.hpp"
 #include "features/LoggingModule.hpp"
 #include "spdlog/spdlog.h"

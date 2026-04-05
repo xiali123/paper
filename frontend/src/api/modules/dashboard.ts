@@ -25,7 +25,7 @@ export const dashboardApi = {
    * GET /dashboard/stats
    */
   async getStats(): Promise<DashboardStats> {
-    return await request.get('/dashboard/stats')
+    return await request.get('/api/dashboard/stats')
   },
 
   /**
@@ -33,7 +33,7 @@ export const dashboardApi = {
    * GET /dashboard/activities
    */
   async getRecentActivities(limit: number = 10): Promise<RecentActivity[]> {
-    return await request.get('/dashboard/activities', {
+    return await request.get('/api/dashboard/activities', {
       params: { limit }
     })
   },
@@ -43,7 +43,7 @@ export const dashboardApi = {
    * GET /dashboard/recommendations/papers
    */
   async getRecommendedPapers(limit: number = 5): Promise<RecommendedPaper[]> {
-    return await request.get('/dashboard/recommendations/papers', {
+    return await request.get('/api/dashboard/recommendations/papers', {
       params: { limit }
     })
   },
@@ -53,7 +53,7 @@ export const dashboardApi = {
    * GET /dashboard/trending/searches
    */
   async getTrendingSearches(limit: number = 10): Promise<TrendingSearch[]> {
-    return await request.get('/dashboard/trending/searches', {
+    return await request.get('/api/dashboard/trending/searches', {
       params: { limit }
     })
   },
@@ -63,7 +63,7 @@ export const dashboardApi = {
    * GET /dashboard/todos
    */
   async getTodoItems(): Promise<TodoItem[]> {
-    return await request.get('/dashboard/todos')
+    return await request.get('/api/dashboard/todos')
   },
 
   /**
@@ -82,7 +82,7 @@ export const dashboardApi = {
    * GET /dashboard/crawler-tasks
    */
   async getCrawlerTasks(): Promise<CrawlerTask[]> {
-    return await request.get('/dashboard/crawler-tasks')
+    return await request.get('/api/dashboard/crawler-tasks')
   },
 
   /**
@@ -90,7 +90,7 @@ export const dashboardApi = {
    * GET /dashboard/growth
    */
   async getPaperGrowth(days: number = 30): Promise<PaperGrowthData[]> {
-    return await request.get('/dashboard/growth', {
+    return await request.get('/api/dashboard/growth', {
       params: { days }
     })
   },
@@ -100,7 +100,7 @@ export const dashboardApi = {
    * GET /dashboard/distribution/journals
    */
   async getJournalDistribution(): Promise<JournalDistributionData[]> {
-    return await request.get('/dashboard/distribution/journals')
+    return await request.get('/api/dashboard/distribution/journals')
   },
 
   /**
@@ -108,7 +108,7 @@ export const dashboardApi = {
    * GET /dashboard/distribution/ccf
    */
   async getCCFDistribution(): Promise<CCFLevelDistribution[]> {
-    return await request.get('/dashboard/distribution/ccf')
+    return await request.get('/api/dashboard/distribution/ccf')
   },
 
   /**
@@ -119,7 +119,7 @@ export const dashboardApi = {
     success: boolean
     timestamp: string
   }> {
-    return await request.post('/dashboard/refresh')
+    return await request.post('/api/dashboard/refresh')
   },
 
   /**
@@ -136,7 +136,7 @@ export const dashboardApi = {
     layoutMode: string
     refreshInterval: number
   }> {
-    return await request.get('/dashboard/config')
+    return await request.get('/api/dashboard/config')
   },
 
   /**
@@ -152,7 +152,7 @@ export const dashboardApi = {
     layoutMode?: string
     refreshInterval?: number
   }): Promise<{ success: boolean }> {
-    return await request.put('/dashboard/config', config)
+    return await request.put('/api/dashboard/config', config)
   }
 }
 

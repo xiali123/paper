@@ -340,7 +340,7 @@ const onEmptyAction = () => {
   flex: 1;
   width: 100%;
   padding: var(--space-8) var(--space-6);
-  max-width: 1400px;
+  max-width: 95%;
   margin: 0 auto;
 }
 
@@ -443,7 +443,7 @@ const onEmptyAction = () => {
 .layout-wide .header-content,
 .layout-wide .page-main,
 .layout-wide .breadcrumb-list {
-  max-width: 1600px;
+  max-width: 95%;
 }
 
 .layout-full .header-content,

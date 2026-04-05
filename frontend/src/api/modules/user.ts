@@ -116,7 +116,7 @@ export const userApi = {
    * GET /users/:id
    */
   async getUser(id: number): Promise<User> {
-    return await request.get(`/users/${id}`)
+    return await request.get(`/api/users/${id}`)
   },
 
   /**
@@ -124,7 +124,7 @@ export const userApi = {
    * POST /users
    */
   async createUser(data: CreateUserRequest): Promise<User> {
-    return await request.post('/users', data)
+    return await request.post('/api/users', data)
   },
 
   /**
@@ -132,7 +132,7 @@ export const userApi = {
    * PUT /users/:id
    */
   async updateUser(id: number, data: UpdateUserRequest): Promise<User> {
-    return await request.put(`/users/${id}`, data)
+    return await request.put(`/api/users/${id}`, data)
   },
 
   /**
@@ -140,7 +140,7 @@ export const userApi = {
    * DELETE /users/:id
    */
   async deleteUser(id: number): Promise<{ success: boolean }> {
-    return await request.delete(`/users/${id}`)
+    return await request.delete(`/api/users/${id}`)
   },
 
   /**
@@ -148,7 +148,7 @@ export const userApi = {
    * POST /users/:id/activate
    */
   async activateUser(id: number): Promise<{ success: boolean }> {
-    return await request.post(`/users/${id}/activate`)
+    return await request.post(`/api/users/${id}/activate`)
   },
 
   /**
@@ -156,7 +156,7 @@ export const userApi = {
    * POST /users/:id/suspend
    */
   async suspendUser(id: number, reason?: string): Promise<{ success: boolean }> {
-    return await request.post(`/users/${id}/suspend`, { reason })
+    return await request.post(`/api/users/${id}/suspend`, { reason })
   },
 
   /**
@@ -164,7 +164,7 @@ export const userApi = {
    * PUT /users/:id/password
    */
   async changeUserPassword(id: number, newPassword: string): Promise<{ success: boolean }> {
-    return await request.put(`/users/${id}/password`, { newPassword })
+    return await request.put(`/api/users/${id}/password`, { newPassword })
   },
 
   /**
@@ -175,7 +175,7 @@ export const userApi = {
     success: boolean
     temporaryPassword: string
   }> {
-    return await request.post(`/users/${id}/reset-password`)
+    return await request.post(`/api/users/${id}/reset-password`)
   },
 
   /**
@@ -183,7 +183,7 @@ export const userApi = {
    * GET /users/stats
    */
   async getStats(): Promise<UserStats> {
-    return await request.get('/users/stats')
+    return await request.get('/api/users/stats')
   },
 
   /**
@@ -191,7 +191,7 @@ export const userApi = {
    * GET /users/search
    */
   async searchUsers(query: string, limit = 20): Promise<User[]> {
-    return await request.get('/users/search', {
+    return await request.get('/api/users/search', {
       params: { query, limit }
     })
   },
@@ -201,7 +201,7 @@ export const userApi = {
    * GET /users/by-role
    */
   async getUsersByRole(role: UserRole, page = 1, limit = 20): Promise<UserListResponse> {
-    return await request.get('/users/by-role', {
+    return await request.get('/api/users/by-role', {
       params: { role, page, limit }
     })
   },
@@ -222,7 +222,7 @@ export const userApi = {
     total: number
     page: number
   }> {
-    return await request.get(`/users/${id}/activity`, {
+    return await request.get(`/api/users/${id}/activity`, {
       params: { page, limit }
     })
   },
@@ -237,7 +237,7 @@ export const userApi = {
     userAgent: string
     successful: boolean
   }>> {
-    return await request.get(`/users/${id}/login-history`, {
+    return await request.get(`/api/users/${id}/login-history`, {
       params: { limit }
     })
   },
@@ -254,7 +254,7 @@ export const userApi = {
       error: string
     }>
   }> {
-    return await request.post('/users/batch', { operation, userIds })
+    return await request.post('/api/users/batch', { operation, userIds })
   },
 
   /**
@@ -266,7 +266,7 @@ export const userApi = {
     filename: string
     expiresAt: string
   }> {
-    return await request.get('/users/export', {
+    return await request.get('/api/users/export', {
       params: { format }
     })
   },
@@ -280,7 +280,7 @@ export const userApi = {
     roles: UserRole[]
     customPermissions: Record<string, boolean>
   }> {
-    return await request.get(`/users/${id}/permissions`)
+    return await request.get(`/api/users/${id}/permissions`)
   },
 
   /**
@@ -291,7 +291,7 @@ export const userApi = {
     id: number,
     permissions: string[]
   ): Promise<{ success: boolean }> {
-    return await request.put(`/users/${id}/permissions`, { permissions })
+    return await request.put(`/api/users/${id}/permissions`, { permissions })
   }
 }
 

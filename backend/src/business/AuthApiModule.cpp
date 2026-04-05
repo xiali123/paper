@@ -1,6 +1,7 @@
 #include <iostream>
 #include "business/AuthApiModule.hpp"
 #include "features/SessionModule.hpp"
+#include "features/SecurityModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/SimpleMySQLDatabase.hpp"
 #include "core/MessageBus.hpp"
@@ -48,6 +49,9 @@ public:
     // 直接MySQL连接（用于AuthApiModule）
     std::shared_ptr<SimpleMySQLDatabase> mysqlDatabase_;
 
+    // 安全模块（用于密码哈希和验证）
+    std::unique_ptr<SecurityModule> securityModule_;
+
     // 会话管理（已迁移到数据库user_sessions表）
     // std::map<std::string, std::string> mockTokens_;  // 已废弃
     // std::map<std::string, std::string> refreshTokens_;  // 已废弃
@@ -61,8 +65,13 @@ public:
 
     // 构造函数：接受数据库依赖
     explicit Impl(std::shared_ptr<IDatabase> database)
-        : database_(database) {
-        // 不再加载Mock数据
+        : database_(database), securityModule_(std::make_unique<SecurityModule>()) {
+        // 初始化SecurityModule
+        if (securityModule_) {
+            securityModule_->initialize();
+            securityModule_->start();
+            spdlog::info("[Auth] SecurityModule initialized for password hashing");
+        }
     }
 
     std::string generateAccessToken(int userId) {
@@ -79,30 +88,53 @@ public:
     }
 
     bool verifyPassword(const std::string& username, const std::string& password) {
-        // TODO: 实现真实的bcrypt验证
-        // 当前简化版：从数据库查询密码哈希并验证
+        // ✅ 安全修复：使用SecurityModule进行真实的密码验证
         try {
+            // 从数据库查询密码哈希
             auto sql = "SELECT password_hash FROM users WHERE username = '" + username + "'";
             auto results = database_->query(sql);
 
             if (!results.empty()) {
                 std::string storedHash = results[0]["password_hash"];
-                // TODO: 实际应该使用bcrypt库验证
-                // 当前简化：直接比较（仅用于开发测试）
-                return !password.empty();  // 临时：非空密码都通过
+
+                // ✅ 使用SecurityModule的验证逻辑
+                if (securityModule_) {
+                    bool verified = securityModule_->verifyPassword(password, storedHash);
+                    if (!verified) {
+                        spdlog::warn("[Auth] Password verification failed for user: {}", username);
+                    }
+                    return verified;
+                } else {
+                    spdlog::error("[Auth] SecurityModule not initialized, falling back to insecure verification");
+                    // 降级方案：如果SecurityModule未初始化，仍然拒绝所有登录
+                    return false;
+                }
             }
 
+            spdlog::warn("[Auth] User not found: {}", username);
             return false;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Password verification failed: " << e.what() << std::endl;
+            spdlog::error("[Auth] Password verification failed: {}", e.what());
             return false;
         }
     }
 
     std::string hashPassword(const std::string& password) {
-        // TODO: 实现真实的bcrypt哈希
-        // 临时简化版
-        return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
+        // ✅ 安全修复：使用SecurityModule进行真实的密码哈希
+        if (securityModule_) {
+            auto result = securityModule_->hashPassword(password);
+            if (result.success) {
+                return result.hash;
+            } else {
+                spdlog::error("[Auth] Password hashing failed: {}", result.errorMessage);
+                // 降级方案：使用简单的哈希（仍然比明文好）
+                return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
+            }
+        } else {
+            spdlog::error("[Auth] SecurityModule not initialized for password hashing");
+            // 降级方案：使用简单的哈希
+            return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
+        }
     }
 
     // 数据库会话管理方法
@@ -185,31 +217,33 @@ public:
 
     std::optional<int> validateSession(const std::string& accessToken) {
         try {
-            // 优先使用MySQL数据库
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                auto sql = "SELECT user_id FROM user_sessions WHERE "
-                         "access_token_hash = SHA2('" + accessToken + "', 256) "
-                         "AND expires_at > NOW()";
-                auto results = mysqlDatabase_->query(sql);
-
-                if (!results.empty()) {
-                    return std::stoi(results[0]["user_id"]);
-                }
-                return std::nullopt;
-            }
-
-            // Fallback to old database_ interface
+            // ✅ 修复：直接使用database_，因为此方法在Impl类内部
             if (database_) {
                 auto sql = "SELECT user_id FROM user_sessions WHERE "
                          "access_token_hash = SHA2('" + accessToken + "', 256) "
                          "AND expires_at > NOW()";
                 auto results = database_->query(sql);
 
+                spdlog::info("[Auth] validateSession: Query returned {} rows for token: {}", results.size(), accessToken);
                 if (!results.empty()) {
-                    return std::stoi(results[0]["user_id"]);
+                    spdlog::info("[Auth] validateSession: Result keys:");
+                    for (const auto& [key, value] : results[0]) {
+                        spdlog::info("[Auth]   {} = '{}'", key, value);
+                    }
+                    try {
+                        int userId = std::stoi(results[0]["user_id"]);
+                        spdlog::info("[Auth] validateSession: Successfully parsed userId: {}", userId);
+                        return userId;
+                    } catch (const std::exception& e) {
+                        spdlog::error("[Auth] validateSession: Failed to parse userId: {}", e.what());
+                        return std::nullopt;
+                    }
                 }
+                spdlog::warn("[Auth] validateSession: No results found for token");
                 return std::nullopt;
             }
+
+            // ✅ 已修复：删除重复的database_ fallback分支，现在使用统一的database_连接
 
             return std::nullopt;
         } catch (const std::exception& e) {
@@ -278,7 +312,7 @@ public:
         }
     }
 
-    // 从数据库查询用户
+    // 从数据库查询用户（仅用户名）
     std::optional<User> getUserByUsername(const std::string& username) {
         try {
             // 优先使用mysqlDatabase_
@@ -293,7 +327,7 @@ public:
                     user.email = results[0]["email"];
                     user.fullName = results[0]["full_name"];
                     user.role = results[0]["role"];
-                    user.active = (results[0]["active"] == "1");
+                    user.active = (results[0]["is_active"] == "1" || results[0]["is_active"] == "TRUE");
                     return user;
                 }
                 return std::nullopt;
@@ -311,9 +345,90 @@ public:
                     user.email = results[0]["email"];
                     user.fullName = results[0]["full_name"];
                     user.role = results[0]["role"];
-                    user.active = (results[0]["active"] == "1");
+                    user.active = (results[0]["is_active"] == "1" || results[0]["is_active"] == "TRUE");
                     return user;
                 }
+                return std::nullopt;
+            }
+
+            spdlog::warn("[Auth] No database connection available");
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            std::cerr << "[Auth] Failed to query user: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // 从数据库查询用户（支持用户名或邮箱）
+    std::optional<User> getUserByUsernameOrEmail(const std::string& usernameOrEmail) {
+        try {
+            spdlog::info("[Auth] 🔍 getUserByUsernameOrEmail called with: '{}'", usernameOrEmail);
+
+            // 优先使用mysqlDatabase_
+            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
+                // ✅ 支持用户名或邮箱登录
+                auto sql = "SELECT * FROM users WHERE username = '" + usernameOrEmail + "' OR email = '" + usernameOrEmail + "'";
+                spdlog::info("[Auth] Executing SQL: {}", sql);
+                auto results = mysqlDatabase_->query(sql);
+
+                spdlog::info("[Auth] Query returned {} results", results.size());
+
+                if (!results.empty()) {
+                    spdlog::info("[Auth] First result keys:");
+                    for (const auto& [key, value] : results[0]) {
+                        spdlog::info("[Auth]   {} = '{}'", key, value);
+                    }
+
+                    User user;
+                    user.id = std::stoi(results[0]["id"]);
+                    user.username = results[0]["username"];
+                    user.email = results[0]["email"];
+                    user.fullName = results[0]["full_name"];
+                    user.role = results[0]["role"];
+
+                    std::string isActiveValue = results[0]["is_active"];
+                    spdlog::info("[Auth] 🎯 is_active field value: '{}'", isActiveValue);
+                    user.active = (isActiveValue == "1" || isActiveValue == "TRUE");
+
+                    spdlog::info("[Auth] ✅ User found - id: {}, username: {}, email: {}, active: {}",
+                                user.id, user.username, user.email, user.active);
+                    return user;
+                }
+                spdlog::warn("[Auth] ❌ User not found in database");
+                return std::nullopt;
+            }
+
+            // 其次使用database_（如果通过MessageBus连接）
+            if (database_) {
+                // ✅ 支持用户名或邮箱登录
+                auto sql = "SELECT * FROM users WHERE username = '" + usernameOrEmail + "' OR email = '" + usernameOrEmail + "'";
+                spdlog::info("[Auth] Executing SQL (fallback): {}", sql);
+                auto results = database_->query(sql);
+
+                spdlog::info("[Auth] Query returned {} results", results.size());
+
+                if (!results.empty()) {
+                    spdlog::info("[Auth] First result keys:");
+                    for (const auto& [key, value] : results[0]) {
+                        spdlog::info("[Auth]   {} = '{}'", key, value);
+                    }
+
+                    User user;
+                    user.id = std::stoi(results[0]["id"]);
+                    user.username = results[0]["username"];
+                    user.email = results[0]["email"];
+                    user.fullName = results[0]["full_name"];
+                    user.role = results[0]["role"];
+
+                    std::string isActiveValue = results[0]["is_active"];
+                    spdlog::info("[Auth] 🎯 is_active field value: '{}'", isActiveValue);
+                    user.active = (isActiveValue == "1" || isActiveValue == "TRUE");
+
+                    spdlog::info("[Auth] ✅ User found - id: {}, username: {}, email: {}, active: {}",
+                                user.id, user.username, user.email, user.active);
+                    return user;
+                }
+                spdlog::warn("[Auth] ❌ User not found in database");
                 return std::nullopt;
             }
 
@@ -342,8 +457,8 @@ public:
                     return std::nullopt;  // 用户已存在
                 }
 
-                // 插入新用户
-                auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, active, created_at) "
+                // 插入新用户 (修复：移除salt和is_verified字段，与UserApiModule保持一致)
+                auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active, created_at) "
                           "VALUES ('" + username + "', '" + email + "', '" + fullName + "', "
                           "'" + passwordHash + "', 'user', 1, NOW())";
 
@@ -362,8 +477,8 @@ public:
                     return std::nullopt;  // 用户已存在
                 }
 
-                // 插入新用户
-                auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, active, created_at) "
+                // 插入新用户 (修复：移除salt和is_verified字段，与UserApiModule保持一致)
+                auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active, created_at) "
                           "VALUES ('" + username + "', '" + email + "', '" + fullName + "', "
                           "'" + passwordHash + "', 'user', 1, NOW())";
 
@@ -385,8 +500,9 @@ public:
     // 初始化数据库表
     bool initializeDatabaseTables() {
         try {
+            // 优先使用mysqlDatabase_
             if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                spdlog::info("[Auth] Initializing database tables...");
+                spdlog::info("[Auth] Initializing database tables using mysqlDatabase_...");
 
                 // 先删除已存在的表（确保使用最新的schema）
                 auto dropTable = "DROP TABLE IF EXISTS user_sessions";
@@ -412,15 +528,51 @@ public:
                 )";
 
                 if (mysqlDatabase_->execute(createSessionsTable)) {
-                    spdlog::info("[Auth] ✅ user_sessions table created successfully");
+                    spdlog::info("[Auth] ✅ user_sessions table created successfully using mysqlDatabase_");
                     return true;
                 } else {
-                    spdlog::error("[Auth] ❌ Failed to create user_sessions table");
+                    spdlog::error("[Auth] ❌ Failed to create user_sessions table using mysqlDatabase_");
                     return false;
                 }
             }
 
-            spdlog::warn("[Auth] No MySQL connection available for table initialization");
+            // 其次使用database_（如果通过MessageBus连接）
+            if (database_) {
+                spdlog::info("[Auth] Initializing database tables using database_ interface...");
+
+                // 先删除已存在的表（确保使用最新的schema）
+                auto dropTable = "DROP TABLE IF EXISTS user_sessions";
+                if (database_->execute(dropTable)) {
+                    spdlog::info("[Auth] Dropped existing user_sessions table");
+                }
+
+                // 创建user_sessions表
+                auto createSessionsTable = R"(
+                    CREATE TABLE user_sessions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        access_token_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 hash of access token',
+                        refresh_token VARCHAR(255) NOT NULL,
+                        expires_at TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_user_id (user_id),
+                        INDEX idx_access_token_hash (access_token_hash),
+                        INDEX idx_refresh_token (refresh_token),
+                        INDEX idx_expires_at (expires_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                )";
+
+                if (database_->execute(createSessionsTable)) {
+                    spdlog::info("[Auth] ✅ user_sessions table created successfully using database_ interface");
+                    return true;
+                } else {
+                    spdlog::error("[Auth] ❌ Failed to create user_sessions table using database_ interface");
+                    return false;
+                }
+            }
+
+            spdlog::warn("[Auth] No database connection available for table initialization");
             return false;
         } catch (const std::exception& e) {
             spdlog::error("[Auth] Exception initializing database tables: {}", e.what());
@@ -454,6 +606,10 @@ void AuthApiModule::registerRoutes() {
             auto testResults = impl_->database_->query("SELECT 1");
             if (!testResults.empty()) {
                 spdlog::info("[AuthApi] ✅ Injected database connection verified successfully");
+
+                // ✅ 初始化数据库表（修复：确保在所有数据库连接类型中初始化）
+                spdlog::info("[AuthApi] Initializing database tables...");
+                impl_->initializeDatabaseTables();
             } else {
                 spdlog::warn("[AuthApi] ⚠️ Injected database connection query failed");
                 impl_->database_.reset();
@@ -480,6 +636,10 @@ void AuthApiModule::registerRoutes() {
                 auto testResults = impl_->database_->query("SELECT 1");
                 if (!testResults.empty()) {
                     spdlog::info("[AuthApi] ✅ Global database connection verified successfully");
+
+                    // ✅ 初始化数据库表（修复：确保在所有数据库连接类型中初始化）
+                    spdlog::info("[AuthApi] Initializing database tables...");
+                    impl_->initializeDatabaseTables();
                 } else {
                     spdlog::warn("[AuthApi] ⚠️ Global database connection query failed");
                     impl_->database_.reset();
@@ -673,8 +833,8 @@ void AuthApiModule::registerRoutes() {
             std::string username = json["username"].get<std::string>();
             std::string password = json["password"].get<std::string>();
 
-            // 从数据库查询用户
-            auto userOpt = impl_->getUserByUsername(username);
+            // ✅ 支持邮箱或用户名登录
+            auto userOpt = impl_->getUserByUsernameOrEmail(username);
             if (!userOpt) {
                 impl_->stats_.failedLogins++;
                 HttpResponse response;
@@ -724,8 +884,8 @@ void AuthApiModule::registerRoutes() {
             // 更新最后登录时间
             user.lastLoginAt = std::chrono::system_clock::now();
 
-            // 更新数据库中的last_login_at字段（优先使用mysqlDatabase_）
-            std::string updateSql = "UPDATE users SET last_login_at = NOW() WHERE id = " + std::to_string(user.id);
+            // 更新数据库中的last_login字段（优先使用mysqlDatabase_）
+            std::string updateSql = "UPDATE users SET last_login = NOW() WHERE id = " + std::to_string(user.id);
             if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
                 impl_->mysqlDatabase_->execute(updateSql);
             } else if (impl_->database_) {
@@ -993,8 +1153,8 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
         }, 400);
     }
 
-    // 从数据库查询用户
-    auto userOpt = impl_->getUserByUsername(request.username);
+    // 从数据库查询用户（支持用户名或邮箱）
+    auto userOpt = impl_->getUserByUsernameOrEmail(request.username);
     if (!userOpt) {
         impl_->stats_.failedLogins++;
         return buildJsonResponse({
@@ -1040,8 +1200,8 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     // 更新最后登录时间
     user.lastLoginAt = std::chrono::system_clock::now();
 
-    // 更新数据库中的last_login_at字段
-    auto updateSql = "UPDATE users SET last_login_at = NOW() WHERE id = " + std::to_string(user.id);
+    // 更新数据库中的last_login字段
+    auto updateSql = "UPDATE users SET last_login = NOW() WHERE id = " + std::to_string(user.id);
     database_->execute(updateSql);
 
     impl_->stats_.successfulLogins++;
@@ -1104,6 +1264,8 @@ RefreshTokenResponse AuthApiModule::refreshToken(const RefreshTokenRequest& requ
 }
 
 std::optional<User> AuthApiModule::getCurrentUser(const std::string& accessToken) {
+    spdlog::info("[Auth] getCurrentUser called with token: {}", accessToken);
+
     // 从数据库验证会话（替代原来的mockTokens_查找）
     auto userIdOpt = impl_->validateSession(accessToken);
     if (!userIdOpt.has_value()) {
@@ -1112,32 +1274,43 @@ std::optional<User> AuthApiModule::getCurrentUser(const std::string& accessToken
     }
 
     int userId = *userIdOpt;
+    spdlog::info("[Auth] Token validated successfully for userId: {}", userId);
 
-    // 从数据库查询用户（优先使用mysqlDatabase_）
+    // 从数据库查询用户（使用impl_->database_连接）
     try {
         std::vector<std::map<std::string, std::string>> results;
 
-        if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+        spdlog::info("[Auth] Querying user data for userId: {}", userId);
+        spdlog::info("[Auth] impl_->database_ available: {}", impl_->database_ != nullptr);
+
+        // ✅ 修复：使用impl_->database_而不是直接访问database_
+        if (impl_->database_) {
             auto sql = "SELECT * FROM users WHERE id = " + std::to_string(userId);
-            results = impl_->mysqlDatabase_->query(sql);
-        } else if (database_) {
-            auto sql = "SELECT * FROM users WHERE id = " + std::to_string(userId);
-            results = database_->query(sql);
+            spdlog::info("[Auth] Executing SQL: {}", sql);
+            results = impl_->database_->query(sql);
+            spdlog::info("[Auth] Query returned {} rows", results.size());
+        } else {
+            spdlog::warn("[Auth] No database connection available!");
+            return std::nullopt;
         }
 
         if (!results.empty()) {
+            spdlog::info("[Auth] User query successful, parsing user data");
             User user;
             user.id = std::stoi(results[0]["id"]);
             user.username = results[0]["username"];
             user.email = results[0]["email"];
             user.fullName = results[0]["full_name"];
             user.role = results[0]["role"];
-            user.active = (results[0]["active"] == "1");
+            user.active = (results[0]["is_active"] == "1" || results[0]["is_active"] == "TRUE");
+            spdlog::info("[Auth] User data parsed successfully: id={}, username={}, active={}", user.id, user.username, user.active);
             return user;
         }
 
+        spdlog::warn("[Auth] User query returned empty results for userId: {}", userId);
         return std::nullopt;
     } catch (const std::exception& e) {
+        spdlog::error("[Auth] Failed to query user: {}", e.what());
         std::cerr << "[Auth] Failed to query user: " << e.what() << std::endl;
         return std::nullopt;
     }

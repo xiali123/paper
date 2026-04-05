@@ -101,6 +101,29 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/papers/PaperListView.vue'),
         meta: { requiresAuth: true, title: 'route.paperManagement', icon: 'Document' }
       },
+      // Specific routes must come before dynamic :id route
+      {
+        path: '/papers/all',
+        redirect: '/papers'
+      },
+      {
+        path: '/papers/favorites',
+        name: 'PaperFavorites',
+        component: () => import('@/views/papers/PaperListView.vue'),
+        meta: { requiresAuth: true, title: 'route.favoritePapers' }
+      },
+      {
+        path: '/papers/categories',
+        name: 'PaperCategories',
+        component: () => import('@/views/papers/PaperListView.vue'),
+        meta: { requiresAuth: true, title: 'route.paperCategories' }
+      },
+      {
+        path: '/papers/tags',
+        name: 'PaperTags',
+        component: () => import('@/views/papers/PaperListView.vue'),
+        meta: { requiresAuth: true, title: 'route.paperTags' }
+      },
       {
         path: '/papers/new',
         name: 'PaperCreate',
@@ -108,7 +131,7 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: 'route.addPaper' }
       },
       {
-        path: '/papers/:id',
+        path: '/papers/:id(\\d+)',  // Only match numeric IDs
         name: 'PaperDetail',
         component: () => import('@/views/papers/PaperDetailView.vue'),
         meta: { requiresAuth: true, title: 'route.paperDetails' }

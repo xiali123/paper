@@ -180,7 +180,7 @@ export const authApi = {
     const backendRequest = transformRegisterRequest(data)
 
     // 发送请求到后端
-    const backendResponse = await request.post<any>('/auth/register', backendRequest)
+    const backendResponse = await request.post<any>('/api/auth/register', backendRequest)
 
     // 转换响应格式 - 注册响应不包含 token
     return transformRegisterResponse(backendResponse)
@@ -205,7 +205,7 @@ export const authApi = {
     const backendRequest = transformLoginRequest(credentials)
 
     // 发送请求到后端
-    const backendResponse = await request.post<BackendLoginResponse>('/auth/login', backendRequest)
+    const backendResponse = await request.post<BackendLoginResponse>('/api/auth/login', backendRequest)
 
     // 转换响应格式：后端 -> 前端
     return transformLoginResponse(backendResponse)
@@ -223,7 +223,7 @@ export const authApi = {
    * ```
    */
   async logout(refreshToken: string): Promise<{ message: string }> {
-    return await request.post('/auth/logout', { refreshToken })
+    return await request.post('/api/auth/logout', { refreshToken })
   },
 
   /**
@@ -238,7 +238,7 @@ export const authApi = {
    * ```
    */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
-    return await request.post('/auth/refresh', { refreshToken })
+    return await request.post('/api/auth/refresh', { refreshToken })
   },
 
   /**
@@ -252,7 +252,7 @@ export const authApi = {
    * ```
    */
   async getCurrentUser(): Promise<User> {
-    return await request.get('/auth/me')
+    return await request.get('/api/auth/me')
   },
 
   /**
@@ -270,7 +270,7 @@ export const authApi = {
    * ```
    */
   async changePassword(data: ChangePasswordRequest): Promise<{ message: string }> {
-    return await request.put('/auth/password', data)
+    return await request.put('/api/auth/password', data)
   },
 
   /**
@@ -285,7 +285,7 @@ export const authApi = {
    * ```
    */
   async requestPasswordReset(email: string): Promise<{ message: string }> {
-    return await request.post('/auth/forgot-password', { email })
+    return await request.post('/api/auth/forgot-password', { email })
   },
 
   /**
@@ -303,7 +303,7 @@ export const authApi = {
    * ```
    */
   async resetPassword(data: PasswordResetConfirm): Promise<{ message: string }> {
-    return await request.post('/auth/reset-password', data)
+    return await request.post('/api/auth/reset-password', data)
   },
 
   /**
@@ -321,7 +321,7 @@ export const authApi = {
    * ```
    */
   async updateProfile(data: UpdateProfileRequest): Promise<User> {
-    return await request.put('/auth/profile', data)
+    return await request.put('/api/auth/profile', data)
   },
 
   /**
@@ -335,7 +335,7 @@ export const authApi = {
    * ```
    */
   async getSessions(): Promise<Session[]> {
-    return await request.get('/auth/sessions')
+    return await request.get('/api/auth/sessions')
   },
 
   /**
@@ -364,7 +364,7 @@ export const authApi = {
    * ```
    */
   async invalidateAllSessions(): Promise<{ message: string }> {
-    return await request.post('/auth/sessions/invalidate-all')
+    return await request.post('/api/auth/sessions/invalidate-all')
   },
 
   /**
@@ -378,7 +378,7 @@ export const authApi = {
    * ```
    */
   async deactivateAccount(): Promise<{ message: string }> {
-    return await request.post('/auth/deactivate')
+    return await request.post('/api/auth/deactivate')
   },
 
   /**
@@ -392,7 +392,7 @@ export const authApi = {
    * ```
    */
   async reactivateAccount(): Promise<{ message: string }> {
-    return await request.post('/auth/reactivate')
+    return await request.post('/api/auth/reactivate')
   },
 
   /**
@@ -410,7 +410,7 @@ export const authApi = {
   async uploadAvatar(file: File): Promise<User> {
     const formData = new FormData()
     formData.append('avatar', file)
-    return await request.post('/auth/avatar', formData, {
+    return await request.post('/api/auth/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -428,7 +428,7 @@ export const authApi = {
    * ```
    */
   async deleteAvatar(): Promise<User> {
-    return await request.delete('/auth/avatar')
+    return await request.delete('/api/auth/avatar')
   }
 }
 

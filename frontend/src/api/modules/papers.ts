@@ -84,7 +84,7 @@ export const papersApi = {
    */
   async getPapers(params: PaperQuery = {}): Promise<PaperListResponse> {
     const backendParams = transformQueryParams(params)
-    const response = await request.get('/papers', { params: backendParams })
+    const response = await request.get('/api/papers', { params: backendParams })
 
     // Parse JSON string to object
     const data = typeof response === 'string' ? JSON.parse(response) : response
@@ -114,7 +114,7 @@ export const papersApi = {
    * ```
    */
   async getPaper(id: number): Promise<Paper> {
-    const backendPaper = await request.get<BackendPaper>(`/papers/${id}`)
+    const backendPaper = await request.get<BackendPaper>(`/api/papers/${id}`)
     return toFrontendPaper(backendPaper)
   },
 
@@ -135,7 +135,7 @@ export const papersApi = {
    */
   async createPaper(data: CreatePaperRequest): Promise<Paper> {
     const backendRequest = transformCreateRequest(data)
-    const backendPaper = await request.post<BackendPaper>('/papers', backendRequest)
+    const backendPaper = await request.post<BackendPaper>('/api/papers', backendRequest)
     return toFrontendPaper(backendPaper)
   },
 
@@ -156,7 +156,7 @@ export const papersApi = {
    */
   async updatePaper(id: number, data: UpdatePaperRequest): Promise<Paper> {
     const backendRequest = transformUpdateRequest(data)
-    const backendPaper = await request.put<BackendPaper>(`/papers/${id}`, backendRequest)
+    const backendPaper = await request.put<BackendPaper>(`/api/papers/${id}`, backendRequest)
     return toFrontendPaper(backendPaper)
   },
 
@@ -172,7 +172,7 @@ export const papersApi = {
    * ```
    */
   async deletePaper(id: number): Promise<{ message: string }> {
-    return await request.delete(`/papers/${id}`)
+    return await request.delete(`/api/papers/${id}`)
   },
 
   /**
@@ -188,7 +188,7 @@ export const papersApi = {
    * ```
    */
   async toggleBookmark(id: number): Promise<{ isBookmarked: boolean }> {
-    return await request.post(`/papers/${id}/bookmark`)
+    return await request.post(`/api/papers/${id}/bookmark`)
   },
 
   /**
@@ -204,7 +204,7 @@ export const papersApi = {
    * ```
    */
   async markAsRead(id: number, isRead: boolean): Promise<{ isRead: boolean }> {
-    return await request.post(`/papers/${id}/read`, { isRead })
+    return await request.post(`/api/papers/${id}/read`, { isRead })
   },
 
   /**
@@ -220,7 +220,7 @@ export const papersApi = {
    * ```
    */
   async updateProgress(id: number, progress: number): Promise<{ readingProgress: number }> {
-    return await request.post(`/papers/${id}/progress`, { progress })
+    return await request.post(`/api/papers/${id}/progress`, { progress })
   },
 
   /**
@@ -278,7 +278,7 @@ export const papersApi = {
    * ```
    */
   async batchDelete(ids: number[]): Promise<{ message: string; deletedCount: number }> {
-    const promises = ids.map(id => request.delete(`/papers/${id}`))
+    const promises = ids.map(id => request.delete(`/api/papers/${id}`))
     await Promise.all(promises)
     return {
       message: 'Papers deleted successfully',
@@ -299,7 +299,7 @@ export const papersApi = {
    * ```
    */
   async batchMarkAsRead(ids: number[], isRead: boolean): Promise<{ message: string; updatedCount: number }> {
-    const promises = ids.map(id => request.post(`/papers/${id}/read`, { isRead }))
+    const promises = ids.map(id => request.post(`/api/papers/${id}/read`, { isRead }))
     await Promise.all(promises)
     return {
       message: 'Papers updated successfully',
@@ -320,7 +320,7 @@ export const papersApi = {
    * ```
    */
   async batchToggleBookmark(ids: number[], bookmarked: boolean): Promise<{ message: string; updatedCount: number }> {
-    const promises = ids.map(id => request.post(`/papers/${id}/bookmark`))
+    const promises = ids.map(id => request.post(`/api/papers/${id}/bookmark`))
     await Promise.all(promises)
     return {
       message: 'Bookmarks updated successfully',

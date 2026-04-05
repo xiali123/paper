@@ -50,9 +50,39 @@ struct Paper {
         json << "  \"title\": \"" << title << "\",\n";
         json << "  \"authors\": \"" << authors << "\",\n";
         json << "  \"year\": " << year << ",\n";
+        json << "  \"abstract\": \"" << abstract << "\",\n";
+        json << "  \"journal\": \"" << journal << "\",\n";
+        json << "  \"volume\": \"" << volume << "\",\n";
+        json << "  \"issue\": \"" << issue << "\",\n";
+        json << "  \"pages\": \"" << pages << "\",\n";
+        json << "  \"doi\": \"" << doi << "\",\n";
+        json << "  \"url\": \"" << url << "\",\n";
+        json << "  \"pdf_path\": \"" << pdfPath << "\",\n";
         json << "  \"citation_count\": " << citationCount << ",\n";
         json << "  \"is_read\": " << (isRead ? "true" : "false") << ",\n";
-        json << "  \"is_favorite\": " << (isFavorite ? "true" : "false") << "\n";
+        json << "  \"is_favorite\": " << (isFavorite ? "true" : "false") << ",\n";
+        json << "  \"notes\": \"" << notes << "\",\n";
+        json << "  \"created_at\": \""
+            << std::chrono::system_clock::to_time_t(createdAt) << "\",\n";
+        json << "  \"updated_at\": \""
+            << std::chrono::system_clock::to_time_t(updatedAt) << "\",\n";
+
+        // Tags array
+        json << "  \"tags\": [";
+        for (size_t i = 0; i < tags.size(); ++i) {
+            if (i > 0) json << ", ";
+            json << "\"" << tags[i] << "\"";
+        }
+        json << "],\n";
+
+        // Keywords array
+        json << "  \"keywords\": [";
+        for (size_t i = 0; i < keywords.size(); ++i) {
+            if (i > 0) json << ", ";
+            json << "\"" << keywords[i] << "\"";
+        }
+        json << "]\n";
+
         json << "}";
         return json.str();
     }

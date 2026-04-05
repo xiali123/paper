@@ -358,10 +358,28 @@ export const crawlerApi = {
 
   /**
    * 获取系统统计
-   * GET /api/crawler/statistics
+   * GET /api/stats (临时解决方案：使用通用stats端点)
+   * TODO: 后端需要实现专门的crawler统计端点
    */
   async getStats(): Promise<CrawlerStats> {
-    return await request.get('/api/crawler/statistics')
+    // 临时使用通用stats端点，返回模拟数据
+    const response = await request.get('/api/stats') as any
+
+    // 将通用stats转换为CrawlerStats格式
+    return {
+      totalCrawls: 0,
+      totalPapersCrawled: response.data?.stats?.totalPapers || 0,
+      crawlingBySource: {
+        'arxiv': 0,
+        'pubmed': 0,
+        'scholar': 0,
+        'ieeexplore': 0,
+        'acm': 0
+      },
+      successRate: 0,
+      avgProcessingTime: 0,
+      recentCrawls: []
+    }
   },
 
   /**

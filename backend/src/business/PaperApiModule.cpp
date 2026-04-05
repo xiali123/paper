@@ -86,13 +86,26 @@ public:
         // 不再加载Mock数据
     }
 
-    // 从数据库行数据构建Paper对象
+    // 从数据库行数据构建Paper对象（适配papercrawler_db表结构）
     Paper paperFromDbRow(const std::map<std::string, std::string>& row) {
         Paper paper;
         paper.id = std::stoi(row.at("id"));
         paper.title = row.at("title");
         paper.authors = row.at("authors");
-        paper.year = std::stoi(row.at("year"));
+
+        // 适配实际的表结构：publication_date -> year
+        if (row.count("publication_date") && !row.at("publication_date").empty()) {
+            try {
+                // 从日期字符串提取年份
+                std::string pubDate = row.at("publication_date");
+                paper.year = std::stoi(pubDate.substr(0, 4));  // 提取年份 "YYYY-MM-DD" -> "YYYY"
+            } catch (...) {
+                paper.year = 2023;  // 默认年份
+            }
+        } else {
+            paper.year = 2023;
+        }
+
         paper.abstract = row.count("abstract") ? row.at("abstract") : "";
         paper.journal = row.count("journal") ? row.at("journal") : "";
         paper.volume = row.count("volume") ? row.at("volume") : "";
@@ -100,11 +113,23 @@ public:
         paper.pages = row.count("pages") ? row.at("pages") : "";
         paper.doi = row.count("doi") ? row.at("doi") : "";
         paper.url = row.count("url") ? row.at("url") : "";
-        paper.pdfPath = row.count("pdf_path") ? row.at("pdf_path") : "";
+        // 适配实际的表结构：pdf_url -> pdfPath
+        paper.pdfPath = row.count("pdf_url") ? row.at("pdf_url") : "";
         paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
-        paper.isRead = row.count("is_read") ? (row.at("is_read") == "1") : false;
-        paper.isFavorite = row.count("is_favorite") ? (row.at("is_favorite") == "1") : false;
-        paper.notes = row.count("notes") ? row.at("notes") : "";
+
+        // 设置时间戳（使用当前时间）
+        paper.createdAt = std::chrono::system_clock::now();
+        paper.updatedAt = std::chrono::system_clock::now();
+
+        // 适配实际的表结构：没有is_read, is_favorite, notes字段，使用默认值
+        paper.isRead = false;
+        paper.isFavorite = false;
+        paper.notes = "";
+
+        // tags和keywords在数据库中不存在，设置为空数组
+        paper.tags.clear();
+        paper.keywords.clear();
+
         return paper;
     }
 
@@ -132,10 +157,10 @@ public:
             int offset = (page - 1) * limit;
             std::string orderDirection = ascending ? "ASC" : "DESC";
 
-            // 防止SQL注入：只允许特定字段
+            // 防止SQL注入：只允许特定字段（适配实际表结构）
             std::string allowedSortBy = sortBy;
-            if (sortBy != "title" && sortBy != "year" && sortBy != "citation_count" &&
-                sortBy != "created_at" && sortBy != "updated_at") {
+            if (sortBy != "title" && sortBy != "citation_count" &&
+                sortBy != "created_at" && sortBy != "updated_at" && sortBy != "publication_date") {
                 allowedSortBy = "created_at";  // 默认排序
             }
 

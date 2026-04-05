@@ -27,7 +27,7 @@ export const aiReviewApi = {
    */
   async generateReview(request: AIReviewRequest): Promise<AIReviewResult> {
     const response = await apiClient.post<AIReviewResult>(
-      '/api/ai-co-pilot/review',
+      '/api/ai/review',
       request
     )
     return response.data
@@ -73,7 +73,7 @@ export const literatureReviewApi = {
     request: LiteratureReviewRequest
   ): Promise<LiteratureReviewResult> {
     const response = await apiClient.post<LiteratureReviewResult>(
-      '/api/ai-co-pilot/literature-review/generate',
+      '/api/ai/literature-review/generate',
       request
     )
     return response.data
@@ -89,7 +89,7 @@ export const literatureReviewApi = {
     limit: number = 20
   ): Promise<LiteratureReviewResult[]> {
     const response = await apiClient.get<LiteratureReviewResult[]>(
-      '/api/ai-co-pilot/literature-reviews',
+      '/api/ai/literature-reviews',
       { params: { userId, page, limit } }
     )
     return response.data
@@ -132,7 +132,7 @@ export const researchPlanApi = {
    */
   async generatePlan(request: ResearchPlanRequest): Promise<ResearchPlanResult> {
     const response = await apiClient.post<ResearchPlanResult>(
-      '/api/ai-co-pilot/research-plan/generate',
+      '/api/ai/research-plan/generate',
       request
     )
     return response.data
@@ -148,7 +148,7 @@ export const researchPlanApi = {
     limit: number = 20
   ): Promise<ResearchPlanResult[]> {
     const response = await apiClient.get<ResearchPlanResult[]>(
-      '/api/ai-co-pilot/research-plans',
+      '/api/ai/research-plans',
       { params: { userId, page, limit } }
     )
     return response.data
@@ -180,7 +180,7 @@ export const aiChatApi = {
     sessionId?: string
   ): Promise<string> {
     const response = await apiClient.post<{ response: string }>(
-      '/api/ai-co-pilot/chat',
+      '/api/ai/chat',
       { userId, message, sessionId }
     )
     return response.data.response

@@ -185,37 +185,15 @@ export const useAuthStore = defineStore(
       } catch (err: any) {
         console.error('🔴 [AuthStore] Login error:', err)
 
-        // 开发模式：如果后端是stub实现，使用模拟认证
-        if (err.message?.includes('User not found') || err.message?.includes('Invalid credentials')) {
-          console.warn('⚠️ [AuthStore] Backend appears to be in stub mode, using dev mock auth')
-
-          // 创建模拟用户和token
-          const mockUser: User = {
-            id: 1,
-            username: credentials.email.split('@')[0],
-            email: credentials.email,
-            fullName: '开发测试用户',
-            role: 'admin',
-            isActive: true,
-            isVerified: true,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          }
-
-          const mockTokens: AuthTokens = {
-            accessToken: `mock_token_${Date.now()}`,
-            refreshToken: `mock_refresh_${Date.now()}`,
-            expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24小时
-          }
-
-          // 存储模拟数据
-          user.value = mockUser
-          tokens.value = mockTokens
-          persistTokens(mockTokens)
-
-          console.log('✅ [AuthStore] Mock auth successful')
-          return { success: true }
-        }
+        // ❌ 安全修复：移除自动Mock认证fallback，防止任意密码登录
+        // 原代码会在登录失败时自动切换到Mock模式，导致安全漏洞
+        // 现在正确返回错误，让用户知道登录失败
+        //
+        // 如果需要Mock模式，请使用环境变量 VITE_APP_ENABLE_MOCK=true
+        //
+        // if (err.message?.includes('User not found') || err.message?.includes('Invalid credentials')) {
+        //   // ... Mock认证代码已移除
+        // }
 
         error.value = err.message || 'Login failed'
         return { success: false, error: error.value }

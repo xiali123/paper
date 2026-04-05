@@ -1,0 +1,162 @@
+{
+  "modulesDirectory": "modules",
+  "healthCheckInterval": 30,
+  "modules": [
+    {
+      "name": "AuthApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Authentication and Authorization API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/auth",
+      "libraryPath": "modules/libAuthApiModule.dll",
+      "loadPriority": 1,
+      "endpoints": [
+        "POST /api/auth/login",
+        "POST /api/auth/register",
+        "POST /api/auth/logout",
+        "POST /api/auth/refresh",
+        "GET /api/auth/me"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "UserApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "User Management API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/users",
+      "libraryPath": "modules/libUserApiModule.dll",
+      "loadPriority": 2,
+      "endpoints": [
+        "GET /api/users",
+        "GET /api/users/:id",
+        "POST /api/users",
+        "PUT /api/users/:id",
+        "DELETE /api/users/:id"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "PaperApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Paper Management API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/papers",
+      "libraryPath": "modules/libPaperApiModule.dll",
+      "loadPriority": 3,
+      "endpoints": [
+        "GET /api/papers",
+        "GET /api/papers/:id",
+        "POST /api/papers",
+        "PUT /api/papers/:id",
+        "DELETE /api/papers/:id",
+        "GET /api/papers/search",
+        "GET /api/papers/favorites",
+        "GET /api/papers/categories",
+        "GET /api/papers/tags"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "SearchApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Search and Filtering API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/search",
+      "libraryPath": "modules/libSearchApiModule.dll",
+      "loadPriority": 4,
+      "endpoints": [
+        "GET /api/search",
+        "GET /api/search/papers",
+        "GET /api/search/advanced"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "StatsApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Statistics and Analytics API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/stats",
+      "libraryPath": "modules/libStatsApiModule.dll",
+      "loadPriority": 5,
+      "endpoints": [
+        "GET /api/stats/overview",
+        "GET /api/stats/papers",
+        "GET /api/stats/users",
+        "GET /api/stats/crawler"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "ExportApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Export and Download API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/export",
+      "libraryPath": "modules/libExportApiModule.dll",
+      "loadPriority": 6,
+      "endpoints": [
+        "GET /api/export/papers",
+        "GET /api/export/stats",
+        "POST /api/export/request"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "AiApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "AI Services API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/ai",
+      "libraryPath": "modules/libAiApiModule.dll",
+      "loadPriority": 7,
+      "endpoints": [
+        "GET /api/assistant",
+        "POST /api/ai/chat",
+        "GET /api/ai/review",
+        "GET /api/ai/literature-review"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "RecommendationApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Recommendation Engine API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/recommendations",
+      "libraryPath": "modules/libRecommendationApiModule.dll",
+      "loadPriority": 8,
+      "endpoints": [
+        "GET /api/recommendations",
+        "GET /api/recommendations/papers",
+        "GET /api/recommendations/users"
+      ],
+      "dependencies": [],
+      "config": {}
+    }
+  ]
+}

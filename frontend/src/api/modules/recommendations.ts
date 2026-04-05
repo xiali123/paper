@@ -73,7 +73,7 @@ export const recommendationsApi = {
    * GET /recommendations/trending
    */
   async getTrending(limit = 20, timeWindow: 'day' | 'week' | 'month' = 'week'): Promise<RecommendationResult[]> {
-    return await request.get('/recommendations/trending', {
+    return await request.get('/api/recommendations/trending', {
       params: { limit, time_window: timeWindow }
     })
   },
@@ -83,7 +83,7 @@ export const recommendationsApi = {
    * GET /recommendations/explain
    */
   async explainRecommendation(userId: number, paperId: number): Promise<RecommendationExplanation> {
-    return await request.get('/recommendations/explain', {
+    return await request.get('/api/recommendations/explain', {
       params: { userId, paperId }
     })
   },
@@ -93,7 +93,7 @@ export const recommendationsApi = {
    * POST /recommendations/feedback
    */
   async submitFeedback(feedback: RecommendationFeedback): Promise<{ success: boolean }> {
-    return await request.post('/recommendations/feedback', feedback)
+    return await request.post('/api/recommendations/feedback', feedback)
   },
 
   /**
@@ -118,7 +118,7 @@ export const recommendationsApi = {
     }>
     satisfactionRate: number
   }> {
-    return await request.get('/recommendations/stats')
+    return await request.get('/api/recommendations/stats')
   }
 }
 

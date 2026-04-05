@@ -81,7 +81,7 @@ export const exportApi = {
    * POST /export/search
    */
   async exportSearch(req: ExportRequest): Promise<ExportTask> {
-    return await request.post('/export/search', req)
+    return await request.post('/api/export/search', req)
   },
 
   /**
@@ -89,7 +89,7 @@ export const exportApi = {
    * POST /export/papers
    */
   async exportPapers(req: ExportRequest): Promise<ExportTask> {
-    return await request.post('/export/papers', req)
+    return await request.post('/api/export/papers', req)
   },
 
   /**
@@ -97,7 +97,7 @@ export const exportApi = {
    * POST /export/batch
    */
   async batchExport(req: BatchExportRequest): Promise<ExportTask> {
-    return await request.post('/export/batch', req)
+    return await request.post('/api/export/batch', req)
   },
 
   /**
@@ -105,7 +105,7 @@ export const exportApi = {
    * GET /export/csv
    */
   async exportToCSV(params: any): Promise<Blob> {
-    return await request.get('/export/csv', {
+    return await request.get('/api/export/csv', {
       params,
       responseType: 'blob'
     })
@@ -116,7 +116,7 @@ export const exportApi = {
    * GET /export/json
    */
   async exportToJSON(params: any): Promise<Blob> {
-    return await request.get('/export/json', {
+    return await request.get('/api/export/json', {
       params,
       responseType: 'blob'
     })
@@ -127,7 +127,7 @@ export const exportApi = {
    * GET /export/excel
    */
   async exportToExcel(params: any): Promise<Blob> {
-    return await request.get('/export/excel', {
+    return await request.get('/api/export/excel', {
       params,
       responseType: 'blob'
     })
@@ -138,7 +138,7 @@ export const exportApi = {
    * GET /export/bibtex
    */
   async exportToBibTeX(params: any): Promise<Blob> {
-    return await request.get('/export/bibtex', {
+    return await request.get('/api/export/bibtex', {
       params,
       responseType: 'blob'
     })
@@ -149,7 +149,7 @@ export const exportApi = {
    * GET /export/pdf
    */
   async exportToPDF(params: any): Promise<Blob> {
-    return await request.get('/export/pdf', {
+    return await request.get('/api/export/pdf', {
       params,
       responseType: 'blob'
     })
@@ -160,7 +160,7 @@ export const exportApi = {
    * GET /export/word
    */
   async exportToWord(params: any): Promise<Blob> {
-    return await request.get('/export/word', {
+    return await request.get('/api/export/word', {
       params,
       responseType: 'blob'
     })
@@ -201,7 +201,7 @@ export const exportApi = {
     total: number
     page: number
   }> {
-    return await request.get('/export/history', {
+    return await request.get('/api/export/history', {
       params: { page, limit }
     })
   },
@@ -219,7 +219,7 @@ export const exportApi = {
    * GET /export/stats
    */
   async getStats(): Promise<ExportStats> {
-    return await request.get('/export/stats')
+    return await request.get('/api/export/stats')
   },
 
   /**
@@ -234,7 +234,7 @@ export const exportApi = {
       maxRecords: number
     }>
   }> {
-    return await request.get('/export/formats')
+    return await request.get('/api/export/formats')
   },
 
   /**
