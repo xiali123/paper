@@ -321,14 +321,15 @@ onMounted(() => {
 
 <style scoped>
 .export-page {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 1920px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 8px;
 }
 
 /* Header */
 .page-header {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .header-content {
@@ -339,16 +340,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
 .header-icon {
-  font-size: 48px;
+  font-size: 36px;
 }
 
 .page-title {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 800;
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   -webkit-background-clip: text;
@@ -358,7 +359,7 @@ onMounted(() => {
 }
 
 .page-description {
-  font-size: 16px;
+  font-size: 14px;
   color: #6b7280;
   margin: 0;
 }
@@ -366,15 +367,15 @@ onMounted(() => {
 /* Export Options */
 .export-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .option-card {
   background: white;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 14px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   border: 1px solid #e5e7eb;
 }
@@ -382,16 +383,16 @@ onMounted(() => {
 .option-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .option-icon {
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .option-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
@@ -399,18 +400,18 @@ onMounted(() => {
 
 .format-buttons {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
 }
 
 .format-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
+  gap: 4px;
+  padding: 10px 8px;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 8px;
   background: white;
   cursor: pointer;
   transition: all 0.3s;
@@ -427,34 +428,39 @@ onMounted(() => {
   color: white;
 }
 
+.format-btn.active .format-desc {
+  color: rgba(255, 255, 255, 0.95);
+}
+
 .format-icon {
-  font-size: 24px;
+  font-size: 22px;
 }
 
 .format-name {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .format-desc {
-  font-size: 12px;
-  opacity: 0.8;
+  font-size: 11px;
+  color: #6b7280;
 }
 
 .export-settings {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .setting-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 8px;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s;
+  font-size: 14px;
 }
 
 .setting-label:hover {
@@ -462,16 +468,16 @@ onMounted(() => {
 }
 
 .setting-checkbox {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
 }
 
 /* Papers Section */
 .papers-section {
   background: white;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 14px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -479,11 +485,11 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
 .section-title {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
@@ -491,13 +497,13 @@ onMounted(() => {
 
 .section-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .action-btn {
-  padding: 10px 20px;
+  padding: 7px 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -505,7 +511,7 @@ onMounted(() => {
 }
 
 .btn-sm {
-  padding: 8px 16px;
+  padding: 6px 12px;
   font-size: 13px;
 }
 
@@ -517,6 +523,7 @@ onMounted(() => {
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+  opacity: 0.95;
 }
 
 .btn-primary:disabled {
@@ -536,16 +543,16 @@ onMounted(() => {
 /* Papers Grid */
 .papers-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
 }
 
 .paper-card {
   display: flex;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 10px;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 8px;
   background: white;
   cursor: pointer;
   transition: all 0.3s;
@@ -562,10 +569,10 @@ onMounted(() => {
 }
 
 .paper-checkbox input {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
-  margin-top: 4px;
+  margin-top: 1px;
 }
 
 .paper-content {
@@ -573,24 +580,24 @@ onMounted(() => {
 }
 
 .paper-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #1f2937;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
+  margin: 0 0 4px 0;
+  line-height: 1.2;
 }
 
 .paper-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 13px;
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 12px;
   color: #6b7280;
 }
 
 .paper-authors {
-  max-width: 200px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -603,13 +610,13 @@ onMounted(() => {
 .paper-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .tag {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -628,17 +635,18 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px;
-  margin-top: 24px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .pagination-btn {
-  padding: 8px 16px;
+  padding: 5px 12px;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border-radius: 5px;
   background: white;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 13px;
 }
 
 .pagination-btn:hover:not(:disabled) {
@@ -651,7 +659,7 @@ onMounted(() => {
 }
 
 .pagination-info {
-  font-size: 14px;
+  font-size: 13px;
   color: #6b7280;
   font-weight: 500;
 }
@@ -672,24 +680,24 @@ onMounted(() => {
 
 .modal-content {
   background: white;
-  border-radius: 16px;
+  border-radius: 12px;
   width: 90%;
-  max-width: 800px;
-  max-height: 80vh;
+  max-width: 900px;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 .modal-content.large {
-  max-width: 1000px;
+  max-width: 1100px;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
+  padding: 16px 18px;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -701,12 +709,12 @@ onMounted(() => {
 }
 
 .close-button {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: none;
   background: #f3f4f6;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -719,25 +727,25 @@ onMounted(() => {
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 16px 18px;
 }
 
 .preview-content {
   background: #1f2937;
   color: #f9fafb;
   border-radius: 8px;
-  padding: 20px;
-  font-size: 13px;
-  line-height: 1.6;
-  max-height: 500px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 400px;
   overflow: auto;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 24px;
+  gap: 10px;
+  padding: 16px 18px;
   border-top: 1px solid #e5e7eb;
 }
 
@@ -759,9 +767,9 @@ onMounted(() => {
 
 /* Button */
 .btn {
-  padding: 10px 20px;
+  padding: 7px 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -770,13 +778,13 @@ onMounted(() => {
 
 /* Empty State */
 .empty-state {
-  padding: 48px 24px;
+  padding: 32px 16px;
   text-align: center;
 }
 
 /* Loading State */
 .loading-state {
-  padding: 48px 24px;
+  padding: 32px 16px;
   text-align: center;
 }
 </style>

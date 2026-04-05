@@ -278,7 +278,6 @@ import {
   Document,
   Calendar,
   CircleCheck,
-  Circle,
   MagicStick,
   Connection,
   ChatDotRound
@@ -323,16 +322,21 @@ const formatDate = (timestamp: number | string): string => {
 
 // Fetch paper
 const fetchPaper = async () => {
-  const id = Number(route.params.id)
-  if (isNaN(id)) {
-    error.value = '无效的论文 ID'
+  const idParam = route.params.id
+  const id = Number(idParam)
+
+  // 验证ID
+  if (!idParam || Number.isNaN(id) || id <= 0) {
+    error.value = '论文ID格式无效，请检查URL或从论文列表重新进入'
+    console.error('Invalid paper ID:', idParam)
     return
   }
 
   try {
     await paperStore.fetchPaper(id)
   } catch (err: any) {
-    error.value = err.message || '加载论文详情失败'
+    error.value = err.message || '加载论文详情失败，请稍后重试'
+    console.error('Failed to fetch paper:', err)
   }
 }
 

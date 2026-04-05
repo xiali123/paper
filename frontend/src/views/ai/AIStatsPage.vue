@@ -19,7 +19,7 @@
     <!-- Stats Content -->
     <div class="stats-content" v-loading="loading" element-loading-text="加载统计数据...">
       <!-- Overview Cards -->
-      <el-row :gutter="20" class="stats-row">
+      <el-row :gutter="12" class="stats-row">
         <el-col :xs="24" :sm="12" :md="6">
           <el-card shadow="hover" class="stat-card">
             <div class="stat-content">
@@ -90,7 +90,7 @@
       </el-row>
 
       <!-- Usage by Type -->
-      <el-row :gutter="20" class="content-row">
+      <el-row :gutter="12" class="content-row">
         <el-col :xs="24" :lg="12">
           <el-card shadow="hover" class="chart-card">
             <template #header>
@@ -271,7 +271,7 @@
               </div>
             </template>
 
-            <el-row :gutter="20">
+            <el-row :gutter="12">
               <el-col :xs="24" :md="12">
                 <div class="cost-chart-section">
                   <h4 class="section-title">月度成本趋势</h4>
@@ -398,20 +398,21 @@ fetchStats()
 <style scoped lang="scss">
 .ai-stats-page {
   width: 100%;
-  max-width: 1600px;
+  max-width: 1920px;
   margin: 0 auto;
+  padding: 8px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: $spacing-6;
-  padding: $spacing-8;
+  gap: 12px;
+  padding: 12px 16px;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border-radius: $border-radius-xl;
   box-shadow: $shadow-sm;
-  margin-bottom: $spacing-6;
+  margin-bottom: 12px;
 
   .dark & {
     background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
@@ -421,9 +422,9 @@ fetchStats()
   .page-title {
     display: flex;
     align-items: center;
-    gap: $spacing-3;
+    gap: 8px;
     margin: 0;
-    font-size: $font-size-3xl;
+    font-size: $font-size-xl;
     font-weight: $font-weight-bold;
     color: $text-primary;
 
@@ -434,7 +435,7 @@ fetchStats()
 
   .header-actions {
     display: flex;
-    gap: $spacing-3;
+    gap: 8px;
   }
 }
 
@@ -448,13 +449,13 @@ fetchStats()
 .stats-content {
   display: flex;
   flex-direction: column;
-  gap: $spacing-6;
+  gap: 12px;
 }
 
 .stats-row,
 .content-row {
   :deep(.el-col) {
-    margin-bottom: $spacing-4;
+    margin-bottom: 12px;
   }
 }
 
@@ -472,7 +473,7 @@ fetchStats()
   }
 
   :deep(.el-card__body) {
-    padding: $spacing-6;
+    padding: 12px;
   }
 
   .dark & {
@@ -483,16 +484,16 @@ fetchStats()
   .stat-content {
     display: flex;
     align-items: center;
-    gap: $spacing-5;
+    gap: 12px;
 
     .stat-icon {
-      width: 64px;
-      height: 64px;
+      width: 48px;
+      height: 48px;
       border-radius: $border-radius-lg;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28px;
+      font-size: $font-size-xl;
       flex-shrink: 0;
       box-shadow: $shadow-sm;
 
@@ -521,24 +522,24 @@ fetchStats()
       flex: 1;
 
       .stat-value {
-        font-size: $font-size-3xl;
+        font-size: $font-size-xl;
         font-weight: $font-weight-bold;
         color: $text-primary;
         line-height: 1;
-        margin-bottom: $spacing-2;
+        margin-bottom: 4px;
       }
 
       .stat-label {
-        font-size: $font-size-sm;
+        font-size: 12px;
         color: $text-primary;
-        margin-bottom: $spacing-2;
+        margin-bottom: 4px;
       }
 
       .stat-trend {
         display: flex;
         align-items: center;
-        gap: $spacing-1;
-        font-size: $font-size-xs;
+        gap: 4px;
+        font-size: 11px;
         font-weight: $font-weight-semibold;
 
         &.positive {
@@ -546,7 +547,7 @@ fetchStats()
         }
 
         .trend-icon {
-          font-size: $font-size-sm;
+          font-size: 12px;
         }
       }
     }
@@ -572,7 +573,7 @@ fetchStats()
 
   :deep(.el-card__header) {
     border-bottom: 1px solid $border-light;
-    padding: $spacing-5;
+    padding: 10px 12px;
     background: linear-gradient(135deg, $gray-50 0%, #ffffff 100%);
 
     .dark & {
@@ -582,7 +583,7 @@ fetchStats()
   }
 
   :deep(.el-card__body) {
-    padding: $spacing-5;
+    padding: 12px;
   }
 }
 
@@ -591,12 +592,12 @@ fetchStats()
   justify-content: space-between;
   align-items: center;
   font-weight: $font-weight-semibold;
-  font-size: $font-size-base;
+  font-size: 14px;
 
   span {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
+    gap: 6px;
     color: $text-primary;
   }
 
@@ -608,14 +609,14 @@ fetchStats()
 .usage-list {
   display: flex;
   flex-direction: column;
-  gap: $spacing-6;
+  gap: 12px;
 }
 
 .usage-item {
   background: #ffffff;
   border: 1px solid $border-light;
   border-radius: $border-radius-lg;
-  padding: $spacing-5;
+  padding: 12px;
   transition: all $duration-fast;
 
   &:hover {
@@ -630,23 +631,23 @@ fetchStats()
   .usage-header {
     display: flex;
     align-items: center;
-    gap: $spacing-4;
-    margin-bottom: $spacing-4;
+    gap: 10px;
+    margin-bottom: 10px;
 
     .usage-icon {
-      font-size: 36px;
+      font-size: 28px;
     }
 
     .usage-title {
-      margin: 0 0 $spacing-1 0;
-      font-size: $font-size-lg;
+      margin: 0 0 2px 0;
+      font-size: 14px;
       font-weight: $font-weight-semibold;
       color: $text-primary;
     }
 
     .usage-subtitle {
       margin: 0;
-      font-size: $font-size-sm;
+      font-size: 12px;
       color: $text-secondary;
     }
   }
@@ -654,20 +655,20 @@ fetchStats()
   .usage-stats {
     display: flex;
     justify-content: space-between;
-    margin-bottom: $spacing-4;
+    margin-bottom: 10px;
 
     .usage-stat {
       display: flex;
       flex-direction: column;
-      gap: $spacing-1;
+      gap: 2px;
 
       .stat-label {
-        font-size: $font-size-xs;
+        font-size: 11px;
         color: $text-secondary;
       }
 
       .stat-value {
-        font-size: $font-size-base;
+        font-size: 13px;
         font-weight: $font-weight-semibold;
         color: $text-primary;
       }
@@ -675,7 +676,7 @@ fetchStats()
   }
 
   .usage-bar {
-    height: 8px;
+    height: 6px;
     background: $gray-100;
     border-radius: $border-radius-full;
     overflow: hidden;
@@ -707,13 +708,13 @@ fetchStats()
 .performance-content {
   display: flex;
   flex-direction: column;
-  gap: $spacing-6;
+  gap: 12px;
 }
 
 .performance-section {
   .section-title {
-    margin: 0 0 $spacing-4 0;
-    font-size: $font-size-base;
+    margin: 0 0 8px 0;
+    font-size: 14px;
     font-weight: $font-weight-semibold;
     color: $text-primary;
   }
@@ -722,8 +723,8 @@ fetchStats()
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    height: 120px;
-    gap: $spacing-2;
+    height: 80px;
+    gap: 6px;
 
     .chart-bar {
       flex: 1;
@@ -741,8 +742,8 @@ fetchStats()
       }
 
       .bar-label {
-        margin-top: $spacing-2;
-        font-size: $font-size-xs;
+        margin-top: 4px;
+        font-size: 10px;
         color: $text-secondary;
         font-weight: $font-weight-medium;
       }
@@ -752,23 +753,23 @@ fetchStats()
   .distribution-list {
     display: flex;
     flex-direction: column;
-    gap: $spacing-4;
+    gap: 8px;
 
     .distribution-item {
       display: flex;
       align-items: center;
-      gap: $spacing-3;
+      gap: 8px;
 
       .distribution-label {
-        min-width: 60px;
-        font-size: $font-size-sm;
+        min-width: 50px;
+        font-size: 12px;
         font-weight: $font-weight-medium;
         color: $text-primary;
       }
 
       .distribution-bar {
         flex: 1;
-        height: 24px;
+        height: 20px;
         background: $gray-100;
         border-radius: $border-radius-full;
         overflow: hidden;
@@ -781,8 +782,8 @@ fetchStats()
           height: 100%;
           display: flex;
           align-items: center;
-          padding: 0 $spacing-3;
-          font-size: $font-size-xs;
+          padding: 0 8px;
+          font-size: 11px;
           font-weight: $font-weight-bold;
           color: white;
           transition: width $duration-slow;
@@ -798,9 +799,9 @@ fetchStats()
       }
 
       .distribution-value {
-        min-width: 50px;
+        min-width: 45px;
         text-align: right;
-        font-size: $font-size-sm;
+        font-size: 12px;
         font-weight: $font-weight-bold;
         color: $text-primary;
       }
@@ -810,13 +811,13 @@ fetchStats()
   .token-stats {
     display: flex;
     flex-direction: column;
-    gap: $spacing-3;
+    gap: 6px;
 
     .token-stat-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: $spacing-3;
+      padding: 8px;
       background: $gray-50;
       border-radius: $border-radius-lg;
 
@@ -825,12 +826,12 @@ fetchStats()
       }
 
       .token-label {
-        font-size: $font-size-sm;
+        font-size: 12px;
         color: $text-regular;
       }
 
       .token-value {
-        font-size: $font-size-base;
+        font-size: 13px;
         font-weight: $font-weight-bold;
         color: $text-primary;
       }
@@ -840,15 +841,15 @@ fetchStats()
 
 .cost-card {
   :deep(.el-card__body) {
-    padding: $spacing-6;
+    padding: 12px;
   }
 }
 
 .cost-chart-section,
 .cost-tips-section {
   .section-title {
-    margin: 0 0 $spacing-4 0;
-    font-size: $font-size-base;
+    margin: 0 0 8px 0;
+    font-size: 14px;
     font-weight: $font-weight-semibold;
     color: $text-primary;
   }
@@ -859,8 +860,8 @@ fetchStats()
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    height: 200px;
-    gap: $spacing-3;
+    height: 120px;
+    gap: 8px;
 
     .cost-bar-item {
       flex: 1;
@@ -873,22 +874,22 @@ fetchStats()
         width: 100%;
         background: linear-gradient(180deg, #67c23a 0%, #85ce61 100%);
         border-radius: $border-radius-base $border-radius-base 0 0;
-        min-height: 40px;
+        min-height: 30px;
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        padding-top: $spacing-2;
+        padding-top: 6px;
 
         .cost-value {
-          font-size: $font-size-xs;
+          font-size: 11px;
           font-weight: $font-weight-bold;
           color: white;
         }
       }
 
       .cost-label {
-        margin-top: $spacing-2;
-        font-size: $font-size-xs;
+        margin-top: 6px;
+        font-size: 11px;
         color: $text-secondary;
         font-weight: $font-weight-medium;
       }
@@ -900,12 +901,12 @@ fetchStats()
   .cost-tips {
     display: flex;
     flex-direction: column;
-    gap: $spacing-4;
+    gap: 8px;
 
     .cost-tip {
       display: flex;
-      gap: $spacing-3;
-      padding: $spacing-4;
+      gap: 8px;
+      padding: 10px;
       background: $gray-50;
       border-radius: $border-radius-lg;
       border-left: 4px solid $success-color;
@@ -915,7 +916,7 @@ fetchStats()
       }
 
       .tip-icon {
-        font-size: 20px;
+        font-size: 16px;
         flex-shrink: 0;
       }
 
@@ -923,16 +924,16 @@ fetchStats()
         flex: 1;
 
         .tip-title {
-          font-size: $font-size-sm;
+          font-size: 12px;
           font-weight: $font-weight-semibold;
           color: $text-primary;
-          margin-bottom: $spacing-1;
+          margin-bottom: 2px;
         }
 
         .tip-description {
-          font-size: $font-size-sm;
+          font-size: 12px;
           color: $text-secondary;
-          line-height: 1.5;
+          line-height: 1.4;
         }
       }
     }
@@ -943,11 +944,11 @@ fetchStats()
   .page-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: $spacing-4;
-    padding: $spacing-5;
+    gap: 8px;
+    padding: 10px 12px;
 
     .page-title {
-      font-size: $font-size-2xl;
+      font-size: 16px;
     }
 
     .header-actions {
@@ -962,12 +963,16 @@ fetchStats()
   .usage-item {
     .usage-stats {
       flex-direction: column;
-      gap: $spacing-2;
+      gap: 6px;
     }
   }
 
   .cost-bars {
-    height: 150px !important;
+    height: 100px !important;
+  }
+
+  .chart-bars {
+    height: 60px !important;
   }
 }
 </style>

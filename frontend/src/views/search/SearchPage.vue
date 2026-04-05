@@ -224,44 +224,48 @@ function handleReset() {
 
 <style scoped lang="scss">
 .search-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1920px;
   margin: 0 auto;
-  padding: $spacing-8;
+  padding: 12px;
   min-height: calc(100vh - 120px);
 }
 
 // 页面头部
 .page-header {
-  margin-bottom: $spacing-10;
+  margin-bottom: 20px;
   text-align: center;
 
   .header-content {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: $spacing-6;
+    justify-content: center;
+    gap: 16px;
   }
 
   .header-icon {
-    width: 80px;
-    height: 80px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
-    border-radius: $border-radius-2xl;
+    border-radius: $border-radius-xl;
     color: #ffffff;
-    box-shadow: $shadow-xl;
+    box-shadow: $shadow-lg;
+    flex-shrink: 0;
   }
 
   .header-text {
-    text-align: center;
+    text-align: left;
+    flex: 1;
   }
 
   .page-title {
-    font-size: $font-size-4xl;
+    font-size: 28px;
     font-weight: $font-weight-bold;
-    margin: 0 0 $spacing-3 0;
+    margin: 0 0 4px 0;
     background: linear-gradient(135deg, $primary-600 0%, $primary-500 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -269,7 +273,7 @@ function handleReset() {
   }
 
   .page-subtitle {
-    font-size: $font-size-lg;
+    font-size: 15px;
     color: $text-secondary;
     margin: 0;
   }
@@ -277,7 +281,7 @@ function handleReset() {
 
 // 搜索卡片
 .search-card {
-  margin-bottom: $spacing-8;
+  margin-bottom: 20px;
   border-radius: $border-radius-2xl;
   box-shadow: $shadow-lg;
   border: 2px solid $border-light;
@@ -293,7 +297,7 @@ function handleReset() {
 }
 
 .search-wrapper {
-  margin-bottom: $spacing-6;
+  margin-bottom: 16px;
 }
 
 .search-input {
@@ -330,6 +334,10 @@ function handleReset() {
   font-size: $font-size-base;
   font-weight: $font-weight-bold;
   border-radius: $border-radius-lg;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
 }
 
 // 快速搜索标签
@@ -349,6 +357,9 @@ function handleReset() {
   .quick-tag {
     cursor: pointer;
     transition: all $duration-fast;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
       background: $primary-500;
@@ -414,11 +425,11 @@ function handleReset() {
 // 结果列表
 .results-list {
   min-height: 400px;
-  margin-bottom: $spacing-6;
+  margin-bottom: 16px;
 }
 
 .result-item {
-  padding: $spacing-6 0;
+  padding: 16px 0;
   border-bottom: 2px solid $border-light;
   transition: all $duration-fast;
 
@@ -439,12 +450,12 @@ function handleReset() {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: $spacing-4;
-  margin-bottom: $spacing-4;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .result-title {
-  font-size: $font-size-lg;
+  font-size: 16px;
   font-weight: $font-weight-bold;
   color: $text-primary;
   margin: 0;
@@ -468,26 +479,26 @@ function handleReset() {
 }
 
 .result-meta {
-  margin-bottom: $spacing-4;
+  margin-bottom: 10px;
 
   .meta-item {
     display: inline-flex;
     align-items: center;
-    gap: $spacing-2;
-    font-size: $font-size-sm;
+    gap: 6px;
+    font-size: 13px;
     color: $text-secondary;
 
     .el-icon {
-      font-size: $font-size-base;
+      font-size: 14px;
     }
   }
 }
 
 .result-abstract {
-  font-size: $font-size-base;
+  font-size: 14px;
   color: $text-regular;
   line-height: 1.6;
-  margin-bottom: $spacing-4;
+  margin-bottom: 10px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -497,18 +508,21 @@ function handleReset() {
 
 .result-actions {
   display: flex;
-  gap: $spacing-4;
+  gap: 12px;
   flex-wrap: wrap;
 
   .el-button {
     display: inline-flex;
     align-items: center;
-    gap: $spacing-2;
-    font-size: $font-size-sm;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
     font-weight: $font-weight-medium;
+    padding: 8px 16px;
+    height: auto;
 
     .el-icon {
-      font-size: $font-size-base;
+      font-size: 14px;
     }
   }
 }
@@ -517,7 +531,7 @@ function handleReset() {
 .pagination-wrapper {
   display: flex;
   justify-content: center;
-  padding-top: $spacing-6;
+  padding-top: 16px;
   border-top: 2px solid $border-light;
 
   .dark & {
@@ -525,25 +539,42 @@ function handleReset() {
   }
 }
 
+// 全局按钮样式
+.el-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 // 响应式设计
 @media (max-width: 768px) {
   .search-page {
-    padding: $spacing-6;
+    padding: 12px;
   }
 
   .page-header {
+    .header-content {
+      flex-direction: column;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .header-text {
+      text-align: center;
+    }
+
     .page-title {
-      font-size: $font-size-3xl;
+      font-size: 20px;
     }
 
     .page-subtitle {
-      font-size: $font-size-base;
+      font-size: 12px;
     }
   }
 
   .result-header {
     flex-direction: column;
-    gap: $spacing-3;
+    gap: 10px;
   }
 
   .result-badges {
@@ -554,7 +585,7 @@ function handleReset() {
   .results-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: $spacing-3;
+    gap: 10px;
   }
 
   .quick-tags {
@@ -562,7 +593,7 @@ function handleReset() {
     align-items: flex-start;
 
     .tags-label {
-      margin-bottom: $spacing-2;
+      margin-bottom: 8px;
     }
   }
 }
