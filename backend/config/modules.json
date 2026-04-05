@@ -157,6 +157,72 @@
       ],
       "dependencies": [],
       "config": {}
+    },
+    {
+      "name": "TemplateCrawlerModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Template-based Web Crawler Engine",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/crawler/templates",
+      "libraryPath": "modules/libTemplateCrawlerModule.dll",
+      "loadPriority": 11,
+      "endpoints": [
+        "GET /api/crawler/templates",
+        "GET /api/crawler/templates/:id",
+        "POST /api/crawler/templates",
+        "PUT /api/crawler/templates/:id",
+        "DELETE /api/crawler/templates/:id",
+        "POST /api/crawler/templates/:id/test"
+      ],
+      "dependencies": [],
+      "config": {}
+    },
+    {
+      "name": "CrawlerApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Crawler Management API",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/crawler",
+      "libraryPath": "modules/libCrawlerApiModule.dll",
+      "loadPriority": 10,
+      "endpoints": [
+        "GET /api/crawler/tasks",
+        "GET /api/crawler/tasks/:id",
+        "POST /api/crawler/tasks",
+        "DELETE /api/crawler/tasks/:id",
+        "POST /api/crawler/tasks/:id/start",
+        "POST /api/crawler/tasks/:id/stop",
+        "GET /api/crawler/nodes",
+        "GET /api/crawler/statistics"
+      ],
+      "dependencies": [{"module": "TemplateCrawlerModule", "minVersion": "1.0.0", "optional": false}],
+      "config": {}
+    },
+    {
+      "name": "DistributedTaskModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Distributed Task Scheduling Module",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/distributed",
+      "libraryPath": "modules/libDistributedTaskModule.dll",
+      "loadPriority": 9,
+      "endpoints": [
+        "GET /api/distributed/workers",
+        "GET /api/distributed/workers/:id",
+        "POST /api/distributed/workers",
+        "PUT /api/distributed/workers/:id",
+        "DELETE /api/distributed/workers/:id",
+        "GET /api/distributed/tasks",
+        "POST /api/distributed/tasks/assign"
+      ],
+      "dependencies": [],
+      "config": {}
     }
   ]
 }

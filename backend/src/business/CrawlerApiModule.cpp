@@ -1742,6 +1742,10 @@ PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::CrawlerApiModule*>(ptr);
 }
 
+PAPERCRAWLER_API const char* getModuleName() {
+    return "CrawlerApiModule";
+}
+
 PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }

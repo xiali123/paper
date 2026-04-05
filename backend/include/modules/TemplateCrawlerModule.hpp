@@ -40,7 +40,7 @@ enum class RuleType {
 /**
  * @brief 字段解析规则
  */
-struct FieldRule {
+struct BUSINESS_API FieldRule {
     RuleType ruleType;
     std::string selector;      // CSS选择器、XPath或正则表达式
     std::string jsonPath;      // JSONPath表达式
@@ -55,7 +55,7 @@ struct FieldRule {
 /**
  * @brief 爬虫模板配置
  */
-struct CrawlerTemplate {
+struct BUSINESS_API CrawlerTemplate {
     // 基本信息
     std::string templateId;
     std::string name;
@@ -122,7 +122,7 @@ struct CrawlerTemplate {
 /**
  * @brief 模板验证结果
  */
-struct TemplateValidationResult {
+struct BUSINESS_API TemplateValidationResult {
     bool isValid;
     std::vector<std::string> errors;
     std::vector<std::string> warnings;
@@ -132,7 +132,7 @@ struct TemplateValidationResult {
 /**
  * @brief 模板测试结果
  */
-struct TemplateTestResult {
+struct BUSINESS_API TemplateTestResult {
     bool success;
     std::string testUrl;
     int papersFound;
@@ -163,7 +163,7 @@ struct TemplateTestResult {
  * auto papers = crawler.crawlWithTemplate(templateId, queryParams);
  * ```
  */
-class TemplateCrawlerModule : public IModule {
+class BUSINESS_API TemplateCrawlerModule : public IModule {
 public:
     explicit TemplateCrawlerModule(std::shared_ptr<IDatabase> database);
     ~TemplateCrawlerModule() override;

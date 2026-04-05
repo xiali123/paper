@@ -1,3 +1,36 @@
+# ============================================================================
+# PaperCrawler Backend - CMakeLists.txt
+# ============================================================================
+#
+# 重要修复记录 (2026-04-06):
+# -----------------------------
+# 1. 路径嵌套问题修复
+#    - 问题: 模块DLL输出到 modules/dynamic/Release/ 而不是 modules/
+#    - 解决: 使用 LIBRARY_OUTPUT_DIRECTORY_RELEASE 而非 LIBRARY_OUTPUT_DIRECTORY
+#    - 原因: Visual Studio会自动添加配置子目录，需要使用配置特定的属性
+#
+# 2. 模块链接问题修复
+#    - 问题: CrawlerApiModule无法链接TemplateCrawlerModule的符号
+#    - 解决:
+#      a) 将TemplateCrawlerModule从MODULE改为SHARED库 (line 924)
+#      b) 添加BUSINESS_API导出宏到TemplateCrawlerModule.hpp
+#      c) 添加target_link_libraries(CrawlerApiModule PRIVATE TemplateCrawlerModule)
+#
+# 3. 配置文件格式修复
+#    - database.json: port和pool_size改为数字类型 (不能是字符串)
+#    - modules.json: dependencies改为对象数组格式 [{"module": "...", "minVersion": "..."}]
+#
+# 4. 模块加载优先级调整
+#    - TemplateCrawlerModule: priority 11 (最先加载)
+#    - CrawlerApiModule: priority 10 (依赖TemplateCrawler)
+#    - DistributedTaskModule: priority 9 (最后加载)
+#    - 原则: 依赖模块必须有更高的优先级数值
+#
+# 5. 导出函数补全
+#    - CrawlerApiModule添加了getModuleName()导出函数
+#
+# ============================================================================
+
 cmake_minimum_required(VERSION 3.15)
 project(PaperCrawlerBackend VERSION 1.0.0 LANGUAGES CXX C)
 
@@ -575,9 +608,11 @@ if(WIN32)
 endif()
 
 # Router.dll输出到modules目录（与其他DLL一起）
+# 使用避免嵌套Release目录的方式
 set_target_properties(Router PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic/Release"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic/Release"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
 )
 
 # ============================================================================
@@ -757,14 +792,33 @@ message(STATUS "")
 # ============================================================================
 
 # 辅助函数：编译单个业务模块为动态库
+# ============================================================================
+# 业务模块编译辅助函数
+# ============================================================================
+# 重要说明 (2026-04-06):
+# -----------------------
+# 1. DLL输出路径修复: 使用 *_RELEASE 属性避免嵌套的 Release/ 目录
+#    - 错误方式: LIBRARY_OUTPUT_DIRECTORY -> 输出到 modules/dynamic/Release/
+#    - 正确方式: LIBRARY_OUTPUT_DIRECTORY_RELEASE -> 输出到 modules/
+#    - 原因: Visual Studio会自动添加配置子目录
+#
+# 2. MODULE vs SHARED:
+#    - MODULE: 不生成导入库，无法被其他模块链接
+#    - SHARED: 生成导入库(.lib)，可以被其他模块链接
+#    - TemplateCrawlerModule使用SHARED，因为CrawlerApiModule需要链接它
+# ============================================================================
+
 function(add_dynamic_module MODULE_NAME SOURCES_LIST)
     # 创建MODULE库 - 与成功的test_minimal保持一致
     add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
 
-    # 输出到正确的目录：modules/dynamic/
+    # 输出到正确的目录：modules/
+    # 使用避免嵌套Release目录的方式
     set_target_properties(${MODULE_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
         PREFIX "lib"
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
     )
 
     # 添加include目录
@@ -790,16 +844,20 @@ function(add_dynamic_module MODULE_NAME SOURCES_LIST)
         endif()
     endif()
 
-    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
+    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/")
 endfunction()
 
 # 辅助函数：编译依赖系统模块的业务模块
 function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
     add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
 
+    # 输出到正确的目录：modules/（与add_dynamic_module保持一致）
+    # 使用避免嵌套Release目录的方式
     set_target_properties(${MODULE_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
         PREFIX "lib"
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
     )
 
     target_link_libraries(${MODULE_NAME} PRIVATE SystemModules)
@@ -825,7 +883,7 @@ function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
         endif()
     endif()
 
-    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with SystemModules)")
+    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/ (with SystemModules)")
 endfunction()
 
 # 将ExportApiModule编译为动态库（阶段1）
@@ -912,7 +970,8 @@ find_package_handle_standard_args(LibXml2
 )
 
 # TemplateCrawlerModule - 模板爬虫引擎
-add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp
+# 使用SHARED而不是MODULE，以便生成导入库供CrawlerApiModule链接
+add_library(TemplateCrawlerModule SHARED src/modules/TemplateCrawlerModule.cpp
     src/network/HttpClient.cpp
     src/common/JsonUtils.cpp
     src/modules/CrawlerTemplateSerialization.cpp  # 序列化实现
@@ -930,10 +989,12 @@ add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp
     ${EXTERNAL_DIR}/gumbo/src/vector.c
 )
 
+# 使用避免嵌套Release目录的方式
 set_target_properties(TemplateCrawlerModule PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
     PREFIX "lib"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
 )
 
 target_include_directories(TemplateCrawlerModule
@@ -1016,6 +1077,9 @@ add_dynamic_module_with_system(CrawlerApiModule
     src/business/CrawlerApiModule.cpp
 )
 
+# 链接TemplateCrawlerModule（CrawlerApiModule调用TemplateCrawlerModule方法）
+target_link_libraries(CrawlerApiModule PRIVATE TemplateCrawlerModule)
+
 message(STATUS "")
 message(STATUS "================== All Business Modules Dynamic ==================")
 message(STATUS "Modules: ExportApiModule, StatsApiModule, PaperApiModule")
@@ -1027,7 +1091,7 @@ message(STATUS "         CrawlerApiModule (NEW - 爬虫管理API)")
 message(STATUS "         DistributedTaskModule (DISABLED - 待修复依赖)")
 message(STATUS "         DistributedTaskModule (NEW - 分布式爬虫)")
 message(STATUS "         CrawlerApiModule (NEW - 分布式爬虫)")
-message(STATUS "Output: ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
+message(STATUS "Output: ${CMAKE_BINARY_DIR}/Release/modules/")
 message(STATUS "Status: Compiling...")
 message(STATUS "==========================================================================")
 message(STATUS "")
@@ -1072,7 +1136,7 @@ if(EXISTS "${DEPENDENCIES_SOURCE_DIR}")
             add_custom_command(TARGET PaperCrawlerServerHotPlug POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
                     "${DEP_DLL}"
-                    "${CMAKE_BINARY_DIR}/Release/modules/dynamic/Release/${DEP_DLL_NAME}"
+                    "${CMAKE_BINARY_DIR}/Release/modules/${DEP_DLL_NAME}"
                 COMMENT "Copying ${DEP_DLL_NAME} to modules directory"
                 VERBATIM
             )
@@ -1080,7 +1144,7 @@ if(EXISTS "${DEPENDENCIES_SOURCE_DIR}")
         message(STATUS "")
         message(STATUS "✅ Dependencies will be automatically deployed on build")
         message(STATUS "   → ${DEP_COUNT} DLL(s) copied to Release/")
-        message(STATUS "   → ${DEP_COUNT} DLL(s) copied to modules/dynamic/Release/")
+        message(STATUS "   → ${DEP_COUNT} DLL(s) copied to modules/")
     else()
         message(WARNING "No dependency DLLs found in ${DEPENDENCIES_SOURCE_DIR}")
     endif()
@@ -1111,6 +1175,8 @@ message(STATUS "================================================================
 
 set(MODULES_DLL_SOURCE_DIR "${CMAKE_BINARY_DIR}/Release/modules")
 set(MODULES_DLL_TARGET_DIR "${CMAKE_BINARY_DIR}/Release")
+file(MAKE_DIRECTORY ${MODULES_DLL_TARGET_DIR})
+file(MAKE_DIRECTORY ${MODULES_DLL_SOURCE_DIR})
 
 # 检查modules目录是否存在
 if(EXISTS "${MODULES_DLL_SOURCE_DIR}")
@@ -1118,6 +1184,8 @@ if(EXISTS "${MODULES_DLL_SOURCE_DIR}")
 
     # 需要复制到Release目录的依赖DLL
     set(MODULES_DEPENDENCY_DLLS
+        "Router.dll"           # 核心路由器（必需）
+        "libmysql.dll"         # MySQL客户端库（必需）
         "libxml2-16.dll"
         "libiconv-2.dll"
         "zlib1.dll"
@@ -1155,5 +1223,100 @@ else()
     message(WARNING "Modules directory not found: ${MODULES_DLL_SOURCE_DIR}")
 endif()
 
+# ============================================================================
+# 自动复制配置文件到build目录
+# ============================================================================
+
+message(STATUS "")
+message(STATUS "==========================================================================")
+message(STATUS "Config Files Auto-Deployment")
+message(STATUS "==========================================================================")
+
+set(CONFIG_SOURCE_DIR "${CMAKE_SOURCE_DIR}/config")
+set(CONFIG_TARGET_DIR "${CMAKE_BINARY_DIR}/Release/config")
+
+# 检查源配置目录是否存在
+if(EXISTS "${CONFIG_SOURCE_DIR}")
+    message(STATUS "Config source directory: ${CONFIG_SOURCE_DIR}")
+    message(STATUS "Config target directory: ${CONFIG_TARGET_DIR}")
+
+    # 创建config目录
+    file(MAKE_DIRECTORY "${CONFIG_TARGET_DIR}")
+
+    # 需要复制的配置文件
+    set(CONFIG_FILES
+        "modules.json"
+        "database.json"
+    )
+
+    set(CONFIG_COUNT 0)
+    foreach(CONFIG_FILE ${CONFIG_FILES})
+        set(CONFIG_SRC "${CONFIG_SOURCE_DIR}/${CONFIG_FILE}")
+        set(CONFIG_DST "${CONFIG_TARGET_DIR}/${CONFIG_FILE}")
+
+        if(EXISTS "${CONFIG_SRC}")
+            math(EXPR CONFIG_COUNT "${CONFIG_COUNT} + 1")
+            message(STATUS "  - ${CONFIG_FILE}")
+
+            # 复制配置文件到build目录
+            add_custom_command(TARGET PaperCrawlerServerHotPlug POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${CONFIG_SRC}"
+                    "${CONFIG_DST}"
+                COMMENT "Copying ${CONFIG_FILE} to config directory"
+                VERBATIM
+            )
+        else()
+            message(STATUS "  ⚠ ${CONFIG_FILE} not found (skipped)")
+        endif()
+    endforeach()
+
+    message(STATUS "")
+    message(STATUS "✅ Config files will be automatically deployed on build")
+    message(STATUS "   → ${CONFIG_COUNT} file(s) copied to config/")
+    message(STATUS "")
+    message(STATUS "📝 Note: Config files are required for module loading")
+    message(STATUS "         Without modules.json, only management APIs will be loaded")
+else()
+    message(WARNING "Config directory not found: ${CONFIG_SOURCE_DIR}")
+endif()
+
 message(STATUS "==========================================================================")
 message(STATUS "")
+
+# ============================================================================
+# 修复总结 (2026-04-06)
+# ============================================================================
+#
+# 本次修复解决了多个关键问题，使得所有11个业务模块都能正确加载：
+#
+# ✅ 问题1: DLL输出路径嵌套 (modules/dynamic/Release/)
+#    解决: 使用 LIBRARY_OUTPUT_DIRECTORY_RELEASE 等配置特定属性
+#    影响: 所有业务模块DLL现在正确输出到 modules/
+#
+# ✅ 问题2: CrawlerApiModule链接错误 (LNK2019)
+#    解决: TemplateCrawlerModule改为SHARED库，并添加导出宏
+#    影响: CrawlerApiModule现在可以调用TemplateCrawlerModule的方法
+#
+# ✅ 问题3: modules.json解析失败
+#    解决: 修复dependencies格式为对象数组，调整加载优先级
+#    影响: 服务器现在可以从配置文件正确加载所有模块
+#
+# ✅ 问题4: database.json类型错误
+#    解决: port和pool_size改为数字类型
+#    影响: 数据库配置正确解析
+#
+# 模块加载顺序 (按优先级降序):
+# -----------------------------
+# 1. TemplateCrawlerModule (priority 11) - 基础爬虫引擎
+# 2. CrawlerApiModule (priority 10) - 爬虫管理API
+# 3. DistributedTaskModule (priority 9) - 分布式任务调度
+# 4-11. 其他业务模块 (priority 1-8)
+#
+# 验证方法:
+# -----------------------------
+# cd build/Release
+# ./PaperCrawlerServerHotPlug.exe
+# 应该看到: "Loading complete: 11 succeeded, 0 failed"
+#
+# ============================================================================
