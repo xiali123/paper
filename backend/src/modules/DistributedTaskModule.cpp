@@ -3,7 +3,6 @@
 #include "data/IDatabase.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
-using DataPreparedStatement = PaperCrawler::PreparedStatement;
 #include "modules/CrawlerModule.hpp"
 #include "features/LoggingModule.hpp"
 #include "spdlog/spdlog.h"
@@ -736,6 +735,15 @@ bool DistributedTaskModule::saveTaskToDatabase(
 
 void DistributedTaskModule::loadWorkersFromDatabase() {
     try {
+        // 检查数据库连接是否可用
+        if (!database_) {
+            auto logger = spdlog::get("DistributedTask");
+            if (logger) {
+                logger->warn("Database not available, skipping worker loading");
+            }
+            return;
+        }
+
         // 使用IDatabase直接执行查询（替代QueryBuilder）
         auto rows = database_->query(
             "SELECT node_id, user_id, node_type, ip_address, "
@@ -830,3 +838,29 @@ void DistributedTaskModule::log(
 }
 
 } // namespace PaperCrawler
+
+// ============================================================================
+// Module Export - Required for dynamic loading
+// ============================================================================
+
+extern "C" {
+    // 导出函数：创建模块实例（返回 void* 避免类型修饰）
+    PAPERCRAWLER_API void* createModule() {
+        return new PaperCrawler::DistributedTaskModule(nullptr, nullptr);
+    }
+
+    // 导出函数：销毁模块实例
+    PAPERCRAWLER_API void destroyModule(void* module) {
+        delete static_cast<PaperCrawler::DistributedTaskModule*>(module);
+    }
+
+    // 导出函数：获取模块名称
+    PAPERCRAWLER_API const char* getModuleName() {
+        return "DistributedTaskModule";
+    }
+
+    // 导出函数：获取模块版本
+    PAPERCRAWLER_API const char* getModuleVersion() {
+        return "1.0.0";
+    }
+}

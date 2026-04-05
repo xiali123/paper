@@ -589,12 +589,16 @@ add_library(SystemModules STATIC
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
     src/network/WebSocketModule.cpp  # 添加WebSocketModule支持（CrawlerApiModule需要）
     src/database/PreparedStatement.cpp  # ⭐ MySQL版本的PreparedStatement实现（所有模块通过IDatabase接口使用）
+    src/data/PreparedStatement.cpp  # ⭐ DataPreparedStatement实现（DistributedTaskModule需要）
     src/data/QueryBuilder.cpp        # 添加QueryBuilder支持
     src/data/DatabaseModule.cpp     # 添加DatabaseModule支持（已在DATA_SOURCES中）
     src/data/MySqlConnection.cpp     # ⭐ 添加MySqlConnection支持（已在DATA_SOURCES中）
     src/data/SimpleMySQLDatabase.cpp # ⭐ 添加SimpleMySQLDatabase支持（AuthApiModule直接使用）
     src/common/JsonUtils.cpp        # 添加JsonUtils支持（CrawlerApiModule需要）
-    src/modules/TemplateCrawlerModule.cpp  # 完整实现（需要gumbo）
+    # CrawlerModule.cpp - 暂时禁用（需要重构）
+    # TemplateCrawlerModule.cpp 已移至独立模块（TemplateCrawlerModule）
+    # ⭐ CrawlerTemplate 序列化实现（DistributedTaskModule 和 CrawlerApiModule 需要）
+    src/modules/CrawlerTemplateSerialization.cpp
     # ⭐ 安全模块支持（AuthApiModule需要SecurityModule的密码哈希/验证功能）
     ${SECURITY_SOURCES}
     # 核心框架源文件（MessageBus等）
@@ -638,6 +642,7 @@ target_include_directories(SystemModules PUBLIC
     ${CMAKE_SOURCE_DIR}/../core/include
     ${CURL_DIR}/include  # HttpClient需要CURL头文件
     ${EXTERNAL_DIR}/spdlog/include  # HttpClient需要spdlog
+    "E:/PaperCrawler/core/external/nlohmann"  # CrawlerModule需要nlohmann/json
     ${EXTERNAL_DIR}/gumbo/src  # TemplateCrawlerModule需要gumbo
     "C:/Program Files/MySQL/MySQL Server 8.0/include"  # ⭐ MySqlConnection需要MySQL头文件
 )
@@ -906,25 +911,40 @@ find_package_handle_standard_args(LibXml2
     REQUIRED_VARS LIBXML2_INCLUDE_DIR LIBXML2_LIBRARY
 )
 
-# TemplateCrawlerModule - 模板爬虫引擎（临时禁用 - 链接错误）
-# add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp
-#     src/network/HttpClient.cpp
-#     src/common/JsonUtils.cpp)
+# TemplateCrawlerModule - 模板爬虫引擎
+add_library(TemplateCrawlerModule MODULE src/modules/TemplateCrawlerModule.cpp
+    src/network/HttpClient.cpp
+    src/common/JsonUtils.cpp
+    src/modules/CrawlerTemplateSerialization.cpp  # 序列化实现
+    # gumbo parser source files
+    ${EXTERNAL_DIR}/gumbo/src/attribute.c
+    ${EXTERNAL_DIR}/gumbo/src/char_ref.c
+    ${EXTERNAL_DIR}/gumbo/src/error.c
+    ${EXTERNAL_DIR}/gumbo/src/parser.c
+    ${EXTERNAL_DIR}/gumbo/src/string_buffer.c
+    ${EXTERNAL_DIR}/gumbo/src/string_piece.c
+    ${EXTERNAL_DIR}/gumbo/src/tag.c
+    ${EXTERNAL_DIR}/gumbo/src/tokenizer.c
+    ${EXTERNAL_DIR}/gumbo/src/utf8.c
+    ${EXTERNAL_DIR}/gumbo/src/util.c
+    ${EXTERNAL_DIR}/gumbo/src/vector.c
+)
 
-# set_target_properties(TemplateCrawlerModule PROPERTIES
-#     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules/dynamic"
-#     PREFIX "lib"
-# )
+set_target_properties(TemplateCrawlerModule PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release/modules"
+    PREFIX "lib"
+)
 
-# target_include_directories(TemplateCrawlerModule
-#     PRIVATE
-#         ${CMAKE_SOURCE_DIR}/include
-#         ${CMAKE_SOURCE_DIR}/../core/include
-#         ${CURL_DIR}/include
-#         ${EXTERNAL_DIR}/spdlog/include
-#         ${EXTERNAL_DIR}/nlohmann
-#         ${EXTERNAL_DIR}/gumbo/src
-# )
+target_include_directories(TemplateCrawlerModule
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/../core/include
+        ${CURL_DIR}/include
+        ${EXTERNAL_DIR}/spdlog/include
+        ${EXTERNAL_DIR}/nlohmann
+        ${EXTERNAL_DIR}/gumbo/src
+)
 
 # 添加libxml2支持（如果找到）
 if(LibXml2_FOUND)
@@ -932,68 +952,64 @@ if(LibXml2_FOUND)
     message(STATUS "    Include: ${LIBXML2_INCLUDE_DIR}")
     message(STATUS "    Library: ${LIBXML2_LIBRARY}")
 
-    # TemplateCrawlerModule已禁用，跳过配置
-    # target_include_directories(TemplateCrawlerModule
-    #     PRIVATE ${LIBXML2_INCLUDE_DIR}
-    # )
-    # target_link_libraries(TemplateCrawlerModule
-    #     PRIVATE ${LIBXML2_LIBRARY}
-    # )
+    target_include_directories(TemplateCrawlerModule
+        PRIVATE ${LIBXML2_INCLUDE_DIR}
+    )
+    # 使用 DLL 导入库而不是静态库
+    target_link_libraries(TemplateCrawlerModule
+        PRIVATE C:/msys64/mingw64/lib/libxml2.dll.a
+    )
 
     # 如果找到libiconv，也链接它
     if(LIBXML2_ICONV_LIBRARY)
-        # target_link_libraries(TemplateCrawlerModule
-        #     PRIVATE ${LIBXML2_ICONV_LIBRARY}
-        # )
+        target_link_libraries(TemplateCrawlerModule
+            PRIVATE ${LIBXML2_ICONV_LIBRARY}
+        )
     endif()
 
     # 定义宏，启用XPath支持
-    # target_compile_definitions(TemplateCrawlerModule
-    #     PRIVATE HAVE_LIBXML2=1
-    # )
-else()
-    message(WARNING "")
-    message(WARNING "  ==============================================================")
-    message(WARNING "  ⚠️  libxml2 NOT FOUND - XPath解析功能将被禁用")
-    message(WARNING "  ==============================================================")
-    message(WARNING "  请安装libxml2以启用XPath解析功能:")
-    message(WARNING "")
-    message(WARNING "  方法1: MSYS2（推荐）")
-    message(WARNING "    1. 下载安装: https://github.com/msys2/msys2-installer/releases/")
-    message(WARNING "    2. 打开 MSYS2 MinGW 64-bit 终端")
-    message(WARNING "    3. 执行: pacman -S mingw-w64-x86_64-libxml2")
-    message(WARNING "")
-    message(WARNING "  方法2: 下载预编译版本")
-    message(WARNING "    1. 访问: https://github.com/GNOME/libxml2/releases")
-    message(WARNING "    2. 下载libxml2-*.zip")
-    message(WARNING "    3. 解压到: E:/PaperCrawler/core/external/libxml2/")
-    message(WARNING "")
-    message(WARNING "  详细安装指南: backend/docs/LIBXML2_INSTALLATION_GUIDE.md")
-    message(WARNING "  ==============================================================")
-    message(WARNING "")
-
-    # 不定义HAVE_LIBXML2宏（让条件编译正常工作）
+    target_compile_definitions(TemplateCrawlerModule
+        PRIVATE HAVE_LIBXML2=1
+    )
 endif()
 
-# TemplateCrawlerModule Windows配置已禁用
-# if(WIN32)
-#     target_compile_definitions(TemplateCrawlerModule PRIVATE
-#         WIN32_LEAN_AND_MEAN
-#         NOMINMAX
-#         _CRT_SECURE_NO_WARNINGS
-#     )
-#     if(MSVC)
-#         target_compile_options(TemplateCrawlerModule PRIVATE /utf-8)
-#     endif()
-# endif()
+# 链接CURL库（TemplateCrawlerModule需要HttpClient）
+if(CURL_FOUND)
+    target_link_libraries(TemplateCrawlerModule PRIVATE
+        ${CURL_DIR}/lib/libcurl.dll.a
+        ${CURL_DIR}/lib/libcrypto.a
+        ${CURL_DIR}/lib/libssl.a
+        ${CURL_DIR}/lib/libnghttp2.a
+        ${CURL_DIR}/lib/libnghttp3.a
+        ${CURL_DIR}/lib/libngtcp2.a
+        ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
+        ${CURL_DIR}/lib/libssh2.a
+        ${CURL_DIR}/lib/libbrotlicommon.a
+        ${CURL_DIR}/lib/libbrotlidec.a
+        ${CURL_DIR}/lib/libz.a
+        ${CURL_DIR}/lib/libzstd.a
+        ${CURL_DIR}/lib/libpsl.a
+    )
+endif()
 
-# message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/dynamic/ (with nlohmann/json)")
+# TemplateCrawlerModule Windows配置
+if(WIN32)
+    target_compile_definitions(TemplateCrawlerModule PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        _CRT_SECURE_NO_WARNINGS
+    )
+    if(MSVC)
+        target_compile_options(TemplateCrawlerModule PRIVATE /utf-8)
+    endif()
+endif()
 
-# DistributedTaskModule - 分布式任务调度 (临时禁用，编译错误)
-# 详见: DISTRIBUTED_TASK_MODULE_ANALYSIS.md
-# add_dynamic_module_with_system(DistributedTaskModule
-#     src/modules/DistributedTaskModule.cpp
-# )
+message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/ (with nlohmann/json)")
+
+# DistributedTaskModule - 分布式任务调度 (已修复DataPreparedStatement依赖)
+add_dynamic_module_with_system(DistributedTaskModule
+    src/modules/DistributedTaskModule.cpp
+)
 
 # CrawlerApiModule - 爬虫API接口
 add_dynamic_module_with_system(CrawlerApiModule
@@ -1007,6 +1023,8 @@ message(STATUS "         AuthApiModule, SearchApiModule, UserApiModule")
 message(STATUS "         AiApiModule (NEW)")
 message(STATUS "         RecommendationApiModule (NEW)")
 message(STATUS "         TemplateCrawlerModule (NEW - 分布式爬虫)")
+message(STATUS "         CrawlerApiModule (NEW - 爬虫管理API)")
+message(STATUS "         DistributedTaskModule (DISABLED - 待修复依赖)")
 message(STATUS "         DistributedTaskModule (NEW - 分布式爬虫)")
 message(STATUS "         CrawlerApiModule (NEW - 分布式爬虫)")
 message(STATUS "Output: ${CMAKE_BINARY_DIR}/Release/modules/dynamic/")
@@ -1079,6 +1097,62 @@ else()
     message(STATUS "    - libmysql.dll (for Database modules)")
     message(STATUS "    - Other runtime dependencies")
     message(STATUS "")
+endif()
+
+# ============================================================================
+# 复制modules目录中的依赖DLL到Release目录
+# 这样服务器启动时能自动找到TemplateCrawlerModule的依赖（libxml2等）
+# ============================================================================
+
+message(STATUS "")
+message(STATUS "==========================================================================")
+message(STATUS "Modules Runtime Dependencies")
+message(STATUS "==========================================================================")
+
+set(MODULES_DLL_SOURCE_DIR "${CMAKE_BINARY_DIR}/Release/modules")
+set(MODULES_DLL_TARGET_DIR "${CMAKE_BINARY_DIR}/Release")
+
+# 检查modules目录是否存在
+if(EXISTS "${MODULES_DLL_SOURCE_DIR}")
+    message(STATUS "Modules directory: ${MODULES_DLL_SOURCE_DIR}")
+
+    # 需要复制到Release目录的依赖DLL
+    set(MODULES_DEPENDENCY_DLLS
+        "libxml2-16.dll"
+        "libiconv-2.dll"
+        "zlib1.dll"
+    )
+
+    set(MODULES_DEP_COUNT 0)
+    foreach(DEP_DLL_NAME ${MODULES_DEPENDENCY_DLLS})
+        set(DEP_DLL "${MODULES_DLL_SOURCE_DIR}/${DEP_DLL_NAME}")
+
+        if(EXISTS "${DEP_DLL}")
+            math(EXPR MODULES_DEP_COUNT "${MODULES_DEP_COUNT} + 1")
+            message(STATUS "  - ${DEP_DLL_NAME}")
+
+            # 复制DLL到Release目录
+            add_custom_command(TARGET PaperCrawlerServerHotPlug POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${DEP_DLL}"
+                    "${MODULES_DLL_TARGET_DIR}/${DEP_DLL_NAME}"
+                COMMENT "Copying ${DEP_DLL_NAME} to Release directory"
+                VERBATIM
+            )
+        else()
+            message(STATUS "  ⚠ ${DEP_DLL_NAME} not found (skipped)")
+        endif()
+    endforeach()
+
+    message(STATUS "")
+    message(STATUS "✅ Modules dependencies will be automatically deployed on build")
+    message(STATUS "   → ${MODULES_DEP_COUNT} DLL(s) copied to Release/")
+    message(STATUS "")
+    message(STATUS "📝 Note: These DLLs are required by TemplateCrawlerModule")
+    message(STATUS "         They are automatically copied to the server directory")
+    message(STATUS "         so the server can find them at startup without setting PATH")
+else()
+    message(WARNING "Modules directory not found: ${MODULES_DLL_SOURCE_DIR}")
 endif()
 
 message(STATUS "==========================================================================")

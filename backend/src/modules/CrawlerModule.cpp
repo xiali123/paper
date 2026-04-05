@@ -4,8 +4,8 @@
  */
 
 #include "modules/CrawlerModule.hpp"
-#include "../data/MySqlConnection.hpp"
-#include <nlohmann/json.hpp>
+#include "data/MySqlConnection.hpp"
+#include "../../core/external/nlohmann/json.hpp"
 #include <sstream>
 #include <chrono>
 #include <iomanip>
@@ -868,14 +868,14 @@ void CrawlerModule::loadSources() {
 
     for (const auto& row : result) {
         CrawlerSource source;
-        source.id = std::stoi(row["id"]);
-        source.name = row["name"];
-        source.displayName = row["display_name"];
+        source.id = std::stoi(row.at("id"));
+        source.name = row.at("name");
+        source.displayName = row.at("display_name");
         source.description = row.value("description", "");
-        source.baseUrl = row["base_url"];
+        source.baseUrl = row.at("base_url");
         source.endpoint = row.value("endpoint", "");
         source.rateLimitRequestsPerMinute = std::stoi(row.value("rate_limit_requests_per_minute", "60"));
-        source.isActive = row["is_active"] == "1";
+        source.isActive = row.value("is_active", "0") == "1";
         source.priority = std::stoi(row.value("priority", "100"));
         source.totalPapersCrawled = std::stoi(row.value("total_papers_crawled", "0"));
 

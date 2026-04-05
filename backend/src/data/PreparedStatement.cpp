@@ -10,7 +10,7 @@ namespace PaperCrawler {
 // PreparedStatement实现
 // ============================================================================
 
-DataPreparedStatement::PreparedStatement(std::shared_ptr<IDatabase> database, const std::string& sql)
+DataPreparedStatement::DataPreparedStatement(std::shared_ptr<IDatabase> database, const std::string& sql)
     : database_(database), sql_(sql) {
 }
 
@@ -41,6 +41,15 @@ int DataPreparedStatement::executeAndReturnId() {
     auto result = database_->query("SELECT LAST_INSERT_ID() as id");
     if (!result.empty()) {
         return std::stoi(result[0]["id"]);
+    }
+    return -1;
+}
+
+int DataPreparedStatement::getAffectedRows() {
+    // 简化实现：查询受影响的行数
+    auto result = database_->query("SELECT ROW_COUNT() as count");
+    if (!result.empty()) {
+        return std::stoi(result[0]["count"]);
     }
     return -1;
 }
