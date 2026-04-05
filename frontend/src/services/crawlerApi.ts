@@ -484,6 +484,245 @@ export const crawlerApi = {
       }>
     }>>('/api/crawler/templates/stats')
     return response.data
+  },
+
+  // ========== Edge Crawling (Browser-based) ==========
+
+  /**
+   * Crawl URL from browser (edge crawling)
+   * POST /api/crawler/edge/crawl
+   */
+  async crawlUrl(url: string, maxPapers: number = 20): Promise<Array<{
+    title: string
+    authors: string
+    year: string
+    abstract: string
+    url?: string
+  }>> {
+    // Use browser's fetch to crawl the URL directly
+    try {
+      const response = await fetch(url)
+      const html = await response.text()
+
+      // Parse HTML to extract paper information
+      const papers = this.parseArxivPapers(html, maxPapers)
+      return papers
+    } catch (error) {
+      console.error('Edge crawling failed:', error)
+      return []
+    }
+  },
+
+  /**
+   * Parse arXiv HTML response to extract papers
+   */
+  parseArxivPapers(html: string, maxPapers: number): Array<{
+    title: string
+    authors: string
+    year: string
+    abstract: string
+    url?: string
+  }> {
+    const papers: Array<{
+      title: string
+      authors: string
+      year: string
+      abstract: string
+      url?: string
+    }> = []
+
+    // Simple parser for arXiv format
+    const titleRegex = /<span class="descriptor">(?:Title|Abstract):<\/span>\s*<[^>]*>(.*?)<\/div>/gs
+    const authorRegex = /<span class="descriptor">Authors?:<\/span>\s*<[^>]*>(.*?)<\/div>/gs
+    const abstractRegex = /<span class="descriptor">Abstract:<\/span>\s*<p>(.*?)<\/p>/gs
+
+    // Extract papers from HTML (this is a simplified implementation)
+    const paperBlocks = html.split(/<dt>/g).slice(1, maxPapers + 1)
+
+    for (const block of paperBlocks) {
+      const titleMatch = block.match(/Title:\s*([^<\n]+)/);
+      const authorsMatch = block.match(/Authors?:\s*([^<\n]+)/);
+      const abstractMatch = block.match(/Abstract:\s*([^<\n]{50,})/);
+      const urlMatch = block.match(/href="([^"]+)"/);
+
+      if (titleMatch) {
+        papers.push({
+          title: titleMatch[1].trim(),
+          authors: authorsMatch ? authorsMatch[1].trim() : 'Unknown',
+          year: new Date().getFullYear().toString(),
+          abstract: abstractMatch ? abstractMatch[1].trim().substring(0, 500) : '',
+          url: urlMatch ? (urlMatch[1].startsWith('http') ? urlMatch[1] : `https://arxiv.org${urlMatch[1]}`) : undefined
+        })
+      }
+    }
+
+    return papers
+  },
+
+  /**
+   * Sync edge crawled papers to server
+   * POST /api/crawler/edge/sync
+   */
+  async syncPapers(papers: Array<{
+    title: string
+    authors: string
+    year: string
+    abstract: string
+    url?: string
+  }>): Promise<ApiResponse<{
+    synced: number
+    failed: number
+    errors: string[]
+  }>> {
+    const response = await axiosInstance.post<ApiResponse<{
+      synced: number
+      failed: number
+      errors: string[]
+    }>>('/api/crawler/edge/sync', { papers })
+    return response.data
+  },
+
+  /**
+   * Get edge crawling tasks from localStorage
+   */
+  getEdgeTasks(): any[] {
+    const saved = localStorage.getItem('edge-crawler-tasks')
+    return saved ? JSON.parse(saved) : []
+  },
+
+  /**
+   * Save edge crawling tasks to localStorage
+   */
+  saveEdgeTasks(tasks: any[]): void {
+    localStorage.setItem('edge-crawler-tasks', JSON.stringify(tasks))
+  }
+}
+
+// Edge Crawler API (for browser-based crawling)
+export const edgeCrawlerApi = {
+  /**
+   * Crawl URL using browser fetch API
+   */
+  async crawlUrl(url: string, maxPapers: number = 20): Promise<Array<{
+    title: string
+    authors: string
+    year: string
+    abstract: string
+    url?: string
+  }>> {
+    try {
+      // Direct browser fetch
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const html = await response.text()
+      return this.parseArxivHtml(html, maxPapers)
+    } catch (error: any) {
+      console.error('Edge crawl error:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Parse arXiv HTML to extract papers
+   */
+  parseArxivHtml(html: string, maxPapers: number): Array<{
+    title: string
+    authors: string
+    year: string
+    abstract: string
+    url?: string
+  }> {
+    const papers: any[] = []
+
+    // Use DOMParser for better HTML parsing
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+
+    // Find all paper entries
+    const entries = doc.querySelectorAll('#dlpage > dt, .list-dateline')
+
+    entries.forEach((entry, index) => {
+      if (index >= maxPapers) return
+
+      const paperId = entry.querySelector('a[name*="arxiv"]')?.getAttribute('name')?.replace(/^arxiv./, '')
+      if (!paperId) return
+
+      // Get title from the next dd element
+      const nextElement = entry.nextElementSibling
+      if (!nextElement) return
+
+      const titleElement = nextElement.querySelector('.title math')
+      const title = titleElement ? titleElement.textContent?.trim() : ''
+
+      // Get authors
+      const authorsElement = nextElement.querySelector('.authors')
+      const authors = authorsElement ? authorsElement.textContent?.trim() : ''
+
+      // Get abstract
+      const abstractElement = nextElement.querySelector('.abstract math')
+      const abstract = abstractElement ? abstractElement.textContent?.trim() : ''
+
+      // Construct URL
+      const url = `https://arxiv.org/abs/${paperId}`
+
+      // Extract year from paper ID (format: arxiv.YYYYMM.XXXXX)
+      const yearMatch = paperId.match(/\d{4}/)
+      const year = yearMatch ? yearMatch[0] : new Date().getFullYear().toString()
+
+      if (title) {
+        papers.push({
+          title,
+          authors: authors || 'Unknown',
+          year,
+          abstract: abstract || 'No abstract available',
+          url
+        })
+      }
+    })
+
+    return papers
+  },
+
+  /**
+   * Sync papers to server
+   */
+  async syncPapers(papers: any[]): Promise<{
+    synced: number
+    failed: number
+    errors: string[]
+  }> {
+    try {
+      const response = await fetch('/api/papers/batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ papers })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Sync failed: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      return result
+    } catch (error: any) {
+      console.error('Sync error:', error)
+      return {
+        synced: 0,
+        failed: papers.length,
+        errors: [error.message]
+      }
+    }
   }
 }
 

@@ -185,6 +185,18 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: 'route.nodeManagement', icon: 'Monitor' }
       },
       {
+        path: '/crawler/edge',
+        name: 'EdgeCrawler',
+        component: () => import('@/views/crawler/EdgeCrawlerView.vue'),
+        meta: { requiresAuth: true, title: '边缘爬虫', icon: 'Connection' }
+      },
+      {
+        path: '/crawler/distributed',
+        name: 'DistributedCrawler',
+        component: () => import('@/views/crawler/DistributedCrawlerView.vue'),
+        meta: { requiresAuth: true, title: '分布式爬虫', icon: 'Share' }
+      },
+      {
         path: '/search',
         name: 'Search',
         component: () => import('@/views/search/SearchPage.vue'),
