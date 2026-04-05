@@ -126,7 +126,7 @@ const formatDate = (dateStr: string) => {
 .collaborative-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: $spacing-6;
 }
 
 .collaborative-header {
@@ -151,7 +151,7 @@ const formatDate = (dateStr: string) => {
 .document-card {
   background: white;
   border-radius: 12px;
-  padding: 20px;
+  padding: $spacing-5;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: all 0.3s ease;

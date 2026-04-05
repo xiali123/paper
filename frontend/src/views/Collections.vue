@@ -512,7 +512,7 @@ onMounted(() => {
 .collections-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: $spacing-6;
 }
 
 /* Header */
@@ -566,7 +566,7 @@ onMounted(() => {
   gap: 8px;
   padding: 12px 24px;
   border: none;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -607,8 +607,8 @@ onMounted(() => {
 
 .collection-card {
   background: white;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: $border-radius-xl;
+  padding: $spacing-6;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   border: 2px solid #e5e7eb;
   cursor: pointer;
@@ -737,7 +737,7 @@ onMounted(() => {
 
 .modal-content {
   background: white;
-  border-radius: 16px;
+  border-radius: $border-radius-xl;
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
@@ -754,7 +754,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
+  padding: $spacing-6;
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -784,7 +784,7 @@ onMounted(() => {
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: $spacing-6;
 }
 
 .collection-info-section {
@@ -984,7 +984,7 @@ onMounted(() => {
 }
 
 .search-hint {
-  padding: 20px;
+  padding: $spacing-5;
   text-align: center;
   color: #9ca3af;
   font-size: 14px;
@@ -994,7 +994,7 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 24px;
+  padding: $spacing-6;
   border-top: 1px solid #e5e7eb;
 }
 

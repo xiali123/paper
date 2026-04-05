@@ -244,7 +244,7 @@ onMounted(() => {
 }
 
 .analytics-header h1 {
-  font-size: 32px;
+  font-size: $font-size-4xl;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -270,13 +270,13 @@ onMounted(() => {
 }
 
 .dashboard-header h2 {
-  font-size: 24px;
+  font-size: $font-size-2xl;
   font-weight: 600;
 }
 
 .metric-card {
   background: white;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   padding: 24px;
   text-align: center;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -289,7 +289,7 @@ onMounted(() => {
 }
 
 .metric-icon {
-  font-size: 32px;
+  font-size: $font-size-4xl;
   margin-bottom: 12px;
 }
 
@@ -324,7 +324,7 @@ onMounted(() => {
 }
 
 .interests-section h2 {
-  font-size: 24px;
+  font-size: $font-size-2xl;
   font-weight: 600;
   margin-bottom: 24px;
 }
@@ -337,7 +337,7 @@ onMounted(() => {
 
 .interest-item {
   background: white;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
@@ -397,14 +397,14 @@ onMounted(() => {
 }
 
 .briefing-section h2 {
-  font-size: 24px;
+  font-size: $font-size-2xl;
   font-weight: 600;
   margin-bottom: 24px;
 }
 
 .briefing-content {
   background: white;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
@@ -429,7 +429,7 @@ onMounted(() => {
 .briefing-paper {
   padding: 12px;
   background: #f5f7fa;
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   margin-bottom: 12px;
 }
 

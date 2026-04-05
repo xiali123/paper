@@ -574,7 +574,7 @@ async function confirmDeleteUser(user: AdminUser) {
   background: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   cursor: pointer;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -595,7 +595,7 @@ async function confirmDeleteUser(user: AdminUser) {
   background: var(--color-surface);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   cursor: pointer;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -616,7 +616,7 @@ async function confirmDeleteUser(user: AdminUser) {
 .stat-card {
   background: var(--color-surface);
   padding: 1.5rem;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
@@ -650,7 +650,7 @@ async function confirmDeleteUser(user: AdminUser) {
 .admin-section {
   background: var(--color-surface);
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
 }
@@ -679,7 +679,7 @@ async function confirmDeleteUser(user: AdminUser) {
 .search-input {
   padding: 0.625rem 1rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   font-size: 0.875rem;
   min-width: 250px;
   background: var(--color-background);
@@ -689,7 +689,7 @@ async function confirmDeleteUser(user: AdminUser) {
 .role-filter {
   padding: 0.625rem 1rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   font-size: 0.875rem;
   background: var(--color-background);
   color: var(--color-text-primary);
@@ -701,7 +701,7 @@ async function confirmDeleteUser(user: AdminUser) {
   background: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   cursor: pointer;
   font-size: 0.875rem;
   transition: all 0.3s ease;
@@ -858,7 +858,7 @@ async function confirmDeleteUser(user: AdminUser) {
   padding: 0.5rem 1rem;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -883,7 +883,7 @@ async function confirmDeleteUser(user: AdminUser) {
   max-height: 500px;
   overflow-y: auto;
   background: var(--color-background);
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   padding: 1rem;
 }
 
@@ -896,7 +896,7 @@ async function confirmDeleteUser(user: AdminUser) {
 .log-entry {
   background: var(--color-surface);
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   margin-bottom: 0.75rem;
   border-left: 4px solid var(--color-primary);
 }
@@ -959,7 +959,7 @@ async function confirmDeleteUser(user: AdminUser) {
 
 .modal-content {
   background: var(--color-surface);
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
@@ -1032,7 +1032,7 @@ async function confirmDeleteUser(user: AdminUser) {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   font-size: 0.875rem;
   background: var(--color-background);
   color: var(--color-text-primary);
