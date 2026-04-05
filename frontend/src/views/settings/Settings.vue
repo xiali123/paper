@@ -7,19 +7,19 @@
         系统设置
       </h1>
       <div class="header-actions">
-        <el-button type="primary" :icon="Check" @click="handleSaveAll">
+        <el-button type="primary" :icon="Check" size="default" @click="handleSaveAll">
           保存所有更改
         </el-button>
       </div>
     </div>
 
     <!-- User Info Cards -->
-    <el-row :gutter="20" class="stats-row">
+    <el-row :gutter="16" class="stats-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="user-card">
           <div class="user-content">
             <div class="user-avatar">
-              <el-avatar :size="60">{{ profileForm.name.charAt(0) }}</el-avatar>
+              <el-avatar :size="48">{{ profileForm.name.charAt(0) }}</el-avatar>
             </div>
             <div class="user-info">
               <div class="user-name">{{ profileForm.name }}</div>
@@ -70,7 +70,7 @@
     </el-row>
 
     <!-- Settings Tabs -->
-    <el-row :gutter="20" class="content-row">
+    <el-row :gutter="16" class="content-row">
       <el-col :span="24">
         <el-card shadow="hover" class="settings-card">
           <el-tabs v-model="activeTab" class="settings-tabs">
@@ -93,7 +93,7 @@
                       v-model="basicForm.systemName"
                       placeholder="请输入系统名称"
                       clearable
-                      size="large"
+                      size="default"
                     />
                   </el-form-item>
                   <el-form-item label="系统描述">
@@ -130,19 +130,21 @@
                   个人设置
                 </span>
               </template>
-              <div class="tab-content">
-                <div class="tab-header">
-                  <h2>个人资料</h2>
-                  <p>更新您的个人信息</p>
-                </div>
-                <div class="profile-header">
-                  <el-avatar :size="100" class="profile-avatar">
-                    {{ profileForm.name.charAt(0) }}
-                  </el-avatar>
-                  <el-button type="primary" plain size="small">
-                    <el-icon><Upload /></el-icon>
-                    更换头像
-                  </el-button>
+              <div class="tab-content profile-tab-content">
+                <div class="profile-header-row">
+                  <div class="tab-header">
+                    <h2>个人资料</h2>
+                    <p>更新您的个人信息</p>
+                  </div>
+                  <div class="profile-header">
+                    <el-avatar :size="80" class="profile-avatar">
+                      {{ profileForm.name.charAt(0) }}
+                    </el-avatar>
+                    <el-button type="primary" plain size="small">
+                      <el-icon><Upload /></el-icon>
+                      更换头像
+                    </el-button>
+                  </div>
                 </div>
                 <el-form :model="profileForm" label-width="140px" class="settings-form">
                   <el-form-item label="用户名">
@@ -157,7 +159,7 @@
                       v-model="profileForm.name"
                       placeholder="请输入您的姓名"
                       clearable
-                      size="large"
+                      size="default"
                     />
                   </el-form-item>
                   <el-form-item label="邮箱地址">
@@ -165,7 +167,7 @@
                       v-model="profileForm.email"
                       placeholder="请输入邮箱地址"
                       clearable
-                      size="large"
+                      size="default"
                     >
                       <template #prefix>
                         <el-icon><Message /></el-icon>
@@ -205,7 +207,7 @@
                       type="password"
                       placeholder="请输入当前密码"
                       show-password
-                      size="large"
+                      size="default"
                     >
                       <template #prefix>
                         <el-icon><Lock /></el-icon>
@@ -218,7 +220,7 @@
                       type="password"
                       placeholder="请输入新密码"
                       show-password
-                      size="large"
+                      size="default"
                     />
                   </el-form-item>
                   <el-form-item label="确认密码">
@@ -227,15 +229,15 @@
                       type="password"
                       placeholder="请再次输入新密码"
                       show-password
-                      size="large"
+                      size="default"
                     />
                   </el-form-item>
                   <el-form-item>
-                    <el-button type="primary" size="large" @click="handleSaveSecurity">
+                    <el-button type="primary" @click="handleSaveSecurity">
                       <el-icon><Check /></el-icon>
                       修改密码
                     </el-button>
-                    <el-button size="large">取消</el-button>
+                    <el-button>取消</el-button>
                   </el-form-item>
                 </el-form>
 
@@ -248,7 +250,6 @@
                     v-model="securityForm.twoFactor"
                     active-text="已启用"
                     inactive-text="未启用"
-                    size="large"
                   />
                 </div>
               </div>
@@ -276,7 +277,7 @@
                         <p>接收重要更新和提醒的邮件通知</p>
                       </div>
                     </div>
-                    <el-switch v-model="notificationSettings.email" size="large" />
+                    <el-switch v-model="notificationSettings.email" />
                   </div>
                   <el-divider />
                   <div class="notification-item">
@@ -287,7 +288,7 @@
                         <p>接收系统内消息和通知</p>
                       </div>
                     </div>
-                    <el-switch v-model="notificationSettings.system" size="large" />
+                    <el-switch v-model="notificationSettings.system" />
                   </div>
                   <el-divider />
                   <div class="notification-item">
@@ -298,7 +299,7 @@
                         <p>爬虫任务完成和异常提醒</p>
                       </div>
                     </div>
-                    <el-switch v-model="notificationSettings.tasks" size="large" />
+                    <el-switch v-model="notificationSettings.tasks" />
                   </div>
                 </div>
               </div>
@@ -320,35 +321,35 @@
                 <div class="appearance-settings">
                   <div class="appearance-item">
                     <div class="appearance-info">
-                      <el-icon class="appearance-icon" :size="32"><Moon /></el-icon>
+                      <el-icon class="appearance-icon" :size="28"><Moon /></el-icon>
                       <div>
                         <h4>深色模式</h4>
                         <p>切换到深色主题以减少眼睛疲劳</p>
                       </div>
                     </div>
-                    <el-switch v-model="appearanceSettings.darkMode" size="large" />
+                    <el-switch v-model="appearanceSettings.darkMode" />
                   </div>
                   <el-divider />
                   <div class="appearance-item">
                     <div class="appearance-info">
-                      <el-icon class="appearance-icon" :size="32"><Grid /></el-icon>
+                      <el-icon class="appearance-icon" :size="28"><Grid /></el-icon>
                       <div>
                         <h4>侧边栏</h4>
                         <p>默认折叠侧边栏</p>
                       </div>
                     </div>
-                    <el-switch v-model="appearanceSettings.sidebarCollapsed" size="large" />
+                    <el-switch v-model="appearanceSettings.sidebarCollapsed" />
                   </div>
                   <el-divider />
                   <div class="appearance-item">
                     <div class="appearance-info">
-                      <el-icon class="appearance-icon" :size="32"><Odometer /></el-icon>
+                      <el-icon class="appearance-icon" :size="28"><Odometer /></el-icon>
                       <div>
                         <h4>页面动画</h4>
                         <p>启用页面切换动画效果</p>
                       </div>
                     </div>
-                    <el-switch v-model="appearanceSettings.animations" size="large" />
+                    <el-switch v-model="appearanceSettings.animations" />
                   </div>
                 </div>
               </div>
@@ -469,18 +470,19 @@ function handleSaveAll() {
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
+  padding: 8px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: $spacing-6;
-  padding: $spacing-8;
+  gap: $spacing-4;
+  padding: $spacing-4 $spacing-5;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border-radius: $border-radius-xl;
   box-shadow: $shadow-sm;
-  margin-bottom: $spacing-6;
+  margin-bottom: $spacing-4;
 
   .dark & {
     background: linear-gradient(135deg, $gray-800 0%, $gray-900 100%);
@@ -490,9 +492,9 @@ function handleSaveAll() {
   .page-title {
     display: flex;
     align-items: center;
-    gap: $spacing-3;
+    gap: $spacing-2;
     margin: 0;
-    font-size: $font-size-3xl;
+    font-size: $font-size-2xl;
     font-weight: $font-weight-bold;
     color: $text-primary;
 
@@ -503,15 +505,15 @@ function handleSaveAll() {
 
   .header-actions {
     display: flex;
-    gap: $spacing-3;
+    gap: $spacing-2;
   }
 }
 
 .stats-row {
-  margin-bottom: $spacing-6;
+  margin-bottom: $spacing-4;
 
   :deep(.el-col) {
-    margin-bottom: $spacing-4;
+    margin-bottom: $spacing-3;
   }
 }
 
@@ -533,33 +535,33 @@ function handleSaveAll() {
   }
 
   :deep(.el-card__body) {
-    padding: $spacing-5;
+    padding: $spacing-3;
   }
 
   .user-content {
     display: flex;
     align-items: center;
-    gap: $spacing-4;
+    gap: $spacing-3;
 
     .user-avatar {
       .el-avatar {
         background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
         color: white;
-        font-size: $font-size-2xl;
+        font-size: $font-size-xl;
         font-weight: $font-weight-bold;
       }
     }
 
     .user-info {
       .user-name {
-        font-size: $font-size-lg;
+        font-size: $font-size-base;
         font-weight: $font-weight-semibold;
         color: $text-primary;
-        margin-bottom: $spacing-1;
+        margin-bottom: 2px;
       }
 
       .user-role {
-        font-size: $font-size-sm;
+        font-size: $font-size-xs;
         color: $text-secondary;
       }
     }
@@ -580,7 +582,7 @@ function handleSaveAll() {
   }
 
   :deep(.el-card__body) {
-    padding: $spacing-6;
+    padding: $spacing-4;
   }
 
   .dark & {
@@ -591,32 +593,38 @@ function handleSaveAll() {
   .stat-content {
     display: flex;
     align-items: center;
-    gap: $spacing-4;
+    gap: $spacing-3;
 
     .stat-icon {
-      width: 48px;
-      height: 48px;
+      width: 40px;
+      height: 40px;
       border-radius: $border-radius-lg;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
+      font-size: 20px;
       flex-shrink: 0;
       box-shadow: $shadow-sm;
 
       &.account {
-        background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
-        color: white;
+        background: linear-gradient(135deg, #3a8ee6 0%, #5dadff 100%);
+        color: #ffffff;
+        font-weight: $font-weight-bold;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
 
       &.email {
-        background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
-        color: white;
+        background: linear-gradient(135deg, #5dae34 0%, #7ab84d 100%);
+        color: #ffffff;
+        font-weight: $font-weight-bold;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
 
       &.system {
-        background: linear-gradient(135deg, #e6a23c 0%, #f0c78a 100%);
-        color: white;
+        background: linear-gradient(135deg, #d89935 0%, #e6b87a 100%);
+        color: #ffffff;
+        font-weight: $font-weight-bold;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
     }
 
@@ -624,15 +632,15 @@ function handleSaveAll() {
       flex: 1;
 
       .stat-value {
-        font-size: $font-size-base;
+        font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
         color: $text-primary;
         line-height: 1.2;
-        margin-bottom: $spacing-1;
+        margin-bottom: 2px;
       }
 
       .stat-label {
-        font-size: $font-size-sm;
+        font-size: $font-size-xs;
         color: $text-regular;
         font-weight: $font-weight-medium;
       }
@@ -642,7 +650,7 @@ function handleSaveAll() {
 
 .content-row {
   :deep(.el-col) {
-    margin-bottom: $spacing-4;
+    margin-bottom: $spacing-3;
   }
 }
 
@@ -650,7 +658,7 @@ function handleSaveAll() {
   border: 1px solid $border-light;
   border-radius: $border-radius-xl;
   box-shadow: $shadow-sm;
-  min-height: 600px;
+  min-height: 500px;
 
   .dark & {
     background: $gray-800;
@@ -665,7 +673,7 @@ function handleSaveAll() {
 .settings-tabs {
   :deep(.el-tabs__header) {
     margin: 0;
-    padding: 0 $spacing-6;
+    padding: 0 $spacing-4;
     background: linear-gradient(180deg, $gray-50 0%, #ffffff 100%);
     border-bottom: 1px solid $border-light;
 
@@ -680,10 +688,10 @@ function handleSaveAll() {
   }
 
   :deep(.el-tabs__item) {
-    height: 60px;
-    line-height: 60px;
-    padding: 0 $spacing-6;
-    font-size: $font-size-base;
+    height: 50px;
+    line-height: 50px;
+    padding: 0 $spacing-4;
+    font-size: $font-size-sm;
     font-weight: $font-weight-medium;
     color: $text-secondary;
     border: none;
@@ -712,16 +720,16 @@ function handleSaveAll() {
   .tab-label {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
+    gap: $spacing-1;
 
     .el-icon {
-      font-size: 18px;
+      font-size: 16px;
     }
   }
 }
 
 .tab-content {
-  padding: $spacing-8;
+  padding: $spacing-5;
   animation: fadeIn $duration-base $easing-ease-out;
 
   @keyframes fadeIn {
@@ -734,30 +742,56 @@ function handleSaveAll() {
       transform: translateY(0);
     }
   }
+
+  &.profile-tab-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .profile-header-row {
+    display: flex;
+    align-items: center;
+    gap: $spacing-4;
+    width: 100%;
+    margin-bottom: $spacing-3;
+    padding-bottom: $spacing-3;
+    border-bottom: 1px solid $border-light;
+
+    .tab-header {
+      flex: 1;
+    }
+
+    .profile-header {
+      flex: 0 0 auto;
+      margin-left: auto;
+    }
+  }
 }
 
 .tab-header {
-  text-align: center;
-  margin-bottom: $spacing-8;
-  padding-bottom: $spacing-6;
-  border-bottom: 2px solid $border-light;
+  display: flex;
+  align-items: center;
+  gap: $spacing-4;
+  flex: 1;
 
   h2 {
     font-size: $font-size-2xl;
     font-weight: $font-weight-semibold;
     color: $text-primary;
-    margin: 0 0 $spacing-2 0;
+    margin: 0;
+    white-space: nowrap;
   }
 
   p {
     font-size: $font-size-sm;
     color: $text-secondary;
     margin: 0;
+    white-space: nowrap;
   }
 }
 
 .settings-form {
-  max-width: 700px;
+  max-width: 600px;
   margin: 0 auto;
 
   :deep(.el-form-item__label) {
@@ -786,25 +820,28 @@ function handleSaveAll() {
 
 .profile-header {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: $spacing-4;
-  margin-bottom: $spacing-8;
-  padding-bottom: $spacing-8;
-  border-bottom: 2px solid $border-light;
+  gap: $spacing-3;
+  margin-left: auto;
 
   .profile-avatar {
     background: linear-gradient(135deg, $primary-500 0%, $primary-600 100%);
     color: white;
-    font-size: $font-size-4xl;
+    font-size: $font-size-3xl;
     font-weight: $font-weight-bold;
     box-shadow: $shadow-lg;
+    flex-shrink: 0;
+  }
+
+  .el-button {
+    flex-shrink: 0;
   }
 }
 
 .security-options {
-  margin-top: $spacing-8;
-  padding: $spacing-6;
+  margin-top: $spacing-5;
+  padding: $spacing-4;
   background: linear-gradient(135deg, rgba($primary-50, 0.5) 0%, rgba($primary-100, 0.3) 100%);
   border-radius: $border-radius-lg;
   border: 1px solid rgba($primary-200, 0.3);
@@ -815,22 +852,22 @@ function handleSaveAll() {
   }
 
   h3 {
-    font-size: $font-size-lg;
+    font-size: $font-size-base;
     font-weight: $font-weight-semibold;
     color: $text-primary;
-    margin: 0 0 $spacing-2 0;
+    margin: 0 0 $spacing-1 0;
   }
 
   p {
-    font-size: $font-size-sm;
+    font-size: $font-size-xs;
     color: $text-secondary;
-    margin: 0 0 $spacing-4 0;
+    margin: 0 0 $spacing-3 0;
   }
 }
 
 .notification-settings,
 .appearance-settings {
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
@@ -839,7 +876,7 @@ function handleSaveAll() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: $spacing-5;
+  padding: $spacing-3 $spacing-4;
   border: 1px solid $border-light;
   border-radius: $border-radius-lg;
   transition: background $duration-fast;
@@ -856,13 +893,13 @@ function handleSaveAll() {
   .appearance-info {
     display: flex;
     align-items: flex-start;
-    gap: $spacing-4;
+    gap: $spacing-3;
     flex: 1;
 
     .notification-icon,
     .appearance-icon {
-      width: 48px;
-      height: 48px;
+      width: 40px;
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -878,14 +915,14 @@ function handleSaveAll() {
     }
 
     h4 {
-      font-size: $font-size-base;
+      font-size: $font-size-sm;
       font-weight: $font-weight-semibold;
       color: $text-primary;
-      margin: 0 0 $spacing-1 0;
+      margin: 0 0 2px 0;
     }
 
     p {
-      font-size: $font-size-sm;
+      font-size: $font-size-xs;
       color: $text-secondary;
       margin: 0;
     }

@@ -1,44 +1,70 @@
 <template>
   <div class="ai-copilot-container">
-    <!-- 顶部导航 -->
-    <div class="ai-header">
-      <h1>🤖 AI研究副驾驶</h1>
-      <div class="ai-tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          :class="['tab-btn', { active: activeTab === tab.key }]"
-          @click="activeTab = tab.key"
-        >
-          <span class="tab-icon">{{ tab.icon }}</span>
-          <span class="tab-label">{{ tab.label }}</span>
-        </button>
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-title-group">
+          <span class="header-icon">🤖</span>
+          <h1 class="page-title">AI研究副驾驶</h1>
+        </div>
+        <div class="header-description">
+          智能文献分析、综述生成与研究规划助手
+        </div>
       </div>
     </div>
 
-    <!-- AI审稿人 -->
-    <div v-if="activeTab === 'review'" class="ai-section">
-      <ReviewPanel :paper-id="selectedPaperId" @review-generated="handleReviewGenerated" />
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+      <el-radio-group v-model="activeTab" size="default">
+        <el-radio-button value="review">
+          <span class="tab-icon">📝</span>
+          <span class="tab-label">AI审稿人</span>
+        </el-radio-button>
+        <el-radio-button value="literature">
+          <span class="tab-icon">📚</span>
+          <span class="tab-label">文献综述</span>
+        </el-radio-button>
+        <el-radio-button value="plan">
+          <span class="tab-icon">🎯</span>
+          <span class="tab-label">研究规划</span>
+        </el-radio-button>
+        <el-radio-button value="chat">
+          <span class="tab-icon">💬</span>
+          <span class="tab-label">AI对话</span>
+        </el-radio-button>
+        <el-radio-button value="history">
+          <span class="tab-icon">📋</span>
+          <span class="tab-label">历史记录</span>
+        </el-radio-button>
+      </el-radio-group>
     </div>
 
-    <!-- 文献综述 -->
-    <div v-else-if="activeTab === 'literature'" class="ai-section">
-      <LiteratureReviewPanel @review-generated="handleLiteratureReview" />
-    </div>
+    <!-- Content Sections -->
+    <div class="content-wrapper">
+      <!-- AI审稿人 -->
+      <div v-if="activeTab === 'review'" class="ai-section">
+        <ReviewPanel :paper-id="selectedPaperId" @review-generated="handleReviewGenerated" />
+      </div>
 
-    <!-- 研究规划 -->
-    <div v-else-if="activeTab === 'plan'" class="ai-section">
-      <ResearchPlanPanel @plan-generated="handleResearchPlan" />
-    </div>
+      <!-- 文献综述 -->
+      <div v-else-if="activeTab === 'literature'" class="ai-section">
+        <LiteratureReviewPanel @review-generated="handleLiteratureReview" />
+      </div>
 
-    <!-- AI对话 -->
-    <div v-else-if="activeTab === 'chat'" class="ai-section">
-      <AIChatPanel />
-    </div>
+      <!-- 研究规划 -->
+      <div v-else-if="activeTab === 'plan'" class="ai-section">
+        <ResearchPlanPanel @plan-generated="handleResearchPlan" />
+      </div>
 
-    <!-- 历史记录 -->
-    <div v-else-if="activeTab === 'history'" class="ai-section">
-      <AIHistoryPanel />
+      <!-- AI对话 -->
+      <div v-else-if="activeTab === 'chat'" class="ai-section">
+        <AIChatPanel />
+      </div>
+
+      <!-- 历史记录 -->
+      <div v-else-if="activeTab === 'history'" class="ai-section">
+        <AIHistoryPanel />
+      </div>
     </div>
   </div>
 </template>
@@ -75,63 +101,163 @@ const handleResearchPlan = (plan: any) => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .ai-copilot-container {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 1920px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 8px;
 }
 
-.ai-header {
-  margin-bottom: 32px;
-}
-
-.ai-header h1 {
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 24px;
+// Page Header
+.page-header {
+  margin-bottom: 16px;
+  padding: 16px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.15);
 }
 
-.ai-tabs {
-  display: flex;
-  gap: 8px;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 2px;
+.header-content {
+  text-align: center;
 }
 
-.tab-btn {
+.header-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 8px 8px 0 0;
-  transition: all 0.3s ease;
-  font-size: 15px;
-  font-weight: 500;
-  color: #6b7280;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.tab-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
+.header-icon {
+  font-size: 36px;
 }
 
-.tab-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.page-title {
+  font-size: $font-size-3xl;
+  font-weight: 700;
   color: white;
+  margin: 0;
+}
+
+.header-description {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 400;
+}
+
+// Tab Navigation
+.tab-navigation {
+  margin-bottom: 16px;
+
+  :deep(.el-radio-group) {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+    background: white;
+    padding: 6px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+  }
+
+  :deep(.el-radio-button) {
+    flex: 1;
+    margin: 0;
+
+    .el-radio-button__inner {
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      color: #6b7280;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+
+      &:hover {
+        background: #f3f4f6;
+        color: #5568d3;
+        font-weight: 600;
+      }
+    }
+
+    &.is-active .el-radio-button__inner {
+      background: linear-gradient(135deg, #5a67d8 0%, #6b46a0 100%);
+      color: #ffffff;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+  }
 }
 
 .tab-icon {
-  font-size: 18px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.tab-label {
+  font-size: 13px;
+}
+
+// Content Wrapper
+.content-wrapper {
+  min-height: 500px;
 }
 
 .ai-section {
-  min-height: 600px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .page-header {
+    padding: 12px 16px;
+  }
+
+  .header-icon {
+    font-size: $font-size-3xl;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+
+  .header-description {
+    font-size: 13px;
+  }
+
+  .tab-navigation {
+    :deep(.el-radio-group) {
+      flex-wrap: wrap;
+    }
+
+    :deep(.el-radio-button) {
+      flex: 1 1 40%;
+      min-width: 120px;
+    }
+  }
+
+  .tab-label {
+    font-size: 12px;
+  }
 }
 </style>
