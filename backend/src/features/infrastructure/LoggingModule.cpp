@@ -1,4 +1,4 @@
-#include "features/LoggingModule.hpp"
+#include "features/infrastructure/LoggingModule.hpp"
 #include <iostream>
 #include <sstream>
 #include <chrono>

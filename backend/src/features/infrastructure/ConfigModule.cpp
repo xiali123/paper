@@ -1,4 +1,4 @@
-#include "features/ConfigModule.hpp"
+#include "features/infrastructure/ConfigModule.hpp"
 #include <iostream>
 
 namespace PaperCrawler {
