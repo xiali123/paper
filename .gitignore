@@ -69,3 +69,7 @@ build/
 # 外部依赖二进制文件
 core/external/curl-*/
 curl-*/
+
+# 前端自动生成的类型文件
+frontend/src/types/auto-imports.d.ts
+frontend/src/types/components.d.ts
