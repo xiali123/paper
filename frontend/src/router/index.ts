@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/stores'
 import { ElMessage } from 'element-plus'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
@@ -88,12 +88,6 @@ const routes: RouteRecordRaw[] = [
         name: 'Dashboard',
         component: () => import('@/views/dashboard/DashboardView.vue'),
         meta: { requiresAuth: true, title: 'route.dashboard', icon: 'Odometer' }
-      },
-      {
-        path: '/dashboard-old',
-        name: 'DashboardOld',
-        component: () => import('@/views/dashboard/Dashboard.vue'),
-        meta: { requiresAuth: true, title: 'route.dashboardOld', icon: 'Odometer' }
       },
       {
         path: '/papers',

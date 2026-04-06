@@ -9,7 +9,7 @@
  */
 
 import type { Router } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/stores'
 import { ElMessage } from '@/utils/notification'
 
 /**

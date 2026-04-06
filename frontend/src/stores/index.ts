@@ -77,7 +77,7 @@ export default pinia
 // ============================================================================
 
 // Core Stores
-export { useAuthStore } from './auth'
+export { useAuthStore } from './authStore'
 export { usePaperStore } from './paperStore'
 export { usePaperManagementStore } from './paperManagement'
 
@@ -88,5 +88,4 @@ export { useStatsStore } from './statsStore'
 export { useAIStore } from './aiStore'
 export { useRecommendationStore } from './recommendationStore'
 export { useUIStore } from './uiStore'
-export { useUserStore } from './user'
 export { useAppStore } from './app'
