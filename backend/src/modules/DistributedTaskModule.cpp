@@ -4,7 +4,7 @@
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
 #include "modules/CrawlerModule.hpp"
-#include "features/LoggingModule.hpp"
+#include "features/infrastructure/LoggingModule.hpp"
 #include "spdlog/spdlog.h"
 #include <sstream>
 #include <queue>

@@ -1,7 +1,7 @@
 #include <iostream>
 #include "business/AuthApiModule.hpp"
-#include "features/SessionModule.hpp"
-#include "features/SecurityModule.hpp"
+#include "features/security/SessionModule.hpp"
+#include "features/security/SecurityModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/SimpleMySQLDatabase.hpp"
 #include "core/MessageBus.hpp"

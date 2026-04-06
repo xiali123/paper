@@ -1,5 +1,5 @@
 #include "data/PreparedStatement.hpp"
-#include "features/LoggingModule.hpp"
+#include "features/infrastructure/LoggingModule.hpp"
 #include <sstream>
 #include <regex>
 #include <iomanip>

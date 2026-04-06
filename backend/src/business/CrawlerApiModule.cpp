@@ -8,7 +8,7 @@
 #include "core/Services.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
-#include "features/LoggingModule.hpp"
+#include "features/infrastructure/LoggingModule.hpp"
 #include "common/JsonUtils.hpp"
 #include <iostream>
 #include <sstream>
