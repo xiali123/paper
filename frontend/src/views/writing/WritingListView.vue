@@ -100,9 +100,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWritingStore } from '@/stores/writingStore'
+import { useAuthStore } from '@/stores/authStore'
 import { storeToRefs } from 'pinia'
 import DocumentCard from '@/components/writing/DocumentCard.vue'
 import { Plus, Search } from '@element-plus/icons-vue'
@@ -111,7 +112,11 @@ import type { CollaborativeDocument } from '@/types/collaborative'
 
 const router = useRouter()
 const writingStore = useWritingStore()
+const authStore = useAuthStore()
 const { documents, loading } = storeToRefs(writingStore)
+
+// 当前用户 ID
+const currentUserId = computed(() => authStore.user?.id)
 
 const searchKeyword = ref('')
 const createDialogVisible = ref(false)
@@ -145,14 +150,23 @@ async function confirmCreate() {
     return
   }
 
+  if (!currentUserId.value) {
+    ElMessage.error('请先登录')
+    return
+  }
+
   creating.value = true
   try {
-    const doc = await writingStore.createDocument(createForm.value)
+    const doc = await writingStore.createDocument({
+      ...createForm.value,
+      owner_id: currentUserId.value
+    })
     ElMessage.success('文档创建成功')
     createDialogVisible.value = false
     router.push(`/writing/${doc.id}`)
-  } catch {
-    ElMessage.error('创建失败')
+  } catch (err: any) {
+    console.error('创建文档失败:', err)
+    ElMessage.error(err.message || '创建失败')
   } finally {
     creating.value = false
   }
@@ -174,7 +188,13 @@ async function confirmDelete() {
 }
 
 onMounted(() => {
-  writingStore.fetchDocuments()
+  // 如果用户已登录，只获取该用户的文档
+  if (currentUserId.value) {
+    writingStore.fetchDocuments({ owner_id: currentUserId.value })
+  } else {
+    // 未登录时获取所有文档（如果有权限）
+    writingStore.fetchDocuments()
+  }
 })
 </script>
 

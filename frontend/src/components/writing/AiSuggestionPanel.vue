@@ -205,11 +205,10 @@ function getSuggestionTypeColor(type: string): string {
 .suggestion-explanation {
   display: flex;
   gap: 6px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    margin-bottom: 8px;
-    line-height: 1.4;
-  }
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .suggestion-actions {

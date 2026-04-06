@@ -102,14 +102,15 @@ export const useWritingStore = defineStore(
     /**
      * 创建文档
      */
-    async function createDocument(data: { title: string; content?: string; document_type?: string }) {
+    async function createDocument(data: { title: string; content?: string; document_type?: string; owner_id?: number }) {
       loading.value = true
       error.value = null
       try {
         const newDoc = await collaborativeApi.createDocument({
           title: data.title,
           content: data.content,
-          document_type: data.document_type || 'paper'
+          document_type: data.document_type || 'paper',
+          owner_id: data.owner_id
         })
         documents.value.unshift(newDoc)
         return newDoc
@@ -181,11 +182,12 @@ export const useWritingStore = defineStore(
       }
     }
 
-    async function generateSuggestion(documentId: number, type?: string) {
+    async function generateSuggestion(documentId: number, type?: string, userId?: number) {
       suggestionsLoading.value = true
       try {
         const suggestion = await collaborativeApi.generateSuggestion(documentId, {
-          suggestion_type: (type as any) || 'content'
+          suggestion_type: (type as any) || 'content',
+          user_id: userId
         })
         suggestions.value.push(suggestion)
         return suggestion
@@ -262,7 +264,7 @@ export const useWritingStore = defineStore(
       }
     }
 
-    async function addComment(documentId: number, data: { content: string; position_start?: number; position_end?: number }) {
+    async function addComment(documentId: number, data: { content: string; position_start?: number; position_end?: number; user_id?: number }) {
       try {
         const result = await collaborativeApi.addComment(documentId, data)
         // 重新获取评论列表

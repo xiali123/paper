@@ -88,13 +88,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWritingStore } from '@/stores/writingStore'
+import { useAuthStore } from '@/stores/authStore'
 import { storeToRefs } from 'pinia'
+import type { WritingSuggestion } from '@/types/collaborative'
 import CommentPanel from '@/components/writing/CommentPanel.vue'
 import AiSuggestionPanel from '@/components/writing/AiSuggestionPanel.vue'
 import VersionHistory from '@/components/writing/VersionHistory.vue'
 import { ArrowLeft, ChatDotRound, MagicStick, Clock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { useAuthStore } from '@/stores/authStore'
 
 const route = useRoute()
 const router = useRouter()
@@ -190,7 +191,7 @@ async function handleTitleChange() {
 async function handleGenerateSuggestion() {
   if (!currentDocument.value) return
   try {
-    await writingStore.generateSuggestion(currentDocument.value.id)
+    await writingStore.generateSuggestion(currentDocument.value.id, 'content', authStore.user?.id)
     visiblePanels.value.suggestion = true
     visiblePanels.value.version = false
     ElMessage.success('已生成新建议')
@@ -201,7 +202,7 @@ async function handleGenerateSuggestion() {
 
 async function handleAcceptSuggestion(suggestionId: number) {
   try {
-    const suggestion = suggestions.value.find(s => s.id === suggestionId)
+    const suggestion = suggestions.value.find((s: WritingSuggestion) => s.id === suggestionId)
     await writingStore.acceptSuggestion(suggestionId)
     if (suggestion) {
       const before = editContent.value.substring(0, suggestion.position_start)
@@ -228,7 +229,10 @@ async function handleRejectSuggestion(suggestionId: number) {
 async function handleAddComment(data: { content: string }) {
   if (!currentDocument.value) return
   try {
-    await writingStore.addComment(currentDocument.value.id, data)
+    await writingStore.addComment(currentDocument.value.id, {
+      ...data,
+      user_id: authStore.user?.id
+    })
     ElMessage.success('评论已添加')
   } catch {
     ElMessage.error('添加评论失败')
