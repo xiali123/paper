@@ -202,16 +202,16 @@ const paginatedPapers = computed(() => {
 const fetchPapers = async () => {
   loading.value = true
   try {
-    const response = await fetch('http://localhost:8080/api/papers')
+    const response = await fetch('/api/papers')
     const result = await response.json()
 
-    if (result.success) {
-      papers.value = result.data.papers || result.data || []
+    if (result.papers) {
+      papers.value = result.papers
     } else {
-      alert('获取论文列表失败：' + result.error)
+      ElMessage.error('获取论文列表失败')
     }
   } catch (error: any) {
-    alert('获取论文列表失败：' + error.message)
+    ElMessage.error('获取论文列表失败：' + error.message)
   } finally {
     loading.value = false
   }

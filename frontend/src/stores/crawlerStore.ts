@@ -303,7 +303,7 @@ export const useCrawlerStore = defineStore(
       error.value = null
 
       try {
-        const response = await crawlerApi.getHistory(page, limit)
+        const response = await crawlerApi.getTasks(page, limit)
         history.value = response.tasks
         return response
       } catch (err: any) {

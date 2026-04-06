@@ -380,7 +380,7 @@ const formatTime = (timestamp: number) => {
 }
 
 const updateRecentActivities = () => {
-  const activities = crawlerStore.history.slice(0, 10).map(task => {
+  const activities = (crawlerStore.history || []).slice(0, 10).map(task => {
     let type: 'success' | 'error' | 'warning' | 'info' = 'info'
     if (task.status === 'completed') type = 'success'
     else if (task.status === 'failed') type = 'error'
