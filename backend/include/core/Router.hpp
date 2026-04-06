@@ -3,9 +3,10 @@
 #include <string>
 #include <map>
 #include <functional>
+#include <unordered_map>
+#include <vector>
 #include "core/HttpTypes.hpp"
 
-// Router.dll导出/导入宏
 #ifdef _WIN32
     #ifdef ROUTER_DLL_EXPORTS
     #define ROUTER_API __declspec(dllexport)
@@ -37,7 +38,6 @@ public:
     void registerModuleRoutes(const std::string& prefix, IModule* module);
     void printRoutes() const;
 
-    // 构造/析构函数必须公开以支持全局实例
     Router() = default;
     ~Router() = default;
 
@@ -45,21 +45,15 @@ private:
     Router(const Router&) = delete;
     Router& operator=(const Router&) = delete;
 
-    struct RouteKey {
-        std::string method;
-        std::string pattern;
-
-        bool operator<(const RouteKey& other) const {
-            if (method != other.method) return method < other.method;
-            return pattern < other.pattern;
-        }
-    };
-
     bool matchPattern(const std::string& pattern,
                      const std::string& path,
                      std::map<std::string, std::string>& pathParams) const;
 
-    std::map<RouteKey, RouteHandler> routes_;
+    // 🔥 优化后的哈希表存储（替换原来的 routes_）
+    // 精确路由：method => { path => handler }
+    std::unordered_map<std::string, std::unordered_map<std::string, RouteHandler>> exactRoutes_;
+    // 参数路由：method => [ (pattern, handler) ]
+    std::unordered_map<std::string, std::vector<std::pair<std::string, RouteHandler>>> paramRoutes_;
 };
 
 } // namespace PaperCrawler

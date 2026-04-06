@@ -223,6 +223,36 @@
       ],
       "dependencies": [],
       "config": {}
+    },
+    {
+      "name": "CollaborativeWriting",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Real-time AI collaborative writing platform",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/writing",
+      "libraryPath": "modules/libCollaborativeWritingModule.so",
+      "loadPriority": 12,
+      "endpoints": [
+        "POST /api/writing/documents",
+        "GET /api/writing/documents",
+        "GET /api/writing/documents/:id",
+        "PUT /api/writing/documents/:id",
+        "DELETE /api/writing/documents/:id",
+        "POST /api/writing/documents/:id/operations",
+        "GET /api/writing/documents/:id/suggestions",
+        "POST /api/writing/documents/:id/suggestions/generate",
+        "PUT /api/writing/suggestions/:id/accept",
+        "PUT /api/writing/suggestions/:id/reject",
+        "GET /api/writing/documents/:id/versions",
+        "POST /api/writing/documents/:id/versions",
+        "POST /api/writing/documents/:id/comments",
+        "GET /api/writing/documents/:id/comments",
+        "PUT /api/writing/comments/:id/resolve"
+      ],
+      "dependencies": [],
+      "config": {}
     }
   ]
 }

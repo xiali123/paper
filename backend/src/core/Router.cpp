@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <unordered_map>  // 新增
 
 namespace PaperCrawler {
 
@@ -23,48 +24,71 @@ Router& Router::getInstance() {
     return g_routerInstance;
 }
 
+// ==============================================================================================
+// 👇👇👇 关键优化：用两个哈希表替代原来的 routes_，完全兼容你现有的 get/post/put/del 调用
+// ==============================================================================================
 void Router::get(const std::string& path, RouteHandler handler) {
     std::cout << "[Router::get] Registering GET route: [" << path << "]" << std::endl;
-    routes_[RouteKey{"GET", path}] = handler;
-    spdlog::info("Registered GET route: {} (total routes: {}, Router instance: {})", path, routes_.size(), (void*)this);
+    if (path.find(':') == std::string::npos) {
+        exactRoutes_["GET"][path] = handler;
+    } else {
+        paramRoutes_["GET"].emplace_back(path, handler);
+    }
+    spdlog::info("Registered GET route: {} (Router instance: {})", path, (void*)this);
 }
 
 void Router::post(const std::string& path, RouteHandler handler) {
-    routes_[RouteKey{"POST", path}] = handler;
+    if (path.find(':') == std::string::npos) {
+        exactRoutes_["POST"][path] = handler;
+    } else {
+        paramRoutes_["POST"].emplace_back(path, handler);
+    }
     spdlog::debug("Registered POST route: {}", path);
 }
 
 void Router::put(const std::string& path, RouteHandler handler) {
-    routes_[RouteKey{"PUT", path}] = handler;
+    if (path.find(':') == std::string::npos) {
+        exactRoutes_["PUT"][path] = handler;
+    } else {
+        paramRoutes_["PUT"].emplace_back(path, handler);
+    }
     spdlog::debug("Registered PUT route: {}", path);
 }
 
 void Router::del(const std::string& path, RouteHandler handler) {
-    routes_[RouteKey{"DELETE", path}] = handler;
+    if (path.find(':') == std::string::npos) {
+        exactRoutes_["DELETE"][path] = handler;
+    } else {
+        paramRoutes_["DELETE"].emplace_back(path, handler);
+    }
     spdlog::debug("Registered DELETE route: {}", path);
 }
 
 void Router::patch(const std::string& path, RouteHandler handler) {
-    routes_[RouteKey{"PATCH", path}] = handler;
+    if (path.find(':') == std::string::npos) {
+        exactRoutes_["PATCH"][path] = handler;
+    } else {
+        paramRoutes_["PATCH"].emplace_back(path, handler);
+    }
     spdlog::debug("Registered PATCH route: {}", path);
 }
 
 void Router::options(const std::string& path, RouteHandler handler) {
-    routes_[RouteKey{"OPTIONS", path}] = handler;
+    if (path.find(':') == std::string::npos) {
+        exactRoutes_["OPTIONS"][path] = handler;
+    } else {
+        paramRoutes_["OPTIONS"].emplace_back(path, handler);
+    }
     spdlog::debug("Registered OPTIONS route: {}", path);
 }
 
 bool Router::matchPattern(const std::string& pattern,
                          const std::string& path,
                          std::map<std::string, std::string>& pathParams) const {
-    // 实现路径参数匹配（如 /api/papers/:id）
-
-    // 如果完全相同，直接匹配
     if (pattern == path) {
         return true;
     }
 
-    // 分割pattern和path
     std::vector<std::string> patternParts;
     std::vector<std::string> pathParts;
     std::stringstream ssPattern(pattern);
@@ -78,119 +102,98 @@ bool Router::matchPattern(const std::string& pattern,
         if (!item.empty()) pathParts.push_back(item);
     }
 
-    // 段数必须相同
     if (patternParts.size() != pathParts.size()) {
         return false;
     }
 
-    // 逐段比较
     for (size_t i = 0; i < patternParts.size(); ++i) {
         const std::string& patternPart = patternParts[i];
         const std::string& pathPart = pathParts[i];
 
-        // 如果pattern段以 ":" 开头，这是一个路径参数
         if (patternPart[0] == ':') {
-            // 提取参数名（去掉 ":" 前缀）
             std::string paramName = patternPart.substr(1);
             pathParams[paramName] = pathPart;
         } else if (patternPart != pathPart) {
-            // 不是参数且不匹配
             return false;
         }
     }
-
     return true;
 }
 
+// ==============================================================================================
+// 👇👇👇 核心优化：route() 方法完全使用哈希表，告别暴力遍历
+// ==============================================================================================
 HttpResponse Router::route(const HttpRequest& request) {
     std::cout << "[ROUTER] ===== ROUTING START =====" << std::endl;
     std::cout << "[ROUTER] Request: " << request.method << " " << request.path << std::endl;
-    std::cout << "[ROUTER] Total routes in map: " << routes_.size() << " (Router instance: " << (void*)this << ")" << std::endl;
+    std::cout << "[ROUTER] Router instance: " << (void*)this << std::endl;
 
     spdlog::info("Routing: {} {}", request.method, request.path);
-    spdlog::info("Total routes in map: {} (Router instance: {})", routes_.size(), (void*)this);
 
-    // 🔍 调试：打印所有同方法的路由
-    std::cout << "[ROUTER] All registered routes:" << std::endl;
-    for (const auto& pair : routes_) {
-        if (pair.first.method == request.method) {
-            std::cout << "[ROUTER]   - " << pair.first.method << " " << pair.first.pattern << std::endl;
+    // ==========================================
+    // 🔥 1. 精确匹配：O(1) 直接查找
+    // ==========================================
+    auto methodExactIt = exactRoutes_.find(request.method);
+    if (methodExactIt != exactRoutes_.end()) {
+        const auto& pathMap = methodExactIt->second;
+        auto handlerIt = pathMap.find(request.path);
+
+        if (handlerIt != pathMap.end()) {
+            std::cout << "[ROUTER] ✅ 精确匹配成功: " << request.method << " " << request.path << std::endl;
+            spdlog::info("Exact route matched: {} {}", request.method, request.path);
+            try {
+                return handlerIt->second(request);
+            } catch (const std::exception& e) {
+                spdlog::error("Handler error: {}", e.what());
+                HttpResponse err;
+                err.statusCode = 500;
+                err.statusText = "Internal Server Error";
+                err.headers["Content-Type"] = "application/json";
+                err.body = R"({"error":")" + std::string(e.what()) + R"("})";
+                return err;
+            }
         }
     }
 
-    // 第一轮：优先匹配精确路径（不包含路径参数的路由）
-    std::cout << "[ROUTER] Phase 1: Exact matching (no path params)" << std::endl;
-    for (const auto& pair : routes_) {
-        if (pair.first.method == request.method) {
-            // 检查是否是精确匹配路由（pattern 中不包含 ':'）
-            if (pair.first.pattern.find(':') == std::string::npos) {
-                std::cout << "[ROUTER] Comparing: '" << pair.first.pattern << "' == '" << request.path << "' ? " << std::endl;
-                spdlog::info("Comparing: '{}' == '{}'", pair.first.pattern, request.path);
-                if (pair.first.pattern == request.path) {
-                    std::cout << "[ROUTER] ✅ MATCH FOUND!" << std::endl;
-                    spdlog::info("Exact route matched: {} {}", pair.first.method, pair.first.pattern);
+    // ==========================================
+    // 🔥 2. 参数路由匹配：只遍历同方法的路由
+    // ==========================================
+    auto methodParamIt = paramRoutes_.find(request.method);
+    if (methodParamIt != paramRoutes_.end()) {
+        for (const auto& pair : methodParamIt->second) {
+            const std::string& pattern = pair.first;
+            const RouteHandler& handler = pair.second;
 
-                    try {
-                        return pair.second(request);
-                    } catch (const std::exception& e) {
-                        spdlog::error("Route handler error for {} {}: {}",
-                            pair.first.method, pair.first.pattern, e.what());
-
-                        HttpResponse errorResponse;
-                        errorResponse.statusCode = 500;
-                        errorResponse.statusText = "Internal Server Error";
-                        errorResponse.headers["Content-Type"] = "application/json";
-                        errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
-                        return errorResponse;
-                    }
-                } else {
-                    std::cout << "[ROUTER] ❌ No match" << std::endl;
+            std::map<std::string, std::string> params;
+            if (matchPattern(pattern, request.path, params)) {
+                spdlog::info("Parameter route matched: {} {}", request.method, pattern);
+                HttpRequest req = request;
+                req.pathParams = params;
+                try {
+                    return handler(req);
+                } catch (const std::exception& e) {
+                    spdlog::error("Handler error: {}", e.what());
+                    HttpResponse err;
+                    err.statusCode = 500;
+                    err.statusText = "Internal Server Error";
+                    err.headers["Content-Type"] = "application/json";
+                    err.body = R"({"error":")" + std::string(e.what()) + R"("})";
+                    return err;
                 }
             }
         }
     }
 
-    // 第二轮：尝试匹配包含路径参数的路由
-    for (const auto& pair : routes_) {
-        if (pair.first.method == request.method) {
-            // 只处理包含路径参数的路由
-            if (pair.first.pattern.find(':') != std::string::npos) {
-                std::map<std::string, std::string> pathParams;
-
-                if (matchPattern(pair.first.pattern, request.path, pathParams)) {
-                    spdlog::info("Parameter route matched: {} {}", pair.first.method, pair.first.pattern);
-
-                    // 创建request副本并设置路径参数
-                    HttpRequest requestWithParams = request;
-                    requestWithParams.pathParams = pathParams;
-
-                    try {
-                        return pair.second(requestWithParams);
-                    } catch (const std::exception& e) {
-                        spdlog::error("Route handler error for {} {}: {}",
-                            pair.first.method, pair.first.pattern, e.what());
-
-                        HttpResponse errorResponse;
-                        errorResponse.statusCode = 500;
-                        errorResponse.statusText = "Internal Server Error";
-                        errorResponse.headers["Content-Type"] = "application/json";
-                        errorResponse.body = "{\"error\":\"" + std::string(e.what()) + "\"}";
-                        return errorResponse;
-                    }
-                }
-            }
-        }
-    }
-
-    // 未找到路由
+    // ==========================================
+    // 404
+    // ==========================================
     spdlog::warn("Route not found: {} {}", request.method, request.path);
-
-    HttpResponse notFoundResponse;
-    notFoundResponse.statusCode = 404;
-    notFoundResponse.statusText = "Not Found";
-    notFoundResponse.headers["Content-Type"] = "application/json";
-    notFoundResponse.body = "{\"error\":\"Route not found\"}";
-    return notFoundResponse;
+    HttpResponse notFound;
+    notFound.statusCode = 404;
+    notFound.statusText = "Not Found";
+    notFound.headers["Content-Type"] = "application/json";
+    notFound.body = R"({"error":"Route not found"})";
+    return notFound;
 }
 
 void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
@@ -199,7 +202,6 @@ void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
         return;
     }
 
-    // 获取模块的路由前缀
     std::string routePrefix = module->getRoutePrefix();
     if (routePrefix.empty()) {
         spdlog::warn("Module {} has empty route prefix", module->getName());
@@ -208,16 +210,20 @@ void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
 
     spdlog::info("Module {} is registering routes with prefix: {}",
                  module->getName(), routePrefix);
-
-    // 注意：实际的路由注册逻辑将由模块在start()方法中直接调用
-    // Router::getInstance().get/post/put/delete() 完成
-    // 此方法主要用于日志记录和验证
 }
 
 void Router::printRoutes() const {
-    std::cout << "\n  Registered routes:" << std::endl;
-    for (const auto& pair : routes_) {
-        std::cout << "    " << pair.first.method << "    " << pair.first.pattern << std::endl;
+    std::cout << "\n  Registered exact routes:" << std::endl;
+    for (const auto& m : exactRoutes_) {
+        for (const auto& p : m.second) {
+            std::cout << "    " << m.first << "    " << p.first << std::endl;
+        }
+    }
+    std::cout << "\n  Registered param routes:" << std::endl;
+    for (const auto& m : paramRoutes_) {
+        for (const auto& p : m.second) {
+            std::cout << "    " << m.first << "    " << p.first << std::endl;
+        }
     }
 }
 

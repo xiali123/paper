@@ -962,6 +962,12 @@ add_dynamic_module_with_system(RecommendationApiModule
     src/business/RecommendationApiModule.cpp
 )
 
+# 阶段10：CollaborativeWritingModule动态化（NEW - 2026-04-06）
+add_dynamic_module_with_system(CollaborativeWritingModule
+    src/business/CollaborativeWritingModule.cpp
+)
+target_include_directories(CollaborativeWritingModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）
 # ============================================================================
 # libxml2 支持 - 分布式爬虫XPath解析

@@ -3,7 +3,6 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
-#include "modules/WebSocketModule.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -98,6 +97,7 @@ struct CollaborationSession {
  */
 class CollaborativeWritingModule : public BusinessModuleBase {
 public:
+    CollaborativeWritingModule();
     explicit CollaborativeWritingModule(std::shared_ptr<IDatabase> database);
     ~CollaborativeWritingModule() override;
 
@@ -132,7 +132,8 @@ public:
      * @brief 更新文档
      * PUT /api/writing/documents/:id
      */
-    bool updateDocument(int documentId, const std::string& content, int userId);
+    bool updateDocument(int documentId, const std::string& content,
+                        const std::string& title, const std::string& status);
 
     /**
      * @brief 删除文档
@@ -279,19 +280,8 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
     std::shared_ptr<IDatabase> database_;
-    std::shared_ptr<WebSocketModule> websocketModule_;
 
     void registerRoutes() override;
-
-    // HTTP处理器
-    std::string handleCreateDocument(const std::string& body);
-    std::string handleGetDocument(const std::map<std::string, std::string>& params);
-    std::string handleUpdateDocument(const std::map<std::string, std::string>& params, const std::string& body);
-    std::string handleApplyOperation(const std::string& body);
-    std::string handleGetSuggestions(const std::map<std::string, std::string>& params);
-    std::string handleGenerateSuggestion(const std::string& body);
-    std::string handleGetVersions(const std::map<std::string, std::string>& params);
-    std::string handleAddComment(const std::string& body);
 
     // OT算法辅助方法
     OTOperation transformInsertAgainstInsert(const OTOperation& clientOp, const OTOperation& serverOp);
