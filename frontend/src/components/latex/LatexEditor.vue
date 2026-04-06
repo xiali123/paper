@@ -1,130 +1,143 @@
 <template>
-  <div class="latex-editor" ref="containerRef">
-    <MonacoEditor
+  <div class="latex-editor">
+    <!-- 语法高亮预览层 -->
+    <pre class="latex-highlight" v-if="showHighlight && !isFocused" aria-hidden="true">
+      <code v-html="highlightedCode"></code>
+    </pre>
+
+    <!-- 实际编辑器 -->
+    <textarea
+      ref="textareaRef"
       v-model="innerContent"
-      :language="language"
-      :theme="theme"
-      :options="editorOptions"
-      @change="handleChange"
-      @ready="handleEditorReady"
-    />
+      class="latex-textarea"
+      spellcheck="false"
+      @focus="isFocused = true; showHighlight = false"
+      @blur="isFocused = false; showHighlight = true"
+      @input="handleInput"
+      @scroll="syncScroll"
+    ></textarea>
+
+    <!-- LaTeX 快捷工具栏 -->
+    <div class="latex-toolbar" v-if="showToolbar">
+      <el-tooltip content="行内公式 $...$" placement="top">
+        <el-button size="small" @click="insert('$', '$')">$</el-button>
+      </el-tooltip>
+      <el-tooltip content="块级公式 $$...$$" placement="top">
+        <el-button size="small" @click="insert('$$\n', '\n$$')">$$</el-button>
+      </el-tooltip>
+      <el-divider direction="vertical" />
+      <el-tooltip content="粗体 \\textbf{}" placement="top">
+        <el-button size="small" @click="insert('\\textbf{', '}')"><b>B</b></el-button>
+      </el-tooltip>
+      <el-tooltip content="斜体 \\textit{}" placement="top">
+        <el-button size="small" @click="insert('\\textit{', '}')"><i>I</i></el-button>
+      </el-tooltip>
+      <el-divider direction="vertical" />
+      <el-tooltip content="章节 \\section{}" placement="top">
+        <el-button size="small" @click="insert('\\section{', '}')">§</el-button>
+      </el-tooltip>
+      <el-dropdown trigger="click" @command="handleCommand">
+        <el-button size="small">
+          更多
+          <el-icon><ArrowDown /></el-icon>
+        </el-button>
+        <template #dropdown>
+          <el-dropdown-item command="itemize">• 无序列表</el-dropdown-item>
+          <el-dropdown-item command="enumerate">1. 有序列表</el-dropdown-item>
+          <el-dropdown-item command="figure">📷 图片</el-dropdown-item>
+          <el-dropdown-item command="table">📊 表格</el-dropdown-item>
+          <el-dropdown-item command="cite">📎 引用</el-dropdown-item>
+        </template>
+      </el-dropdown>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import MonacoEditor from '@monaco-editor/react'
+import { ref, computed, watch, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
+import Prism from 'prismjs'
+import 'prismjs/themes/prism-tomorrow.css'
+import 'prismjs/components/prism-latex'
 
 interface Props {
   modelValue: string
-  language?: string
-  theme?: 'vs-light' | 'vs-dark'
   readonly?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  language: 'latex',
-  theme: 'vs-light',
   readonly: false
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   'change': [value: string]
-  'ready': [editor: any]
 }>()
 
-const containerRef = ref<HTMLElement>()
+const textareaRef = ref<HTMLTextAreaElement>()
+const isFocused = ref(false)
+const showHighlight = ref(true)
+const showToolbar = ref(true)
+
 const innerContent = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val)
 })
 
-const editorOptions = {
-  minimap: { enabled: false },
-  fontSize: 14,
-  lineNumbers: 'on' as const,
-  scrollBeyondLastLine: false,
-  wordWrap: 'on' as const,
-  automaticLayout: true,
-  tabSize: 2,
-  readOnly: props.readonly,
-  // LaTeX 特定配置
-  quickSuggestions: {
-    other: true,
-    comments: false,
-    strings: false
-  },
-  suggestOnTriggerCharacters: true,
-  formatOnPaste: true,
-  formatOnType: true
+// 语法高亮代码
+const highlightedCode = computed(() => {
+  if (!innerContent.value) return ''
+  try {
+    return Prism.highlight(innerContent.value, Prism.languages.latex, 'latex')
+  } catch {
+    return innerContent.value
+  }
+})
+
+function handleInput() {
+  emit('change', innerContent.value)
 }
 
-function handleChange(value: string | undefined) {
-  emit('change', value ?? '')
+// 同步滚动
+function syncScroll() {
+  if (!showHighlight.value) return
+  // 预览层滚动同步
 }
 
-function handleEditorReady(editor: any) {
-  emit('ready', editor)
+// 插入文本
+function insert(before: string, after: string) {
+  const textarea = textareaRef.value
+  if (!textarea) return
 
-  // 注册 LaTeX 自动补全
-  registerLaTeXCompletion(editor)
-}
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = innerContent.value
 
-function registerLaTeXCompletion(editor: any) {
-  // 常用 LaTeX 命令
-  const latexCommands = [
-    // 文档结构
-    { label: '\\documentclass', insertText: '\\documentclass{${1:article}}' },
-    { label: '\\usepackage', insertText: '\\usepackage{${1:package}}' },
-    { label: '\\begin{document}', insertText: '\\begin{document}\n\t$0\n\\end{document}' },
-    { label: '\\section', insertText: '\\section{${1:title}}' },
-    { label: '\\subsection', insertText: '\\subsection{${1:title}}' },
-    { label: '\\title', insertText: '\\title{${1:title}}' },
-    { label: '\\author', insertText: '\\author{${1:author}}' },
-    { label: '\\maketitle', insertText: '\\maketitle' },
-    // 数学公式
-    { label: '$$ (公式)', insertText: '$$\n${1:公式}\n$$' },
-    { label: '\\frac', insertText: '\\frac{${1:numerator}}{${2:denominator}}' },
-    { label: '\\sqrt', insertText: '\\sqrt{${1:n}}' },
-    { label: '\\sum', insertText: '\\sum_{${1:i=1}}^{${2:n}}' },
-    { label: '\\int', insertText: '\\int_{${1:a}}^{${2:b}}' },
-    { label: '\\alpha', insertText: '\\alpha' },
-    { label: '\\beta', insertText: '\\beta' },
-    { label: '\\gamma', insertText: '\\gamma' },
-    { label: '\\delta', insertText: '\\delta' },
-    { label: '\\theta', insertText: '\\theta' },
-    { label: '\\pi', insertText: '\\pi' },
-    // 环境和列表
-    { label: 'itemize', insertText: '\\begin{itemize}\n\t\\item $0\n\\end{itemize}' },
-    { label: 'enumerate', insertText: '\\begin{enumerate}\n\t\\item $0\n\\end{enumerate}' },
-    { label: 'figure', insertText: '\\begin{figure}\n\t\\centering\n\t\\includegraphics{$1}\n\t\\caption{$2}\n\\end{figure}' },
-    { label: 'table', insertText: '\\begin{table}\n\t\\centering\n\t\\begin{tabular}{$1}\n\t$0\n\t\\end{tabular}\n\t\\caption{$2}\n\\end{table}' },
-    // 参考文献
-    { label: '\\cite', insertText: '\\cite{${1:key}}' },
-    { label: '\\bibliographystyle', insertText: '\\bibliographystyle{${1:plain}}' },
-    { label: '\\bibliography', insertText: '\\bibliography{${1:refs}}' },
-    // 其他
-    { label: '\\includegraphics', insertText: '\\includegraphics[width=${1:0.8}\\textwidth]{${2:file}}' },
-    { label: '\\caption', insertText: '\\caption{${1:text}}' },
-    { label: '\\label', insertText: '\\label{${1:key}}' },
-    { label: '\\ref', insertText: '\\ref{${1:key}}' }
-  ]
+  const newText = text.substring(0, start) + before + after + text.substring(end)
 
-  // 设置自动补全提供程序
-  monaco.languages.registerCompletionItemProvider('latex', {
-    provideCompletionItems: () => {
-      return {
-        suggestions: latexCommands.map(cmd => ({
-          label: cmd.label,
-          kind: monaco.languages.CompletionItemKind.Function,
-          insertText: cmd.insertText,
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          documentation: cmd.label
-        }))
-      }
-    }
+  emit('update:modelValue', newText)
+
+  nextTick(() => {
+    textarea.focus()
+    textarea.selectionStart = textarea.selectionEnd = start + before.length
   })
+}
+
+// 下拉菜单命令
+function handleCommand(cmd: string) {
+  const snippets: Record<string, [string, string]> = {
+    itemize: ['\\begin{itemize}\n  \\item ', '\n\\end{itemize}'],
+    enumerate: ['\\begin{enumerate}\n  \\item ', '\n\\end{enumerate}'],
+    figure: ['\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=0.8\\textwidth]{', '}\n  \\caption{}\n\\end{figure}'],
+    table: ['\\begin{table}[h]\n  \\centering\n  \\begin{tabular}{}\n  \\end{tabular}\n  \\caption{}\n\\end{table}'],
+    cite: ['\\cite{', '}']
+  }
+
+  const snippet = snippets[cmd]
+  if (snippet) {
+    insert(snippet[0], snippet[1])
+  }
 }
 </script>
 
@@ -132,19 +145,123 @@ function registerLaTeXCompletion(editor: any) {
 .latex-editor {
   height: 100%;
   width: 100%;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
 
-  :deep(.monaco-editor) {
-    padding: 8px 0;
+.latex-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 16px;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+.latex-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 16px;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  z-index: 1;
+
+  code {
+    background: transparent;
+    font-family: inherit;
+  }
+
+  // Prism 语法高亮样式
+  :deep(.token.comment),
+  :deep(.token.prolog),
+  :deep(.token.doctype),
+  :deep(.token.cdata {
+    color: #6a737d;
+  }
+
+  :deep(.token.punctuation),
+  :deep(.token.namespace) {
+    color: #586e75;
+  }
+
+  :deep(.token.property),
+  :deep(.token.tag),
+  :deep(.token.boolean),
+  :deep(.token.number),
+  :deep(.token.constant),
+  :deep(.token.symbol),
+  :deep(.token.deleted) {
+    color: #e36209;
+  }
+
+  :deep(.token.selector),
+  :deep(.token.attr-name),
+  :deep(.token.string),
+  :deep(.token.char),
+  :deep(.token.builtin),
+  :deep(.token.inserted) {
+    color: #795e26;
+  }
+
+  :deep(.token.operator),
+  :deep(.token.entity),
+  :deep(.token.url) {
+    color: #56b6c2;
+  }
+
+  :deep(.token.atrule),
+  :deep(.token.keyword),
+  :deep(.token.function) {
+    color: #c678dd;
   }
 }
 
-// 深色模式
+.latex-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color-page);
+
+  .el-divider--vertical {
+    height: 20px;
+  }
+}
+
+// 深色模式适配
 .dark {
-  .latex-editor {
-    border-color: var(--el-border-color);
+  .latex-textarea {
+    background: #1e1e1e;
+  }
+
+  .latex-highlight {
+    :deep(.token.comment) { color: #6a737d; }
+    :deep(.token.function) { color: #61afef; }
+    :deep(.token.keyword) { color: #c678dd; }
+    :deep(.token.string) { color: #98c379; }
+    :deep(.token.number) { color: #d19a66; }
+    :deep(.token.operator) { color: #56b6c2; }
   }
 }
 </style>
