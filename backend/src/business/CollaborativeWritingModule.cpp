@@ -66,6 +66,20 @@ static HttpResponse buildErrorResponse(int code, const std::string& message) {
 }
 
 // ============================================================================
+// 辅助函数
+// ============================================================================
+
+// 安全地将字符串转换为整数，处理NULL和空字符串
+static int safeStoi(const std::string& s, int defaultValue = 0) {
+    if (s.empty() || s == "NULL") return defaultValue;
+    try {
+        return std::stoi(s);
+    } catch (...) {
+        return defaultValue;
+    }
+}
+
+// ============================================================================
 // Impl 类
 // ============================================================================
 
@@ -80,10 +94,7 @@ public:
 // ============================================================================
 
 CollaborativeWritingModule::CollaborativeWritingModule()
-    : database_(nullptr), impl_(std::make_unique<Impl>()) {}
-
-CollaborativeWritingModule::CollaborativeWritingModule(std::shared_ptr<IDatabase> database)
-    : database_(database), impl_(std::make_unique<Impl>()) {}
+    : impl_(std::make_unique<Impl>()) {}
 
 CollaborativeWritingModule::~CollaborativeWritingModule() = default;
 
@@ -99,10 +110,10 @@ void CollaborativeWritingModule::registerRoutes() {
     router.post(prefix + "/documents", [this](const HttpRequest& req) {
         try {
             auto json = nlohmann::json::parse(req.body);
-            std::string title = json.value("title", "Untitled");
-            std::string docType = json.value("document_type", "paper");
-            int ownerId = json.value("owner_id", 0);
-            int templateId = json.value("template_id", 0);
+            std::string title = json.value<std::string>("title", "Untitled");
+            std::string docType = json.value<std::string>("document_type", "paper");
+            int ownerId = json.value<int>("owner_id", 0);
+            int templateId = json.value<int>("template_id", 0);
 
             auto doc = createDocument(ownerId, title, docType, templateId);
             if (doc.has_value()) {
@@ -130,62 +141,56 @@ void CollaborativeWritingModule::registerRoutes() {
             return buildErrorResponse(500, e.what());
         }
     });
-    // GET /api/writing/documents — 创建文档
+    // GET /api/writing/documents — 获取文档列表
     router.get(prefix + "/documents", [this](const HttpRequest& req) {
         try {
-            // 👇 从查询参数获取，不是从 body 获取
-            // ===============================
-            // 从 URL 查询参数中取值（你现在的格式）
-            // ===============================
-            std::string title = "Untitled";
-            auto titleIt = req.queryParams.find("title");
-            if (titleIt != req.queryParams.end() && !titleIt->second.empty()) {
-                title = titleIt->second;
-            }
-
-            std::string docType = "paper";
-            auto docTypeIt = req.queryParams.find("document_type");
-            if (docTypeIt != req.queryParams.end() && !docTypeIt->second.empty()) {
-                docType = docTypeIt->second;
-            }
-
+            // 从查询参数获取
             int ownerId = 0;
             auto ownerIdIt = req.queryParams.find("owner_id");
             if (ownerIdIt != req.queryParams.end() && !ownerIdIt->second.empty()) {
                 ownerId = std::stoi(ownerIdIt->second);
             }
 
-            int templateId = 0;
-            auto templateIdIt = req.queryParams.find("template_id");
-            if (templateIdIt != req.queryParams.end() && !templateIdIt->second.empty()) {
-                templateId = std::stoi(templateIdIt->second);
+            int page = 1;
+            auto pageIt = req.queryParams.find("page");
+            if (pageIt != req.queryParams.end() && !pageIt->second.empty()) {
+                page = std::stoi(pageIt->second);
             }
-            spdlog::info("[GET /api/writing/documents] title={}, docType={}, ownerId={}, templateId={}", title, docType, ownerId, templateId);
-            
-            auto doc = createDocument(ownerId, title, docType, templateId);
-            
-            if (doc.has_value()) {
-                HttpResponse resp;
-                resp.statusCode = 201;
-                resp.headers["Content-Type"] = "application/json";
-                nlohmann::json data;
-                data["id"] = doc->id;
-                data["title"] = doc->title;
-                data["content"] = doc->content;
-                data["document_type"] = doc->documentType;
-                data["owner_id"] = doc->ownerId;
-                data["status"] = doc->status;
-                data["word_count"] = doc->wordCount;
-                data["created_at"] = doc->createdAt;
-                data["updated_at"] = doc->updatedAt;
-                resp.body = buildJsonResponse(true, "Document created", data);
-                return resp;
+
+            int limit = 20;
+            auto limitIt = req.queryParams.find("limit");
+            if (limitIt != req.queryParams.end() && !limitIt->second.empty()) {
+                limit = std::stoi(limitIt->second);
             }
-            return buildErrorResponse(500, "Failed to create document");
-        } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+
+            auto docs = getDocuments(ownerId, page, limit);
+
+            HttpResponse resp;
+            resp.statusCode = 200;
+            resp.headers["Content-Type"] = "application/json";
+            nlohmann::json data;
+            nlohmann::json arr = nlohmann::json::array();
+            for (const auto& doc : docs) {
+                nlohmann::json item;
+                item["id"] = doc.id;
+                item["title"] = doc.title;
+                item["content"] = doc.content;
+                item["document_type"] = doc.documentType;
+                item["owner_id"] = doc.ownerId;
+                item["status"] = doc.status;
+                item["word_count"] = doc.wordCount;
+                item["created_at"] = doc.createdAt;
+                item["updated_at"] = doc.updatedAt;
+                arr.push_back(item);
+            }
+            data["documents"] = arr;
+            data["total"] = docs.size();
+            data["page"] = page;
+            data["limit"] = limit;
+            resp.body = buildJsonResponse(true, "", data);
+            return resp;
         } catch (const std::exception& e) {
-            spdlog::error("[Writing] createDocument error: {}", e.what());
+            spdlog::error("[Writing] getDocuments error: {}", e.what());
             return buildErrorResponse(500, e.what());
         }
     });
@@ -224,9 +229,9 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
-            std::string content = json.value("content", "");
-            std::string title = json.value("title", "");
-            std::string status = json.value("status", "");
+            std::string content = json.value<std::string>("content", "");
+            std::string title = json.value<std::string>("title", "");
+            std::string status = json.value<std::string>("status", "");
 
             bool ok = updateDocument(docId, content, title, status);
             if (ok) {
@@ -262,12 +267,12 @@ void CollaborativeWritingModule::registerRoutes() {
             auto json = nlohmann::json::parse(req.body);
 
             OTOperation op;
-            op.type = static_cast<OTOperationType>(json.value("type", 0));
-            op.position = json.value("position", 0);
-            op.length = json.value("length", 0);
-            op.content = json.value("content", "");
-            op.clientId = json.value("client_id", 0);
-            op.timestamp = json.value("timestamp", 0);
+            op.type = static_cast<OTOperationType>(json.value<int>("type", 0));
+            op.position = json.value<int>("position", 0);
+            op.length = json.value<int>("length", 0);
+            op.content = json.value<std::string>("content", "");
+            op.clientId = json.value<int>("client_id", 0);
+            op.timestamp = json.value<int>("timestamp", 0);
 
             std::string newContent = applyOperation(docId, op);
             HttpResponse resp;
@@ -327,10 +332,10 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
-            std::string sugType = json.value("suggestion_type", "content");
-            int userId = json.value("user_id", 0);
-            int posStart = json.value("position_start", 0);
-            int posEnd = json.value("position_end", 0);
+            std::string sugType = json.value<std::string>("suggestion_type", "content");
+            int userId = json.value<int>("user_id", 0);
+            int posStart = json.value<int>("position_start", 0);
+            int posEnd = json.value<int>("position_end", 0);
 
             auto suggestion = generateSuggestion(docId, userId, sugType, posStart, posEnd);
 
@@ -394,11 +399,11 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
-            int userId = json.value("user_id", 0);
-            std::string content = json.value("content", "");
-            int posStart = json.value("position_start", -1);
-            int posEnd = json.value("position_end", -1);
-            int parentId = json.value("parent_id", 0);
+            int userId = json.value<int>("user_id", 0);
+            std::string content = json.value<std::string>("content", "");
+            int posStart = json.value<int>("position_start", -1);
+            int posEnd = json.value<int>("position_end", -1);
+            int parentId = json.value<int>("parent_id", 0);
 
             int commentId = addComment(docId, userId, content, posStart, posEnd, parentId);
 
@@ -436,15 +441,18 @@ std::optional<CollaborativeDocument> CollaborativeWritingModule::createDocument(
         }
 
         std::string sql = "INSERT INTO collaborative_documents "
-                        "(title, content, document_type, owner_id, template_id, word_count, status) "
-                        "VALUES ('" + escapeSql(title) + "', '" + escapeSql(initialContent) + "', '"
+                        "(id, title, content, document_type, owner_id, template_id, word_count, status) "
+                        "VALUES (DEFAULT, '" + escapeSql(title) + "', '" + escapeSql(initialContent) + "', '"
                         + escapeSql(documentType) + "', " + std::to_string(userId) + ", "
                         + std::to_string(templateId) + ", 0, 'draft')";
 
-        if (database_->execute(sql)) {
-            auto results = database_->query("SELECT LAST_INSERT_ID() as id");
-            if (!results.empty()) {
-                int documentId = std::stoi(results[0]["id"]);
+        bool executeResult = database_->execute(sql);
+
+        if (executeResult) {
+            // 使用MAX(id)而不是LAST_INSERT_ID()
+            auto maxIdResult = database_->query("SELECT MAX(id) as max_id FROM collaborative_documents");
+            if (!maxIdResult.empty() && !maxIdResult[0]["max_id"].empty()) {
+                int documentId = safeStoi(maxIdResult[0]["max_id"]);
                 impl_->documentContents_[documentId] = initialContent;
                 return getDocument(documentId);
             }
@@ -466,10 +474,10 @@ std::optional<CollaborativeDocument> CollaborativeWritingModule::getDocument(int
             doc.title = results[0]["title"];
             doc.content = results[0]["content"];
             doc.documentType = results[0]["document_type"];
-            doc.ownerId = std::stoi(results[0]["owner_id"]);
+            doc.ownerId = safeStoi(results[0]["owner_id"]);
             doc.status = results[0]["status"];
-            doc.wordCount = std::stoi(results[0]["word_count"]);
-            doc.lastModifiedBy = results[0]["last_modified_by"].empty() ? 0 : std::stoi(results[0]["last_modified_by"]);
+            doc.wordCount = safeStoi(results[0]["word_count"]);
+            doc.lastModifiedBy = safeStoi(results[0]["last_modified_by"]);
             doc.createdAt = results[0]["created_at"];
             doc.updatedAt = results[0]["updated_at"];
             impl_->documentContents_[documentId] = doc.content;
@@ -532,14 +540,14 @@ std::vector<CollaborativeDocument> CollaborativeWritingModule::getDocuments(int 
 
         for (auto& row : results) {
             CollaborativeDocument doc;
-            doc.id = std::stoi(row["id"]);
+            doc.id = safeStoi(row["id"]);
             doc.title = row["title"];
             doc.content = row["content"];
             doc.documentType = row["document_type"];
-            doc.ownerId = std::stoi(row["owner_id"]);
+            doc.ownerId = safeStoi(row["owner_id"]);
             doc.status = row["status"];
-            doc.wordCount = std::stoi(row["word_count"]);
-            doc.lastModifiedBy = row["last_modified_by"].empty() ? 0 : std::stoi(row["last_modified_by"]);
+            doc.wordCount = safeStoi(row["word_count"]);
+            doc.lastModifiedBy = safeStoi(row["last_modified_by"]);
             doc.createdAt = row["created_at"];
             doc.updatedAt = row["updated_at"];
             impl_->documentContents_[doc.id] = doc.content;

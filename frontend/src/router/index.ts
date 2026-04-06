@@ -196,6 +196,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/search/SearchPage.vue'),
         meta: { requiresAuth: true, title: 'route.search', icon: 'Search' }
       },
+      // Collaborative Writing Routes
+      {
+        path: '/writing',
+        name: 'Writing',
+        component: () => import('@/views/writing/WritingListView.vue'),
+        meta: { requiresAuth: true, title: '协作写作', icon: 'EditPen' }
+      },
+      {
+        path: '/writing/:id(\\d+)',
+        name: 'WritingEditor',
+        component: () => import('@/views/writing/WritingEditorView.vue'),
+        meta: { requiresAuth: true, title: '文档编辑' }
+      },
       // AI Assistant Routes
       {
         path: '/ai-copilot',

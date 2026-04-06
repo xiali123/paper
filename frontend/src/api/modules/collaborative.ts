@@ -1,6 +1,7 @@
 /**
  * Collaborative Writing API Module
- * 实时协作写作功能 - 对应后端CollaborativeWritingModule
+ * 协作写作功能 - 对应后端 CollaborativeWritingModule
+ * API 路径前缀: /api/writing
  */
 
 import request from '@/utils/request'
@@ -9,275 +10,181 @@ import type {
   OTOperation,
   WritingSuggestion,
   DocumentVersion,
-  DocumentComment
+  DocumentComment,
+  CreateDocumentRequest,
+  UpdateDocumentRequest,
+  GenerateSuggestionRequest,
+  AddCommentRequest
 } from '@/types/collaborative'
 
 /**
- * 创建文档请求
- */
-export interface CreateDocumentRequest {
-  title: string
-  content?: string
-  documentType: string
-  templateId?: number
-}
-
-/**
- * 应用操作请求
- */
-export interface ApplyOperationRequest {
-  documentId: number
-  operation: OTOperation
-}
-
-/**
- * 生成建议请求
- */
-export interface GenerateSuggestionRequest {
-  documentId: number
-  suggestionType: 'grammar' | 'style' | 'structure' | 'citation'
-  positionStart: number
-  positionEnd: number
-}
-
-/**
- * 协作会话信息
- */
-export interface CollaborationSession {
-  documentId: number
-  activeUsers: Array<{
-    userId: number
-    userName: string
-    cursorPosition?: number
-    lastActiveAt: string
-  }>
-  connectedAt: string
-}
-
-/**
- * 协作写作API
+ * 协作写作 API
  */
 export const collaborativeApi = {
+  // ==================== 文档管理 ====================
+
   /**
-   * 创建协作文档
-   * POST /collab/documents
+   * 创建文档
+   * POST /api/writing/documents
    */
-  async createDocument(req: CreateDocumentRequest): Promise<CollaborativeDocument> {
-    return await request.post('/collab/documents', req)
+  async createDocument(data: CreateDocumentRequest): Promise<CollaborativeDocument> {
+    return await request.post('/api/writing/documents', data)
   },
 
   /**
-   * 获取文档详情
-   * GET /collab/documents/:id
+   * 获取文档列表
+   * GET /api/writing/documents
    */
-  async getDocument(documentId: number): Promise<CollaborativeDocument> {
-    return await request.get(`/collab/documents/${documentId}`)
+  async getDocuments(params?: {
+    title?: string
+    ownerId?: number
+    docType?: string
+  }): Promise<CollaborativeDocument[]> {
+    const response = await request.get<{ documents?: CollaborativeDocument[]; total?: number }>('/api/writing/documents', { params })
+    return Array.isArray(response) ? response : (response.documents || [])
   },
 
   /**
-   * 更新文档元数据
-   * PUT /collab/documents/:id
+   * 获取单个文档
+   * GET /api/writing/documents/:id
    */
-  async updateDocument(
-    documentId: number,
-    updates: Partial<CollaborativeDocument>
-  ): Promise<CollaborativeDocument> {
-    return await request.put(`/collab/documents/${documentId}`, updates)
+  async getDocument(id: number): Promise<CollaborativeDocument> {
+    return await request.get(`/api/writing/documents/${id}`)
   },
 
   /**
-   * 删除文档
-   * DELETE /collab/documents/:id
+   * 更新文档
+   * PUT /api/writing/documents/:id
    */
-  async deleteDocument(documentId: number): Promise<{ success: boolean }> {
-    return await request.delete(`/collab/documents/${documentId}`)
+  async updateDocument(id: number, data: UpdateDocumentRequest): Promise<CollaborativeDocument> {
+    return await request.put(`/api/writing/documents/${id}`, data)
   },
 
   /**
-   * 应用OT操作
-   * POST /collab/documents/:id/operations
+   * 删除文档 (待后端注册路由)
+   * DELETE /api/writing/documents/:id
    */
-  async applyOperation(req: ApplyOperationRequest): Promise<{
-    success: boolean
-    newContent: string
-    operationId: string
+  async deleteDocument(id: number): Promise<{ success: boolean }> {
+    return await request.delete(`/api/writing/documents/${id}`)
+  },
+
+  // ==================== OT 操作 ====================
+
+  /**
+   * 应用 OT 操作
+   * POST /api/writing/documents/:id/operations
+   */
+  async applyOperation(documentId: number, operation: OTOperation): Promise<{
+    content: string
+    word_count: number
   }> {
-    return await request.post(`/collab/documents/${req.documentId}/operations`, req)
+    return await request.post(`/api/writing/documents/${documentId}/operations`, {
+      type: operation.type,
+      position: operation.position || 0,
+      length: operation.length || 0,
+      content: operation.content || '',
+      client_id: operation.client_id || 0,
+      timestamp: operation.timestamp || Date.now()
+    })
+  },
+
+  // ==================== AI 建议 ====================
+
+  /**
+   * 获取 AI 建议
+   * GET /api/writing/documents/:id/suggestions
+   */
+  async getSuggestions(documentId: number): Promise<WritingSuggestion[]> {
+    const response = await request.get<{
+      suggestions?: WritingSuggestion[]
+      total?: number
+    }>(`/api/writing/documents/${documentId}/suggestions`)
+    return Array.isArray(response) ? response : (response.suggestions || [])
   },
 
   /**
-   * 批量应用操作
-   * POST /collab/documents/:id/operations/batch
+   * 生成 AI 建议
+   * POST /api/writing/documents/:id/suggestions/generate
    */
-  async applyOperationsBatch(documentId: number, operations: OTOperation[]): Promise<{
-    success: boolean
-    appliedCount: number
-    finalContent: string
-  }> {
-    return await request.post(`/collab/documents/${documentId}/operations/batch`, {
-      operations
+  async generateSuggestion(documentId: number, data?: GenerateSuggestionRequest): Promise<WritingSuggestion> {
+    return await request.post(`/api/writing/documents/${documentId}/suggestions/generate`, {
+      suggestion_type: data?.suggestion_type || 'content',
+      user_id: data?.user_id || 0,
+      position_start: data?.position_start || 0,
+      position_end: data?.position_end || 0
     })
   },
 
   /**
-   * 获取AI写作建议
-   * GET /collab/documents/:id/suggestions
-   */
-  async getSuggestions(documentId: number): Promise<WritingSuggestion[]> {
-    return await request.get(`/collab/documents/${documentId}/suggestions`)
-  },
-
-  /**
-   * 生成AI建议
-   * POST /collab/documents/:id/suggestions/generate
-   */
-  async generateSuggestion(req: GenerateSuggestionRequest): Promise<WritingSuggestion> {
-    return await request.post(
-      `/collab/documents/${req.documentId}/suggestions/generate`,
-      req
-    )
-  },
-
-  /**
-   * 批量生成建议
-   * POST /collab/documents/:id/suggestions/generate-batch
-   */
-  async generateSuggestionsBatch(documentId: number): Promise<WritingSuggestion[]> {
-    return await request.post(`/collab/documents/${documentId}/suggestions/generate-batch`)
-  },
-
-  /**
-   * 接受建议
-   * POST /collab/documents/suggestions/:id/accept
+   * 接受建议 (待后端注册路由)
+   * PUT /api/writing/suggestions/:id/accept
    */
   async acceptSuggestion(suggestionId: number): Promise<{ success: boolean }> {
-    return await request.post(`/collab/documents/suggestions/${suggestionId}/accept`)
+    return await request.put(`/api/writing/suggestions/${suggestionId}/accept`)
   },
 
   /**
-   * 拒绝建议
-   * POST /collab/documents/suggestions/:id/reject
+   * 拒绝建议 (待后端注册路由)
+   * PUT /api/writing/suggestions/:id/reject
    */
   async rejectSuggestion(suggestionId: number): Promise<{ success: boolean }> {
-    return await request.post(`/collab/documents/suggestions/${suggestionId}/reject`)
+    return await request.put(`/api/writing/suggestions/${suggestionId}/reject`)
   },
+
+  // ==================== 版本历史 ====================
 
   /**
    * 获取版本历史
-   * GET /collab/documents/:id/versions
+   * GET /api/writing/documents/:id/versions
    */
   async getVersions(documentId: number): Promise<DocumentVersion[]> {
-    return await request.get(`/collab/documents/${documentId}/versions`)
+    const response = await request.get<{
+      versions?: DocumentVersion[]
+      total?: number
+    }>(`/api/writing/documents/${documentId}/versions`)
+    return Array.isArray(response) ? response : (response.versions || [])
   },
 
   /**
-   * 恢复到特定版本
-   * POST /collab/documents/:id/versions/:versionId/restore
+   * 创建版本 (待后端注册路由)
+   * POST /api/writing/documents/:id/versions
    */
-  async restoreVersion(documentId: number, versionId: number): Promise<CollaborativeDocument> {
-    return await request.post(`/collab/documents/${documentId}/versions/${versionId}/restore`)
-  },
-
-  /**
-   * 比较两个版本
-   * GET /collab/documents/:id/versions/compare
-   */
-  async compareVersions(
-    documentId: number,
-    versionId1: number,
-    versionId2: number
-  ): Promise<{
-    version1: DocumentVersion
-    version2: DocumentVersion
-    diff: string
-  }> {
-    return await request.get(`/collab/documents/${documentId}/versions/compare`, {
-      params: { versionId1, versionId2 }
+  async createVersion(documentId: number, summary?: string): Promise<DocumentVersion> {
+    return await request.post(`/api/writing/documents/${documentId}/versions`, {
+      change_summary: summary || ''
     })
+  },
+
+  // ==================== 评论 ====================
+
+  /**
+   * 获取评论 (待后端注册路由)
+   * GET /api/writing/documents/:id/comments
+   */
+  async getComments(documentId: number): Promise<DocumentComment[]> {
+    return await request.get(`/api/writing/documents/${documentId}/comments`)
   },
 
   /**
    * 添加评论
-   * POST /collab/documents/:id/comments
+   * POST /api/writing/documents/:id/comments
    */
-  async addComment(documentId: number, comment: {
-    position: number
-    text: string
-    authorId: number
-  }): Promise<{ success: boolean; commentId: number }> {
-    return await request.post(`/collab/documents/${documentId}/comments`, comment)
+  async addComment(documentId: number, data: AddCommentRequest): Promise<{ id: number }> {
+    return await request.post(`/api/writing/documents/${documentId}/comments`, {
+      user_id: data.user_id || 0,
+      content: data.content,
+      position_start: data.position_start ?? -1,
+      position_end: data.position_end ?? -1,
+      parent_id: data.parent_id ?? 0
+    })
   },
 
   /**
-   * 获取文档所有评论
-   * GET /collab/documents/:id/comments
-   */
-  async getComments(documentId: number): Promise<DocumentComment[]> {
-    return await request.get(`/collab/documents/${documentId}/comments`)
-  },
-
-  /**
-   * 解决评论
-   * PUT /collab/documents/comments/:id/resolve
+   * 解决评论 (待后端注册路由)
+   * PUT /api/writing/comments/:id/resolve
    */
   async resolveComment(commentId: number): Promise<{ success: boolean }> {
-    return await request.put(`/collab/documents/comments/${commentId}/resolve`)
-  },
-
-  /**
-   * 删除评论
-   * DELETE /collab/documents/comments/:id
-   */
-  async deleteComment(commentId: number): Promise<{ success: boolean }> {
-    return await request.delete(`/collab/documents/comments/${commentId}`)
-  },
-
-  /**
-   * 获取协作文档列表
-   * GET /collab/documents
-   */
-  async getDocuments(params?: {
-    ownerId?: number
-    status?: 'active' | 'archived' | 'deleted'
-    page?: number
-    limit?: number
-  }): Promise<{
-    documents: CollaborativeDocument[]
-    total: number
-    page: number
-  }> {
-    return await request.get('/collab/documents', { params })
-  },
-
-  /**
-   * 获取协作会话信息
-   * GET /collab/documents/:id/session
-   */
-  async getSession(documentId: number): Promise<CollaborationSession> {
-    return await request.get(`/collab/documents/${documentId}/session`)
-  },
-
-  /**
-   * WebSocket连接URL
-   */
-  getWebSocketUrl(documentId: number, token: string): string {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host
-    return `${protocol}//${host}/collab/documents/${documentId}/ws?token=${token}`
-  },
-
-  /**
-   * 获取协作统计信息
-   * GET /collab/stats
-   */
-  async getStats(): Promise<{
-    totalDocuments: number
-    activeUsers: number
-    totalOperations: number
-    totalSuggestions: number
-    avgSessionDuration: number
-  }> {
-    return await request.get('/collab/stats')
+    return await request.put(`/api/writing/comments/${commentId}/resolve`)
   }
 }
 

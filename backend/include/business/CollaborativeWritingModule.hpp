@@ -98,7 +98,6 @@ struct CollaborationSession {
 class CollaborativeWritingModule : public BusinessModuleBase {
 public:
     CollaborativeWritingModule();
-    explicit CollaborativeWritingModule(std::shared_ptr<IDatabase> database);
     ~CollaborativeWritingModule() override;
 
     std::string getName() const override { return "CollaborativeWriting"; }
@@ -279,7 +278,6 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
-    std::shared_ptr<IDatabase> database_;
 
     void registerRoutes() override;
 

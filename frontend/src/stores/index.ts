@@ -83,6 +83,7 @@ export { usePaperManagementStore } from './paperManagement'
 
 // Feature Stores
 export { useCrawlerStore } from './crawlerStore'
+export { useWritingStore } from './writingStore'
 export { useExportStore } from './exportStore'
 export { useStatsStore } from './statsStore'
 export { useAIStore } from './aiStore'

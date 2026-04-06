@@ -81,6 +81,12 @@
           <template #title>{{ t('nav.searchPapers') }}</template>
         </el-menu-item>
 
+        <!-- Collaborative Writing -->
+        <el-menu-item index="/writing">
+          <el-icon><EditPen /></el-icon>
+          <template #title>协作写作</template>
+        </el-menu-item>
+
         <!-- AI Assistant -->
         <el-sub-menu index="ai">
           <template #title>
@@ -213,6 +219,7 @@ import {
   PriceTag,
   Connection,
   Search,
+  EditPen,
   DataAnalysis,
   DataLine,
   PieChart,
