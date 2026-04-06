@@ -1,6 +1,3 @@
-// 定义导出宏（Router.dll）
-#define ROUTER_DLL_EXPORTS
-
 #include "core/Router.hpp"
 #include "core/IModule.hpp"
 #include <spdlog/spdlog.h>

@@ -6,6 +6,7 @@
 #include <thread>
 #include <cstring>
 #include <algorithm>
+#include <cctype>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -19,7 +20,7 @@
     #include <unistd.h>
     #define INVALID_SOCKET -1
     #define SOCKET_ERROR -1
-    typedef int SOCKET
+    typedef int SOCKET;
 #endif
 
 namespace PaperCrawler {
@@ -34,6 +35,20 @@ public:
 
     // 统计信息
     HttpServerModule::ServerStats stats_;
+
+    // Case-insensitive string search (HTTP headers are case-insensitive)
+    static std::string toLower(const std::string& s) {
+        std::string result = s;
+        std::transform(result.begin(), result.end(), result.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        return result;
+    }
+
+    static size_t findHeaderCI(const std::string& haystack, const std::string& needle) {
+        std::string lowerHay = toLower(haystack);
+        std::string lowerNeedle = toLower(needle);
+        return lowerHay.find(lowerNeedle);
+    }
 
     bool initializeWinsock() {
 #ifdef _WIN32
@@ -117,7 +132,7 @@ public:
             stats_.totalBytesReceived += bytesRead;
 
             // Debug: Log raw request
-            spdlog::debug("Raw request:\n{}", std::string(buffer, bytesRead));
+            spdlog::info("Raw request ({} bytes):\n{}", bytesRead, std::string(buffer, bytesRead));
 
             // Parse HTTP request headers first
             std::string requestStr(buffer);
@@ -131,9 +146,82 @@ public:
             // Extract headers part
             std::string headersPart = requestStr.substr(0, headerEnd);
 
-            // Check for Content-Length to see if we need to read more data
-            size_t contentLengthPos = headersPart.find("Content-Length:");
-            if (contentLengthPos != std::string::npos) {
+            // Check for Transfer-Encoding: chunked or Content-Length (case-insensitive)
+            size_t bodyStart = headerEnd + 4;
+            size_t contentLengthPos = findHeaderCI(headersPart, "Content-Length:");
+            size_t chunkedPos = findHeaderCI(headersPart, "Transfer-Encoding:");
+
+            if (chunkedPos != std::string::npos) {
+                std::string teValue = headersPart.substr(chunkedPos + 18);
+                size_t teEnd = teValue.find("\r\n");
+                if (teEnd != std::string::npos) teValue = teValue.substr(0, teEnd);
+                // Trim spaces
+                while (!teValue.empty() && teValue[0] == ' ') teValue.erase(0, 1);
+
+                if (teValue.find("chunked") != std::string::npos) {
+                    spdlog::info("Chunked transfer encoding detected, reading chunks...");
+
+                    // Read remaining data already in buffer
+                    std::string accumulated(buffer + bodyStart, bytesRead - bodyStart);
+                    std::string decodedBody;
+
+                    // Decode chunks from accumulated data
+                    while (true) {
+                        // Find chunk size line
+                        size_t chunkSizeEnd = accumulated.find("\r\n");
+                        if (chunkSizeEnd == std::string::npos) {
+                            // Need more data
+                            char tmpBuf[4096];
+                            int n = recv(clientSocket, tmpBuf, sizeof(tmpBuf) - 1, 0);
+                            if (n > 0) {
+                                tmpBuf[n] = '\0';
+                                accumulated += tmpBuf;
+                                stats_.totalBytesReceived += n;
+                                continue;
+                            }
+                            break;
+                        }
+
+                        std::string chunkSizeStr = accumulated.substr(0, chunkSizeEnd);
+                        // Parse hex chunk size (strip extensions after semicolon)
+                        size_t extPos = chunkSizeStr.find(';');
+                        if (extPos != std::string::npos) chunkSizeStr = chunkSizeStr.substr(0, extPos);
+                        while (!chunkSizeStr.empty() && chunkSizeStr[0] == ' ') chunkSizeStr.erase(0, 1);
+
+                        int chunkSize = 0;
+                        try { chunkSize = std::stoi(chunkSizeStr, nullptr, 16); } catch (...) { break; }
+
+                        if (chunkSize == 0) break; // Last chunk
+
+                        accumulated.erase(0, chunkSizeEnd + 2); // Skip size line + \r\n
+
+                        // Read chunk data
+                        while (accumulated.length() < (size_t)chunkSize + 2) {
+                            char tmpBuf[4096];
+                            int n = recv(clientSocket, tmpBuf, sizeof(tmpBuf) - 1, 0);
+                            if (n > 0) {
+                                tmpBuf[n] = '\0';
+                                accumulated += tmpBuf;
+                                stats_.totalBytesReceived += n;
+                            } else break;
+                        }
+
+                        if (accumulated.length() >= (size_t)chunkSize) {
+                            decodedBody += accumulated.substr(0, chunkSize);
+                            accumulated.erase(0, chunkSize + 2); // Skip data + \r\n
+                        }
+                    }
+
+                    spdlog::info("Decoded chunked body: {} bytes", decodedBody.length());
+
+                    // Replace buffer with a synthetic Content-Length request
+                    std::string newRequest = requestStr.substr(0, headerEnd + 4) + decodedBody;
+                    size_t copyLen = std::min(newRequest.length(), sizeof(buffer) - 1);
+                    memcpy(buffer, newRequest.c_str(), copyLen);
+                    bytesRead = copyLen;
+                    buffer[bytesRead] = '\0';
+                }
+            } else if (contentLengthPos != std::string::npos) {
                 size_t colonPos = headersPart.find(":", contentLengthPos);
                 size_t valueStart = headersPart.find_first_not_of(" \t", colonPos + 1);
                 size_t valueEnd = headersPart.find("\r\n", valueStart);
@@ -143,7 +231,6 @@ public:
                 spdlog::info("POST request with Content-Length: {}", contentLength);
 
                 // Calculate how much body data we have already
-                size_t bodyStart = headerEnd + 4;
                 int currentBodyLength = bytesRead - bodyStart;
 
                 // If we don't have all the body data yet, read more
@@ -238,7 +325,7 @@ public:
             spdlog::info("Parsed request: {} {} {}", request.method, request.path, request.version);
         }
 
-        // Parse headers
+        // Parse headers (normalize keys to Title-Case for case-insensitive matching)
         while (std::getline(iss, line) && !line.empty()) {
             if (line.back() == '\r') {
                 line.pop_back();
@@ -253,7 +340,22 @@ public:
                 value.erase(0, value.find_first_not_of(" \t"));
                 value.erase(value.find_last_not_of(" \t") + 1);
 
-                request.headers[key] = value;
+                // Normalize header key to Title-Case (HTTP headers are case-insensitive)
+                std::string normKey;
+                bool nextUpper = true;
+                for (char c : key) {
+                    if (c == '-') {
+                        nextUpper = true;
+                        normKey += c;
+                    } else if (nextUpper) {
+                        normKey += std::toupper(static_cast<unsigned char>(c));
+                        nextUpper = false;
+                    } else {
+                        normKey += std::tolower(static_cast<unsigned char>(c));
+                    }
+                }
+
+                request.headers[normKey] = value;
             }
         }
 
@@ -276,35 +378,17 @@ public:
             }
         }
 
-        // Parse body (if any) - everything after the empty line following headers
-        // Get the remaining content from the stream
+        // Parse body: extract directly from requestStr after \r\n\r\n
+        // This is more reliable than std::getline which can miss content without trailing \n
         std::string body;
-        std::string remaining;
-        while (std::getline(iss, line)) {
-            if (!line.empty() || body.empty()) {
-                // Only add newline if it's not the first empty line after headers
-                body += line + "\n";
-            }
-        }
-
-        // Trim trailing newlines from body
-        while (!body.empty() && (body.back() == '\n' || body.back() == '\r')) {
-            body.pop_back();
-        }
-
-        // Fallback: If body parsing failed but we know there should be a body,
-        // extract it directly from the original request string
-        if (body.empty()) {
-            size_t contentLengthPos = requestStr.find("Content-Length:");
-            if (contentLengthPos != std::string::npos) {
-                // Find the body start (after \r\n\r\n)
-                size_t bodyStart = requestStr.find("\r\n\r\n");
-                if (bodyStart != std::string::npos) {
-                    bodyStart += 4;
-                    if (bodyStart < requestStr.length()) {
-                        body = requestStr.substr(bodyStart);
-                        spdlog::info("Extracted body directly from request string, {} bytes", body.length());
-                    }
+        size_t bodyStart = requestStr.find("\r\n\r\n");
+        if (bodyStart != std::string::npos) {
+            bodyStart += 4;
+            if (bodyStart < requestStr.length()) {
+                body = requestStr.substr(bodyStart);
+                // Trim trailing whitespace
+                while (!body.empty() && (body.back() == '\r' || body.back() == '\n' || body.back() == ' ')) {
+                    body.pop_back();
                 }
             }
         }

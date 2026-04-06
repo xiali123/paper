@@ -41,7 +41,35 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/../core/include)
 include_directories(${CMAKE_SOURCE_DIR}/src)
-include_directories("C:/Program Files/MySQL/MySQL Server 8.0/include")
+
+# ============================================================================
+# 跨平台依赖检测
+# ============================================================================
+find_package(PkgConfig)
+
+if(UNIX)
+    pkg_check_modules(MYSQL REQUIRED mysqlclient)
+    pkg_check_modules(CURL REQUIRED libcurl)
+    pkg_check_modules(HIREDIS QUIET hiredis)
+    pkg_check_modules(LIBXML2 QUIET libxml-2.0)
+
+    if(MYSQL_FOUND)
+        include_directories(${MYSQL_INCLUDE_DIRS})
+        link_directories(${MYSQL_LIBRARY_DIRS})
+    endif()
+    if(CURL_FOUND)
+        include_directories(${CURL_INCLUDE_DIRS})
+        link_directories(${CURL_LIBRARY_DIRS})
+    endif()
+    if(HIREDIS_FOUND)
+        include_directories(${HIREDIS_INCLUDE_DIRS})
+        link_directories(${HIREDIS_LIBRARY_DIRS})
+    endif()
+    if(LIBXML2_FOUND)
+        include_directories(${LIBXML2_INCLUDE_DIRS})
+        link_directories(${LIBXML2_LIBRARY_DIRS})
+    endif()
+endif()
 
 # ============================================================================
 # 源文件定义（新目录结构）
@@ -348,16 +376,24 @@ else()
 endif()
 
 # Define CURL_DIR for HTTP client support
-set(CURL_DIR "${CMAKE_SOURCE_DIR}/../core/external/curl-8.19.0_4-win64-mingw")
-if(EXISTS ${CURL_DIR})
-    message(STATUS "Using curl from: ${CURL_DIR}")
-    set(CURL_FOUND TRUE)
-else()
-    message(FATAL_ERROR "libcurl not found in ${CURL_DIR}")
+if(WIN32)
+    set(CURL_DIR "${CMAKE_SOURCE_DIR}/../core/external/curl-8.19.0_4-win64-mingw")
+    if(EXISTS ${CURL_DIR})
+        message(STATUS "Using curl from: ${CURL_DIR}")
+        set(CURL_FOUND TRUE)
+    else()
+        message(FATAL_ERROR "libcurl not found in ${CURL_DIR}")
+    endif()
+    # Add curl include directories
+    include_directories(${CURL_DIR}/include)
+elseif(UNIX)
+    if(CURL_FOUND)
+        message(STATUS "Using system curl: ${CURL_LIBRARIES}")
+        set(CURL_FOUND TRUE)
+    else()
+        message(FATAL_ERROR "libcurl not found via pkg-config. Install: sudo apt install libcurl4-openssl-dev")
+    endif()
 endif()
-
-# Add curl include directories
-include_directories(${CURL_DIR}/include)
 
 # ============================================================================
 # 热插拔架构版本 - 新增可执行文件
@@ -386,11 +422,20 @@ add_executable(PaperCrawlerServerHotPlug
 target_include_directories(PaperCrawlerServerHotPlug PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/../core/include
-    ${CURL_DIR}/include
     ${EXTERNAL_DIR}/spdlog/include
 )
 
+if(UNIX)
+    target_include_directories(PaperCrawlerServerHotPlug PRIVATE
+        ${CURL_INCLUDE_DIRS}
+        ${MYSQL_INCLUDE_DIRS}
+    )
+endif()
+
 if(WIN32)
+    target_include_directories(PaperCrawlerServerHotPlug PRIVATE
+        ${CURL_DIR}/include
+    )
     target_compile_definitions(PaperCrawlerServerHotPlug PRIVATE
         WIN32_LEAN_AND_MEAN
         NOMINMAX
@@ -409,17 +454,17 @@ target_link_libraries(PaperCrawlerServerHotPlug
         Threads::Threads
 )
 
-# 链接hiredis if available
+# hiredis (可选)
 if(HIREDIS_FOUND)
-    if(hiredis_FOUND)
-        target_link_libraries(PaperCrawlerServerHotPlug PRIVATE hiredis::hiredis)
+    if(UNIX)
+        target_link_libraries(PaperCrawlerServerHotPlug PRIVATE ${HIREDIS_LIBRARIES})
     else()
         target_link_libraries(PaperCrawlerServerHotPlug PRIVATE ${HIREDIS_DIR}/lib/libhiredis.a)
     endif()
 endif()
 
-# 链接CURL library
-if(CURL_FOUND)
+# CURL链接
+if(WIN32)
     target_link_libraries(PaperCrawlerServerHotPlug PRIVATE
         ${CURL_DIR}/lib/libcurl.dll.a
         ${CURL_DIR}/lib/libcrypto.a
@@ -435,7 +480,15 @@ if(CURL_FOUND)
         ${CURL_DIR}/lib/libzstd.a
         ${CURL_DIR}/lib/libpsl.a
     )
+elseif(UNIX)
+    target_link_libraries(PaperCrawlerServerHotPlug PRIVATE
+        ${CURL_LIBRARIES}
+        dl
+    )
 endif()
+
+# 链接Router共享库
+target_link_libraries(PaperCrawlerServerHotPlug PRIVATE Router)
 
 # 链接Router.dll（共享路由器单例）
 target_link_libraries(PaperCrawlerServerHotPlug PRIVATE Router)
@@ -448,6 +501,11 @@ if(WIN32)
             crypt32
             ucrt
             "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+    )
+elseif(UNIX)
+    target_link_libraries(PaperCrawlerServerHotPlug
+        PRIVATE
+            ${MYSQL_LIBRARIES}
     )
 endif()
 
@@ -503,10 +561,17 @@ add_library(Router SHARED
     src/core/Router.cpp
 )
 
-# 导出所有符号（Windows）
-set_target_properties(Router PROPERTIES
-    WINDOWS_EXPORT_ALL_SYMBOLS ON
-)
+# 导出所有符号
+if(WIN32)
+    set_target_properties(Router PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS ON
+    )
+else()
+    set_target_properties(Router PROPERTIES
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+    )
+endif()
 
 target_include_directories(Router PUBLIC
     ${CMAKE_SOURCE_DIR}/include
@@ -520,20 +585,35 @@ if(WIN32)
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
     )
+elseif(UNIX)
+    target_compile_definitions(Router PRIVATE ROUTER_DLL_EXPORTS)
 endif()
 
-# Router.dll输出到modules目录（与其他DLL一起）
-# 使用避免嵌套Release目录的方式
-set_target_properties(Router PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-)
+# Router输出到modules目录
+if(WIN32)
+    set_target_properties(Router PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+    )
+else()
+    set_target_properties(Router PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+    )
+endif()
 
 # ============================================================================
 # SystemModules - 系统静态库（不包含Router）
 # ============================================================================
 add_library(SystemModules STATIC
+    # 用 -fPIC 编译以支持动态模块链接
+)
+
+set_target_properties(SystemModules PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+target_sources(SystemModules PRIVATE
     src/features/operations/ResponseHandlerModule.cpp
     # Router.cpp已移到Router.dll
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
@@ -578,6 +658,16 @@ add_library(SystemModules STATIC
 )
 
 # 为gumbo的C文件设置编译选项
+if(UNIX)
+    # Linux: gumbo C files need strings.h for strcasecmp/strncasecmp
+    set_source_files_properties(
+        ${EXTERNAL_DIR}/gumbo/src/attribute.c
+        ${EXTERNAL_DIR}/gumbo/src/parser.c
+        ${EXTERNAL_DIR}/gumbo/src/string_piece.c
+        ${EXTERNAL_DIR}/gumbo/src/utf8.c
+        PROPERTIES COMPILE_FLAGS "-include ${EXTERNAL_DIR}/gumbo/src/strings.h"
+    )
+endif()
 if(MSVC)
     target_compile_options(SystemModules PRIVATE /wd4996)  # 禁用VS2015的警告
     # 为Windows添加strings.h的替代定义
@@ -590,20 +680,32 @@ endif()
 target_include_directories(SystemModules PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/../core/include
-    ${CURL_DIR}/include  # HttpClient需要CURL头文件
     ${EXTERNAL_DIR}/spdlog/include  # HttpClient需要spdlog
-    "E:/PaperCrawler/core/external/nlohmann"  # CrawlerModule需要nlohmann/json
+    ${EXTERNAL_DIR}/nlohmann  # CrawlerModule需要nlohmann/json
     ${EXTERNAL_DIR}/gumbo/src  # TemplateCrawlerModule需要gumbo
-    "C:/Program Files/MySQL/MySQL Server 8.0/include"  # ⭐ MySqlConnection需要MySQL头文件
-)
-
-# SystemModules链接Router.dll（现在Router在独立DLL中）
-target_link_libraries(SystemModules PUBLIC
-    Router
-    "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"  # ⭐ MySqlConnection需要MySQL导入库
 )
 
 if(WIN32)
+    target_include_directories(SystemModules PUBLIC
+        ${CURL_DIR}/include  # HttpClient需要CURL头文件
+        "C:/Program Files/MySQL/MySQL Server 8.0/include"  # ⭐ MySqlConnection需要MySQL头文件
+    )
+elseif(UNIX)
+    target_include_directories(SystemModules PUBLIC
+        ${CURL_INCLUDE_DIRS}
+        ${MYSQL_INCLUDE_DIRS}
+    )
+endif()
+
+# SystemModules链接Router共享库
+target_link_libraries(SystemModules PUBLIC
+    Router
+)
+
+if(WIN32)
+    target_link_libraries(SystemModules PUBLIC
+        "C:/Program Files/MySQL/MySQL Server 8.0/lib/libmysql.lib"
+    )
     target_compile_definitions(SystemModules PUBLIC
         WIN32_LEAN_AND_MEAN
         NOMINMAX
@@ -612,13 +714,10 @@ if(WIN32)
     )
     if(MSVC)
         target_compile_options(SystemModules PUBLIC /utf-8)
-    else()
-        # MinGW/GCC默认使用UTF-8，不需要特殊标志
     endif()
 
-    # SystemModules需要的链接库（gumbo已直接编译到SystemModules中）
     target_link_libraries(SystemModules PUBLIC
-        Router  # 链接Router.dll
+        Router
         ws2_32
         wsock32
         crypt32
@@ -635,6 +734,12 @@ if(WIN32)
         ${CURL_DIR}/lib/libz.a
         ${CURL_DIR}/lib/libzstd.a
         ${CURL_DIR}/lib/libpsl.a
+    )
+elseif(UNIX)
+    target_link_libraries(SystemModules PUBLIC
+        ${MYSQL_LIBRARIES}
+        ${CURL_LIBRARIES}
+        dl
     )
 endif()
 
@@ -724,29 +829,36 @@ message(STATUS "")
 # ============================================================================
 
 function(add_dynamic_module MODULE_NAME SOURCES_LIST)
-    # 创建MODULE库 - 与成功的test_minimal保持一致
+    # 创建MODULE库
     add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
 
     # 输出到正确的目录：modules/
-    # 使用避免嵌套Release目录的方式
-    set_target_properties(${MODULE_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-        PREFIX "lib"
-        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-    )
+    if(WIN32)
+        set_target_properties(${MODULE_NAME} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+            PREFIX "lib"
+            ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        )
+    else()
+        set_target_properties(${MODULE_NAME} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+            PREFIX "lib"
+            ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+        )
+    endif()
 
     # 添加include目录
     target_include_directories(${MODULE_NAME}
         PRIVATE
             ${CMAKE_SOURCE_DIR}/include
             ${CMAKE_SOURCE_DIR}/../core/include
-            ${CURL_DIR}/include
             ${EXTERNAL_DIR}/spdlog/include
     )
 
-    # Windows特定设置
     if(WIN32)
+        target_include_directories(${MODULE_NAME} PRIVATE ${CURL_DIR}/include)
         target_compile_definitions(${MODULE_NAME} PRIVATE
             WIN32_LEAN_AND_MEAN
             NOMINMAX
@@ -754,26 +866,34 @@ function(add_dynamic_module MODULE_NAME SOURCES_LIST)
         )
         if(MSVC)
             target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
-        else()
-            # MinGW/GCC默认使用UTF-8，不需要特殊标志
         endif()
+    elseif(UNIX)
+        target_include_directories(${MODULE_NAME} PRIVATE ${CURL_INCLUDE_DIRS})
     endif()
 
-    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/")
+    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> modules/")
 endfunction()
 
 # 辅助函数：编译依赖系统模块的业务模块
 function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
     add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
 
-    # 输出到正确的目录：modules/（与add_dynamic_module保持一致）
-    # 使用避免嵌套Release目录的方式
-    set_target_properties(${MODULE_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-        PREFIX "lib"
-        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-    )
+    # 输出到正确的目录：modules/
+    if(WIN32)
+        set_target_properties(${MODULE_NAME} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+            PREFIX "lib"
+            ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        )
+    else()
+        set_target_properties(${MODULE_NAME} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+            PREFIX "lib"
+            ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+        )
+    endif()
 
     target_link_libraries(${MODULE_NAME} PRIVATE SystemModules)
 
@@ -781,11 +901,11 @@ function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
         PRIVATE
             ${CMAKE_SOURCE_DIR}/include
             ${CMAKE_SOURCE_DIR}/../core/include
-            ${CURL_DIR}/include
             ${EXTERNAL_DIR}/spdlog/include
     )
 
     if(WIN32)
+        target_include_directories(${MODULE_NAME} PRIVATE ${CURL_DIR}/include)
         target_compile_definitions(${MODULE_NAME} PRIVATE
             WIN32_LEAN_AND_MEAN
             NOMINMAX
@@ -793,12 +913,12 @@ function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
         )
         if(MSVC)
             target_compile_options(${MODULE_NAME} PRIVATE /utf-8)
-        else()
-            # MinGW/GCC默认使用UTF-8，不需要特殊标志
         endif()
+    elseif(UNIX)
+        target_include_directories(${MODULE_NAME} PRIVATE ${CURL_INCLUDE_DIRS})
     endif()
 
-    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> ${CMAKE_BINARY_DIR}/Release/modules/ (with SystemModules)")
+    message(STATUS "  [Dynamic Module] ${MODULE_NAME} -> modules/ (with SystemModules)")
 endfunction()
 
 # 将ExportApiModule编译为动态库（阶段1）
@@ -848,41 +968,50 @@ add_dynamic_module_with_system(RecommendationApiModule
 # ============================================================================
 
 # 自动检测libxml2安装位置
-set(LIBXML2_SEARCH_PATHS
-    "C:/msys64/mingw64"              # MSYS2安装路径
-    "${CMAKE_SOURCE_DIR}/../core/external/libxml2"  # 项目本地路径
-    "$ENV{LIBXML2_ROOT}"             # 环境变量
-    "C:/vcpkg/installed/x64-mingw-dynamic"  # vcpkg
-)
+if(UNIX AND LIBXML2_FOUND)
+    message(STATUS "  - libxml2: found via pkg-config")
+    message(STATUS "    Include: ${LIBXML2_INCLUDE_DIRS}")
+    message(STATUS "    Library: ${LIBXML2_LIBRARIES}")
+    set(LibXml2_FOUND TRUE)
+    set(LIBXML2_INCLUDE_DIR ${LIBXML2_INCLUDE_DIRS})
+    set(LIBXML2_LIBRARY ${LIBXML2_LIBRARIES})
+else()
+    set(LIBXML2_SEARCH_PATHS
+        "C:/msys64/mingw64"              # MSYS2安装路径
+        "${CMAKE_SOURCE_DIR}/../core/external/libxml2"  # 项目本地路径
+        "$ENV{LIBXML2_ROOT}"             # 环境变量
+        "C:/vcpkg/installed/x64-mingw-dynamic"  # vcpkg
+    )
 
-# 查找libxml2头文件
-find_path(LIBXML2_INCLUDE_DIR
-    NAMES libxml/xpath.h libxml/parser.h
-    PATHS ${LIBXML2_SEARCH_PATHS}
-    PATH_SUFFIXES include/libxml2 include
-    DOC "libxml2 include directory"
-)
+    # 查找libxml2头文件
+    find_path(LIBXML2_INCLUDE_DIR
+        NAMES libxml/xpath.h libxml/parser.h
+        PATHS ${LIBXML2_SEARCH_PATHS}
+        PATH_SUFFIXES include/libxml2 include
+        DOC "libxml2 include directory"
+    )
 
-# 查找libxml2库文件
-find_library(LIBXML2_LIBRARY
-    NAMES libxml2 libxml2.dll.a libxml2.a
-    PATHS ${LIBXML2_SEARCH_PATHS}
-    PATH_SUFFIXES lib lib64
-    DOC "libxml2 library file"
-)
+    # 查找libxml2库文件
+    find_library(LIBXML2_LIBRARY
+        NAMES libxml2 libxml2.dll.a libxml2.a
+        PATHS ${LIBXML2_SEARCH_PATHS}
+        PATH_SUFFIXES lib lib64
+        DOC "libxml2 library file"
+    )
 
-# 查找libiconv（libxml2依赖）
-find_library(LIBXML2_ICONV_LIBRARY
-    NAMES libiconv libiconv-2.dll.a charset
-    PATHS ${LIBXML2_SEARCH_PATHS}
-    PATH_SUFFIXES lib lib64
-)
+    # 查找libiconv（libxml2依赖）
+    find_library(LIBXML2_ICONV_LIBRARY
+        NAMES libiconv libiconv-2.dll.a charset
+        PATHS ${LIBXML2_SEARCH_PATHS}
+        PATH_SUFFIXES lib lib64
+    )
 
-# 判断libxml2是否找到
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(LibXml2
-    REQUIRED_VARS LIBXML2_INCLUDE_DIR LIBXML2_LIBRARY
-)
+    # 判断libxml2是否找到
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(LibXml2
+        REQUIRED_VARS LIBXML2_INCLUDE_DIR LIBXML2_LIBRARY
+    )
+endif()
 
 # TemplateCrawlerModule - 模板爬虫引擎
 # 使用SHARED而不是MODULE，以便生成导入库供CrawlerApiModule链接
@@ -904,43 +1033,71 @@ add_library(TemplateCrawlerModule SHARED src/modules/TemplateCrawlerModule.cpp
     ${EXTERNAL_DIR}/gumbo/src/vector.c
 )
 
-# 使用避免嵌套Release目录的方式
-set_target_properties(TemplateCrawlerModule PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-    PREFIX "lib"
-    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
-)
+# Linux: gumbo C files need strings.h for strcasecmp/strncasecmp
+if(UNIX)
+    set_source_files_properties(
+        ${EXTERNAL_DIR}/gumbo/src/attribute.c
+        ${EXTERNAL_DIR}/gumbo/src/parser.c
+        ${EXTERNAL_DIR}/gumbo/src/string_piece.c
+        ${EXTERNAL_DIR}/gumbo/src/utf8.c
+        PROPERTIES COMPILE_FLAGS "-include ${EXTERNAL_DIR}/gumbo/src/strings.h"
+    )
+endif()
+
+# 输出到modules目录
+if(WIN32)
+    set_target_properties(TemplateCrawlerModule PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+        PREFIX "lib"
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/modules"
+    )
+else()
+    set_target_properties(TemplateCrawlerModule PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+        PREFIX "lib"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/modules"
+    )
+endif()
 
 target_include_directories(TemplateCrawlerModule
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/../core/include
-        ${CURL_DIR}/include
         ${EXTERNAL_DIR}/spdlog/include
         ${EXTERNAL_DIR}/nlohmann
         ${EXTERNAL_DIR}/gumbo/src
 )
 
+if(WIN32)
+    target_include_directories(TemplateCrawlerModule PRIVATE ${CURL_DIR}/include)
+elseif(UNIX)
+    target_include_directories(TemplateCrawlerModule PRIVATE ${CURL_INCLUDE_DIRS})
+endif()
+
 # 添加libxml2支持（如果找到）
 if(LibXml2_FOUND)
     message(STATUS "  - libxml2: FOUND")
-    message(STATUS "    Include: ${LIBXML2_INCLUDE_DIR}")
-    message(STATUS "    Library: ${LIBXML2_LIBRARY}")
 
     target_include_directories(TemplateCrawlerModule
         PRIVATE ${LIBXML2_INCLUDE_DIR}
     )
-    # 使用 DLL 导入库而不是静态库
-    target_link_libraries(TemplateCrawlerModule
-        PRIVATE C:/msys64/mingw64/lib/libxml2.dll.a
-    )
 
-    # 如果找到libiconv，也链接它
-    if(LIBXML2_ICONV_LIBRARY)
+    if(UNIX)
         target_link_libraries(TemplateCrawlerModule
-            PRIVATE ${LIBXML2_ICONV_LIBRARY}
+            PRIVATE ${LIBXML2_LIBRARIES}
         )
+    else()
+        # Windows: 使用 DLL 导入库
+        target_link_libraries(TemplateCrawlerModule
+            PRIVATE C:/msys64/mingw64/lib/libxml2.dll.a
+        )
+        if(LIBXML2_ICONV_LIBRARY)
+            target_link_libraries(TemplateCrawlerModule
+                PRIVATE ${LIBXML2_ICONV_LIBRARY}
+            )
+        endif()
     endif()
 
     # 定义宏，启用XPath支持
@@ -951,21 +1108,27 @@ endif()
 
 # 链接CURL库（TemplateCrawlerModule需要HttpClient）
 if(CURL_FOUND)
-    target_link_libraries(TemplateCrawlerModule PRIVATE
-        ${CURL_DIR}/lib/libcurl.dll.a
-        ${CURL_DIR}/lib/libcrypto.a
-        ${CURL_DIR}/lib/libssl.a
-        ${CURL_DIR}/lib/libnghttp2.a
-        ${CURL_DIR}/lib/libnghttp3.a
-        ${CURL_DIR}/lib/libngtcp2.a
-        ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
-        ${CURL_DIR}/lib/libssh2.a
-        ${CURL_DIR}/lib/libbrotlicommon.a
-        ${CURL_DIR}/lib/libbrotlidec.a
-        ${CURL_DIR}/lib/libz.a
-        ${CURL_DIR}/lib/libzstd.a
-        ${CURL_DIR}/lib/libpsl.a
-    )
+    if(WIN32)
+        target_link_libraries(TemplateCrawlerModule PRIVATE
+            ${CURL_DIR}/lib/libcurl.dll.a
+            ${CURL_DIR}/lib/libcrypto.a
+            ${CURL_DIR}/lib/libssl.a
+            ${CURL_DIR}/lib/libnghttp2.a
+            ${CURL_DIR}/lib/libnghttp3.a
+            ${CURL_DIR}/lib/libngtcp2.a
+            ${CURL_DIR}/lib/libngtcp2_crypto_libressl.a
+            ${CURL_DIR}/lib/libssh2.a
+            ${CURL_DIR}/lib/libbrotlicommon.a
+            ${CURL_DIR}/lib/libbrotlidec.a
+            ${CURL_DIR}/lib/libz.a
+            ${CURL_DIR}/lib/libzstd.a
+            ${CURL_DIR}/lib/libpsl.a
+        )
+    elseif(UNIX)
+        target_link_libraries(TemplateCrawlerModule PRIVATE
+            ${CURL_LIBRARIES}
+        )
+    endif()
 endif()
 
 # TemplateCrawlerModule Windows配置
@@ -980,7 +1143,7 @@ if(WIN32)
     endif()
 endif()
 
-message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> ${CMAKE_BINARY_DIR}/Release/modules/ (with nlohmann/json)")
+message(STATUS "  [Dynamic Module] TemplateCrawlerModule -> modules/ (with nlohmann/json)")
 
 # DistributedTaskModule - 分布式任务调度 (已修复DataPreparedStatement依赖)
 add_dynamic_module_with_system(DistributedTaskModule
@@ -1012,8 +1175,9 @@ message(STATUS "================================================================
 message(STATUS "")
 
 # ============================================================================
-# 第三方依赖库自动部署
+# 第三方依赖库自动部署 (Windows only)
 # ============================================================================
+if(WIN32)
 
 message(STATUS "")
 message(STATUS "================== Third-party Dependencies Deployment ==========")
@@ -1138,6 +1302,8 @@ else()
     message(WARNING "Modules directory not found: ${MODULES_DLL_SOURCE_DIR}")
 endif()
 
+endif() # WIN32 - 第三方依赖DLL部署和模块DLL复制结束
+
 # ============================================================================
 # 自动复制配置文件到build目录
 # ============================================================================
@@ -1148,7 +1314,12 @@ message(STATUS "Config Files Auto-Deployment")
 message(STATUS "==========================================================================")
 
 set(CONFIG_SOURCE_DIR "${CMAKE_SOURCE_DIR}/config")
-set(CONFIG_TARGET_DIR "${CMAKE_BINARY_DIR}/Release/config")
+
+if(WIN32)
+    set(CONFIG_TARGET_DIR "${CMAKE_BINARY_DIR}/Release/config")
+else()
+    set(CONFIG_TARGET_DIR "${CMAKE_BINARY_DIR}/config")
+endif()
 
 # 检查源配置目录是否存在
 if(EXISTS "${CONFIG_SOURCE_DIR}")
@@ -1194,6 +1365,32 @@ if(EXISTS "${CONFIG_SOURCE_DIR}")
     message(STATUS "         Without modules.json, only management APIs will be loaded")
 else()
     message(WARNING "Config directory not found: ${CONFIG_SOURCE_DIR}")
+endif()
+
+message(STATUS "==========================================================================")
+message(STATUS "")
+
+# ============================================================================
+# 一键启动脚本部署 (Linux)
+# ============================================================================
+if(UNIX)
+    set(START_SCRIPT_SOURCE "${CMAKE_SOURCE_DIR}/scripts/start-server.sh")
+    if(EXISTS "${START_SCRIPT_SOURCE}")
+        add_custom_command(TARGET PaperCrawlerServerHotPlug POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${START_SCRIPT_SOURCE}"
+                "${CMAKE_BINARY_DIR}/start-server.sh"
+            COMMENT "Copying start-server.sh to build directory"
+            VERBATIM
+        )
+        # 设置可执行权限
+        add_custom_command(TARGET PaperCrawlerServerHotPlug POST_BUILD
+            COMMAND chmod +x ${CMAKE_BINARY_DIR}/start-server.sh
+            COMMENT "Setting executable permission on start-server.sh"
+            VERBATIM
+        )
+        message(STATUS "  start-server.sh -> ${CMAKE_BINARY_DIR}/start-server.sh")
+    endif()
 endif()
 
 message(STATUS "==========================================================================")

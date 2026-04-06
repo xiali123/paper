@@ -1,14 +1,12 @@
 #pragma once
 
-// Windows上strings.h的替代实现
-#ifndef _MSC_VER
-#error This strings.h replacement is for Windows (MSVC) only
-#endif
-
+// strings.h - platform compatibility
+#ifdef _MSC_VER
+// Windows MSVC doesn't have strings.h
 #include <string.h>
-
-// strncasecmp的Windows替代
 #define strncasecmp _strnicmp
-
-// strcasecmp的Windows替代
 #define strcasecmp _stricmp
+#else
+// Linux/macOS have native strings.h
+#include <strings.h>
+#endif

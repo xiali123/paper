@@ -19,6 +19,8 @@
 #else
     #include <sys/sysinfo.h>
     #include <sys/resource.h>
+    #include <sys/utsname.h>
+    #include <sys/statvfs.h>
     #include <unistd.h>
 #endif
 

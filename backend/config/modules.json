@@ -10,7 +10,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/auth",
-      "libraryPath": "modules/libAuthApiModule.dll",
+      "libraryPath": "modules/libAuthApiModule.so",
       "loadPriority": 1,
       "endpoints": [
         "POST /api/auth/login",
@@ -30,7 +30,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/users",
-      "libraryPath": "modules/libUserApiModule.dll",
+      "libraryPath": "modules/libUserApiModule.so",
       "loadPriority": 2,
       "endpoints": [
         "GET /api/users",
@@ -50,7 +50,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/papers",
-      "libraryPath": "modules/libPaperApiModule.dll",
+      "libraryPath": "modules/libPaperApiModule.so",
       "loadPriority": 3,
       "endpoints": [
         "GET /api/papers",
@@ -74,7 +74,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/search",
-      "libraryPath": "modules/libSearchApiModule.dll",
+      "libraryPath": "modules/libSearchApiModule.so",
       "loadPriority": 4,
       "endpoints": [
         "GET /api/search",
@@ -92,7 +92,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/stats",
-      "libraryPath": "modules/libStatsApiModule.dll",
+      "libraryPath": "modules/libStatsApiModule.so",
       "loadPriority": 5,
       "endpoints": [
         "GET /api/stats/overview",
@@ -111,7 +111,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/export",
-      "libraryPath": "modules/libExportApiModule.dll",
+      "libraryPath": "modules/libExportApiModule.so",
       "loadPriority": 6,
       "endpoints": [
         "GET /api/export/papers",
@@ -129,7 +129,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/ai",
-      "libraryPath": "modules/libAiApiModule.dll",
+      "libraryPath": "modules/libAiApiModule.so",
       "loadPriority": 7,
       "endpoints": [
         "GET /api/assistant",
@@ -148,7 +148,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/recommendations",
-      "libraryPath": "modules/libRecommendationApiModule.dll",
+      "libraryPath": "modules/libRecommendationApiModule.so",
       "loadPriority": 8,
       "endpoints": [
         "GET /api/recommendations",
@@ -166,7 +166,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/crawler/templates",
-      "libraryPath": "modules/libTemplateCrawlerModule.dll",
+      "libraryPath": "modules/libTemplateCrawlerModule.so",
       "loadPriority": 11,
       "endpoints": [
         "GET /api/crawler/templates",
@@ -187,7 +187,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/crawler",
-      "libraryPath": "modules/libCrawlerApiModule.dll",
+      "libraryPath": "modules/libCrawlerApiModule.so",
       "loadPriority": 10,
       "endpoints": [
         "GET /api/crawler/tasks",
@@ -210,7 +210,7 @@
       "author": "PaperCrawler Team",
       "license": "MIT",
       "routePrefix": "/api/distributed",
-      "libraryPath": "modules/libDistributedTaskModule.dll",
+      "libraryPath": "modules/libDistributedTaskModule.so",
       "loadPriority": 9,
       "endpoints": [
         "GET /api/distributed/workers",

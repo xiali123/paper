@@ -1,5 +1,6 @@
 #include "data/RedisConnectionPool.hpp"
 #include <chrono>
+#include <algorithm>
 #include <stdexcept>
 
 namespace PaperCrawler {

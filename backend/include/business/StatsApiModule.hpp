@@ -12,6 +12,7 @@
 #include <functional>
 #include <optional>
 #include <memory>
+#include <thread>
 
 namespace PaperCrawler {
 

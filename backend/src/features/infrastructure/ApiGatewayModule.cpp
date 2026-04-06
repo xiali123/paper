@@ -20,6 +20,7 @@
     #include <unistd.h>
     #define INVALID_SOCKET -1
     #define SOCKET_ERROR -1
+    #define closesocket close
     typedef int SOCKET;
 #endif
 

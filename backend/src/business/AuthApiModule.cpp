@@ -1520,10 +1520,7 @@ std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std:
         }, 401);
     }
 
-    return buildJsonResponse({
-        {"success", "true"},
-        {"user", user->toJSON()}
-    });
+    return "{\"success\":true,\"user\":" + user->toJSON() + "}";
 }
 
 // std::string AuthApiModule::handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers) {
