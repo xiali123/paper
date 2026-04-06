@@ -421,6 +421,157 @@ void CollaborativeWritingModule::registerRoutes() {
             return buildErrorResponse(500, e.what());
         }
     });
+
+    // DELETE /api/writing/documents/:id — 删除文档
+    router.del(prefix + "/documents/:id", [this](const HttpRequest& req) {
+        try {
+            int docId = std::stoi(getParam(req.pathParams, "id", "0"));
+            bool ok = deleteDocument(docId);
+            if (ok) {
+                HttpResponse resp;
+                resp.statusCode = 200;
+                resp.headers["Content-Type"] = "application/json";
+                resp.body = buildJsonResponse(true, "Document deleted");
+                return resp;
+            }
+            return buildErrorResponse(404, "Document not found");
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] deleteDocument error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // GET /api/writing/documents/:id/comments — 获取评论列表
+    router.get(prefix + "/documents/:id/comments", [this](const HttpRequest& req) {
+        try {
+            int docId = std::stoi(getParam(req.pathParams, "id", "0"));
+            auto comments = getComments(docId);
+
+            HttpResponse resp;
+            resp.statusCode = 200;
+            resp.headers["Content-Type"] = "application/json";
+            nlohmann::json data;
+            nlohmann::json arr = nlohmann::json::array();
+            for (const auto& comment : comments) {
+                nlohmann::json item;
+                auto idIt = comment.find("id");
+                auto docIdIt = comment.find("document_id");
+                auto userIdIt = comment.find("user_id");
+                auto contentIt = comment.find("content");
+                auto posStartIt = comment.find("position_start");
+                auto posEndIt = comment.find("position_end");
+                auto parentIdIt = comment.find("parent_id");
+                auto resolvedIt = comment.find("is_resolved");
+                auto createdAtIt = comment.find("created_at");
+
+                if (idIt != comment.end()) item["id"] = safeStoi(idIt->second);
+                if (docIdIt != comment.end()) item["document_id"] = safeStoi(docIdIt->second);
+                if (userIdIt != comment.end()) item["user_id"] = safeStoi(userIdIt->second);
+                if (contentIt != comment.end()) item["content"] = contentIt->second;
+                if (posStartIt != comment.end()) item["position_start"] = safeStoi(posStartIt->second);
+                if (posEndIt != comment.end()) item["position_end"] = safeStoi(posEndIt->second);
+                if (parentIdIt != comment.end()) item["parent_id"] = safeStoi(parentIdIt->second);
+                if (resolvedIt != comment.end()) item["is_resolved"] = resolvedIt->second == "1";
+                if (createdAtIt != comment.end()) item["created_at"] = createdAtIt->second;
+                arr.push_back(item);
+            }
+            data["comments"] = arr;
+            data["total"] = comments.size();
+            resp.body = buildJsonResponse(true, "", data);
+            return resp;
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] getComments error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // POST /api/writing/documents/:id/versions — 创建版本
+    router.post(prefix + "/documents/:id/versions", [this](const HttpRequest& req) {
+        try {
+            int docId = std::stoi(getParam(req.pathParams, "id", "0"));
+            auto json = nlohmann::json::parse(req.body);
+            std::string summary = json.value<std::string>("summary", "");
+
+            // 获取文档的owner_id作为created_by
+            auto docOpt = getDocument(docId);
+            if (!docOpt.has_value()) {
+                return buildErrorResponse(404, "Document not found");
+            }
+            int userId = docOpt->ownerId;
+
+            bool ok = createVersion(docId, userId, summary);
+            if (ok) {
+                HttpResponse resp;
+                resp.statusCode = 201;
+                resp.headers["Content-Type"] = "application/json";
+                resp.body = buildJsonResponse(true, "Version created");
+                return resp;
+            }
+            return buildErrorResponse(500, "Failed to create version");
+        } catch (const nlohmann::json::parse_error&) {
+            return buildErrorResponse(400, "Invalid JSON format");
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] createVersion error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // PUT /api/writing/suggestions/:id/accept — 接受建议
+    router.put(prefix + "/suggestions/:id/accept", [this](const HttpRequest& req) {
+        try {
+            int suggestionId = std::stoi(getParam(req.pathParams, "id", "0"));
+            bool ok = acceptSuggestion(suggestionId);
+            if (ok) {
+                HttpResponse resp;
+                resp.statusCode = 200;
+                resp.headers["Content-Type"] = "application/json";
+                resp.body = buildJsonResponse(true, "Suggestion accepted");
+                return resp;
+            }
+            return buildErrorResponse(404, "Suggestion not found");
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] acceptSuggestion error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // PUT /api/writing/suggestions/:id/reject — 拒绝建议
+    router.put(prefix + "/suggestions/:id/reject", [this](const HttpRequest& req) {
+        try {
+            int suggestionId = std::stoi(getParam(req.pathParams, "id", "0"));
+            bool ok = rejectSuggestion(suggestionId);
+            if (ok) {
+                HttpResponse resp;
+                resp.statusCode = 200;
+                resp.headers["Content-Type"] = "application/json";
+                resp.body = buildJsonResponse(true, "Suggestion rejected");
+                return resp;
+            }
+            return buildErrorResponse(404, "Suggestion not found");
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] rejectSuggestion error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // PUT /api/writing/comments/:id/resolve — 解决评论
+    router.put(prefix + "/comments/:id/resolve", [this](const HttpRequest& req) {
+        try {
+            int commentId = std::stoi(getParam(req.pathParams, "id", "0"));
+            bool ok = resolveComment(commentId);
+            if (ok) {
+                HttpResponse resp;
+                resp.statusCode = 200;
+                resp.headers["Content-Type"] = "application/json";
+                resp.body = buildJsonResponse(true, "Comment resolved");
+                return resp;
+            }
+            return buildErrorResponse(404, "Comment not found");
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] resolveComment error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
 }
 
 // ============================================================================
@@ -497,16 +648,25 @@ bool CollaborativeWritingModule::updateDocument(int documentId, const std::strin
         if (!title.empty()) sets.push_back("title = '" + escapeSql(title) + "'");
         if (!status.empty()) sets.push_back("status = '" + escapeSql(status) + "'");
 
-        if (sets.empty()) return true; // 没有更新内容
+        if (sets.empty()) {
+            // 至少更新updated_at
+            std::string sql = "UPDATE collaborative_documents SET updated_at = NOW() WHERE id = " + std::to_string(documentId);
+            return database_->execute(sql);
+        }
 
+        // 添加word_count和updated_at
         int wordCount = static_cast<int>(
             std::count_if(content.begin(), content.end(), [](unsigned char c) { return std::isprint(c) || c == '\n'; }));
         sets.push_back("word_count = " + std::to_string(wordCount));
         sets.push_back("updated_at = NOW()");
 
-        std::string sql = "UPDATE collaborative_documents SET " +
-                        std::accumulate(sets.begin(), sets.end(), std::string(", ")) +
-                        " WHERE id = " + std::to_string(documentId);
+        // 正确拼接SET子句（用逗号分隔）
+        std::string setClause = sets[0];
+        for (size_t i = 1; i < sets.size(); ++i) {
+            setClause += ", " + sets[i];
+        }
+
+        std::string sql = "UPDATE collaborative_documents SET " + setClause + " WHERE id = " + std::to_string(documentId);
 
         return database_->execute(sql);
     } catch (const std::exception& e) {
@@ -852,15 +1012,28 @@ bool CollaborativeWritingModule::rejectSuggestion(int suggestionId) {
 bool CollaborativeWritingModule::createVersion(int documentId, int userId, const std::string& summary) {
     try {
         auto docOpt = getDocument(documentId);
-        if (!docOpt.has_value()) return false;
+        if (!docOpt.has_value()) {
+            spdlog::error("[Writing] createVersion: document {} not found", documentId);
+            return false;
+        }
+
+        // 验证用户是否存在
+        auto userCheck = database_->query("SELECT id FROM users WHERE id = " + std::to_string(userId));
+        if (userCheck.empty()) {
+            spdlog::error("[Writing] createVersion: user {} not found", userId);
+            return false;
+        }
 
         std::string content = docOpt->content;
 
         // 获取当前最大版本号
         auto verResults = database_->query(
-            "SELECT COALESCE(MAX(version_number), 0) FROM document_versions WHERE document_id = "
+            "SELECT COALESCE(MAX(version_number), 0) as max_ver FROM document_versions WHERE document_id = "
             + std::to_string(documentId));
-        int nextVersion = verResults.empty() ? 1 : std::stoi(verResults[0]["COALESCE(MAX(version_number), 0)"]) + 1;
+        int nextVersion = 1;
+        if (!verResults.empty() && !verResults[0]["max_ver"].empty()) {
+            nextVersion = safeStoi(verResults[0]["max_ver"]) + 1;
+        }
 
         int wordCount = static_cast<int>(
             std::count_if(content.begin(), content.end(), [](unsigned char c) { return std::isprint(c) || c == '\n'; }));
@@ -873,7 +1046,12 @@ bool CollaborativeWritingModule::createVersion(int documentId, int userId, const
                         + escapeSql(summary) + "', "
                         + std::to_string(wordCount) + ", "
                         + std::to_string(userId) + ")";
-        return database_->execute(sql);
+
+        spdlog::info("[Writing] createVersion SQL: {}", sql);
+
+        bool result = database_->execute(sql);
+        spdlog::info("[Writing] createVersion result: {}", result);
+        return result;
     } catch (const std::exception& e) {
         spdlog::error("[Writing] createVersion error: {}", e.what());
         return false;
