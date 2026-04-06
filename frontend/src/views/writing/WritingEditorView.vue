@@ -14,17 +14,8 @@
         <el-skeleton v-else animated :rows="1" style="width: 300px" />
       </div>
       <div class="header-right">
-        <el-button :icon="ChatDotRound" @click="togglePanel('comment')">
-          评论 {{ comments.length > 0 ? `(${comments.length})` : '' }}
-        </el-button>
-        <el-button :icon="View" @click="togglePanel('preview')">
-          预览
-        </el-button>
         <el-button type="success" :icon="MagicStick" :loading="suggestionsLoading" @click="handleGenerateSuggestion">
           AI 建议
-        </el-button>
-        <el-button :icon="Clock" @click="togglePanel('version')">
-          版本历史
         </el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">
           保存
@@ -37,24 +28,27 @@
       <el-skeleton animated :rows="15" />
     </div>
 
-    <!-- 主体内容 -->
-    <div v-else class="editor-body">
-      <!-- 左侧：评论面板 -->
-      <CommentPanel
-        v-if="visiblePanels.comment"
-        :comments="comments"
-        :loading="commentsLoading"
-        @add="handleAddComment"
-        @resolve="handleResolveComment"
-        class="side-panel side-panel--left"
-      />
-
-      <!-- 中间：LaTeX 编辑区 -->
-      <div class="editor-main">
+    <!-- 主体内容 - 左右分屏布局 -->
+    <div v-else class="editor-body split-layout">
+      <!-- 左侧：LaTeX 编辑器 (50%) -->
+      <div class="editor-panel">
+        <div class="panel-header">
+          <span class="panel-title">LaTeX 编辑器</span>
+          <div class="panel-actions">
+            <el-button
+              size="small"
+              :icon="ChatDotRound"
+              @click="visiblePanels.tools = !visiblePanels.tools"
+              :type="visiblePanels.tools ? 'primary' : ''"
+            >
+              工具
+            </el-button>
+          </div>
+        </div>
         <LatexEditor
           v-model="editContent"
           @change="handleContentChange"
-          class="latex-editor-wrapper"
+          class="latex-editor-full"
         />
         <div class="editor-status-bar">
           <span>字数：{{ wordCount }}</span>
@@ -62,32 +56,63 @@
         </div>
       </div>
 
-      <!-- 右侧：预览面板 -->
-      <LatexPreview
-        v-if="visiblePanels.preview"
-        :content="editContent"
-        class="side-panel side-panel--right"
-      />
+      <!-- 分隔条 -->
+      <div class="resizer" @mousedown="startResize"></div>
 
-      <!-- 右侧：AI 建议面板 -->
-      <AiSuggestionPanel
-        v-if="visiblePanels.suggestion"
-        :suggestions="suggestions"
-        :loading="suggestionsLoading"
-        @accept="handleAcceptSuggestion"
-        @reject="handleRejectSuggestion"
-        @generate="handleGenerateSuggestion"
-        class="side-panel side-panel--right"
-      />
+      <!-- 右侧：KaTeX 预览 (50%) -->
+      <div class="preview-panel" :style="{ width: previewWidth + '%' }">
+        <div class="panel-header">
+          <span class="panel-title">预览</span>
+          <div class="panel-actions">
+            <el-button
+              size="small"
+              @click="togglePanel('comment')"
+              :type="visiblePanels.comment ? 'primary' : ''"
+            >
+              评论 {{ comments.length > 0 ? `(${comments.length})` : '' }}
+            </el-button>
+          </div>
+        </div>
+        <LatexPreview
+          :content="editContent"
+          class="preview-full"
+        />
+      </div>
 
-      <!-- 右侧：版本历史面板 -->
-      <VersionHistory
-        v-if="visiblePanels.version"
-        :versions="versions"
-        :loading="versionsLoading"
-        @create="handleCreateVersion"
-        class="side-panel side-panel--right"
-      />
+      <!-- 浮动工具面板 (抽屉) -->
+      <el-drawer
+        v-model="visiblePanels.tools"
+        direction="ltr"
+        :size="320"
+        title="工具面板"
+      >
+        <el-tabs>
+          <el-tab-pane label="AI 建议">
+            <AiSuggestionPanel
+              :suggestions="suggestions"
+              :loading="suggestionsLoading"
+              @accept="handleAcceptSuggestion"
+              @reject="handleRejectSuggestion"
+              @generate="handleGenerateSuggestion"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="版本历史">
+            <VersionHistory
+              :versions="versions"
+              :loading="versionsLoading"
+              @create="handleCreateVersion"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="评论">
+            <CommentPanel
+              :comments="comments"
+              :loading="commentsLoading"
+              @add="handleAddComment"
+              @resolve="handleResolveComment"
+            />
+          </el-tab-pane>
+        </el-tabs>
+      </el-drawer>
     </div>
   </div>
 </template>
@@ -104,7 +129,7 @@ import AiSuggestionPanel from '@/components/writing/AiSuggestionPanel.vue'
 import VersionHistory from '@/components/writing/VersionHistory.vue'
 import LatexEditor from '@/components/latex/LatexEditor.vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
-import { ArrowLeft, ChatDotRound, MagicStick, Clock, View } from '@element-plus/icons-vue'
+import { ArrowLeft, ChatDotRound, MagicStick } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -127,12 +152,17 @@ const editTitle = ref('')
 const editContent = ref('')
 const autoSaveStatus = ref('就绪')
 
+// 分屏布局状态
+const previewWidth = ref(50)  // 预览宽度百分比
+const isResizing = ref(false)
+
 // 面板可见性控制
 const visiblePanels = ref({
   comment: false,
-  preview: true,  // 默认显示预览
+  preview: true,
   suggestion: false,
-  version: false
+  version: false,
+  tools: false  // 工具面板（抽屉）
 })
 
 // 面板切换逻辑
@@ -151,6 +181,32 @@ function togglePanel(panel: 'comment' | 'preview' | 'suggestion' | 'version') {
       if (visiblePanels.value.version) visiblePanels.value.suggestion = false
     }
   }
+}
+
+// 拖拽调整大小
+function startResize(e: MouseEvent) {
+  isResizing.value = true
+  document.addEventListener('mousemove', onResize)
+  document.addEventListener('mouseup', stopResize)
+}
+
+function onResize(e: MouseEvent) {
+  if (!isResizing.value) return
+
+  const container = document.querySelector('.editor-body') as HTMLElement
+  if (!container) return
+
+  const rect = container.getBoundingClientRect()
+  const percentage = ((e.clientX - rect.left) / rect.width) * 100
+
+  // 限制在 20% - 80% 之间
+  previewWidth.value = Math.max(20, Math.min(80, 100 - percentage))
+}
+
+function stopResize() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', onResize)
+  document.removeEventListener('mouseup', stopResize)
 }
 
 const wordCount = computed(() => editContent.value.length)
@@ -352,23 +408,110 @@ onUnmounted(() => {
   padding: 40px;
 }
 
+// 左右分屏布局
 .editor-body {
   flex: 1;
   display: flex;
   overflow: hidden;
+
+  &.split-layout {
+    position: relative;
+  }
 }
 
-.editor-main {
+.editor-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
   background: var(--el-bg-color);
+  border-right: 1px solid var(--el-border-color-lighter);
 }
 
-.latex-editor-wrapper {
+.preview-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--el-bg-color-page);
+  transition: width 0.1s ease;
+}
+
+// 拖拽分隔条
+.resizer {
+  width: 4px;
+  background: var(--el-border-color);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  position: relative;
+  z-index: 10;
+
+  &:hover {
+    background: var(--el-color-primary);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 40px;
+    background: var(--el-color-primary);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  &:hover::after {
+    opacity: 0.2;
+  }
+}
+
+// 面板头部
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
+// 全高编辑器和预览
+.latex-editor-full,
+.preview-full {
   flex: 1;
   min-height: 0;
+}
+
+// 移除旧的面板样式
+.side-panel {
+  width: 320px;
+  border-left: 1px solid var(--el-border-color-lighter);
+  border-right: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color-page);
+
+  &--left {
+    border-right: none;
+  }
+
+  &--right {
+    border-left: none;
+  }
 }
 
 .editor-status-bar {
