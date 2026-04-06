@@ -17,6 +17,9 @@
         <el-button :icon="ChatDotRound" @click="togglePanel('comment')">
           评论 {{ comments.length > 0 ? `(${comments.length})` : '' }}
         </el-button>
+        <el-button :icon="View" @click="togglePanel('preview')">
+          预览
+        </el-button>
         <el-button type="success" :icon="MagicStick" :loading="suggestionsLoading" @click="handleGenerateSuggestion">
           AI 建议
         </el-button>
@@ -46,20 +49,25 @@
         class="side-panel side-panel--left"
       />
 
-      <!-- 中间：编辑区 -->
+      <!-- 中间：LaTeX 编辑区 -->
       <div class="editor-main">
-        <textarea
-          ref="editorRef"
+        <LatexEditor
           v-model="editContent"
-          class="editor-textarea"
-          placeholder="开始写作..."
-          @input="handleContentChange"
+          @change="handleContentChange"
+          class="latex-editor-wrapper"
         />
         <div class="editor-status-bar">
           <span>字数：{{ wordCount }}</span>
           <span>{{ autoSaveStatus }}</span>
         </div>
       </div>
+
+      <!-- 右侧：预览面板 -->
+      <LatexPreview
+        v-if="visiblePanels.preview"
+        :content="editContent"
+        class="side-panel side-panel--right"
+      />
 
       <!-- 右侧：AI 建议面板 -->
       <AiSuggestionPanel
@@ -94,7 +102,9 @@ import type { WritingSuggestion } from '@/types/collaborative'
 import CommentPanel from '@/components/writing/CommentPanel.vue'
 import AiSuggestionPanel from '@/components/writing/AiSuggestionPanel.vue'
 import VersionHistory from '@/components/writing/VersionHistory.vue'
-import { ArrowLeft, ChatDotRound, MagicStick, Clock } from '@element-plus/icons-vue'
+import LatexEditor from '@/components/latex/LatexEditor.vue'
+import LatexPreview from '@/components/latex/LatexPreview.vue'
+import { ArrowLeft, ChatDotRound, MagicStick, Clock, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -113,7 +123,6 @@ const {
   commentsLoading
 } = storeToRefs(writingStore)
 
-const editorRef = ref<HTMLTextAreaElement>()
 const editTitle = ref('')
 const editContent = ref('')
 const autoSaveStatus = ref('就绪')
@@ -121,14 +130,17 @@ const autoSaveStatus = ref('就绪')
 // 面板可见性控制
 const visiblePanels = ref({
   comment: false,
-  suggestion: true,
+  preview: true,  // 默认显示预览
+  suggestion: false,
   version: false
 })
 
 // 面板切换逻辑
-function togglePanel(panel: 'comment' | 'suggestion' | 'version') {
+function togglePanel(panel: 'comment' | 'preview' | 'suggestion' | 'version') {
   if (panel === 'comment') {
     visiblePanels.value.comment = !visiblePanels.value.comment
+  } else if (panel === 'preview') {
+    visiblePanels.value.preview = !visiblePanels.value.preview
   } else {
     // 建议和版本互斥
     if (panel === 'suggestion') {
@@ -354,18 +366,9 @@ onUnmounted(() => {
   background: var(--el-bg-color);
 }
 
-.editor-textarea {
+.latex-editor-wrapper {
   flex: 1;
-  width: 100%;
-  border: none;
-  outline: none;
-  resize: none;
-  padding: 24px;
-  font-size: 16px;
-  line-height: 1.8;
-  font-family: inherit;
-  color: var(--el-text-color-primary);
-  background: transparent;
+  min-height: 0;
 }
 
 .editor-status-bar {

@@ -83,6 +83,8 @@ declare module 'vue' {
     ImpactChart: typeof import('./../components/charts/ImpactChart.vue')['default']
     InterestRadar: typeof import('./../components/charts/InterestRadar.vue')['default']
     LanguageSwitcher: typeof import('./../components/LanguageSwitcher.vue')['default']
+    LatexEditor: typeof import('./../components/latex/LatexEditor.vue')['default']
+    LatexPreview: typeof import('./../components/latex/LatexPreview.vue')['default']
     LiteratureReviewDisplay: typeof import('./../components/ai/LiteratureReviewDisplay.vue')['default']
     LiteratureReviewPanel: typeof import('./../components/ai/LiteratureReviewPanel.vue')['default']
     LoadingSpinner: typeof import('./../components/common/LoadingSpinner.vue')['default']
