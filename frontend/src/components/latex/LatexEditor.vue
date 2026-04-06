@@ -195,7 +195,7 @@ function handleCommand(cmd: string) {
   :deep(.token.comment),
   :deep(.token.prolog),
   :deep(.token.doctype),
-  :deep(.token.cdata {
+  :deep(.token.cdata) {
     color: #6a737d;
   }
 
