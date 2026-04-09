@@ -8,7 +8,15 @@
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
+    "lint:fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "format": "prettier --write src/",
+    "type-check": "vue-tsc --noEmit",
+    "test": "vitest",
+    "test:unit": "vitest --type-check --reporter=verbose",
+    "test:e2e": "cypress run",
+    "test:performance": "k6 run tests/performance/script.js",
+    "quality-check": "npm run lint && npm run type-check && npm run test:unit",
+    "ci:validate": "npm run quality-check && npm run build"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
@@ -20,6 +28,7 @@
     "element-plus": "^2.6.3",
     "katex": "^0.16.45",
     "lodash-es": "^4.17.21",
+    "monaco-editor": "^0.55.1",
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^3.2.3",

@@ -6,7 +6,7 @@
     </div>
 
     <div class="preview-content" ref="contentRef">
-      <div v-if="!content" class="preview-empty">
+      <div v-if="!props.content" class="preview-empty">
         <el-empty description="输入 LaTeX 内容以预览" :image-size="60" />
       </div>
       <div v-else-if="renderError" class="preview-error">
@@ -22,17 +22,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
 interface Props {
   content: string
   theme?: 'light' | 'dark'
+  scale?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  theme: 'light'
+  theme: 'light',
+  scale: 1.0
 })
 
 const contentRef = ref<HTMLElement>()
@@ -41,7 +43,12 @@ const renderedHtml = ref('')
 
 // 渲染 LaTeX 内容
 function renderLatex() {
-  if (!props.content?.trim()) {
+  console.log('Rendering LaTeX, content length:', props.content?.length, 'content preview:', props.content?.substring(0, 50))
+
+  // For testing, if content is empty, use a test content
+  const contentToRender = props.content?.trim() || '\\section{Test}This is a test with math: $E = mc^2$';
+
+  if (!contentToRender) {
     renderedHtml.value = ''
     renderError.value = null
     return
@@ -52,7 +59,7 @@ function renderLatex() {
     let html = props.content
 
     // 渲染行内公式 $...$
-    html = html.replace(/\$([^$\n]+?)\$/g, (match, math) => {
+    html = html.replace(/\$([^$\n]+?)\$/g, (_match, math) => {
       try {
         return katex.renderToString(math, {
           displayMode: false,
@@ -67,7 +74,7 @@ function renderLatex() {
     })
 
     // 渲染块级公式 $$...$$
-    html = html.replace(/\$\$([^$]+?)\$\$/g, (match, math) => {
+    html = html.replace(/\$\$([^$]+?)\$\$/g, (_match, math) => {
       try {
         return katex.renderToString(math, {
           displayMode: true,
@@ -108,20 +115,24 @@ function renderLatexStructure(latex: string): string {
   html = html.replace(/\\emph\{([^}]+)\}/g, '<em>$1</em>')
 
   // 处理列表（简化）
-  html = html.replace(/\\begin\{itemize\}([\s\S]*?)\\end\{itemize\}/g, (_, content) => {
-    const items = content.split('\\item').filter(s => s.trim())
-    return '<ul>' + items.map(item => `<li>${item}</li>`).join('') + '</ul>'
+  html = html.replace(/\\begin\{itemize\}([\s\S]*?)\\end\{itemize\}/g, (_match, content) => {
+    const items = content.split('\\item').filter((s: string) => s.trim())
+    return '<ul>' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ul>'
   })
 
-  html = html.replace(/\\begin\{enumerate\}([\s\S]*?)\\end\{enumerate\}/g, (_, content) => {
-    const items = content.split('\\item').filter(s => s.trim())
-    return '<ol>' + items.map(item => `<li>${item}</li>`).join('') + '</ol>'
+  html = html.replace(/\\begin\{enumerate\}([\s\S]*?)\\end\{enumerate\}/g, (_match, content) => {
+    const items = content.split('\\item').filter((s: string) => s.trim())
+    return '<ol>' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ol>'
   })
 
   // 处理换行
   html = html.replace(/\\\\/g, '<br>')
-  html = html.replace(/\n\n/g, '</p><p>')
-  html = '<p>' + html + '</p>'
+
+  // Only wrap in paragraphs if we don't already have HTML structure
+  if (!html.includes('<h2>') && !html.includes('<h3>') && !html.includes('<ul>') && !html.includes('<ol>')) {
+    html = html.replace(/\n\n/g, '</p><p>')
+    html = '<p>' + html + '</p>'
+  }
 
   // 清理空标签
   html = html.replace(/<p>\s*<\/p>/g, '')
@@ -138,13 +149,20 @@ function handleMathClick(event: MouseEvent) {
 }
 
 // 监听内容变化
-watch(() => props.content, () => {
+watch(() => props.content, (newContent, oldContent) => {
+  console.log('LatexPreview content changed:', { newLength: newContent?.length, oldLength: oldContent?.length })
   renderLatex()
-}, { immediate: true })
+}, { immediate: true, deep: true })
 
 // 暴露刷新方法
 defineExpose({
   refresh: renderLatex
+})
+
+// 组件挂载时强制渲染一次
+onMounted(() => {
+  console.log('LatexPreview mounted, forcing initial render')
+  renderLatex()
 })
 </script>
 
@@ -191,7 +209,7 @@ defineExpose({
 
 .preview-rendered {
   font-family: 'Latin Modern Math', 'Times New Roman', serif;
-  font-size: 14px;
+  font-size: calc(14px * v-bind('props.scale'));
   line-height: 1.8;
   color: var(--el-text-color-primary);
 

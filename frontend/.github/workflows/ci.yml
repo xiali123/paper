@@ -1,0 +1,513 @@
+name: LaTeX Editor CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, feature/latex-editor-enhancement, feature/*]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  quality-check:
+    name: 🔍 Quality Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: 📦 Install dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npm cache clean --force
+
+      - name: 🔍 Lint check
+        run: |
+          npm run lint
+          npm run type-check
+
+      - name: 🧪 Run unit tests
+        run: |
+          npm run test:unit -- --coverage --coverage-reporter=json --coverage-reporter=text
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-frontend
+
+      - name: 🏗️ Build check
+        run: |
+          npm run build
+          npm run build:types
+
+      - name: 📈 Bundle size analysis
+        run: |
+          npm run build -- --analyze
+          du -sh dist/
+
+  e2e-test:
+    name: 🧪 E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-check
+
+    services:
+      chrome:
+        image: selenium/standalone-chrome:latest
+        options: >-
+          --shm-size=2gb
+          --health-cmd "curl http://localhost:4444/wd/hub/status"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: 🧪 Run E2E tests with Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+          headless: true
+          start: npm run dev
+          wait-on: 'http://localhost:5173'
+          wait-on-timeout: 120
+          record: true
+          parallel: true
+          group: 'E2E Tests'
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📊 Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-results
+          path: |
+            cypress/videos/**
+            cypress/screenshots/**
+            cypress/reports/**
+
+  performance-test:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality-check
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: 🔧 Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: 🏗️ Build application
+        run: npm run build
+
+      - name: 🌐 Start server for testing
+        run: |
+          npm run preview &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+          sleep 10
+
+      - name: ⚡ Run performance tests
+        run: |
+          k6 run tests/performance/latex-editor-load-test.js
+          k6 run tests/performance/latex-editor-stress-test.js
+
+      - name: 📊 Generate performance report
+        run: |
+          mkdir -p performance-reports
+          echo "# Performance Test Results" > performance-reports/summary.md
+          echo "## Load Test" >> performance-reports/summary.md
+          echo "- Virtual Users: 50" >> performance-reports/summary.md
+          echo "- Duration: 5 minutes" >> performance-reports/summary.md
+          echo "- Target RPS: 100" >> performance-reports/summary.md
+
+      - name: 📈 Upload performance reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-reports
+          path: performance-reports/
+
+      - name: 🛑 Stop server
+        if: always()
+        run: |
+          if [ -n "${SERVER_PID}" ]; then
+            kill ${SERVER_PID} || true
+          fi
+
+  accessibility-test:
+    name: ♿ Accessibility Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality-check
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: 🌐 Start development server
+        run: |
+          npm run dev &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+          sleep 15
+
+      - name: 🔧 Setup Pa11y
+        run: npm install -g pa11y pa11y-reporter-html
+
+      - name: ♿ Run accessibility tests
+        run: |
+          pa11y --standard WCAG2AA --reporter html http://localhost:5173 > accessibility-report.html || true
+
+      - name: 📊 Upload accessibility report
+        uses: actions/upload-artifact@v3
+        with:
+          name: accessibility-report
+          path: accessibility-report.html
+
+      - name: 🛑 Stop server
+        if: always()
+        run: |
+          if [ -n "${SERVER_PID}" ]; then
+            kill ${SERVER_PID} || true
+          fi
+
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: 🔍 NPM audit
+        run: |
+          npm audit --audit-level=high
+          npm audit --json > npm-audit-report.json || true
+
+      - name: 🔍 Dependency check
+        uses: actions/dependency-review-action@v3
+
+      - name: 🔍 CodeQL Analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+      - name: 📊 Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            npm-audit-report.json
+
+  lighthouse-audit:
+    name: 📊 Lighthouse Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-check
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: 🌐 Start production build
+        run: |
+          npm run build
+          npm run preview &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+          sleep 15
+
+      - name: 🔧 Setup Lighthouse CI
+        run: npm install -g @lhci/cli@0.13.x
+
+      - name: 📊 Run Lighthouse audit
+        run: |
+          lhci autorun \
+            --config=./lighthouserc.json \
+            --upload.target=lhci \
+            --upload.token=${{ secrets.LHCI_TOKEN }} || true
+
+      - name: 📈 Upload Lighthouse reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+
+      - name: 🛑 Stop server
+        if: always()
+        run: |
+          if [ -n "${SERVER_PID}" ]; then
+            kill ${SERVER_PID} || true
+          fi
+
+  build-and-push-image:
+    name: 🐳 Build and Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality-check, e2e-test, performance-test, security-scan]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: 🏗️ Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-and-push-image, lighthouse-audit]
+    if: github.ref == 'refs/heads/develop'
+
+    environment:
+      name: staging
+      url: https://latex-editor-staging.example.com
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to staging environment
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your deployment commands here
+          # Example: kubectl apply -f k8s/staging/
+
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-and-push-image, lighthouse-audit]
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://latex-editor.example.com
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Final quality gate
+        run: |
+          echo "Running final quality checks..."
+          npm run quality-check
+
+      - name: 🚀 Deploy to production environment
+        run: |
+          echo "Deploying to production environment..."
+          # Add your deployment commands here
+          # Example: kubectl apply -f k8s/production/
+
+  notify:
+    name: 📢 Notification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [quality-check, e2e-test, performance-test, security-scan]
+    if: always()
+
+    steps:
+      - name: 📊 Generate status report
+        id: status
+        run: |
+          echo "Generating build status report..."
+          echo "BUILD_STATUS=${{ needs.quality-check.result }}" >> $GITHUB_OUTPUT
+          echo "E2E_STATUS=${{ needs.e2e-test.result }}" >> $GITHUB_OUTPUT
+          echo "PERF_STATUS=${{ needs.performance-test.result }}" >> $GITHUB_OUTPUT
+          echo "SECURITY_STATUS=${{ needs.security-scan.result }}" >> $GITHUB_OUTPUT
+
+      - name: 📢 Slack notification
+        if: ${{ always() }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "LaTeX Editor CI/CD Pipeline - ${{ github.ref }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*LaTeX Editor CI/CD Pipeline Results*\n"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n${{ github.ref }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n${{ github.sha }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Quality Check:*\n${{ needs.quality-check.result }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*E2E Tests:*\n${{ needs.e2e-test.result }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Performance:*\n${{ needs.performance-test.result }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Security:*\n${{ needs.security-scan.result }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Details"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: 📧 Email notification
+        if: ${{ failure() }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: LaTeX Editor CI/CD Pipeline Failed
+          to: ${{ secrets.NOTIFICATION_EMAILS }}
+          from: GitHub Actions
+          body: |
+            The LaTeX Editor CI/CD pipeline has failed.
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Run ID: ${{ github.run_id }}
+
+            Please check the workflow run for details:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

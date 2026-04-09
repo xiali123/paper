@@ -209,6 +209,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/writing/WritingEditorView.vue'),
         meta: { requiresAuth: true, title: '文档编辑' }
       },
+      {
+        path: '/latex-editor',
+        name: 'LatexEditor',
+        component: () => import('@/views/writing/LatexEditorView.vue'),
+        meta: { requiresAuth: true, title: 'LaTeX编辑器' }
+      },
+      {
+        path: '/latex-editor/:documentId',
+        name: 'LatexEditorDocument',
+        component: () => import('@/views/writing/LatexEditorView.vue'),
+        meta: { requiresAuth: true, title: 'LaTeX文档编辑' }
+      },
       // AI Assistant Routes
       {
         path: '/ai-copilot',

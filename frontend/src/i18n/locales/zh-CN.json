@@ -220,6 +220,28 @@
     "toggleTheme": "切换主题",
     "collapseSidebar": "折叠侧边栏"
   },
+  "writing": {
+    "title": "协作写作",
+    "latexEditor": "LaTeX编辑器",
+    "newDocument": "新建文档",
+    "save": "保存",
+    "compile": "编译",
+    "preview": "预览",
+    "hidePreview": "隐藏预览",
+    "showPreview": "显示预览",
+    "outline": "大纲",
+    "symbols": "符号",
+    "collaboration": "协作",
+    "bold": "粗体",
+    "italic": "斜体",
+    "underline": "下划线",
+    "environments": "环境",
+    "itemize": "无序列表",
+    "enumerate": "有序列表",
+    "equation": "公式",
+    "figure": "图片",
+    "table": "表格"
+  },
   "error": {
     "networkError": "网络错误，请检查您的连接",
     "serverError": "服务器错误，请稍后重试",

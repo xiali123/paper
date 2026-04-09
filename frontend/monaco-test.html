@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monaco Test</title>
+</head>
+<body>
+    <div id="container" style="width:800px;height:600px;border:1px solid #ccc"></div>
+    <script type="module">
+        import * as monaco from 'monaco-editor';
+
+        console.log('Monaco loaded:', monaco);
+
+        try {
+            const editor = monaco.editor.create(document.getElementById('container'), {
+                value: '// Hello World\nconsole.log("Hello, world!");',
+                language: 'javascript',
+                theme: 'vs-light'
+            });
+            console.log('Editor created successfully:', editor);
+        } catch (error) {
+            console.error('Failed to create editor:', error);
+        }
+    </script>
+</body>
+</html>

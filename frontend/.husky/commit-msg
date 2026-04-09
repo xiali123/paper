@@ -1,0 +1,109 @@
+#!/bin.sh
+. "$(dirname "$0")/_/husky.sh"
+
+# LaTeX Editor Commit Message Hook
+# Enforces conventional commit message format
+
+COMMIT_MSG_FILE="$1"
+if [ ! -f "$COMMIT_MSG_FILE" ]; then
+    echo "❌ Commit message file not found"
+    exit 1
+fi
+
+COMMIT_MSG=$(head -n1 "$COMMIT_MSG_FILE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+# Check if commit message is empty
+if [ -z "$COMMIT_MSG" ]; then
+    echo "❌ Commit message cannot be empty"
+    exit 1
+fi
+
+# Check commit message length
+if [ ${#COMMIT_MSG} -lt 10 ]; then
+    echo "❌ Commit message too short (minimum 10 characters)"
+    exit 1
+fi
+
+if [ ${#COMMIT_MSG} -gt 72 ]; then
+    echo "❌ Commit message too long (maximum 72 characters for first line)"
+    exit 1
+fi
+
+# Define allowed commit types
+ALLOWED_TYPES="feat|fix|docs|style|refactor|test|chore|perf|build|ci|revert"
+
+# Check conventional commit format
+if ! echo "$COMMIT_MSG" | grep -qE "^($ALLOWED_TYPES)(\([^)]+\))?: .+"; then
+    echo "❌ Invalid commit message format"
+    echo ""
+    echo "📋 Conventional Commit Format:"
+    echo "  <type>(<scope>): <description>"
+    echo ""
+    echo "📝 Allowed types:"
+    echo "  feat     - A new feature"
+    echo "  fix      - A bug fix"
+    echo "  docs     - Documentation changes"
+    echo "  style    - Code formatting, no logic changes"
+    echo "  refactor - Code refactoring, no feature changes"
+    echo "  test     - Adding or correcting tests"
+    echo "  chore    - Build process or auxiliary tool changes"
+    echo "  perf     - Performance improvements"
+    echo "  build    - Build system or external dependencies changes"
+    echo "  ci       - CI configuration files changes"
+    echo "  revert   - Reverting a previous commit"
+    echo ""
+    echo "📝 Examples:"
+    echo "  feat(editor): add LaTeX syntax highlighting"
+    echo "  fix(preview): resolve math rendering issue"
+    echo "  docs: update installation guide"
+    echo "  refactor(collaboration): simplify OT algorithm"
+    echo "  test: add unit tests for compilation worker"
+    echo "  perf: optimize large document handling"
+    echo ""
+    echo "💡 Tip: Use 'npm run commit' for guided commit messages"
+    exit 1
+fi
+
+# Check for breaking changes notation
+if echo "$COMMIT_MSG" | grep -qE "^($ALLOWED_TYPES)(\([^)]+\))?!:"; then
+    echo "⚠️  Breaking change detected!"
+    echo "💡 Remember to add 'BREAKING CHANGE:' footer if needed"
+fi
+
+# Validate scope if present
+if echo "$COMMIT_MSG" | grep -qE "^($ALLOWED_TYPES)\([^)]+\):"; then
+    SCOPE=$(echo "$COMMIT_MSG" | sed -E "s/^($ALLOWED_TYPES)\(([^)]+)\):.*/\2/")
+
+    # Check for valid scopes (you can customize this list)
+    VALID_SCOPES="editor|preview|collaboration|latex|ui|docs|build|test|ci|deps|config"
+    if ! echo "$SCOPE" | grep -qE "^($VALID_SCOPES)$"; then
+        echo "⚠️  Unrecognized scope: $SCOPE"
+        echo "📋 Common scopes:"
+        echo "  editor        - Monaco editor integration"
+        echo "  preview       - LaTeX preview system"
+        echo "  collaboration - Real-time collaboration features"
+        echo "  latex         - LaTeX compilation and rendering"
+        echo "  ui            - User interface components"
+        echo "  docs          - Documentation"
+        echo "  build         - Build system"
+        echo "  test          - Testing infrastructure"
+        echo "  ci            - Continuous integration"
+        echo "  deps          - Dependency updates"
+        echo "  config        - Configuration files"
+        echo ""
+        echo "💡 Tip: Use lowercase scope names, or omit scope if not applicable"
+    fi
+fi
+
+# Check description starts with lowercase (optional rule)
+DESCRIPTION=$(echo "$COMMIT_MSG" | sed -E "s/^($ALLOWED_TYPES)(\([^)]+\))?: (.+)/\3/")
+if echo "$DESCRIPTION" | grep -qE "^[A-Z]"; then
+    echo "⚠️  Consider starting description with lowercase letter"
+    echo "📝 Example: 'feat(editor): add syntax highlighting' instead of 'Add syntax highlighting'"
+fi
+
+# Success message
+echo "✅ Commit message format is valid"
+echo "📝 $COMMIT_MSG"
+
+exit 0

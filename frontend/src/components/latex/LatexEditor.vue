@@ -54,8 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, nextTick } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
@@ -73,6 +72,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   'change': [value: string]
+  'cursor-change': [position: { line: number; column: number }]
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement>()
@@ -96,13 +96,68 @@ const highlightedCode = computed(() => {
 })
 
 function handleInput() {
+  console.log('LatexEditor input:', innerContent.value.length)
   emit('change', innerContent.value)
+  updateCursorPosition()
+}
+
+function updateCursorPosition() {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  const cursorPos = textarea.selectionStart
+  const textBeforeCursor = textarea.value.substring(0, cursorPos)
+  const lines = textBeforeCursor.split('\n')
+  const line = lines.length
+  const column = lines[lines.length - 1].length + 1
+
+  emit('cursor-change', { line, column })
 }
 
 // 同步滚动
 function syncScroll() {
   if (!showHighlight.value) return
   // 预览层滚动同步
+}
+
+// Focus the editor
+function focus() {
+  const textarea = textareaRef.value
+  if (textarea) {
+    textarea.focus()
+  }
+}
+
+// Navigate to specific line and column
+function navigateTo(position: { line: number; column?: number }) {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  const { line, column = 1 } = position
+  const text = textarea.value
+  const lines = text.split('\n')
+
+  // Calculate the character position for the specified line and column
+  let charPosition = 0
+  for (let i = 0; i < line - 1 && i < lines.length; i++) {
+    charPosition += lines[i].length + 1 // +1 for the newline character
+  }
+
+  // Add the column offset
+  charPosition += Math.min(column - 1, lines[line - 1]?.length || 0)
+
+  // Ensure position is within bounds
+  charPosition = Math.min(charPosition, text.length)
+
+  // Set cursor position
+  textarea.focus()
+  textarea.selectionStart = charPosition
+  textarea.selectionEnd = charPosition
+
+  // Scroll to the position
+  textarea.scrollIntoView({ block: 'center' })
+
+  console.log('Navigated to line', line, 'column', column, 'char position', charPosition)
 }
 
 // 插入文本
@@ -130,7 +185,7 @@ function handleCommand(cmd: string) {
     itemize: ['\\begin{itemize}\n  \\item ', '\n\\end{itemize}'],
     enumerate: ['\\begin{enumerate}\n  \\item ', '\n\\end{enumerate}'],
     figure: ['\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=0.8\\textwidth]{', '}\n  \\caption{}\n\\end{figure}'],
-    table: ['\\begin{table}[h]\n  \\centering\n  \\begin{tabular}{}\n  \\end{tabular}\n  \\caption{}\n\\end{table}'],
+    table: ['\\begin{table}[h]\n  \\centering\n  \\begin{tabular}{', '}\n  \\end{tabular}\n  \\caption{}\n\\end{table}'],
     cite: ['\\cite{', '}']
   }
 
@@ -139,6 +194,12 @@ function handleCommand(cmd: string) {
     insert(snippet[0], snippet[1])
   }
 }
+
+// Expose methods to parent component
+defineExpose({
+  focus,
+  navigateTo
+})
 </script>
 
 <style scoped lang="scss">

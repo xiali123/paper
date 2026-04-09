@@ -220,6 +220,28 @@
     "toggleTheme": "Toggle Theme",
     "collapseSidebar": "Collapse Sidebar"
   },
+  "writing": {
+    "title": "Collaborative Writing",
+    "latexEditor": "LaTeX Editor",
+    "newDocument": "New Document",
+    "save": "Save",
+    "compile": "Compile",
+    "preview": "Preview",
+    "hidePreview": "Hide Preview",
+    "showPreview": "Show Preview",
+    "outline": "Outline",
+    "symbols": "Symbols",
+    "collaboration": "Collaboration",
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "environments": "Environments",
+    "itemize": "Itemize",
+    "enumerate": "Enumerate",
+    "equation": "Equation",
+    "figure": "Figure",
+    "table": "Table"
+  },
   "error": {
     "networkError": "Network error, please check your connection",
     "serverError": "Server error, please try again later",
