@@ -1,5 +1,17 @@
 import request from '@/utils/request'
 import type { CompilationResult } from '../../architecture/stores/latexEditor'
+import {
+  listLatexDocuments,
+  getLatexDocument,
+  createLatexDocument,
+  updateLatexDocument,
+  deleteLatexDocument,
+  compileLatexDocument,
+  autoSaveLatexDocument,
+  listLatexTemplates,
+  createFromTemplate,
+  downloadLatexPDF
+} from '@/api/adapters/latexAdapter'
 
 export interface CompileLatexRequest {
   content: string
@@ -19,7 +31,7 @@ export interface CompileLatexResponse {
 }
 
 export interface SaveDocumentRequest {
-  id?: string
+  id?: string | number
   name: string
   content: string
   path?: string
@@ -36,7 +48,7 @@ export interface SaveDocumentRequest {
 export interface SaveDocumentResponse {
   success: boolean
   document?: {
-    id: string
+    id: string | number
     name: string
     path: string
     lastModified: number
@@ -46,13 +58,13 @@ export interface SaveDocumentResponse {
 }
 
 export interface LoadDocumentRequest {
-  id: string
+  id: string | number
 }
 
 export interface LoadDocumentResponse {
   success: boolean
   document?: {
-    id: string
+    id: string | number
     name: string
     content: string
     path: string
@@ -103,16 +115,45 @@ export interface CursorPositionResponse {
 }
 
 /**
- * LaTeX 编译服务
+ * LaTeX 编译服务 - 使用后端API
  */
 export const latexApi = {
   /**
-   * 编译 LaTeX 文档
+   * 编译 LaTeX 文档 - 使用后端编译API
    */
   compile: async (requestData: CompileLatexRequest): Promise<CompileLatexResponse> => {
     try {
-      const response = await request.post('/api/latex/compile', requestData)
-      return response.data
+      // 首先需要保存文档或获取文档ID
+      // 这里假设documentId已经在requestData中
+      const documentId = (requestData as any).documentId
+
+      if (!documentId) {
+        // 客户端编译作为后备方案
+        return {
+          success: false,
+          error: 'Document ID required for server-side compilation',
+          duration: 0
+        }
+      }
+
+      const result = await compileLatexDocument(Number(documentId))
+
+      return {
+        success: result.success,
+        result: {
+          success: result.success,
+          output: result.pdfPath,
+          errors: result.error ? [{
+            line: 0,
+            message: result.error,
+            type: 'error'
+          }] : [],
+          warnings: [],
+          log: result.log || '',
+          duration: result.compileTimeMs || 0
+        },
+        duration: result.compileTimeMs || 0
+      }
     } catch (error) {
       console.error('LaTeX compilation failed:', error)
       return {
@@ -124,29 +165,67 @@ export const latexApi = {
   },
 
   /**
-   * 保存文档
+   * 保存文档 - 使用后端API
    */
   saveDocument: async (requestData: SaveDocumentRequest): Promise<SaveDocumentResponse> => {
     try {
-      // For now, simulate a successful save since backend might not be available
-      console.log('Mock save document:', requestData.name, 'content length:', requestData.content.length)
+      if (requestData.id) {
+        // 更新现有文档
+        await updateLatexDocument(Number(requestData.id), {
+          title: requestData.name,
+          content: requestData.content
+        })
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500))
+        return {
+          success: true,
+          document: {
+            id: requestData.id,
+            name: requestData.name,
+            path: requestData.path || '',
+            lastModified: Date.now(),
+            size: new Blob([requestData.content]).size
+          }
+        }
+      } else {
+        // 创建新文档
+        const doc = await createLatexDocument({
+          title: requestData.name,
+          content: requestData.content
+        })
 
-      // Simulate successful save
-      return {
-        success: true,
-        document: {
-          id: requestData.id || 'mock-id',
-          name: requestData.name,
-          path: requestData.path || '/mock-path',
-          lastModified: Date.now(),
-          size: new Blob([requestData.content]).size
+        return {
+          success: true,
+          document: {
+            id: doc.id,
+            name: doc.title,
+            path: '',
+            lastModified: new Date(doc.updatedAt).getTime(),
+            size: new Blob([doc.content]).size
+          }
         }
       }
     } catch (error) {
       console.error('Document save failed:', error)
+
+      // 开发环境使用mock保存作为后备
+      if (import.meta.env.DEV) {
+        console.log('Fallback to mock save document:', requestData.name, 'content length:', requestData.content.length)
+
+        // 模拟API延迟
+        await new Promise(resolve => setTimeout(resolve, 300))
+
+        return {
+          success: true,
+          document: {
+            id: requestData.id || 'mock-id',
+            name: requestData.name,
+            path: requestData.path || '/mock-path',
+            lastModified: Date.now(),
+            size: new Blob([requestData.content]).size
+          }
+        }
+      }
+
       return {
         success: false,
         error: error instanceof Error ? error.message : '保存失败'
@@ -155,18 +234,45 @@ export const latexApi = {
   },
 
   /**
-   * 加载文档
+   * 加载文档 - 使用后端API
    */
   loadDocument: async (requestData: LoadDocumentRequest): Promise<LoadDocumentResponse> => {
     try {
-      const response = await request.get(`/api/latex/documents/${requestData.id}`)
-      return response.data
+      const doc = await getLatexDocument(Number(requestData.id))
+
+      return {
+        success: true,
+        document: {
+          id: doc.id,
+          name: doc.title,
+          content: doc.content,
+          path: doc.pdfPath,
+          lastModified: new Date(doc.updatedAt).getTime(),
+          size: new Blob([doc.content]).size,
+          metadata: {
+            title: doc.title
+          }
+        }
+      }
     } catch (error) {
       console.error('Document load failed:', error)
       return {
         success: false,
         error: error instanceof Error ? error.message : '加载失败'
       }
+    }
+  },
+
+  /**
+   * 自动保存文档 - 使用后端API
+   */
+  autoSave: async (documentId: string | number, content: string): Promise<boolean> => {
+    try {
+      await autoSaveLatexDocument(Number(documentId), content)
+      return true
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+      return false
     }
   },
 
@@ -203,18 +309,34 @@ export const latexApi = {
   },
 
   /**
-   * 获取文档模板
+   * 获取文档模板列表 - 使用后端API
    */
-  getTemplate: async (templateName: string = 'default') => {
+  getTemplates: async (category?: string) => {
     try {
-      const response = await request.get(`/api/latex/templates/${templateName}`)
-      return response.data
+      const templates = await listLatexTemplates(category)
+      return {
+        success: true,
+        templates: templates.map(t => ({
+          id: t.id.toString(),
+          name: t.name,
+          description: t.description,
+          category: t.category,
+          content: t.content,
+          icon: t.icon,
+          isBuiltIn: t.isBuiltIn
+        }))
+      }
     } catch (error) {
-      console.error('Failed to get template:', error)
+      console.error('Failed to get templates:', error)
       // 返回默认模板
       return {
         success: true,
-        template: `\\documentclass{article}
+        templates: [{
+          id: 'default',
+          name: '默认文档',
+          description: '基础LaTeX文档模板',
+          category: '学术论文',
+          content: `\\documentclass{article}
 \\usepackage{amsmath}
 \\usepackage{amsfonts}
 \\usepackage{amssymb}
@@ -251,10 +373,35 @@ Or inline math: $a^2 + b^2 = c^2$
 \\section{Conclusion}
 Your conclusion here.
 
-\\bibliographystyle{plain}
-\\bibliography{references}
+\\end{document}`,
+          icon: '📄',
+          isBuiltIn: true
+        }]
+      }
+    }
+  },
 
-\\end{document}`
+  /**
+   * 从模板创建文档 - 使用后端API
+   */
+  createFromTemplate: async (templateId: number, title: string, ownerId?: string) => {
+    try {
+      const doc = await createFromTemplate({
+        templateId,
+        title,
+        ownerId
+      })
+
+      return {
+        success: true,
+        documentId: doc.id,
+        content: doc.content
+      }
+    } catch (error) {
+      console.error('Failed to create from template:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '创建失败'
       }
     }
   },

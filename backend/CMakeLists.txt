@@ -968,6 +968,12 @@ add_dynamic_module_with_system(CollaborativeWritingModule
 )
 target_include_directories(CollaborativeWritingModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
 
+# 阶段11：LatexApiModule动态化（NEW - 2026-04-12）
+add_dynamic_module_with_system(LatexApiModule
+    src/business/LatexApiModule.cpp
+)
+target_include_directories(LatexApiModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）
 # ============================================================================
 # libxml2 支持 - 分布式爬虫XPath解析
