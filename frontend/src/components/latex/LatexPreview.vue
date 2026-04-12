@@ -22,9 +22,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import DOMPurify from 'dompurify'
+import { performanceMonitor, checkPerformanceThreshold, PERFORMANCE_THRESHOLDS } from '@/utils/performance'
+import { debounce } from '@/utils/performance'
+
+// 动态导入 katex（仅在前端使用时）
+let katex: any = null
 
 interface Props {
   content: string
@@ -42,103 +46,240 @@ const renderError = ref<string | null>(null)
 const renderedHtml = ref('')
 
 // 渲染 LaTeX 内容
-function renderLatex() {
-  console.log('Rendering LaTeX, content length:', props.content?.length, 'content preview:', props.content?.substring(0, 50))
+const isRendering = ref(false)
 
-  // For testing, if content is empty, use a test content
-  const contentToRender = props.content?.trim() || '\\section{Test}This is a test with math: $E = mc^2$';
+async function renderLatex() {
+  const endTimer = performanceMonitor.startTimer('latex_rendering', {
+    contentLength: props.content?.length || 0
+  })
+
+  isRendering.value = true
+
+  const contentToRender = props.content?.trim()
 
   if (!contentToRender) {
     renderedHtml.value = ''
     renderError.value = null
+    endTimer()
+    isRendering.value = false
     return
   }
 
   try {
-    // 提取数学公式并渲染
-    let html = props.content
-
-    // 渲染行内公式 $...$
-    html = html.replace(/\$([^$\n]+?)\$/g, (_match, math) => {
+    // 动态导入 katex
+    if (!katex) {
       try {
-        return katex.renderToString(math, {
-          displayMode: false,
-          throwOnError: false,
-          output: 'html',
-          strict: false
-        })
+        const katexModule = await import('katex')
+        katex = katexModule.default || katexModule
+        if (import.meta.env.DEV) {
+          console.log('[LatexPreview] KaTeX loaded successfully')
+        }
       } catch (e) {
-        console.warn('KaTeX render error:', e)
-        return `<span class="katex-error" title="${e}">$${math}$</span>`
+        if (import.meta.env.DEV) {
+          console.warn('[LatexPreview] KaTeX import failed:', e)
+        }
       }
+    }
+
+    let html = contentToRender
+
+    // 处理行内数学公式 $...$
+    if (katex) {
+      html = html.replace(/\$([^$\n]+?)\$/g, (match, math) => {
+        try {
+          return katex.renderToString(math, {
+            displayMode: false,
+            throwOnError: false,
+            output: 'html'
+          })
+        } catch (e) {
+          return `<span class="math-inline">${match}</span>`
+        }
+      })
+
+      // 处理数学公式 $$...$$
+      html = html.replace(/\$\$([^$]+?)\$\$/g, (match, math) => {
+        try {
+          return katex.renderToString(math, {
+            displayMode: true,
+            throwOnError: false,
+            output: 'html'
+          })
+        } catch (e) {
+          return `<div class="math-display">$$${math}$$</div>`
+        }
+      })
+    }
+
+    // 处理LaTeX结构
+    html = html.replace(/\\section\*?\{([^}]+)\}/g, '<h2>$1</h2>')
+    html = html.replace(/\\subsection\*?\{([^}]+)\}/g, '<h3>$1</h3>')
+    html = html.replace(/\\subsubsection\*?\{([^}]+)\}/g, '<h4>$1</h4>')
+
+    // 处理文本格式
+    html = html.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+    html = html.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+    html = html.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>')
+    html = html.replace(/\\emph\{([^}]+)\}/g, '<em>$1</em>')
+
+    // 处理列表
+    html = html.replace(/\\begin\{itemize\}([\s\S]*?)\\end\{itemize\}/g, (_match, content) => {
+      const items = content.split('\\item').filter((s: string) => s.trim())
+      return '<ul class="latex-list">' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ul>'
     })
 
-    // 渲染块级公式 $$...$$
-    html = html.replace(/\$\$([^$]+?)\$\$/g, (_match, math) => {
-      try {
-        return katex.renderToString(math, {
-          displayMode: true,
-          throwOnError: false,
-          output: 'html',
-          strict: false
-        })
-      } catch (e) {
-        console.warn('KaTeX render error:', e)
-        return `<div class="katex-error" title="${e}">$$${math}$$</div>`
-      }
+    html = html.replace(/\\begin\{enumerate\}([\s\S]*?)\\end\{enumerate\}/g, (_match, content) => {
+      const items = content.split('\\item').filter((s: string) => s.trim())
+      return '<ol class="latex-list">' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ol>'
     })
 
-    // 处理 LaTeX 环境（简单渲染，不使用 KaTeX）
-    // 将常见的 LaTeX 命令转换为 HTML
-    html = renderLatexStructure(html)
+    // ==========================================
+    // 处理表格环境
+    // ==========================================
+    html = html.replace(/\\begin\{tabular\}\{[^}]*\}([\s\S]*?)\\end\{tabular\}/g, (_match, content) => {
+      const rows = content.split('\\\\').filter((s: string) => s.trim())
+      let tableHtml = '<table class="latex-table"><tbody>'
+      rows.forEach((row: string) => {
+        const cells = row.split('&').map((cell: string) => cell.trim()).filter((c: string) => c)
+        if (cells.length > 0) {
+          tableHtml += '<tr>'
+          cells.forEach((cell: string) => {
+            tableHtml += `<td>${cell}</td>`
+          })
+          tableHtml += '</tr>'
+        }
+      })
+      tableHtml += '</tbody></table>'
+      return tableHtml
+    })
 
-    renderedHtml.value = html
-    renderError.value = null
-  } catch (e) {
-    renderError.value = e instanceof Error ? e.message : String(e)
-  }
-}
+    html = html.replace(/\\begin\{table\}([\s\S]*?)\\end\{table\}/g, (_match, content) => {
+      const captionMatch = content.match(/\\caption\{([^}]+)\}/)
+      const caption = captionMatch ? captionMatch[1] : ''
+      const tabularContent = content.replace(/\\caption\{[^}]+\}/g, '').replace(/\\centering/g, '').replace(/\\hline/g, '')
+      return `<figure class="latex-figure">${tabularContent}${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`
+    })
 
-// 简单的 LaTeX 结构渲染
-function renderLatexStructure(latex: string): string {
-  let html = latex
+    // ==========================================
+    // 处理图片环境
+    // ==========================================
+    html = html.replace(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g, (_match, path) => {
+      const alt = path.split('/').pop() || path
+      return `<img src="${path}" alt="${alt}" class="latex-image" loading="lazy" onerror="this.style.display='none';this.nextElementSibling?.style.display='inline';" /><span style="display:none;color:var(--el-color-warning);font-size:0.9em;">[图片: ${alt}]</span>`
+    })
 
-  // 处理章节
-  html = html.replace(/\\section\*?\{([^}]+)\}/g, '<h2>$1</h2>')
-  html = html.replace(/\\subsection\*?\{([^}]+)\}/g, '<h3>$1</h3>')
-  html = html.replace(/\\subsubsection\*?\{([^}]+)\}/g, '<h4>$1</h4>')
+    html = html.replace(/\\begin\{figure\}([\s\S]*?)\\end\{figure\}/g, (_match, content) => {
+      const captionMatch = content.match(/\\caption\{([^}]+)\}/)
+      const caption = captionMatch ? captionMatch[1] : ''
+      const imageMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/)
+      const imageHtml = imageMatch ? _match : ''
+      const cleanContent = content
+        .replace(/\\caption\{[^}]+\}/g, '')
+        .replace(/\\centering/g, '')
+        .replace(/\\includegraphics[^}]*\}/g, '')
+      return `<figure class="latex-figure latex-figure-float">${imageHtml}${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`
+    })
 
-  // 处理文本格式
-  html = html.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
-  html = html.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
-  html = html.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>')
-  html = html.replace(/\\emph\{([^}]+)\}/g, '<em>$1</em>')
+    // ==========================================
+    // 处理引用和参考文献
+    // ==========================================
+    html = html.replace(/\\cite\{([^}]+)\}/g, '<span class="latex-cite" title="引用: $1">[$1]</span>')
+    html = html.replace(/\\ref\{([^}]+)\}/g, '<a href="#$1" class="latex-ref" title="引用: $1">[$1]</a>')
+    html = html.replace(/\\eqref\{([^}]+)\}/g, '<a href="#$1" class="latex-ref latex-eqref" title="公式引用: $1">($1)</a>')
 
-  // 处理列表（简化）
-  html = html.replace(/\\begin\{itemize\}([\s\S]*?)\\end\{itemize\}/g, (_match, content) => {
-    const items = content.split('\\item').filter((s: string) => s.trim())
-    return '<ul>' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ul>'
-  })
+    html = html.replace(/\\begin\{thebibliography\}\{[^}]*\}([\s\S]*?)\\end\{thebibliography\}/g, (_match, content) => {
+      const items = content.split('\\bibitem').filter((s: string) => s.trim())
+      let bibHtml = '<div class="latex-bibliography"><h3>参考文献</h3><ol class="latex-bib-list">'
+      items.forEach((item: string) => {
+        const labelMatch = item.match(/\{([^}]+)\}/)
+        const label = labelMatch ? labelMatch[1] : ''
+        const text = item.replace(/\{[^}]+\}/, '').trim()
+        if (text) {
+          bibHtml += `<li id="${label}">${text}</li>`
+        }
+      })
+      bibHtml += '</ol></div>'
+      return bibHtml
+    })
 
-  html = html.replace(/\\begin\{enumerate\}([\s\S]*?)\\end\{enumerate\}/g, (_match, content) => {
-    const items = content.split('\\item').filter((s: string) => s.trim())
-    return '<ol>' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ol>'
-  })
+    // ==========================================
+    // 处理更多数学环境
+    // ==========================================
+    html = html.replace(/\\begin\{equation\}([^]*?)\\end\{equation\}/g, (_match, math) => {
+      if (katex) {
+        try {
+          const num = math.match(/\\tag\{([^}]+)\}/)
+          const cleanMath = math.replace(/\\tag\{[^}]+\}/, '').trim()
+          const rendered = katex.renderToString(cleanMath, { displayMode: true, throwOnError: false })
+          return `<div class="math-display math-numbered">${rendered}${num ? `<span class="equation-number">(${num[1]})</span>` : ''}</div>`
+        } catch (e) {
+          return `<div class="math-display">\\begin{equation}${math}\\end{equation}</div>`
+        }
+      }
+      return `<div class="math-display">\\begin{equation}${math}\\end{equation}</div>`
+    })
 
-  // 处理换行
-  html = html.replace(/\\\\/g, '<br>')
+    html = html.replace(/\\begin\{align\}([^]*?)\\end\{align\}/g, (_match, math) => {
+      if (katex) {
+        try {
+          const cleanMath = math.replace(/\\label\{[^}]+\}/g, '').replace(/\\tag\{[^}]+\}/g, '').trim()
+          const lines = cleanMath.split('\\\\').filter((s: string) => s.trim())
+          return '<div class="math-align">' + lines.map((line: string) => {
+            const rendered = katex.renderToString(line.trim(), { displayMode: true, throwOnError: false })
+            return `<div class="math-align-row">${rendered}</div>`
+          }).join('') + '</div>'
+        } catch (e) {
+          return `<div class="math-display">\\begin{align}${math}\\end{align}</div>`
+        }
+      }
+      return `<div class="math-display">\\begin{align}${math}\\end{align}</div>`
+    })
 
-  // Only wrap in paragraphs if we don't already have HTML structure
-  if (!html.includes('<h2>') && !html.includes('<h3>') && !html.includes('<ul>') && !html.includes('<ol>')) {
+    // ==========================================
+    // 处理其他环境
+    // ==========================================
+    html = html.replace(/\\begin\{quote\}([\s\S]*?)\\end\{quote\}/g, '<blockquote class="latex-quote">$1</blockquote>')
+    html = html.replace(/\\begin\{verbatim\}([\s\S]*?)\\end\{verbatim\}/g, (_match, content) => {
+      return `<pre class="latex-verbatim"><code>${content}</code></pre>`
+    })
+    html = html.replace(/\\begin\{verbatim\*?\}([\s\S]*?)\\end\{verbatim\*?\}/g, (_match, content) => {
+      return `<pre class="latex-verbatim"><code>${content}</code></pre>`
+    })
+
+    // ==========================================
+    // 处理更多文本格式
+    // ==========================================
+    html = html.replace(/\\texttt\{([^}]+)\}/g, '<code class="inline-code">$1</code>')
+    html = html.replace(/\\textsc\{([^}]+)\}/g, '<span style="font-variant: small-caps;">$1</span>')
+    html = html.replace(/\\textsuperscript\{([^}]+)\}/g, '<sup>$1</sup>')
+    html = html.replace(/\\textsubscript\{([^}]+)\}/g, '<sub>$1</sub>')
+    html = html.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>')
+    html = html.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+
+    // 处理换行
+    html = html.replace(/\\\\/g, '<br>')
     html = html.replace(/\n\n/g, '</p><p>')
-    html = '<p>' + html + '</p>'
+    html = html.replace(/^[^<]/, '<p>$&')
+
+    // 使用DOMPurify清理HTML
+    renderedHtml.value = DOMPurify.sanitize(html)
+    renderError.value = null
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    renderError.value = errorMsg
+    console.warn('[LatexPreview] Render failed:', error)
+
+    // 简单fallback
+    let html = contentToRender
+    html = html.replace(/\\section\*?\{([^}]+)\}/g, '<h2>$1</h2>')
+    html = html.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+    html = html.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+    html = html.replace(/\\\\/g, '<br>')
+    renderedHtml.value = DOMPurify.sanitize(html)
+  } finally {
+    endTimer()
+    isRendering.value = false
   }
-
-  // 清理空标签
-  html = html.replace(/<p>\s*<\/p>/g, '')
-  html = html.replace(/<([ou])l>\s*<\/\1l>/g, '')
-
-  return html
 }
 
 function handleMathClick(event: MouseEvent) {
@@ -148,11 +289,28 @@ function handleMathClick(event: MouseEvent) {
   }
 }
 
-// 监听内容变化
+// 监听内容变化 - optimized to prevent memory leaks
+const renderTimeout = ref<number | null>(null)
+
 watch(() => props.content, (newContent, oldContent) => {
-  console.log('LatexPreview content changed:', { newLength: newContent?.length, oldLength: oldContent?.length })
-  renderLatex()
-}, { immediate: true, deep: true })
+  if (import.meta.env.DEV) {
+    console.log('LatexPreview content changed:', {
+      newLength: newContent?.length ?? 0,
+      oldLength: oldContent?.length ?? 0
+    })
+  }
+
+  // Clear any pending render to prevent memory buildup
+  if (renderTimeout.value) {
+    clearTimeout(renderTimeout.value)
+  }
+
+  // Debounced rendering to prevent excessive processing
+  renderTimeout.value = setTimeout(() => {
+    renderLatex()
+    renderTimeout.value = null
+  }, newContent && newContent.length > 5000 ? 500 : 200) // Longer delay for large documents
+}, { immediate: true })
 
 // 暴露刷新方法
 defineExpose({
@@ -161,8 +319,17 @@ defineExpose({
 
 // 组件挂载时强制渲染一次
 onMounted(() => {
-  console.log('LatexPreview mounted, forcing initial render')
+  if (import.meta.env.DEV) {
+    console.log('LatexPreview mounted, forcing initial render')
+  }
   renderLatex()
+})
+
+// 清理定时器防止内存泄漏
+onUnmounted(() => {
+  if (renderTimeout.value) {
+    clearTimeout(renderTimeout.value)
+  }
 })
 </script>
 
@@ -259,6 +426,192 @@ onMounted(() => {
   :deep(p) {
     margin: 0.5em 0;
     text-align: justify;
+  }
+
+  // ==========================================
+  // 表格样式
+  // ==========================================
+  :deep(.latex-table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 0.95em;
+
+    td {
+      border: 1px solid var(--el-border-color-lighter);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    tr:first-child td {
+      border-top-width: 2px;
+      background-color: var(--el-fill-color-light);
+      font-weight: 600;
+    }
+
+    tr:hover td {
+      background-color: var(--el-fill-color-lighter);
+    }
+  }
+
+  // ==========================================
+  // 图片样式
+  // ==========================================
+  :deep(.latex-image) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1em auto;
+    border-radius: 4px;
+  }
+
+  :deep(.latex-figure) {
+    margin: 1.5em 0;
+    text-align: center;
+  }
+
+  :deep(.latex-figure-float) {
+    display: inline-block;
+    padding: 1em;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 4px;
+    background-color: var(--el-fill-color-blank);
+  }
+
+  :deep(figcaption) {
+    margin-top: 0.5em;
+    font-size: 0.9em;
+    color: var(--el-text-color-secondary);
+    font-style: italic;
+  }
+
+  // ==========================================
+  // 引用和参考文献样式
+  // ==========================================
+  :deep(.latex-cite) {
+    color: var(--el-color-primary);
+    font-size: 0.9em;
+    cursor: help;
+    border-radius: 3px;
+    padding: 0 4px;
+    background-color: var(--el-fill-color-light);
+  }
+
+  :deep(.latex-ref) {
+    color: var(--el-color-primary);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--el-color-primary);
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      color: var(--el-color-primary-light-3);
+      border-bottom-style: solid;
+    }
+  }
+
+  :deep(.latex-eqref) {
+    font-weight: 600;
+  }
+
+  :deep(.latex-bibliography) {
+    margin-top: 2em;
+    padding: 1em;
+    background-color: var(--el-fill-color-light);
+    border-radius: 4px;
+
+    h3 {
+      margin: 0 0 1em 0;
+      font-size: 1.2em;
+      color: var(--el-text-color-primary);
+    }
+  }
+
+  :deep(.latex-bib-list) {
+    padding-left: 1.5em;
+    margin: 0;
+
+    li {
+      margin: 0.5em 0;
+      padding-left: 0.5em;
+      color: var(--el-text-color-regular);
+    }
+  }
+
+  // ==========================================
+  // 数学环境样式
+  // ==========================================
+  :deep(.math-numbered) {
+    position: relative;
+    padding-right: 3em;
+
+    .equation-number {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9em;
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  :deep(.math-align) {
+    margin: 1em 0;
+
+    .math-align-row {
+      display: flex;
+      justify-content: center;
+      margin: 0.5em 0;
+    }
+  }
+
+  // ==========================================
+  // 其他环境样式
+  // ==========================================
+  :deep(.latex-quote) {
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid var(--el-border-color);
+    background-color: var(--el-fill-color-lighter);
+    font-style: italic;
+  }
+
+  :deep(.latex-verbatim) {
+    margin: 1em 0;
+    padding: 1em;
+    background-color: var(--el-fill-color);
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    overflow-x: auto;
+
+    code {
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      line-height: 1.5;
+      color: var(--el-text-color-primary);
+    }
+  }
+
+  :deep(.inline-code) {
+    padding: 2px 6px;
+    background-color: var(--el-fill-color);
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: var(--el-color-danger);
+  }
+
+  // 列表样式增强
+  :deep(.latex-list) {
+    margin: 0.8em 0;
+    padding-left: 2em;
+
+    li {
+      margin: 0.4em 0;
+      line-height: 1.6;
+    }
   }
 
   // 错误样式

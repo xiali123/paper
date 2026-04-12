@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { Document, Folder, Tickets } from '@element-plus/icons-vue'
 
 interface Section {
@@ -59,7 +59,9 @@ const emit = defineEmits<Emits>()
 const activeSection = ref<string | null>(null)
 
 // Debug logging
-console.log('DocumentOutline component mounted, content length:', props.content?.length || 0)
+if (import.meta.env.DEV) {
+  console.log('DocumentOutline component mounted, content length:', props.content?.length || 0)
+}
 
 // 解析文档结构
 const sections = computed<Section[]>(() => {
@@ -124,15 +126,37 @@ const sections = computed<Section[]>(() => {
 })
 
 function navigateToSection(section: Section) {
-  console.log('DocumentOutline: navigating to section', section)
+  if (import.meta.env.DEV) {
+    console.log('DocumentOutline: navigating to section', section)
+  }
   activeSection.value = section.id
   emit('navigate', { line: section.line, column: 1 })
 }
 
-// 监听内容变化，更新高亮
+// 监听内容变化，更新高亮 - optimized to prevent memory leaks
+let outlineTimeout: number | null = null
+
 watch(() => props.content, (newContent) => {
-  console.log('DocumentOutline content changed, new length:', newContent?.length || 0)
-  // 可以在这里添加逻辑来根据当前光标位置更新activeSection
+  if (import.meta.env.DEV) {
+    console.log('DocumentOutline content changed, new length:', newContent?.length || 0)
+  }
+
+  // Debounced processing to prevent excessive recomputation
+  if (outlineTimeout) {
+    clearTimeout(outlineTimeout)
+  }
+
+  outlineTimeout = setTimeout(() => {
+    // 可以在这里添加逻辑来根据当前光标位置更新activeSection
+    outlineTimeout = null
+  }, 300)
+})
+
+// 清理定时器防止内存泄漏
+onUnmounted(() => {
+  if (outlineTimeout) {
+    clearTimeout(outlineTimeout)
+  }
 })
 </script>
 

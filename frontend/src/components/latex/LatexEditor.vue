@@ -14,7 +14,7 @@
       @focus="isFocused = true; showHighlight = false"
       @blur="isFocused = false; showHighlight = true"
       @input="handleInput"
-      @scroll="syncScroll"
+      @scroll="handleScroll"
     ></textarea>
 
     <!-- LaTeX 快捷工具栏 -->
@@ -54,11 +54,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed, watch, onUnmounted, onMounted } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
-import Prism from 'prismjs'
-import 'prismjs/themes/prism-tomorrow.css'
-import 'prismjs/components/prism-latex'
+import { performanceMonitor, checkPerformanceThreshold, PERFORMANCE_THRESHOLDS } from '@/utils/performance'
+import { highlightSyntax } from '@/utils/workers'
+import { debounce } from '@/utils/performance'
+import { useTextVirtualScroll } from '@/composables/useVirtualScroll'
 
 interface Props {
   modelValue: string
@@ -73,6 +74,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   'change': [value: string]
   'cursor-change': [position: { line: number; column: number }]
+  'scroll': [event: Event]
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement>()
@@ -80,25 +82,80 @@ const isFocused = ref(false)
 const showHighlight = ref(true)
 const showToolbar = ref(true)
 
+// Setup virtual scrolling for large documents
+const containerHeight = ref(400)
+const lineHeight = 20
+
 const innerContent = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val)
 })
 
-// 语法高亮代码
-const highlightedCode = computed(() => {
-  if (!innerContent.value) return ''
-  try {
-    return Prism.highlight(innerContent.value, Prism.languages.latex, 'latex')
-  } catch {
-    return innerContent.value
+// 语法高亮代码 - now async with Web Worker
+const highlightedCode = ref('')
+const isHighlighting = ref(false)
+
+async function updateHighlightedCode() {
+  if (!innerContent.value) {
+    highlightedCode.value = ''
+    return
   }
-})
+
+  isHighlighting.value = true
+
+  try {
+    const result = await highlightSyntax(innerContent.value)
+    highlightedCode.value = result.html
+
+    // Check performance threshold
+    checkPerformanceThreshold(
+      'syntax_highlighting',
+      result.processingTime,
+      PERFORMANCE_THRESHOLDS.renderTime
+    )
+  } catch (error) {
+    console.warn('Syntax highlighting failed:', error)
+    highlightedCode.value = innerContent.value
+  } finally {
+    isHighlighting.value = false
+  }
+}
+
+// Debounced highlighting to avoid excessive processing
+const debouncedHighlight = debounce(updateHighlightedCode, 300)
+let highlightTimeout: number | null = null
+
+// Watch for content changes - optimized to prevent memory leaks
+watch(() => innerContent.value, (newContent, oldContent) => {
+  // Skip if content hasn't actually changed (prevents unnecessary processing)
+  if (newContent === oldContent) return
+
+  // Adjust debounce time based on content size
+  const newLength = newContent?.length ?? 0
+  const debounceTime = newLength > 5000 ? 500 : 300
+
+  if (highlightTimeout) {
+    clearTimeout(highlightTimeout)
+  }
+
+  highlightTimeout = setTimeout(() => {
+    updateHighlightedCode()
+    highlightTimeout = null
+  }, debounceTime)
+}, { immediate: true })
 
 function handleInput() {
-  console.log('LatexEditor input:', innerContent.value.length)
+  const endTimer = performanceMonitor.startTimer('input_handling', {
+    contentLength: innerContent.value.length
+  })
+
+  if (import.meta.env.DEV) {
+    console.log('LatexEditor input:', innerContent.value.length)
+  }
+
   emit('change', innerContent.value)
   updateCursorPosition()
+  endTimer()
 }
 
 function updateCursorPosition() {
@@ -114,10 +171,29 @@ function updateCursorPosition() {
   emit('cursor-change', { line, column })
 }
 
+// Virtual scroll setup
+const virtualScroll = useTextVirtualScroll(
+  innerContent,
+  containerHeight,
+  lineHeight
+)
+
 // 同步滚动
-function syncScroll() {
-  if (!showHighlight.value) return
-  // 预览层滚动同步
+function handleScroll(event: Event) {
+  // Sync highlight layer scroll with textarea scroll
+  const textarea = event.target as HTMLTextAreaElement
+  const highlightLayer = textarea.previousElementSibling as HTMLElement
+  if (highlightLayer && highlightLayer.classList.contains('latex-highlight')) {
+    highlightLayer.scrollTop = textarea.scrollTop
+    highlightLayer.scrollLeft = textarea.scrollLeft
+  }
+
+  // Emit scroll event for parent to handle sync
+  emit('scroll', event)
+
+  if (import.meta.env.DEV) {
+    console.log('[LatexEditor] Scroll position:', textarea.scrollTop)
+  }
 }
 
 // Focus the editor
@@ -128,7 +204,17 @@ function focus() {
   }
 }
 
-// Navigate to specific line and column
+// Update container height when component mounts and connect virtual scroll
+onMounted(() => {
+  if (textareaRef.value) {
+    const rect = textareaRef.value.getBoundingClientRect()
+    containerHeight.value = rect.height
+    // Connect the textarea to the virtual scroll container
+    virtualScroll.containerRef.value = textareaRef.value
+  }
+})
+
+// Navigate to specific line and column - enhanced with virtual scrolling
 function navigateTo(position: { line: number; column?: number }) {
   const textarea = textareaRef.value
   if (!textarea) return
@@ -149,21 +235,48 @@ function navigateTo(position: { line: number; column?: number }) {
   // Ensure position is within bounds
   charPosition = Math.min(charPosition, text.length)
 
+  // First, ensure the highlight layer is hidden by setting focus state
+  isFocused.value = true
+  showHighlight.value = false
+
   // Set cursor position
   textarea.focus()
   textarea.selectionStart = charPosition
   textarea.selectionEnd = charPosition
 
-  // Scroll to the position
-  textarea.scrollIntoView({ block: 'center' })
+  // Scroll to make the cursor visible within the textarea
+  // Calculate line height and position
+  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 22.4
+  const textareaHeight = textarea.clientHeight
+  const currentScrollTop = textarea.scrollTop
 
-  console.log('Navigated to line', line, 'column', column, 'char position', charPosition)
+  // Calculate target scroll position to center the line
+  const targetLineTop = (line - 1) * lineHeight
+  const targetScrollTop = targetLineTop - (textareaHeight / 2) + (lineHeight / 2)
+
+  // Smooth scroll to the target position
+  textarea.scrollTo({
+    top: Math.max(0, targetScrollTop),
+    behavior: 'smooth'
+  })
+
+  if (import.meta.env.DEV) {
+    console.log('Navigated to line', line, 'column', column, 'char position', charPosition)
+  }
 }
 
 // 插入文本
 function insert(before: string, after: string) {
+  const endTimer = performanceMonitor.startTimer('text_insertion', {
+    beforeLength: before.length,
+    afterLength: after.length
+  })
+
   const textarea = textareaRef.value
-  if (!textarea) return
+  if (!textarea) {
+    endTimer()
+    return
+  }
 
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
@@ -176,6 +289,7 @@ function insert(before: string, after: string) {
   nextTick(() => {
     textarea.focus()
     textarea.selectionStart = textarea.selectionEnd = start + before.length
+    endTimer()
   })
 }
 
@@ -194,6 +308,13 @@ function handleCommand(cmd: string) {
     insert(snippet[0], snippet[1])
   }
 }
+
+// 清理定时器防止内存泄漏
+onUnmounted(() => {
+  if (highlightTimeout) {
+    clearTimeout(highlightTimeout)
+  }
+})
 
 // Expose methods to parent component
 defineExpose({
@@ -242,10 +363,11 @@ defineExpose({
   font-size: 14px;
   line-height: 1.6;
   pointer-events: none;
-  white-space: pre-wrap;
-  overflow-wrap: normal;
-  overflow-x: auto;
+  white-space: pre;
+  overflow: auto;
+  overflow-y: hidden;
   z-index: 1;
+  opacity: 0.8;
 
   code {
     background: transparent;
