@@ -2236,6 +2236,11 @@ compileDocument = async function() {
     })
 
     try {
+      // 先保存当前编辑器内容到项目文件
+      if (isModified.value) {
+        await latexStore.saveCurrentProjectFile()
+      }
+
       const result = await latexStore.compileProject()
       loadingInstance.close()
 
