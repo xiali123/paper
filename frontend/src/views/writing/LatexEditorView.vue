@@ -120,29 +120,8 @@
             </template>
           </el-dropdown>
 
-          <!-- 项目模式切换按钮 -->
-          <el-dropdown size="small" @command="handleProjectCommand" trigger="click" aria-label="项目模式">
-            <el-button size="small" :type="isProjectMode ? 'primary' : 'default'" aria-label="切换项目模式">
-              <el-icon><FolderOpened /></el-icon>
-              {{ isProjectMode ? '项目' : '单文件' }}
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu aria-label="项目选项">
-                <el-dropdown-item command="create-project">
-                  <el-icon><FolderAdd /></el-icon>
-                  新建项目
-                </el-dropdown-item>
-                <el-dropdown-item command="toggle-tree" :disabled="!isProjectMode">
-                  <el-icon><Menu /></el-icon>
-                  {{ showProjectTree ? '隐藏文件树' : '显示文件树' }}
-                </el-dropdown-item>
-                <el-dropdown-item command="exit-project" divided v-if="isProjectMode">
-                  <el-icon><Close /></el-icon>
-                  退出项目模式
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <!-- 项目选择器 -->
+          <ProjectSelector @toggle-tree="showProjectTree = $event" />
         </div>
       </nav>
 
@@ -678,6 +657,7 @@ import SymbolPalette from '@/components/latex/SymbolPalette.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
+import ProjectSelector from '@/components/latex/ProjectSelector.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
 // Props and emits
@@ -2066,73 +2046,6 @@ onUnmounted(() => {
   }
 })
 
-// ==========================================
-// 项目模式处理方法
-// ==========================================
-
-async function handleProjectCommand(command: string) {
-  switch (command) {
-    case 'create-project':
-      await handleCreateProject()
-      break
-    case 'toggle-tree':
-      showProjectTree.value = !showProjectTree.value
-      break
-    case 'exit-project':
-      await handleExitProject()
-      break
-  }
-}
-
-async function handleCreateProject() {
-  try {
-    const { value } = await ElMessageBox.prompt('请输入项目名称', '新建 LaTeX 项目', {
-    confirmButtonText: '创建',
-    cancelButtonText: '取消',
-    inputPattern: /.+/,
-    inputErrorMessage: '项目名称不能为空'
-    })
-
-    if (!value) return
-
-    const { createLatexProject } = await import('@/api/adapters/latexAdapter')
-    const project = await createLatexProject({
-      name: value,
-      mainFile: 'main.tex',
-      description: ''
-    })
-
-    await latexStore.loadProject(project.id)
-    isProjectMode.value = true
-    showProjectTree.value = true
-
-    ElMessage.success(`项目 "${value}" 创建成功`)
-  } catch {
-    // 用户取消
-  }
-}
-
-async function handleExitProject() {
-  try {
-    await ElMessageBox.confirm('确定要退出项目模式吗？未保存的更改可能会丢失。', '退出项目', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-
-    latexStore.setProjectMode(false)
-    isProjectMode.value = false
-    showProjectTree.value = false
-
-    ElMessage.info('已退出项目模式')
-  } catch {
-    // 用户取消
-  }
-}
-
-async function handleFileSelect(file: any) {
-  latexStore.switchProjectFile(file)
-}
 
 async function handleFileCreate(fileData: { name: string; path: string; type: string }) {
   try {

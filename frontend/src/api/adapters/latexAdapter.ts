@@ -278,6 +278,7 @@ const apiClient = {
   post: <T>(url: string, data?: any, config?: any): Promise<T> => service.post(url, data, config) as any,
   put: <T>(url: string, data?: any, config?: any): Promise<T> => service.put(url, data, config) as any,
   delete: <T>(url: string, config?: any): Promise<T> => service.delete(url, config) as any,
+  del: <T>(url: string, config?: any): Promise<T> => service.delete(url, config) as any, // 别名，因为后端使用 del (delete 是 C++ 关键字)
   patch: <T>(url: string, data?: any, config?: any): Promise<T> => service.patch(url, data, config) as any,
 }
 

@@ -202,6 +202,7 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
   const currentProject: Ref<any | null> = ref(null);
   const currentProjectFile: Ref<any | null> = ref(null);
   const projectFiles: Ref<any[]> = ref([]);
+  const allProjects: Ref<any[]> = ref([]); // 所有项目列表
 
   // 计算属性
   const computedEditorContent = computed(() => {
@@ -680,6 +681,98 @@ Your conclusion here.
     }
   }
 
+  // ==========================================
+  // 多项目列表管理
+  // ==========================================
+
+  async function loadAllProjects() {
+    try {
+      isLoading.value = true
+      const { listLatexProjects } = await import('@/api/adapters/latexAdapter')
+      const result = await listLatexProjects({ limit: 100 })
+      allProjects.value = result.items
+      return result.items
+    } catch (error) {
+      console.error('Failed to load projects list:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function switchProject(projectId: number) {
+    try {
+      isLoading.value = true
+      // 先保存当前项目
+      if (currentProject.value && isModified.value) {
+        await saveCurrentProjectFile()
+      }
+      // 加载新项目
+      await loadProject(projectId)
+      isProjectMode.value = true
+      return currentProject.value
+    } catch (error) {
+      console.error('Failed to switch project:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function createNewProject(name: string, description: string = '') {
+    try {
+      isLoading.value = true
+      const { createLatexProject } = await import('@/api/adapters/latexAdapter')
+      const project = await createLatexProject({
+        name,
+        mainFile: 'main.tex',
+        description,
+        isPublic: false
+      })
+
+      // 刷新项目列表
+      await loadAllProjects()
+
+      // 加载新创建的项目
+      await loadProject(project.id)
+      isProjectMode.value = true
+
+      return project
+    } catch (error) {
+      console.error('Failed to create project:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function deleteProject(projectId: number) {
+    try {
+      isLoading.value = true
+      const { deleteLatexProject } = await import('@/api/adapters/latexAdapter')
+      await deleteLatexProject(projectId)
+
+      // 从列表中移除
+      allProjects.value = allProjects.value.filter(p => p.id !== projectId)
+
+      // 如果删除的是当前项目，退出项目模式
+      if (currentProject.value?.id === projectId) {
+        setProjectMode(false)
+      }
+
+      return true
+    } catch (error) {
+      console.error('Failed to delete project:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function refreshProjectsList() {
+    return await loadAllProjects()
+  }
+
   return {
     // 状态
     currentDocument,
@@ -715,6 +808,7 @@ Your conclusion here.
     currentProject,
     currentProjectFile,
     projectFiles,
+    allProjects,
 
     // 计算属性
     compilationSuccess,
@@ -748,7 +842,14 @@ Your conclusion here.
     createProjectFile,
     deleteProjectFile,
     compileProject,
-    setProjectMode
+    setProjectMode,
+
+    // 多项目列表方法
+    loadAllProjects,
+    switchProject,
+    createNewProject,
+    deleteProject,
+    refreshProjectsList
   };
 });
 
