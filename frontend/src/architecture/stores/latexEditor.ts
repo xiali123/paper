@@ -698,6 +698,10 @@ Your conclusion here.
       const { listLatexProjects, getLatexProject } = await import('@/api/adapters/latexAdapter')
       const project = await getLatexProject(projectId)
 
+      if (import.meta.env.DEV) {
+        console.log('[LaTeX Store] Loading project:', project.name, 'files:', project.files.length)
+      }
+
       currentProject.value = project
       projectFiles.value = project.files
       isProjectMode.value = true
@@ -705,11 +709,30 @@ Your conclusion here.
       // 清除单文档模式状态, 避免干扰computedEditorContent
       currentDocument.value = null
 
-      // 默认打开主文件
-      const mainFile = project.files.find(f => f.path === project.mainFile)
+      // 默认打开主文件 (匹配 mainFile 或 mainFile.tex)
+      const mainFile = project.files.find(f =>
+        f.path === project.mainFile ||
+        f.path === `${project.mainFile}.tex` ||
+        f.name === project.mainFile ||
+        f.name === `${project.mainFile}.tex`
+      )
       if (mainFile) {
         currentProjectFile.value = mainFile
-        editorContent.value = mainFile.content
+
+        if (import.meta.env.DEV) {
+          console.log('[LaTeX Store] Main file found:', mainFile.path, 'content length:', mainFile.content?.length || 0)
+        }
+
+        editorContent.value = mainFile.content || ''
+      } else {
+        console.warn('[LaTeX Store] Main file not found:', project.mainFile, 'available files:', project.files.map(f => f.path))
+
+        // 如果没有找到主文件，使用第一个文件
+        if (project.files.length > 0) {
+          currentProjectFile.value = project.files[0]
+          editorContent.value = project.files[0].content || ''
+          console.log('[LaTeX Store] Using first file as fallback:', project.files[0].path)
+        }
       }
 
       return project
@@ -857,16 +880,33 @@ Your conclusion here.
   async function switchProject(projectId: number) {
     try {
       isLoading.value = true
+
+      if (import.meta.env.DEV) {
+        console.log('[LaTeX Store] Switching to project:', projectId, 'current project:', currentProject.value?.id)
+      }
+
       // 先保存当前项目
       if (currentProject.value && isModified.value) {
+        if (import.meta.env.DEV) {
+          console.log('[LaTeX Store] Saving current project before switch')
+        }
         await saveCurrentProjectFile()
       }
+
+      // 重置状态
+      isModified.value = false
+      currentProjectFile.value = null
+
       // 加载新项目
-      await loadProject(projectId)
-      isProjectMode.value = true
+      const project = await loadProject(projectId)
+
+      if (import.meta.env.DEV) {
+        console.log('[LaTeX Store] Project switched successfully:', project.name, 'isProjectMode:', isProjectMode.value)
+      }
+
       return currentProject.value
     } catch (error) {
-      console.error('Failed to switch project:', error)
+      console.error('[LaTeX Store] Failed to switch project:', error)
       throw error
     } finally {
       isLoading.value = false
@@ -931,7 +971,8 @@ Your conclusion here.
     // 状态
     currentDocument,
     documents,
-    editorContent: computedEditorContent,
+    editorContent, // 导出原始 ref，允许读写
+    computedEditorContent, // 导出 computed 版本供只读使用
     editorSelection,
     editorCursor,
     compilationStatus,

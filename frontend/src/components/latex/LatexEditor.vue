@@ -227,6 +227,35 @@ onMounted(() => {
   }
 })
 
+// Watch for external modelValue changes (e.g., when switching projects)
+watch(() => props.modelValue, (newValue, oldValue) => {
+  if (textareaRef.value && newValue !== textareaRef.value.value && newValue !== innerContent.value) {
+    if (import.meta.env.DEV) {
+      console.log('[LatexEditor] modelValue changed externally, updating textarea', {
+        newLength: newValue?.length || 0,
+        oldLength: oldValue?.length || 0
+      })
+    }
+    innerContent.value = newValue || ''
+    // Force textarea update
+    if (textareaRef.value) {
+      textareaRef.value.value = newValue || ''
+    }
+  }
+}, { immediate: false })
+
+// Watch innerContent changes to ensure textarea stays in sync
+watch(innerContent, (newValue) => {
+  if (textareaRef.value && newValue !== textareaRef.value.value) {
+    if (import.meta.env.DEV) {
+      console.log('[LatexEditor] innerContent changed, syncing textarea', {
+        length: newValue?.length || 0
+      })
+    }
+    textareaRef.value.value = newValue
+  }
+})
+
 // Navigate to specific line and column - enhanced with virtual scrolling
 function navigateTo(position: { line: number; column?: number }) {
   const textarea = textareaRef.value

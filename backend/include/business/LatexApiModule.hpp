@@ -497,13 +497,16 @@ private:
     std::string handleCreateDocument(const std::string& body);
     std::string handleUpdateDocument(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleDeleteDocument(const std::map<std::string, std::string>& params);
-    std::string handleCompile(const std::map<std::string, std::string>& params);
+    std::string handleCompileDocument(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleCompileProject(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleAutoSave(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleListTemplates(const std::map<std::string, std::string>& params);
     std::string handleGetTemplate(const std::map<std::string, std::string>& params);
     std::string handleCreateFromTemplate(const std::string& body);
     std::string handleStats();
     std::string handleDownloadPDF(const std::map<std::string, std::string>& params);
+    HttpResponse handleDownloadPDFBinary(const std::map<std::string, std::string>& params);
+    HttpResponse handleDownloadProjectPDFBinary(const std::map<std::string, std::string>& params);
 
     // 协作HTTP请求处理器
     std::string handleJoinCollaboration(const std::string& body);
@@ -536,6 +539,7 @@ private:
     std::string escapeJson(const std::string& str);
     LatexCompilationResult compileLatex(const std::string& content, const std::string& outputPath);
     void initializeBuiltInTemplates();
+    std::string getLatexTemplate();
 };
 
 } // namespace PaperCrawler

@@ -1505,7 +1505,8 @@ async function compileDocument() {
         // 假设文档ID可用，通过API获取PDF
         const documentId = currentDocument.value?.id || currentProjectFile.value?.id
         if (documentId) {
-          pdfUrl.value = `http://localhost:8080/api/latex/documents/${documentId}/pdf`
+          // 添加时间戳避免浏览器缓存旧的无效PDF
+          pdfUrl.value = `http://localhost:8080/api/latex/documents/${documentId}/pdf?t=${Date.now()}`
         }
         previewMode.value = 'pdf'
 
@@ -2244,7 +2245,8 @@ compileDocument = async function() {
           // 使用项目ID获取PDF
           const projectId = currentProject.value?.id
           if (projectId) {
-            pdfUrl.value = `http://localhost:8080/api/latex/projects/${projectId}/pdf`
+            // 添加时间戳避免浏览器缓存旧的无效PDF
+            pdfUrl.value = `http://localhost:8080/api/latex/projects/${projectId}/pdf?t=${Date.now()}`
           }
           previewMode.value = 'pdf'
 
