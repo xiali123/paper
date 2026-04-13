@@ -12,6 +12,9 @@ import i18n from './i18n'
 
 import './styles/index.scss'
 
+// 自定义指令
+import clickOutsideDirective from './directives/clickOutside'
+
 const app = createApp(App)
 
 const pinia = createPinia()
@@ -23,6 +26,9 @@ app.use(i18n)
 app.use(ElementPlus, {
   locale: zhCn,
 })
+
+// 注册全局指令
+app.directive('click-outside', clickOutsideDirective)
 
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
