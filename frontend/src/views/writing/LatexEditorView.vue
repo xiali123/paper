@@ -2142,7 +2142,22 @@ onMounted(async () => {
     if (import.meta.env.DEV) {
       console.log('Editor content changed in view:', { newLength: newContent?.length, oldLength: oldContent?.length })
     }
+    // 标记为已修改
+    if (oldContent !== undefined && newContent !== oldContent) {
+      isModified.value = true
+    }
   }, { immediate: true })
+
+  // 监听项目加载，重置修改标志
+  watch(() => latexStore.currentProjectFile, (newFile, oldFile) => {
+    if (newFile && newFile !== oldFile) {
+      // 文件切换或加载，重置修改标志
+      isModified.value = false
+      if (import.meta.env.DEV) {
+        console.log('[LatexEditorView] File loaded, isModified reset to false')
+      }
+    }
+  })
 })
 
 onUnmounted(() => {
