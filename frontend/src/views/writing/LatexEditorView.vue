@@ -1501,7 +1501,12 @@ async function compileDocument() {
     if (result.success) {
       // 设置PDF URL并切换到PDF预览模式
       if (result.pdfPath) {
-        pdfUrl.value = result.pdfPath
+        // 使用API端点获取PDF，而不是直接访问文件路径
+        // 假设文档ID可用，通过API获取PDF
+        const documentId = currentDocument.value?.id || currentProjectFile.value?.id
+        if (documentId) {
+          pdfUrl.value = `http://localhost:8080/api/latex/documents/${documentId}/pdf`
+        }
         previewMode.value = 'pdf'
 
         // 显示成功消息，包含编译时间和文件大小信息
@@ -2236,7 +2241,11 @@ compileDocument = async function() {
       if (result.success) {
         // 设置PDF URL并切换到PDF预览模式
         if (result.pdfPath) {
-          pdfUrl.value = result.pdfPath
+          // 使用项目ID获取PDF
+          const projectId = currentProject.value?.id
+          if (projectId) {
+            pdfUrl.value = `http://localhost:8080/api/latex/projects/${projectId}/pdf`
+          }
           previewMode.value = 'pdf'
 
           const compileTime = result.compileTimeMs || 0
