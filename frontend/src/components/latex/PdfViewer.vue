@@ -67,8 +67,6 @@ import {
   Loading
 } from '@element-plus/icons-vue'
 
-// 动态导入 PDF.js
-let pdfjsLib: any = null
 
 interface Props {
   pdfUrl?: string
@@ -90,32 +88,37 @@ const scale = ref(props.initialScale)
 let pdfDocument: any = null
 let pageRendering = false
 
-async function loadPdfJs() {
-  if (pdfjsLib) return pdfjsLib
+let pdfjsLibCache: any = null
 
+async function getPdfJs() {
+  if (pdfjsLibCache) return pdfjsLibCache
+  
   try {
-    const pdfJsModule = await import('pdfjs-dist')
-    pdfjsLib = pdfJsModule.default || pdfJsModule
-
-    // 设置 worker
-    const pdfJsWorker = await import('pdfjs-dist/build/pdf.worker.entry')
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfJsWorker.default
-
+    // Import PDF.js and worker
+    const pdfjsModule = await import('pdfjs-dist')
+    pdfjsLibCache = pdfjsModule.default || pdfjsModule
+    
+    // Import worker locally (Vite will handle it)
+    await import('pdfjs-dist/build/pdf.worker.min.js')
+    
+    // Set worker entry point (using the module that was just loaded)
+    // Note: Vite automatically handles the worker, so we don't set workerSrc
+    
     if (import.meta.env.DEV) {
-      console.log('[PdfViewer] PDF.js loaded successfully')
+      console.log('[PdfViewer] PDF.js loaded (worker bundled by Vite)')
     }
-
-    return pdfjsLib
+    
+    return pdfjsLibCache
   } catch (e) {
-    if (import.meta.env.DEV) {
-      console.warn('[PdfViewer] PDF.js import failed:', e)
-    }
+    console.error('[PdfViewer] Failed to load PDF.js:', e)
     throw new Error('PDF.js加载失败，请检查网络连接')
   }
 }
-
 async function renderPage(pageNum: number) {
   if (!pdfDocument || !canvasRef.value || pageRendering) {
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] renderPage skipped - pdfDocument:', !!pdfDocument, 'canvasRef:', !!canvasRef.value, 'rendering:', pageRendering)
+    }
     return
   }
 
@@ -135,6 +138,14 @@ async function renderPage(pageNum: number) {
     canvas.height = viewport.height
     canvas.width = viewport.width
 
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] Canvas setup:', { width: canvas.width, height: canvas.height, viewportWidth: viewport.width, viewportHeight: viewport.height })
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] Rendering page', pageNum, 'size:', canvas.width, 'x', canvas.height)
+    }
+
     const renderContext = {
       canvasContext: context,
       viewport: viewport
@@ -142,9 +153,14 @@ async function renderPage(pageNum: number) {
 
     await page.render(renderContext).promise
     pageRendering = false
+
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] Page rendered successfully')
+    }
   } catch (err) {
     pageRendering = false
     error.value = `渲染第${pageNum}页失败: ${err instanceof Error ? err.message : String(err)}`
+    console.error('[PdfViewer] Render error:', err)
   }
 }
 
@@ -153,14 +169,25 @@ async function loadPdf(url: string) {
     pdfDocument = null
     totalPages.value = 0
     currentPage.value = 1
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] loadPdf called with empty URL')
+    }
     return
   }
 
   loading.value = true
   error.value = null
 
+  if (import.meta.env.DEV) {
+    console.log('[PdfViewer] loadPdf called with URL:', url)
+  }
+
   try {
-    const pdfjs = await loadPdfJs()
+    const pdfjs = await getPdfJs()
+
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] getPdfJs returned:', typeof pdfjs, 'has getDocument:', typeof pdfjs.getDocument)
+    }
 
     // 添加缓存破坏参数（如果没有的话）
     const urlWithCacheBust = url.includes('?t=') ? url : `${url}?t=${Date.now()}`
@@ -169,9 +196,19 @@ async function loadPdf(url: string) {
       console.log('[PdfViewer] Loading PDF with cache-busting URL:', urlWithCacheBust)
     }
 
-    // 加载PDF文档
-    const loadingTask = pdfjs.getDocument(urlWithCacheBust)
+    // 加载PDF文档 - use CMap files from public directory
+    const cMapUrl = '/cmaps/'
+    const loadingTask = pdfjs.getDocument({
+      url: urlWithCacheBust,
+      cMapUrl: cMapUrl,
+      cMapPacked: true,
+      standardFontDataUrl: '/standard_fonts/'
+    })
     pdfDocument = await loadingTask.promise
+
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] Using public CMap URL:', cMapUrl)
+    }
 
     totalPages.value = pdfDocument.numPages
     currentPage.value = 1
@@ -179,18 +216,35 @@ async function loadPdf(url: string) {
     if (import.meta.env.DEV) {
       console.log('[PdfViewer] PDF loaded:', {
         url,
-        pages: totalPages.value
+        urlWithCacheBust,
+        pages: totalPages.value,
+        numPages: pdfDocument.numPages
       })
     }
 
-    // 渲染第一页
+    // 渲染第一页 - 等待DOM更新
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] Waiting for canvas element...')
+    }
+    
+    // 等待DOM更新
     await nextTick()
+    
+    // 再等待一帧确保Canvas已挂载
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await nextTick()
+    
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] Canvas ref available:', !!canvasRef.value)
+    }
+    
     await renderPage(1)
 
     ElMessage.success(`PDF加载成功，共${totalPages.value}页`)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
     console.error('[PdfViewer] Failed to load PDF:', err)
+    console.error('[PdfViewer] Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2))
     ElMessage.error('PDF加载失败')
   } finally {
     loading.value = false
@@ -258,6 +312,17 @@ watch(() => props.pdfUrl, (newUrl, oldUrl) => {
     loadPdf(newUrl)
   }
 }, { immediate: true })
+
+// 监听Canvas元素，当它可用时自动渲染
+watch(canvasRef, (newCanvas) => {
+  if (newCanvas && pdfDocument && currentPage.value > 0) {
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] Canvas became available, rendering page', currentPage.value)
+    }
+    // 使用setTimeout确保完全挂载
+    setTimeout(() => renderPage(currentPage.value), 0)
+  }
+})
 
 // 暴露方法供父组件调用
 defineExpose({

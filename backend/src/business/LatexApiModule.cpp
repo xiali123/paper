@@ -201,6 +201,43 @@ void LatexApiModule::registerRoutes() {
         return response;
     });
 
+    // Project file routes
+    router.post(prefix + "/projects/files", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleAddProjectFile(req.body);
+        HttpResponse response;
+        response.statusCode = 201;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.put(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleUpdateProjectFile(req.pathParams, req.body);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.del(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleDeleteProjectFile(req.pathParams);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.get(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleGetProjectFile(req.pathParams);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
     // PDF download routes (binary)
     router.get(prefix + "/documents/:id/pdf", [this](const HttpRequest& req) -> HttpResponse {
         return handleDownloadPDFBinary(req.pathParams);
@@ -288,46 +325,17 @@ LatexCompilationResult LatexApiModule::compileDocument(int id, const std::string
         return result;
     }
 
-    // Stub: Simulate compilation
-    result.success = true;
-    result.pdfPath = impl_->pdfDirectory_ + "/document_" + std::to_string(id) + ".pdf";
-    result.log = "Compilation successful (stub)";
-    result.compileTime = 100;
+    // Create working directory
+    std::string workDir = impl_->pdfDirectory_ + "/document_" + std::to_string(id);
+    std::filesystem::create_directories(workDir);
 
-    // Create minimal valid PDF file
-    std::ofstream pdf(result.pdfPath, std::ios::binary);
-    const char* minimalPdf =
-        "%PDF-1.4\n"
-        "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
-        "2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n"
-        "3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<"
-        "/Font<<F1 4 0 R>>>>/Contents 5 0 R>>endobj\n"
-        "4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
-        "5 0 obj<</Length 44>>stream\n"
-        "BT\n"
-        "/F1 12 Tf\n"
-        "50 700 Td\n"
-        "(LaTeX Document) Tj\n"
-        "ET\n"
-        "endstream\n"
-        "endobj\n"
-        "xref\n"
-        "0 6\n"
-        "0000000000 65535 f\n"
-        "0000000009 00000 n\n"
-        "0000000058 00000 n\n"
-        "0000000115 00000 n\n"
-        "0000000262 00000 n\n"
-        "0000000331 00000 n\n"
-        "trailer<</Size 6/Root 1 0 R>>\n"
-        "startxref\n"
-        "429\n"
-        "%%EOF\n";
-    pdf.write(minimalPdf, strlen(minimalPdf));
-    pdf.close();
+    // Compile the document content
+    result = compileLatexContent(docIt->second.content, workDir + "/document.pdf", workDir);
 
-    docIt->second.isCompiled = true;
-    docIt->second.pdfPath = result.pdfPath;
+    if (result.success) {
+        docIt->second.isCompiled = true;
+        docIt->second.pdfPath = result.pdfPath;
+    }
 
     return result;
 }
@@ -412,43 +420,60 @@ LatexCompilationResult LatexApiModule::compileProject(int id, const std::string&
         return result;
     }
 
-    // Stub: Simulate compilation
-    result.success = true;
-    result.pdfPath = impl_->pdfDirectory_ + "/project_" + std::to_string(id) + ".pdf";
-    result.log = "Project compilation successful (stub)";
-    result.compileTime = 150;
+    // Create working directory
+    std::string workDir = impl_->pdfDirectory_ + "/project_" + std::to_string(id);
+    std::filesystem::create_directories(workDir);
 
-    // Create minimal valid PDF file
-    std::ofstream pdf(result.pdfPath, std::ios::binary);
-    const char* minimalPdf =
-        "%PDF-1.4\n"
-        "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
-        "2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n"
-        "3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<"
-        "/Font<<F1 4 0 R>>>>/Contents 5 0 R>>endobj\n"
-        "4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
-        "5 0 obj<</Length 44>>stream\n"
-        "BT\n"
-        "/F1 12 Tf\n"
-        "50 700 Td\n"
-        "(LaTeX Project) Tj\n"
-        "ET\n"
-        "endstream\n"
-        "endobj\n"
-        "xref\n"
-        "0 6\n"
-        "0000000000 65535 f\n"
-        "0000000009 00000 n\n"
-        "0000000058 00000 n\n"
-        "0000000115 00000 n\n"
-        "0000000262 00000 n\n"
-        "0000000331 00000 n\n"
-        "trailer<</Size 6/Root 1 0 R>>\n"
-        "startxref\n"
-        "429\n"
-        "%%EOF\n";
-    pdf.write(minimalPdf, strlen(minimalPdf));
-    pdf.close();
+    // Write all project files to working directory
+    for (const auto& file : projectIt->second.files) {
+        std::string filePath = workDir + "/" + file.path;
+
+        // Create subdirectories if needed
+        std::filesystem::path dirPath = std::filesystem::path(filePath).parent_path();
+        if (!dirPath.empty()) {
+            std::filesystem::create_directories(dirPath);
+        }
+
+        std::ofstream fileOut(filePath);
+        fileOut << file.content;
+        fileOut.close();
+    }
+
+    // Find main file
+    std::string mainFile = workDir + "/" + projectIt->second.mainFile;
+    if (!std::filesystem::exists(mainFile)) {
+        // Try with .tex extension
+        mainFile = workDir + "/" + projectIt->second.mainFile + ".tex";
+    }
+
+    if (!std::filesystem::exists(mainFile)) {
+        result.success = false;
+        result.errorMessage = "Main file not found: " + projectIt->second.mainFile;
+        result.pdfPath = createErrorPDF(workDir + "/error.pdf", "Main File Not Found",
+            "Could not find main file: " + projectIt->second.mainFile);
+        return result;
+    }
+
+    // Read main file content
+    std::ifstream mainFileIn(mainFile);
+    std::string mainContent((std::istreambuf_iterator<char>(mainFileIn)),
+                           std::istreambuf_iterator<char>());
+    mainFileIn.close();
+
+    // Compile the main file
+    std::string outputFile = workDir + "/" + projectIt->second.name + ".pdf";
+    result = compileLatexContent(mainContent, outputFile, workDir);
+
+    // Rename output to standard name
+    if (result.success && std::filesystem::exists(outputFile)) {
+        std::string finalPdfPath = impl_->pdfDirectory_ + "/project_" + std::to_string(id) + ".pdf";
+        // Remove existing file if it exists
+        if (std::filesystem::exists(finalPdfPath)) {
+            std::filesystem::remove(finalPdfPath);
+        }
+        std::filesystem::copy_file(outputFile, finalPdfPath);
+        result.pdfPath = finalPdfPath;
+    }
 
     return result;
 }
@@ -538,7 +563,7 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
                 "3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<"
                 "/Font<<F1 4 0 R>>>>/Contents 5 0 R>>endobj\n"
                 "4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
-                "5 0 obj<</Length 44>>stream\n"
+                "5 0 obj<</Length 47>>stream\n"
                 "BT\n"
                 "/F1 12 Tf\n"
                 "50 700 Td\n"
@@ -553,10 +578,10 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
                 "0000000058 00000 n\n"
                 "0000000115 00000 n\n"
                 "0000000262 00000 n\n"
-                "0000000331 00000 n\n"
+                "0000000334 00000 n\n"
                 "trailer<</Size 6/Root 1 0 R>>\n"
                 "startxref\n"
-                "429\n"
+                "432\n"
                 "%%EOF\n";
             pdf.write(minimalPdf, strlen(minimalPdf));
             pdf.close();
@@ -628,7 +653,7 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
                 "3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<"
                 "/Font<<F1 4 0 R>>>>/Contents 5 0 R>>endobj\n"
                 "4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
-                "5 0 obj<</Length 44>>stream\n"
+                "5 0 obj<</Length 46>>stream\n"
                 "BT\n"
                 "/F1 12 Tf\n"
                 "50 700 Td\n"
@@ -643,10 +668,10 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
                 "0000000058 00000 n\n"
                 "0000000115 00000 n\n"
                 "0000000262 00000 n\n"
-                "0000000331 00000 n\n"
+                "0000000333 00000 n\n"
                 "trailer<</Size 6/Root 1 0 R>>\n"
                 "startxref\n"
-                "429\n"
+                "431\n"
                 "%%EOF\n";
             pdf.write(minimalPdf, strlen(minimalPdf));
             pdf.close();
@@ -1032,6 +1057,147 @@ std::string LatexApiModule::handleCreateProject(const std::string& body) {
 }
 
 // ============================================================================
+// HTTP request handlers - Project Files
+// ============================================================================
+
+std::string LatexApiModule::handleAddProjectFile(const std::string& body) {
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+
+        int projectId = jsonBody.value("project_id", 0);
+        std::string name = jsonBody.value("name", "");
+        std::string path = jsonBody.value("path", "");
+        std::string content = jsonBody.value("content", "");
+        std::string type = jsonBody.value("type", "other");
+
+        if (projectId == 0 || name.empty()) {
+            return impl_->buildJsonResponse(400, false, "Missing required fields: project_id, name");
+        }
+
+        LatexProjectFile file;
+        file.id = 0; // Will be set when added to project
+        file.projectId = projectId;
+        file.name = name;
+        file.path = path;
+        file.content = content;
+        file.type = type;
+        file.createdAt = std::chrono::system_clock::now();
+        file.updatedAt = std::chrono::system_clock::now();
+
+        // Find project and add file
+        auto projectIt = impl_->projects_.find(projectId);
+        if (projectIt == impl_->projects_.end()) {
+            return impl_->buildJsonResponse(404, false, "Project not found");
+        }
+
+        // Assign ID (simple increment)
+        file.id = projectIt->second.files.size() + 1;
+        projectIt->second.files.push_back(file);
+
+        nlohmann::json result;
+        result["id"] = file.id;
+        result["name"] = file.name;
+        result["path"] = file.path;
+        result["project_id"] = file.projectId;
+
+        return impl_->buildJsonResponse(201, true, "Project file created", result.dump());
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing file ID");
+    }
+
+    try {
+        int fileId = std::stoi(idIt->second);
+        auto jsonBody = nlohmann::json::parse(body);
+        std::string content = jsonBody.value("content", "");
+
+        // Search for the file in all projects
+        for (auto& [projectId, project] : impl_->projects_) {
+            for (auto& file : project.files) {
+                if (file.id == fileId) {
+                    file.content = content;
+                    file.updatedAt = std::chrono::system_clock::now();
+
+                    return impl_->buildJsonResponse(200, true, "Project file updated");
+                }
+            }
+        }
+
+        return impl_->buildJsonResponse(404, false, "Project file not found");
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleDeleteProjectFile(const std::map<std::string, std::string>& params) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing file ID");
+    }
+
+    try {
+        int fileId = std::stoi(idIt->second);
+
+        // Search for the file in all projects
+        for (auto& [projectId, project] : impl_->projects_) {
+            auto& files = project.files;
+            auto it = std::find_if(files.begin(), files.end(), [fileId](const LatexProjectFile& f) {
+                return f.id == fileId;
+            });
+
+            if (it != files.end()) {
+                files.erase(it);
+                return impl_->buildJsonResponse(200, true, "Project file deleted");
+            }
+        }
+
+        return impl_->buildJsonResponse(404, false, "Project file not found");
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleGetProjectFile(const std::map<std::string, std::string>& params) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing file ID");
+    }
+
+    try {
+        int fileId = std::stoi(idIt->second);
+
+        // Search for the file in all projects
+        for (const auto& [projectId, project] : impl_->projects_) {
+            for (const auto& file : project.files) {
+                if (file.id == fileId) {
+                    nlohmann::json result;
+                    result["id"] = file.id;
+                    result["project_id"] = file.projectId;
+                    result["name"] = file.name;
+                    result["path"] = file.path;
+                    result["content"] = file.content;
+                    result["type"] = file.type;
+                    result["created_at"] = std::chrono::system_clock::to_time_t(file.createdAt);
+                    result["updated_at"] = std::chrono::system_clock::to_time_t(file.updatedAt);
+
+                    return impl_->buildJsonResponse(200, true, "Project file retrieved", result.dump());
+                }
+            }
+        }
+
+        return impl_->buildJsonResponse(404, false, "Project file not found");
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+// ============================================================================
 // HTTP request handlers - Templates
 // ============================================================================
 
@@ -1105,6 +1271,118 @@ std::string LatexApiModule::handleStats() {
 // ============================================================================
 // Helper functions
 // ============================================================================
+
+std::string LatexApiModule::createErrorPDF(const std::string& outputPath, const std::string& title, const std::string& errorMessage) {
+    // Create a PDF with error message
+    std::ofstream pdf(outputPath, std::ios::binary);
+
+    // Simple error PDF with multiple lines of text
+    const char* errorPdf =
+        "%PDF-1.4\n"
+        "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+        "2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n"
+        "3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<"
+        "/Font<<F1 4 0 R>>>>/Contents 5 0 R>>endobj\n"
+        "4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
+        "5 0 obj<</Length 200>>stream\n"
+        "BT\n"
+        "/F1 14 Tf\n"
+        "50 750 Td\n"
+        "(LaTeX Compilation Failed) Tj\n"
+        "0 -20 Td\n"
+        "/F1 10 Tf\n"
+        "(Please check your LaTeX syntax) Tj\n"
+        "0 -30 Td\n"
+        "(Error:) Tj\n"
+        "ET\n"
+        "endstream\n"
+        "endobj\n"
+        "xref\n"
+        "0 6\n"
+        "0000000000 65535 f\n"
+        "0000000009 00000 n\n"
+        "0000000058 00000 n\n"
+        "0000000115 00000 n\n"
+        "0000000262 00000 n\n"
+        "0000000345 00000 n\n"
+        "trailer<</Size 6/Root 1 0 R>>\n"
+        "startxref\n"
+        "443\n"
+        "%%EOF\n";
+
+    pdf.write(errorPdf, strlen(errorPdf));
+    pdf.close();
+
+    return outputPath;
+}
+
+LatexCompilationResult LatexApiModule::compileLatexContent(const std::string& content, const std::string& outputPath, const std::string& workDir) {
+    LatexCompilationResult result;
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    // Write .tex file
+    std::string texFile = workDir + "/document.tex";
+    std::ofstream tex(texFile);
+    tex << content;
+    tex.close();
+
+    // Compile using pdflatex or xelatex
+    std::string outputFile = workDir + "/document.pdf";
+    std::string logFile = workDir + "/document.log";
+
+    // Try xelatex first (better for Chinese), then pdflatex
+    std::vector<std::string> compilers = {"xelatex", "pdflatex"};
+    bool compilationSuccess = false;
+    std::string compileLog;
+
+    for (const auto& compiler : compilers) {
+        std::string cmd = compiler + " -interaction=nonstopmode -output-directory=\"" + workDir + "\" \"" + texFile + "\" 2>&1";
+        compileLog = "Using compiler: " + compiler + "\n";
+
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (pipe) {
+            char buffer[256];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                compileLog += buffer;
+            }
+            int returnCode = pclose(pipe);
+
+            // Check if PDF was created
+            if (returnCode == 0 && std::filesystem::exists(outputFile)) {
+                compilationSuccess = true;
+                break;
+            } else {
+                compileLog += "\nCompilation failed with return code: " + std::to_string(returnCode) + "\n";
+            }
+        }
+    }
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+    // Read log file if it exists
+    if (std::filesystem::exists(logFile)) {
+        std::ifstream log(logFile);
+        std::stringstream logBuffer;
+        logBuffer << log.rdbuf();
+        result.log = compileLog + "\n\n=== LaTeX Log ===\n" + logBuffer.str();
+    } else {
+        result.log = compileLog;
+    }
+
+    if (compilationSuccess) {
+        result.success = true;
+        result.pdfPath = outputFile;
+        result.compileTime = duration.count();
+    } else {
+        result.success = false;
+        result.errorMessage = "LaTeX compilation failed. Please check your LaTeX syntax.";
+        result.log = compileLog;
+        result.pdfPath = createErrorPDF(workDir + "/error.pdf", "Compilation Failed", compileLog);
+    }
+
+    return result;
+}
 
 std::string LatexApiModule::getLatexTemplate() {
     return R"(%% !TeX program = xelatex
