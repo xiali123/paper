@@ -85,6 +85,9 @@
       title="新建 LaTeX 项目"
       width="500px"
       :close-on-click-modal="false"
+      :z-index="9999"
+      append-to-body
+      destroy-on-close
     >
       <el-form :model="newProjectForm" label-width="100px" :rules="formRules" ref="formRef">
         <el-form-item label="项目名称" prop="name">

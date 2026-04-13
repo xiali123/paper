@@ -23,6 +23,9 @@ export interface LatexDocument {
 export interface CompilationResult {
   success: boolean;
   output?: string;
+  pdfPath?: string;
+  compileTimeMs?: number;
+  error?: string;
   errors?: CompilationError[];
   warnings?: CompilationWarning[];
   log?: string;
@@ -195,6 +198,12 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
   const statusBarVisible: Ref<boolean> = ref(true);
   const currentTheme: Ref<'light' | 'dark'> = ref('light');
 
+  // 自动保存状态
+  const isModified: Ref<boolean> = ref(false);
+  const lastSavedTime: Ref<number | null> = ref(null);
+  const autoSaveEnabled: Ref<boolean> = ref(true);
+  const autoSaveInterval: Ref<number> = ref(30000); // 30秒
+
   // ==========================================
   // 项目状态（多文件支持）
   // ==========================================
@@ -249,28 +258,53 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
   }
 
   async function createNewDocument(name: string = 'Untitled.tex'): Promise<LatexDocument> {
-    // 直接使用默认模板，避免API调用
     const template = getLatexTemplate();
 
-    const newDocument: LatexDocument = {
-      id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    // 临时文档，无ID（null表示新建）
+    const tempDoc: LatexDocument = {
+      id: '',  // 空字符串表示待创建
       name,
       content: template,
       path: `/${name}`,
       lastModified: Date.now(),
-      size: 0,
+      size: template.length,
       metadata: {
         documentClass: 'article',
         packages: ['amsmath', 'amsfonts', 'amssymb']
       }
     };
 
-    setCurrentDocument(newDocument);
-    return newDocument;
+    setCurrentDocument(tempDoc);
+
+    // 立即保存到后端获取真实ID
+    try {
+      const { latexApi } = await import('@/api/modules/latex');
+      const result = await latexApi.saveDocument({
+        name: tempDoc.name,
+        content: tempDoc.content,
+        path: tempDoc.path,
+        metadata: tempDoc.metadata
+      });
+
+      if (result.success && result.document?.id) {
+        // 更新为后端分配的真实ID
+        tempDoc.id = String(result.document.id);
+        setCurrentDocument(tempDoc);
+
+        if (import.meta.env.DEV) {
+          console.log('[LaTeX Store] New document created with backend ID:', tempDoc.id);
+        }
+      }
+    } catch (error) {
+      console.error('[LaTeX Store] Failed to create document on backend:', error);
+    }
+
+    return tempDoc;
   }
 
   function updateDocumentContent(content: string) {
     editorContent.value = content;
+    markModified();
 
     if (currentDocument.value) {
       currentDocument.value.content = content;
@@ -333,6 +367,11 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
       if (response.success && response.result) {
         result = response.result;
         result.duration = duration;
+        // 确保pdfPath和compileTimeMs被正确传递
+        if (response.result.output && !response.result.pdfPath) {
+          // 兼容旧格式：output可能是pdfPath
+          result.pdfPath = response.result.output;
+        }
       } else {
         // 如果API调用失败，使用客户端验证作为后备
         const mockErrors = validateLatexContent(content);
@@ -524,13 +563,122 @@ Your conclusion here.
 \\end{document}`;
   }
 
-  // 自动保存 (将在第7-10周实现)
+  // ==========================================
+  // 自动保存系统
+  // ==========================================
   let autoSaveTimer: NodeJS.Timeout | null = null;
+  let saveDebounceTimer: NodeJS.Timeout | null = null;
+
+  const AUTO_SAVE_STORAGE_KEY = 'latex_autosave_backup';
+
+  function saveToLocalBackup() {
+    if (!currentDocument.value) return;
+
+    const backup = {
+      id: currentDocument.value.id,
+      name: currentDocument.value.name,
+      content: editorContent.value,
+      path: currentDocument.value.path,
+      lastModified: Date.now(),
+      metadata: currentDocument.value.metadata
+    };
+
+    try {
+      localStorage.setItem(AUTO_SAVE_STORAGE_KEY, JSON.stringify(backup));
+    } catch (error) {
+      console.error('Failed to save to local backup:', error);
+    }
+  }
+
+  function loadFromLocalBackup(): LatexDocument | null {
+    try {
+      const backup = localStorage.getItem(AUTO_SAVE_STORAGE_KEY);
+      if (!backup) return null;
+
+      return JSON.parse(backup) as LatexDocument;
+    } catch (error) {
+      console.error('Failed to load from local backup:', error);
+      return null;
+    }
+  }
+
+  function clearLocalBackup() {
+    try {
+      localStorage.removeItem(AUTO_SAVE_STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear local backup:', error);
+    }
+  }
+
+  async function performAutoSave() {
+    if (!autoSaveEnabled.value || !isModified.value || !currentDocument.value) {
+      return;
+    }
+
+    await saveDocument();
+    saveToLocalBackup();
+    isModified.value = false;
+    lastSavedTime.value = Date.now();
+
+    if (import.meta.env.DEV) {
+      console.log('[AutoSave] Document saved automatically at', new Date(lastSavedTime.value).toLocaleTimeString());
+    }
+  }
+
+  function startAutoSave() {
+    stopAutoSave();
+
+    if (!autoSaveEnabled.value) return;
+
+    autoSaveTimer = setInterval(() => {
+      performAutoSave();
+    }, autoSaveInterval.value);
+
+    if (import.meta.env.DEV) {
+      console.log(`[AutoSave] Started with ${autoSaveInterval.value / 1000}s interval`);
+    }
+  }
 
   function stopAutoSave() {
     if (autoSaveTimer) {
       clearInterval(autoSaveTimer);
       autoSaveTimer = null;
+    }
+    if (saveDebounceTimer) {
+      clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = null;
+    }
+  }
+
+  function triggerAutoSave(debounceMs: number = 1000) {
+    if (!autoSaveEnabled.value) return;
+
+    if (saveDebounceTimer) {
+      clearTimeout(saveDebounceTimer);
+    }
+
+    saveDebounceTimer = setTimeout(() => {
+      performAutoSave();
+    }, debounceMs);
+  }
+
+  function markModified() {
+    isModified.value = true;
+  }
+
+  function setAutoSaveEnabled(enabled: boolean) {
+    autoSaveEnabled.value = enabled;
+    if (enabled) {
+      startAutoSave();
+    } else {
+      stopAutoSave();
+    }
+  }
+
+  function setAutoSaveInterval(intervalMs: number) {
+    autoSaveInterval.value = Math.max(5000, intervalMs);
+    if (autoSaveEnabled.value) {
+      startAutoSave();
     }
   }
 
@@ -553,6 +701,9 @@ Your conclusion here.
       currentProject.value = project
       projectFiles.value = project.files
       isProjectMode.value = true
+
+      // 清除单文档模式状态, 避免干扰computedEditorContent
+      currentDocument.value = null
 
       // 默认打开主文件
       const mainFile = project.files.find(f => f.path === project.mainFile)
@@ -650,7 +801,10 @@ Your conclusion here.
       const duration = Date.now() - startTime
       compilationResult.value = {
         success: result.success,
-        output: result.pdfPath,
+        output: result.log,
+        pdfPath: result.pdfPath,
+        compileTimeMs: result.compileTimeMs,
+        error: result.error,
         errors: result.error ? [{
           line: 0,
           message: result.error,
@@ -810,6 +964,12 @@ Your conclusion here.
     projectFiles,
     allProjects,
 
+    // 自动保存状态
+    isModified,
+    lastSavedTime,
+    autoSaveEnabled,
+    autoSaveInterval,
+
     // 计算属性
     compilationSuccess,
     activeCollaborationUsers,
@@ -849,7 +1009,19 @@ Your conclusion here.
     switchProject,
     createNewProject,
     deleteProject,
-    refreshProjectsList
+    refreshProjectsList,
+
+    // 自动保存方法
+    startAutoSave,
+    stopAutoSave,
+    performAutoSave,
+    triggerAutoSave,
+    markModified,
+    setAutoSaveEnabled,
+    setAutoSaveInterval,
+    saveToLocalBackup,
+    loadFromLocalBackup,
+    clearLocalBackup
   };
 });
 

@@ -251,6 +251,13 @@ function toISODateString(timestamp: string | number): string {
 
   // If it's a Unix timestamp, convert to ISO string
   const date = new Date(typeof timestamp === 'number' ? timestamp * 1000 : timestamp)
+
+  // Validate date before calling toISOString()
+  if (isNaN(date.getTime())) {
+    console.warn('[toISODateString] Invalid timestamp:', timestamp)
+    return new Date().toISOString() // Fallback to current time
+  }
+
   return date.toISOString()
 }
 
@@ -359,11 +366,14 @@ export async function deleteLatexDocument(id: number): Promise<void> {
 
 /**
  * Compile LaTeX document to PDF
+ * @param id Document ID
+ * @param userId Optional user ID for quota tracking
  */
-export async function compileLatexDocument(id: number): Promise<FrontendLatexCompilationResult> {
+export async function compileLatexDocument(id: number, userId?: string): Promise<FrontendLatexCompilationResult> {
   // service 拦截器已提取 data 字段
+  const queryParams = userId ? `?user_id=${encodeURIComponent(userId)}` : ''
   const response = await apiClient.post<BackendLatexCompilationResult>(
-    `${API_BASE}/documents/${id}/compile`,
+    `${API_BASE}/documents/${id}/compile${queryParams}`,
     {}
   )
 
@@ -667,10 +677,13 @@ export async function deleteLatexProject(id: number): Promise<void> {
 
 /**
  * 编译项目
+ * @param id Project ID
+ * @param userId Optional user ID for quota tracking
  */
-export async function compileLatexProject(id: number): Promise<FrontendLatexCompilationResult> {
+export async function compileLatexProject(id: number, userId?: string): Promise<FrontendLatexCompilationResult> {
+  const queryParams = userId ? `?user_id=${encodeURIComponent(userId)}` : ''
   const response = await apiClient.post<BackendLatexCompilationResult>(
-    `${API_BASE}/projects/${id}/compile`,
+    `${API_BASE}/projects/${id}/compile${queryParams}`,
     {}
   )
 
@@ -727,4 +740,167 @@ export async function getProjectFile(fileId: number): Promise<FrontendLatexProje
   )
 
   return toFrontendProjectFile(response)
+}
+
+// ============================================================================
+// 用户配额管理类型定义
+// ============================================================================
+
+/**
+ * Backend User Quota structure
+ */
+interface BackendLatexUserQuota {
+  user_id: string
+  daily_compile_limit: number
+  monthly_compile_limit: number
+  max_project_count: number
+  can_use_advanced_features: boolean
+  daily_compiles_used: number
+  monthly_compiles_used: number
+  project_count_used: number
+  daily_reset: number
+  monthly_reset: number
+}
+
+/**
+ * Backend Compilation Record structure
+ */
+interface BackendLatexCompilationRecord {
+  id: number
+  user_id: string
+  project_id: number
+  document_id: string
+  content_hash: string
+  success: boolean
+  error_message: string
+  timestamp: number
+}
+
+/**
+ * Frontend User Quota structure
+ */
+export interface FrontendLatexUserQuota {
+  userId: string
+  dailyCompileLimit: number
+  monthlyCompileLimit: number
+  maxProjectCount: number
+  canUseAdvancedFeatures: boolean
+  dailyCompilesUsed: number
+  monthlyCompilesUsed: number
+  projectCountUsed: number
+  dailyReset: number
+  monthlyReset: number
+}
+
+/**
+ * Frontend Compilation Record structure
+ */
+export interface FrontendLatexCompilationRecord {
+  id: number
+  userId: string
+  projectId: number
+  documentId: string
+  contentHash: string
+  success: boolean
+  errorMessage: string
+  timestamp: number
+}
+
+/**
+ * Initialize User Quota Request
+ */
+export interface InitializeUserQuotaRequest {
+  userId: string
+  tier?: 'free' | 'pro' | 'admin'
+}
+
+/**
+ * Set User Quota Request
+ */
+export interface SetUserQuotaRequest {
+  userId: string
+  dailyCompileLimit?: number
+  monthlyCompileLimit?: number
+  maxProjectCount?: number
+  canUseAdvancedFeatures?: boolean
+  allowedPackages?: string[]
+}
+
+// ============================================================================
+// 用户配额 API 客户端函数
+// ============================================================================
+
+/**
+ * 获取用户配额信息
+ */
+export async function getUserQuota(userId: string): Promise<FrontendLatexUserQuota> {
+  const response = await apiClient.get<BackendLatexUserQuota>(
+    `${API_BASE}/quota/${userId}`
+  )
+
+  return {
+    userId: response.user_id,
+    dailyCompileLimit: response.daily_compile_limit,
+    monthlyCompileLimit: response.monthly_compile_limit,
+    maxProjectCount: response.max_project_count,
+    canUseAdvancedFeatures: response.can_use_advanced_features,
+    dailyCompilesUsed: response.daily_compiles_used,
+    monthlyCompilesUsed: response.monthly_compiles_used,
+    projectCountUsed: response.project_count_used,
+    dailyReset: response.daily_reset,
+    monthlyReset: response.monthly_reset
+  }
+}
+
+/**
+ * 设置用户配额
+ */
+export async function setUserQuota(request: SetUserQuotaRequest): Promise<void> {
+  await apiClient.post(
+    `${API_BASE}/quota`,
+    {
+      user_id: request.userId,
+      daily_compile_limit: request.dailyCompileLimit,
+      monthly_compile_limit: request.monthlyCompileLimit,
+      max_project_count: request.maxProjectCount,
+      can_use_advanced_features: request.canUseAdvancedFeatures,
+      allowed_packages: request.allowedPackages
+    }
+  )
+}
+
+/**
+ * 初始化用户配额
+ */
+export async function initializeUserQuota(request: InitializeUserQuotaRequest): Promise<void> {
+  await apiClient.post(
+    `${API_BASE}/quota/initialize`,
+    {
+      user_id: request.userId,
+      tier: request.tier || 'free'
+    }
+  )
+}
+
+/**
+ * 获取用户编译记录
+ */
+export async function getUserCompilationRecords(
+  userId: string,
+  limit: number = 100
+): Promise<FrontendLatexCompilationRecord[]> {
+  const response = await apiClient.get<{ records: BackendLatexCompilationRecord[]; total: number }>(
+    `${API_BASE}/quota/${userId}/records?limit=${limit}`
+  )
+
+  return response.records.map(r => ({
+    id: r.id,
+    userId: r.user_id,
+    projectId: r.project_id,
+    documentId: r.document_id,
+    contentHash: r.content_hash,
+    success: r.success,
+    errorMessage: r.error_message,
+    timestamp: r.timestamp
+  }))
 }

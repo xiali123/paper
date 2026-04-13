@@ -7,9 +7,10 @@
           <el-breadcrumb-item :to="{ path: '/writing' }">协作写作</el-breadcrumb-item>
           <el-breadcrumb-item>LaTeX编辑器</el-breadcrumb-item>
           <el-breadcrumb-item v-if="currentDocument">{{ currentDocument.name }}</el-breadcrumb-item>
+          <el-breadcrumb-item v-else-if="currentProject">{{ currentProject.name }}</el-breadcrumb-item>
         </el-breadcrumb>
 
-        <div class="document-actions" role="toolbar" aria-label="文档操作" v-if="currentDocument">
+        <div class="document-actions" role="toolbar" aria-label="文档操作" v-if="currentDocument || isProjectMode">
           <el-button-group>
             <el-button
               size="small"
@@ -468,15 +469,33 @@
               </el-button>
             </el-button-group>
           </div>
+
+          <div class="preview-mode-toggle">
+            <el-radio-group v-model="previewMode" size="small">
+              <el-radio-button value="html">HTML预览</el-radio-button>
+              <el-radio-button value="pdf" :disabled="!pdfUrl">PDF预览</el-radio-button>
+            </el-radio-group>
+          </div>
         </div>
 
         <div class="preview-content" ref="previewScrollElement">
           <LatexPreview
+            v-if="previewMode === 'html'"
             :content="editorContent"
             :scale="previewScale"
             :theme="theme"
             ref="previewRef"
           />
+          <PdfViewer
+            v-else-if="previewMode === 'pdf' && pdfUrl"
+            :pdf-url="pdfUrl"
+            ref="pdfViewerRef"
+          />
+          <div v-else-if="previewMode === 'pdf' && !pdfUrl" class="pdf-placeholder">
+            <el-empty description="请先编译文档生成PDF">
+              <el-button type="primary" @click="compileDocument">立即编译</el-button>
+            </el-empty>
+          </div>
         </div>
 
         <!-- 错误面板 -->
@@ -641,7 +660,7 @@ import { useKeyboardShortcuts, getLatexShortcuts } from '@/composables/useKeyboa
 import { useScrollSync } from '@/composables/useScrollSync'
 import { useUndoRedo } from '@/composables/useUndoRedo'
 import { useLatexAutocomplete } from '@/composables/useLatexAutocomplete'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
   Tickets, Loading, Warning, InfoFilled, Close,
@@ -650,6 +669,7 @@ import {
   FolderOpened, FolderAdd
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
+import PdfViewer from '@/components/latex/PdfViewer.vue'
 import LatexAutocomplete from '@/components/latex/LatexAutocomplete.vue'
 import LatexEditor from '@/components/latex/LatexEditor.vue'
 import DocumentOutline from '@/components/latex/DocumentOutline.vue'
@@ -672,6 +692,7 @@ const latexStore = useLatexEditorStore()
 
 // Refs
 const previewRef = ref<InstanceType<typeof LatexPreview> | null>(null)
+const pdfViewerRef = ref<InstanceType<typeof PdfViewer> | null>(null)
 const editorRef = ref<any>(null)
 
 // Reactive state
@@ -682,14 +703,19 @@ const showSnippets = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
 const showProjectTree = ref(false) // 新增：项目文件树
-const isProjectMode = ref(false) // 新增：项目模式
+const isProjectMode = computed(() => latexStore.isProjectMode) // 从store读取
 const saving = ref(false)
 const compiling = ref(false)
+const currentProject = computed(() => latexStore.currentProject) // 当前项目
 const activeErrorTab = ref('errors')
 const documentId = ref<string | null>(props.documentId || null)
 const mobileActiveTab = ref<'editor' | 'preview'>('editor')
 const isMobile = ref(false)
 const cursorPosition = ref({ line: 1, column: 1 })
+
+// PDF预览相关状态
+const pdfUrl = ref<string | null>(null)
+const previewMode = ref<'html' | 'pdf'>('html') // 预览模式：HTML或PDF
 
 // ==========================================
 // Layout state - 可调整布局
@@ -1462,16 +1488,97 @@ function saveDocument() {
 
 async function compileDocument() {
   compiling.value = true
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在编译LaTeX文档...',
+    background: 'rgba(0, 0, 0, 0.7)',
+  })
+
   try {
     const result = await latexStore.compileDocument()
+    loadingInstance.close()
+
     if (result.success) {
-      // Update preview
-      if (previewRef.value) {
-        previewRef.value.refresh()
+      // 设置PDF URL并切换到PDF预览模式
+      if (result.pdfPath) {
+        pdfUrl.value = result.pdfPath
+        previewMode.value = 'pdf'
+
+        // 显示成功消息，包含编译时间和文件大小信息
+        const compileTime = result.compileTimeMs || 0
+        let message = `编译成功！耗时${compileTime}ms`
+
+        // 如果编译时间较长，显示不同的提示
+        if (compileTime > 5000) {
+          message = `编译完成（耗时${(compileTime / 1000).toFixed(1)}秒）`
+        } else if (compileTime > 1000) {
+          message = `编译成功（耗时${(compileTime / 1000).toFixed(1)}秒）`
+        }
+
+        ElMessage({
+          message,
+          type: 'success',
+          duration: 3000,
+          showClose: true
+        })
+      } else {
+        // 如果没有PDF路径，刷新HTML预览
+        if (previewRef.value) {
+          previewRef.value.refresh()
+        }
+        ElMessage.success('预览已更新')
+      }
+    } else {
+      // 处理不同类型的错误
+      const errorMsg = result.error || '编译失败'
+
+      // 检查是否是配额限制错误
+      if (errorMsg.includes('quota') || errorMsg.includes('limit') || errorMsg.includes('配额')) {
+        ElMessage({
+          message: '编译配额已用完，请升级套餐或等待配额重置',
+          type: 'warning',
+          duration: 5000,
+          showClose: true
+        })
+
+        // 可以显示配额信息的对话框
+        ElMessageBox.alert(
+          '您的编译配额已用完。\n\n免费用户每日10次，每月100次。\n\n请升级到Pro版获得更多编译次数，或等待配额自动重置。',
+          '编译配额已用完',
+          {
+            confirmButtonText: '知道了',
+            type: 'warning'
+          }
+        )
+      } else if (errorMsg.includes('timeout') || errorMsg.includes('超时')) {
+        ElMessage.error('编译超时，请检查文档是否有复杂内容或减少文件大小')
+      } else if (errorMsg.includes('syntax') || errorMsg.includes('语法')) {
+        ElMessage.error('LaTeX语法错误，请检查文档')
+      } else {
+        ElMessage.error({
+          message: `编译失败: ${errorMsg}`,
+          duration: 5000,
+          showClose: true
+        })
+      }
+
+      // 如果有详细日志，显示在控制台
+      if (result.log && import.meta.env.DEV) {
+        console.log('Compilation log:', result.log)
       }
     }
   } catch (error) {
+    loadingInstance.close()
     console.error('Compilation failed:', error)
+
+    const errorMsg = error instanceof Error ? error.message : '未知错误'
+
+    // 检查是否是网络错误
+    if (errorMsg.includes('network') || errorMsg.includes('Network') || errorMsg.includes('fetch')) {
+      ElMessage.error('网络错误，请检查网络连接后重试')
+    } else {
+      ElMessage.error(`编译失败: ${errorMsg}`)
+    }
   } finally {
     compiling.value = false
   }
@@ -2116,12 +2223,73 @@ saveDocument = function() {
 compileDocument = async function() {
   if (isProjectMode.value) {
     compiling.value = true
+    const loadingInstance = ElLoading.service({
+      lock: true,
+      text: '正在编译LaTeX项目...',
+      background: 'rgba(0, 0, 0, 0.7)',
+    })
+
     try {
       const result = await latexStore.compileProject()
+      loadingInstance.close()
+
       if (result.success) {
-        if (previewRef.value) {
-          previewRef.value.updatePreview(result.output || '')
+        // 设置PDF URL并切换到PDF预览模式
+        if (result.pdfPath) {
+          pdfUrl.value = result.pdfPath
+          previewMode.value = 'pdf'
+
+          const compileTime = result.compileTimeMs || 0
+          let message = `项目编译成功！耗时${compileTime}ms`
+
+          if (compileTime > 5000) {
+            message = `项目编译完成（耗时${(compileTime / 1000).toFixed(1)}秒）`
+          } else if (compileTime > 1000) {
+            message = `项目编译成功（耗时${(compileTime / 1000).toFixed(1)}秒）`
+          }
+
+          ElMessage({
+            message,
+            type: 'success',
+            duration: 3000,
+            showClose: true
+          })
+        } else if (result.output) {
+          // 兼容旧的output格式
+          if (previewRef.value) {
+            previewRef.value.updatePreview(result.output)
+          }
+          ElMessage.success('项目预览已更新')
         }
+      } else {
+        const errorMsg = result.error || '编译失败'
+
+        // 检查是否是配额限制错误
+        if (errorMsg.includes('quota') || errorMsg.includes('limit') || errorMsg.includes('配额')) {
+          ElMessage({
+            message: '编译配额已用完，请升级套餐或等待配额重置',
+            type: 'warning',
+            duration: 5000,
+            showClose: true
+          })
+        } else {
+          ElMessage.error({
+            message: `项目编译失败: ${errorMsg}`,
+            duration: 5000,
+            showClose: true
+          })
+        }
+      }
+    } catch (error) {
+      loadingInstance.close()
+      console.error('Project compilation failed:', error)
+
+      const errorMsg = error instanceof Error ? error.message : '未知错误'
+
+      if (errorMsg.includes('network') || errorMsg.includes('Network') || errorMsg.includes('fetch')) {
+        ElMessage.error('网络错误，请检查网络连接后重试')
+      } else {
+        ElMessage.error(`项目编译失败: ${errorMsg}`)
       }
     } finally {
       compiling.value = false
@@ -2698,6 +2866,15 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
         font-weight: 500;
       }
     }
+
+    .preview-mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 12px;
+      padding-left: 12px;
+      border-left: 1px solid var(--el-border-color-lighter);
+    }
   }
 
   .preview-content {
@@ -2716,6 +2893,14 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 
       // 淡入动画
       animation: fadeIn 0.3s ease-out;
+    }
+
+    .pdf-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 20px;
     }
   }
 

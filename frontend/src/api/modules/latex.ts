@@ -142,7 +142,10 @@ export const latexApi = {
         success: result.success,
         result: {
           success: result.success,
-          output: result.pdfPath,
+          output: result.log,
+          pdfPath: result.pdfPath,
+          compileTimeMs: result.compileTimeMs,
+          error: result.error,
           errors: result.error ? [{
             line: 0,
             message: result.error,
@@ -169,7 +172,7 @@ export const latexApi = {
    */
   saveDocument: async (requestData: SaveDocumentRequest): Promise<SaveDocumentResponse> => {
     try {
-      if (requestData.id) {
+      if (requestData.id && requestData.id !== '0' && requestData.id !== 0) {
         // 更新现有文档
         await updateLatexDocument(Number(requestData.id), {
           title: requestData.name,
