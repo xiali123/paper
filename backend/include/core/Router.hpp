@@ -54,6 +54,8 @@ private:
     std::unordered_map<std::string, std::unordered_map<std::string, RouteHandler>> exactRoutes_;
     // 参数路由：method => [ (pattern, handler) ]
     std::unordered_map<std::string, std::vector<std::pair<std::string, RouteHandler>>> paramRoutes_;
+    // 模块路由：prefix => { full_path => handler }
+    std::unordered_map<std::string, std::unordered_map<std::string, RouteHandler>> moduleRoutes_;
 };
 
 } // namespace PaperCrawler

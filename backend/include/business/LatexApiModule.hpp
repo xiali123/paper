@@ -12,8 +12,68 @@
 #include <functional>
 #include <sstream>
 #include <memory>
+#include <unordered_map>
 
 namespace PaperCrawler {
+
+// 前向声明
+class Router;
+
+/**
+ * @brief 协作用户信息
+ */
+struct LatexCollaborationUser {
+    std::string connectionId;
+    std::string userId;
+    std::string userName;
+    std::string color;
+    std::pair<int, int> cursorPosition;  // line, column
+    std::pair<int, int> selectionStart;    // line, column
+    std::pair<int, int> selectionEnd;      // line, column
+    bool isActive;
+    std::chrono::system_clock::time_point lastActivity;
+
+    std::string toJSON() const {
+        std::ostringstream json;
+        json << "{";
+        json << "\"connectionId\":\"" << connectionId << "\",";
+        json << "\"userId\":\"" << userId << "\",";
+        json << "\"userName\":\"" << userName << "\",";
+        json << "\"color\":\"" << color << "\",";
+        json << "\"cursorPosition\":{\"line\":" << cursorPosition.first << ",\"column\":" << cursorPosition.second << "},";
+        json << "\"selectionStart\":{\"line\":" << selectionStart.first << ",\"column\":" << selectionStart.second << "},";
+        json << "\"selectionEnd\":{\"line\":" << selectionEnd.first << ",\"column\":" << selectionEnd.second << "},";
+        json << "\"isActive\":" << (isActive ? "true" : "false") << ",";
+        json << "\"lastActivity\":" << std::chrono::system_clock::to_time_t(lastActivity);
+        json << "}";
+        return json.str();
+    }
+};
+
+/**
+ * @brief 协作会话
+ */
+struct LatexCollaborationSession {
+    std::string sessionId;
+    int documentId;
+    std::string documentTitle;
+    std::unordered_map<std::string, LatexCollaborationUser> users;
+    std::string documentContent;  // 当前文档内容
+    std::chrono::system_clock::time_point createdAt;
+    std::chrono::system_clock::time_point lastActivity;
+
+    size_t getActiveUserCount() const {
+        auto now = std::chrono::system_clock::now();
+        size_t count = 0;
+        for (const auto& [id, user] : users) {
+            auto inactiveTime = std::chrono::duration_cast<std::chrono::seconds>(now - user.lastActivity);
+            if (inactiveTime.count() < 300) {  // 5分钟内活跃
+                count++;
+            }
+        }
+        return count;
+    }
+};
 
 /**
  * @brief LaTeX文档信息
@@ -96,6 +156,38 @@ struct LatexDocumentStats {
     int collaborativeDocuments{0};
     int totalWords{0};
     int totalCharacters{0};
+};
+
+/**
+ * @brief LaTeX项目中的文件
+ */
+struct LatexProjectFile {
+    int id;
+    int projectId;
+    std::string name;
+    std::string path;  // 相对路径，如 "main.tex", "chapters/chapter1.tex"
+    std::string content;
+    std::string type;  // "main", "included", "bibliography", "image", "other"
+    std::chrono::system_clock::time_point createdAt;
+    std::chrono::system_clock::time_point updatedAt;
+};
+
+/**
+ * @brief LaTeX项目（支持多文件）
+ */
+struct LatexProject {
+    int id;
+    std::string name;
+    std::string ownerId;
+    std::string mainFile;  // 主文件路径，如 "main.tex"
+    std::string description;
+    bool isPublic{false};
+    std::chrono::system_clock::time_point createdAt;
+    std::chrono::system_clock::time_point updatedAt;
+    int version{1};
+
+    // 项目中的文件列表
+    std::vector<LatexProjectFile> files;
 };
 
 /**
@@ -197,6 +289,94 @@ public:
      */
     std::string getPDFPath(int id);
 
+    /**
+     * @brief 加入协作会话
+     */
+    std::string joinCollaboration(int documentId, const std::string& userId, const std::string& userName);
+
+    /**
+     * @brief 离开协作会话
+     */
+    bool leaveCollaboration(const std::string& sessionId, const std::string& userId);
+
+    /**
+     * @brief 更新光标位置
+     */
+    bool updateCursorPosition(const std::string& sessionId, const std::string& userId,
+                               int line, int column,
+                               int selectionStartLine, int selectionStartColumn,
+                               int selectionEndLine, int selectionEndColumn);
+
+    /**
+     * @brief 广播文档内容更新
+     */
+    bool broadcastDocumentUpdate(const std::string& sessionId, const std::string& content,
+                                 const std::string& excludeUserId = "");
+
+    /**
+     * @brief 获取协作会话信息
+     */
+    std::optional<LatexCollaborationSession> getCollaborationSession(const std::string& sessionId);
+
+    /**
+     * @brief 获取所有活跃协作会话
+     */
+    std::vector<LatexCollaborationSession> getActiveCollaborationSessions();
+
+    // ==========================================
+    // 项目管理方法（多文件支持）
+    // ==========================================
+
+    /**
+     * @brief 获取项目列表
+     */
+    std::vector<LatexProject> listProjects(int page = 1, int limit = 20, const std::string& ownerId = "");
+
+    /**
+     * @brief 获取项目详情
+     */
+    std::optional<LatexProject> getProject(int id);
+
+    /**
+     * @brief 创建项目
+     */
+    std::optional<LatexProject> createProject(const LatexProject& project);
+
+    /**
+     * @brief 更新项目
+     */
+    bool updateProject(int id, const LatexProject& project);
+
+    /**
+     * @brief 删除项目
+     */
+    bool deleteProject(int id);
+
+    /**
+     * @brief 编译项目（使用主文件）
+     */
+    LatexCompilationResult compileProject(int id);
+
+    /**
+     * @brief 添加文件到项目
+     */
+    std::optional<LatexProjectFile> addProjectFile(int projectId, const LatexProjectFile& file);
+
+    /**
+     * @brief 更新项目文件
+     */
+    bool updateProjectFile(int fileId, const LatexProjectFile& file);
+
+    /**
+     * @brief 删除项目文件
+     */
+    bool deleteProjectFile(int fileId);
+
+    /**
+     * @brief 获取项目文件内容
+     */
+    std::optional<LatexProjectFile> getProjectFile(int fileId);
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
@@ -224,8 +404,28 @@ private:
     std::string handleStats();
     std::string handleDownloadPDF(const std::map<std::string, std::string>& params);
 
+    // 协作HTTP请求处理器
+    std::string handleJoinCollaboration(const std::string& body);
+    std::string handleLeaveCollaboration(const std::string& body);
+    std::string handleUpdateCursor(const std::string& body);
+    std::string handleBroadcastUpdate(const std::string& body);
+    std::string handleListCollaborationSessions();
+
+    // 项目HTTP请求处理器（多文件支持）
+    std::string handleListProjects(const std::map<std::string, std::string>& params);
+    std::string handleGetProject(const std::map<std::string, std::string>& params);
+    std::string handleCreateProject(const std::string& body);
+    std::string handleUpdateProject(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleDeleteProject(const std::map<std::string, std::string>& params);
+    std::string handleCompileProject(const std::map<std::string, std::string>& params);
+    std::string handleAddProjectFile(const std::string& body);
+    std::string handleUpdateProjectFile(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleDeleteProjectFile(const std::map<std::string, std::string>& params);
+    std::string handleGetProjectFile(const std::map<std::string, std::string>& params);
+
     // 辅助函数
     std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "");
+    std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "");
     std::string escapeJson(const std::string& str);
     LatexCompilationResult compileLatex(const std::string& content, const std::string& outputPath);
     void initializeBuiltInTemplates();

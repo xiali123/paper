@@ -972,7 +972,7 @@ target_include_directories(CollaborativeWritingModule PRIVATE ${EXTERNAL_DIR}/nl
 add_dynamic_module_with_system(LatexApiModule
     src/business/LatexApiModule.cpp
 )
-target_include_directories(LatexApiModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+target_include_directories(LatexApiModule PRIVATE ${EXTERNAL_DIR})
 
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）
 # ============================================================================

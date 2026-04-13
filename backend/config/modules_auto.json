@@ -253,6 +253,37 @@
         "WS /api/crawler/ws"
       ],
       "dependencies": []
+    },
+    {
+      "name": "LatexApi",
+      "version": "1.0.0",
+      "description": "LaTeX editor API with compilation and collaboration support",
+      "type": "BUSINESS",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/latex",
+      "libraryPath": "./modules/libLatexApiModule.so",
+      "loadPriority": 45,
+      "endpoints": [
+        "GET /api/latex/documents",
+        "GET /api/latex/documents/:id",
+        "POST /api/latex/documents",
+        "PUT /api/latex/documents/:id",
+        "DELETE /api/latex/documents/:id",
+        "POST /api/latex/documents/:id/compile",
+        "POST /api/latex/documents/:id/autosave",
+        "GET /api/latex/templates",
+        "GET /api/latex/templates/:id",
+        "POST /api/latex/templates",
+        "GET /api/latex/stats",
+        "GET /api/latex/documents/:id/pdf",
+        "POST /api/latex/collaboration/join",
+        "POST /api/latex/collaboration/leave",
+        "PUT /api/latex/collaboration/cursor",
+        "POST /api/latex/collaboration/update",
+        "GET /api/latex/collaboration/sessions"
+      ],
+      "dependencies": []
     }
   ]
 }

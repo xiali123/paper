@@ -9,6 +9,7 @@
  */
 
 import type { Router } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 import { ElMessage } from '@/utils/notification'
 
@@ -99,8 +100,19 @@ export function setupAuthGuards(router: Router) {
   })
 
   router.afterEach((to) => {
-    // Set page title
-    const title = to.meta.title as string || 'PaperCrawler'
+    // Set page title with i18n support
+    const { t } = useI18n()
+    let title = to.meta.title as string || 'PaperCrawler'
+
+    // Translate if title is an i18n key (contains dot notation)
+    if (title.includes('.')) {
+      try {
+        title = t(title)
+      } catch {
+        // If translation fails, use the original title
+      }
+    }
+
     if (typeof document !== 'undefined') {
       document.title = `${title} - PaperCrawler`
     }

@@ -1,10 +1,11 @@
 #include "core/Router.hpp"
 #include "core/IModule.hpp"
+#include "core/ModuleBase.hpp"
 #include <spdlog/spdlog.h>
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <unordered_map>  // 新增
+#include <unordered_map>
 
 namespace PaperCrawler {
 
@@ -185,6 +186,61 @@ HttpResponse Router::route(const HttpRequest& request) {
     }
 
     // ==========================================
+    // 🔥 3. 模块路由匹配
+    // ==========================================
+    spdlog::info("Checking module routes, total prefixes: {}", moduleRoutes_.size());
+
+    // 遍历所有模块路由前缀
+    for (const auto& [prefix, prefixRoutes] : moduleRoutes_) {
+        spdlog::info("Checking prefix: {}, routes: {}", prefix, prefixRoutes.size());
+
+        // 检查请求路径是否以该前缀开头
+        if (request.path.find(prefix) == 0) {
+            spdlog::info("Path {} starts with prefix {}", request.path, prefix);
+
+            // 查找精确匹配
+            auto handlerIt = prefixRoutes.find(request.path);
+            if (handlerIt != prefixRoutes.end()) {
+                spdlog::info("Module route matched: {} {}", prefix, request.path);
+                try {
+                    return handlerIt->second(request);
+                } catch (const std::exception& e) {
+                    spdlog::error("Module handler error: {}", e.what());
+                    HttpResponse err;
+                    err.statusCode = 500;
+                    err.statusText = "Internal Server Error";
+                    err.headers["Content-Type"] = "application/json";
+                    err.body = R"({"error":")" + std::string(e.what()) + R"("})";
+                    return err;
+                }
+            } else {
+                spdlog::info("No exact match found for {}", request.path);
+            }
+
+            // 尝试参数匹配
+            for (const auto& [pattern, handler] : prefixRoutes) {
+                std::map<std::string, std::string> params;
+                if (matchPattern(pattern, request.path, params)) {
+                    spdlog::info("Module parameter route matched: {} {}", prefix, pattern);
+                    HttpRequest req = request;
+                    req.pathParams = params;
+                    try {
+                        return handler(req);
+                    } catch (const std::exception& e) {
+                        spdlog::error("Module handler error: {}", e.what());
+                        HttpResponse err;
+                        err.statusCode = 500;
+                        err.statusText = "Internal Server Error";
+                        err.headers["Content-Type"] = "application/json";
+                        err.body = R"({"error":")" + std::string(e.what()) + R"("})";
+                        return err;
+                    }
+                }
+            }
+        }
+    }
+
+    // ==========================================
     // 404
     // ==========================================
     spdlog::warn("Route not found: {} {}", request.method, request.path);
@@ -208,8 +264,27 @@ void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
         return;
     }
 
-    spdlog::info("Module {} is registering routes with prefix: {}",
-                 module->getName(), routePrefix);
+    // 转换为BusinessModuleBase以访问getRoutes方法
+    auto* businessModule = dynamic_cast<BusinessModuleBase*>(module);
+    if (!businessModule) {
+        spdlog::error("Module {} is not a BusinessModuleBase", module->getName());
+        return;
+    }
+
+    // 获取模块的所有路由
+    const auto& moduleRoutes = businessModule->getRoutes();
+
+    // 注册每个路由到moduleRoutes_
+    for (const auto& [path, handler] : moduleRoutes) {
+        // 路径已经是完整的（包含前缀），直接使用
+        // 存储到模块路由映射中，使用路径的前缀作为键
+        moduleRoutes_[routePrefix][path] = handler;
+
+        spdlog::debug("Registered module route: {} -> {}", routePrefix, path);
+    }
+
+    spdlog::info("Module {} registered {} routes with prefix: {}",
+                 module->getName(), moduleRoutes.size(), routePrefix);
 }
 
 void Router::printRoutes() const {

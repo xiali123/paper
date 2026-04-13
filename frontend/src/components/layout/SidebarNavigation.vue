@@ -82,10 +82,20 @@
         </el-menu-item>
 
         <!-- Collaborative Writing -->
-        <el-menu-item index="/writing">
-          <el-icon><EditPen /></el-icon>
-          <template #title>协作写作</template>
-        </el-menu-item>
+        <el-sub-menu index="writing">
+          <template #title>
+            <el-icon><EditPen /></el-icon>
+            <span>协作写作</span>
+          </template>
+          <el-menu-item index="/writing">
+            <el-icon><Document /></el-icon>
+            <template #title>文章列表</template>
+          </el-menu-item>
+          <el-menu-item index="/latex-editor">
+            <el-icon><NotebookIcon /></el-icon>
+            <template #title>LaTeX 编辑器</template>
+          </el-menu-item>
+        </el-sub-menu>
 
         <!-- AI Assistant -->
         <el-sub-menu index="ai">
@@ -235,7 +245,8 @@ import {
   ChatDotRound,
   DocumentChecked,
   Reading,
-  Notebook
+  Notebook,
+  Notebook as NotebookIcon
 } from '@element-plus/icons-vue'
 import { useUIStore } from '@/stores'
 import { useI18n } from 'vue-i18n'

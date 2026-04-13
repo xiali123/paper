@@ -182,13 +182,13 @@ const routes: RouteRecordRaw[] = [
         path: '/crawler/edge',
         name: 'EdgeCrawler',
         component: () => import('@/views/crawler/EdgeCrawlerView.vue'),
-        meta: { requiresAuth: true, title: '边缘爬虫', icon: 'Connection' }
+        meta: { requiresAuth: true, title: 'route.edgeCrawler', icon: 'Connection' }
       },
       {
         path: '/crawler/distributed',
         name: 'DistributedCrawler',
         component: () => import('@/views/crawler/DistributedCrawlerView.vue'),
-        meta: { requiresAuth: true, title: '分布式爬虫', icon: 'Share' }
+        meta: { requiresAuth: true, title: 'route.distributedCrawler', icon: 'Share' }
       },
       {
         path: '/search',
@@ -201,25 +201,25 @@ const routes: RouteRecordRaw[] = [
         path: '/writing',
         name: 'Writing',
         component: () => import('@/views/writing/WritingListView.vue'),
-        meta: { requiresAuth: true, title: '协作写作', icon: 'EditPen' }
+        meta: { requiresAuth: true, title: 'route.collaborativeWriting', icon: 'EditPen' }
       },
       {
         path: '/writing/:id(\\d+)',
         name: 'WritingEditor',
         component: () => import('@/views/writing/WritingEditorView.vue'),
-        meta: { requiresAuth: true, title: '文档编辑' }
+        meta: { requiresAuth: true, title: 'route.documentEditor' }
       },
       {
         path: '/latex-editor',
         name: 'LatexEditor',
         component: () => import('@/views/writing/LatexEditorView.vue'),
-        meta: { requiresAuth: true, title: 'LaTeX编辑器' }
+        meta: { requiresAuth: true, title: 'route.latexEditor' }
       },
       {
         path: '/latex-editor/:documentId',
         name: 'LatexEditorDocument',
         component: () => import('@/views/writing/LatexEditorView.vue'),
-        meta: { requiresAuth: true, title: 'LaTeX文档编辑' }
+        meta: { requiresAuth: true, title: 'route.latexDocumentEditor' }
       },
       // AI Assistant Routes
       {

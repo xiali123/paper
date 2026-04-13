@@ -42,13 +42,26 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1500, // Increased from 1000 to 1500kb
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.log in production
+        drop_debugger: true, // Remove debugger statements
+        pure_funcs: ['console.info', 'console.debug', 'console.warn'] // Remove specific console functions
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
           'element-plus': ['element-plus'],
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'charts': ['chart.js', 'vue-chartjs'],
+          'latex-math': ['katex', '@types/katex'],
+          'latex-syntax': ['prismjs'],
+          'security': ['dompurify'],
+          'utils': ['lodash-es', 'date-fns'],
+          'socket': ['socket.io-client'],
         },
       },
     },

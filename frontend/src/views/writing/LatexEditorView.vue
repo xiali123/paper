@@ -119,6 +119,30 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
+
+          <!-- 项目模式切换按钮 -->
+          <el-dropdown size="small" @command="handleProjectCommand" trigger="click" aria-label="项目模式">
+            <el-button size="small" :type="isProjectMode ? 'primary' : 'default'" aria-label="切换项目模式">
+              <el-icon><FolderOpened /></el-icon>
+              {{ isProjectMode ? '项目' : '单文件' }}
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu aria-label="项目选项">
+                <el-dropdown-item command="create-project">
+                  <el-icon><FolderAdd /></el-icon>
+                  新建项目
+                </el-dropdown-item>
+                <el-dropdown-item command="toggle-tree" :disabled="!isProjectMode">
+                  <el-icon><Menu /></el-icon>
+                  {{ showProjectTree ? '隐藏文件树' : '显示文件树' }}
+                </el-dropdown-item>
+                <el-dropdown-item command="exit-project" divided v-if="isProjectMode">
+                  <el-icon><Close /></el-icon>
+                  退出项目模式
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </nav>
 
@@ -209,6 +233,31 @@
               <DocumentOutline
                 :content="editorContent"
                 @navigate="navigateToSection"
+              />
+            </div>
+          </aside>
+
+          <!-- 项目文件树 -->
+          <aside class="project-file-tree-panel" role="complementary" aria-label="项目文件树" v-if="showProjectTree && isProjectMode">
+            <div class="tree-header">
+              <h3 id="tree-title">项目文件</h3>
+              <el-button size="small" @click="showProjectTree = false" aria-label="关闭文件树">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+            <div class="tree-content" role="tree" aria-labelledby="tree-title">
+              <ProjectFileTree
+                v-if="latexStore.currentProject"
+                :project-id="latexStore.currentProject.id"
+                :project-name="latexStore.currentProject.name"
+                :files="latexStore.projectFiles"
+                :main-file-path="latexStore.currentProject.mainFile"
+                @file-select="handleFileSelect"
+                @file-create="handleFileCreate"
+                @file-delete="handleFileDelete"
+                @file-rename="handleFileRename"
+                @main-file-change="handleMainFileChange"
+                @refresh="handleRefreshProject"
               />
             </div>
           </aside>
@@ -618,7 +667,8 @@ import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
   Tickets, Loading, Warning, InfoFilled, Close,
   ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
-  Search, ArrowUp, ArrowDown, Document, DocumentAdd, Collection
+  Search, ArrowUp, ArrowDown, Document, DocumentAdd, Collection,
+  FolderOpened, FolderAdd
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
 import LatexAutocomplete from '@/components/latex/LatexAutocomplete.vue'
@@ -627,6 +677,7 @@ import DocumentOutline from '@/components/latex/DocumentOutline.vue'
 import SymbolPalette from '@/components/latex/SymbolPalette.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
+import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
 // Props and emits
@@ -650,6 +701,8 @@ const showSymbolPalette = ref(false)
 const showSnippets = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
+const showProjectTree = ref(false) // 新增：项目文件树
+const isProjectMode = ref(false) // 新增：项目模式
 const saving = ref(false)
 const compiling = ref(false)
 const activeErrorTab = ref('errors')
@@ -2013,6 +2066,158 @@ onUnmounted(() => {
   }
 })
 
+// ==========================================
+// 项目模式处理方法
+// ==========================================
+
+async function handleProjectCommand(command: string) {
+  switch (command) {
+    case 'create-project':
+      await handleCreateProject()
+      break
+    case 'toggle-tree':
+      showProjectTree.value = !showProjectTree.value
+      break
+    case 'exit-project':
+      await handleExitProject()
+      break
+  }
+}
+
+async function handleCreateProject() {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入项目名称', '新建 LaTeX 项目', {
+    confirmButtonText: '创建',
+    cancelButtonText: '取消',
+    inputPattern: /.+/,
+    inputErrorMessage: '项目名称不能为空'
+    })
+
+    if (!value) return
+
+    const { createLatexProject } = await import('@/api/adapters/latexAdapter')
+    const project = await createLatexProject({
+      name: value,
+      mainFile: 'main.tex',
+      description: ''
+    })
+
+    await latexStore.loadProject(project.id)
+    isProjectMode.value = true
+    showProjectTree.value = true
+
+    ElMessage.success(`项目 "${value}" 创建成功`)
+  } catch {
+    // 用户取消
+  }
+}
+
+async function handleExitProject() {
+  try {
+    await ElMessageBox.confirm('确定要退出项目模式吗？未保存的更改可能会丢失。', '退出项目', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    latexStore.setProjectMode(false)
+    isProjectMode.value = false
+    showProjectTree.value = false
+
+    ElMessage.info('已退出项目模式')
+  } catch {
+    // 用户取消
+  }
+}
+
+async function handleFileSelect(file: any) {
+  latexStore.switchProjectFile(file)
+}
+
+async function handleFileCreate(fileData: { name: string; path: string; type: string }) {
+  try {
+    await latexStore.createProjectFile(fileData)
+    ElMessage.success('文件创建成功')
+  } catch (error: any) {
+    ElMessage.error('文件创建失败: ' + (error.message || '未知错误'))
+  }
+}
+
+async function handleFileDelete(fileId: number | string) {
+  try {
+    await latexStore.deleteProjectFile(Number(fileId))
+    ElMessage.success('文件删除成功')
+  } catch (error: any) {
+    ElMessage.error('文件删除失败: ' + (error.message || '未知错误'))
+  }
+}
+
+async function handleFileRename(fileId: number | string, newName: string) {
+  ElMessage.info('重命名功能待实现')
+}
+
+async function handleMainFileChange(filePath: string) {
+  if (!latexStore.currentProject) return
+
+  try {
+    const { updateLatexProject } = await import('@/api/adapters/latexAdapter')
+    await updateLatexProject(latexStore.currentProject.id, { mainFile: filePath })
+
+    // 刷新项目
+    await latexStore.loadProject(latexStore.currentProject.id)
+
+    ElMessage.success('主文件设置成功')
+  } catch (error: any) {
+    ElMessage.error('设置主文件失败: ' + (error.message || '未知错误'))
+  }
+}
+
+async function handleRefreshProject() {
+  if (!latexStore.currentProject) return
+
+  try {
+    await latexStore.loadProject(latexStore.currentProject.id)
+    ElMessage.success('项目已刷新')
+  } catch (error: any) {
+    ElMessage.error('刷新项目失败: ' + (error.message || '未知错误'))
+  }
+}
+
+// ==========================================
+// 项目模式下的编译和保存
+// ==========================================
+
+// 重写保存和编译方法以支持项目模式
+const originalSaveDocument = saveDocument
+const originalCompileDocument = compileDocument
+
+saveDocument = function() {
+  if (isProjectMode.value) {
+    latexStore.saveCurrentProjectFile()
+    isModified.value = false
+  } else {
+    originalSaveDocument()
+  }
+}
+
+compileDocument = async function() {
+  if (isProjectMode.value) {
+    compiling.value = true
+    try {
+      const result = await latexStore.compileProject()
+      if (result.success) {
+        if (previewRef.value) {
+          previewRef.value.updatePreview(result.output || '')
+        }
+      }
+    } finally {
+      compiling.value = false
+    }
+  } else {
+    await originalCompileDocument()
+  }
+}
+
 // Expose methods to template
 defineExpose({
   saveDocument,
@@ -2046,6 +2251,15 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   background: var(--el-bg-color);
+  position: relative;
+  isolation: isolate; // 创建新的层叠上下文，防止子元素重叠
+  overflow: hidden; // 防止内容溢出导致重影
+
+  // 确保所有子元素正确渲染
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 // ==========================================
@@ -2224,6 +2438,35 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     }
   }
 
+  .project-file-tree-panel {
+    width: 280px;
+    border-right: 1px solid var(--el-border-color-lighter);
+    background: var(--el-bg-color-page);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+
+    .tree-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--el-border-color-lighter);
+
+      h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--el-text-color-primary);
+      }
+    }
+
+    .tree-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+  }
+
   .editor-area {
     flex: 1;
     display: flex;
@@ -2314,11 +2557,19 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     flex: 1;
     display: flex;
     flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate; // 创建新的层叠上下文
 
     // GPU 加速
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
+
+    // 确保子元素正确渲染
+    :deep(*) {
+      box-sizing: border-box;
+    }
   }
 
   .editor-status-bar {

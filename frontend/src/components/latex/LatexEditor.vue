@@ -1,21 +1,20 @@
 <template>
   <div class="latex-editor">
-    <!-- 语法高亮预览层 -->
-    <pre class="latex-highlight" v-if="showHighlight && !isFocused" aria-hidden="true">
-      <code v-html="highlightedCode"></code>
-    </pre>
-
-    <!-- 实际编辑器 -->
-    <textarea
-      ref="textareaRef"
-      v-model="innerContent"
-      class="latex-textarea"
-      spellcheck="false"
-      @focus="isFocused = true; showHighlight = false"
-      @blur="isFocused = false; showHighlight = true"
-      @input="handleInput"
-      @scroll="handleScroll"
-    ></textarea>
+    <!-- 编辑器容器 - 使用单一容器防止重影 -->
+    <div class="latex-editor-container">
+      <!-- 实际编辑器 (始终显示) -->
+      <textarea
+        ref="textareaRef"
+        v-model="innerContent"
+        class="latex-textarea"
+        :class="{ 'latex-textarea--highlight': showHighlight && !isFocused }"
+        spellcheck="false"
+        @focus="handleFocus"
+        @blur="handleBlur"
+        @input="handleInput"
+        @scroll="handleScroll"
+      ></textarea>
+    </div>
 
     <!-- LaTeX 快捷工具栏 -->
     <div class="latex-toolbar" v-if="showToolbar">
@@ -79,12 +78,26 @@ const emit = defineEmits<{
 
 const textareaRef = ref<HTMLTextAreaElement>()
 const isFocused = ref(false)
-const showHighlight = ref(true)
+const showHighlight = ref(false) // 默认关闭语法高亮，避免重影
 const showToolbar = ref(true)
 
 // Setup virtual scrolling for large documents
 const containerHeight = ref(400)
 const lineHeight = 20
+
+// 同步处理焦点状态，确保状态更新无延迟
+function handleFocus() {
+  isFocused.value = true
+  showHighlight.value = false
+}
+
+function handleBlur() {
+  isFocused.value = false
+  // 使用 nextTick 确保 DOM 更新后再显示高亮
+  nextTick(() => {
+    showHighlight.value = true
+  })
+}
 
 const innerContent = computed({
   get: () => props.modelValue,
@@ -330,11 +343,20 @@ defineExpose({
   display: flex;
   flex-direction: column;
   position: relative;
+  isolation: isolate; // 创建新的层叠上下文，防止子元素重叠
+}
+
+.latex-editor-container {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .latex-textarea {
-  flex: 1;
   width: 100%;
+  height: 100%;
   min-height: 0;
   border: none;
   outline: none;
@@ -348,75 +370,20 @@ defineExpose({
   white-space: pre;
   overflow-wrap: normal;
   overflow-x: auto;
+  overflow-y: auto;
   tab-size: 2;
-}
+  position: relative;
+  z-index: 2; // 确保在顶层
 
-.latex-highlight {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  margin: 0;
-  padding: 16px;
-  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  pointer-events: none;
-  white-space: pre;
-  overflow: auto;
-  overflow-y: hidden;
-  z-index: 1;
-  opacity: 0.8;
-
-  code {
-    background: transparent;
-    font-family: inherit;
+  // 移除可能导致重影的样式
+  &::placeholder {
+    color: var(--el-text-color-placeholder);
   }
 
-  // Prism 语法高亮样式
-  :deep(.token.comment),
-  :deep(.token.prolog),
-  :deep(.token.doctype),
-  :deep(.token.cdata) {
-    color: #6a737d;
-  }
-
-  :deep(.token.punctuation),
-  :deep(.token.namespace) {
-    color: #586e75;
-  }
-
-  :deep(.token.property),
-  :deep(.token.tag),
-  :deep(.token.boolean),
-  :deep(.token.number),
-  :deep(.token.constant),
-  :deep(.token.symbol),
-  :deep(.token.deleted) {
-    color: #e36209;
-  }
-
-  :deep(.token.selector),
-  :deep(.token.attr-name),
-  :deep(.token.string),
-  :deep(.token.char),
-  :deep(.token.builtin),
-  :deep(.token.inserted) {
-    color: #795e26;
-  }
-
-  :deep(.token.operator),
-  :deep(.token.entity),
-  :deep(.token.url) {
-    color: #56b6c2;
-  }
-
-  :deep(.token.atrule),
-  :deep(.token.keyword),
-  :deep(.token.function) {
-    color: #c678dd;
-  }
+  // 确保文字渲染清晰
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .latex-toolbar {
@@ -426,6 +393,9 @@ defineExpose({
   padding: 8px;
   border-top: 1px solid var(--el-border-color-lighter);
   background: var(--el-bg-color-page);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 3;
 
   .el-divider--vertical {
     height: 20px;
@@ -438,13 +408,15 @@ defineExpose({
     background: #1e1e1e;
   }
 
-  .latex-highlight {
-    :deep(.token.comment) { color: #6a737d; }
-    :deep(.token.function) { color: #61afef; }
-    :deep(.token.keyword) { color: #c678dd; }
-    :deep(.token.string) { color: #98c379; }
-    :deep(.token.number) { color: #d19a66; }
-    :deep(.token.operator) { color: #56b6c2; }
+  .latex-toolbar {
+    background: var(--el-bg-color);
+    border-top-color: var(--el-border-color-darker);
   }
+}
+
+// 防止文本选择时的视觉问题
+.latex-textarea::selection {
+  background: var(--el-color-primary-light-7);
+  color: var(--el-color-primary-contrast);
 }
 </style>

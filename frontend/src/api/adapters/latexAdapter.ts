@@ -269,7 +269,17 @@ export function toBackendCreateFromTemplateRequest(frontend: CreateFromTemplateR
 // API Client Functions
 // ============================================================================
 
-import { apiClient } from '@/utils/http'
+import service from '@/utils/request'
+
+// 创建 API 客户端函数 - 响应拦截器已经提取了 data
+// 所以这些函数直接返回 data 类型，而不是 AxiosResponse
+const apiClient = {
+  get: <T>(url: string, config?: any): Promise<T> => service.get(url, config) as any,
+  post: <T>(url: string, data?: any, config?: any): Promise<T> => service.post(url, data, config) as any,
+  put: <T>(url: string, data?: any, config?: any): Promise<T> => service.put(url, data, config) as any,
+  delete: <T>(url: string, config?: any): Promise<T> => service.delete(url, config) as any,
+  patch: <T>(url: string, data?: any, config?: any): Promise<T> => service.patch(url, data, config) as any,
+}
 
 const API_BASE = '/api/latex'
 
@@ -287,19 +297,16 @@ export async function listLatexDocuments(params: LatexDocumentQueryParams = {}):
   if (params.limit) queryParams.append('limit', params.limit.toString())
   if (params.ownerId) queryParams.append('owner_id', params.ownerId)
 
-  const response = await apiClient.get<{ success: boolean; data: { items: BackendLatexDocument[]; total: number; page: number; limit: number } }>(
+  // service 拦截器已经提取了 data 字段，response 就是 { items, total, page, limit }
+  const response = await apiClient.get<{ items: BackendLatexDocument[]; total: number; page: number; limit: number }>(
     `${API_BASE}/documents?${queryParams.toString()}`
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to list documents')
-  }
-
   return {
-    items: response.data.data.items.map(toFrontendLatexDocument),
-    total: response.data.data.total,
-    page: response.data.data.page,
-    limit: response.data.data.limit
+    items: response.items.map(toFrontendLatexDocument),
+    total: response.total,
+    page: response.page,
+    limit: response.limit
   }
 }
 
@@ -307,88 +314,70 @@ export async function listLatexDocuments(params: LatexDocumentQueryParams = {}):
  * Get LaTeX document by ID
  */
 export async function getLatexDocument(id: number): Promise<FrontendLatexDocument> {
-  const response = await apiClient.get<{ success: boolean; data: BackendLatexDocument }>(
+  // service 拦截器已经提取了 data 字段，response 就是 BackendLatexDocument
+  const response = await apiClient.get<BackendLatexDocument>(
     `${API_BASE}/documents/${id}`
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to get document')
-  }
-
-  return toFrontendLatexDocument(response.data.data)
+  return toFrontendLatexDocument(response)
 }
 
 /**
  * Create new LaTeX document
  */
 export async function createLatexDocument(request: CreateLatexDocumentRequest): Promise<FrontendLatexDocument> {
-  const response = await apiClient.post<{ success: boolean; data: BackendLatexDocument }>(
+  // service 拦截器已经提取了 data 字段，response 就是 BackendLatexDocument
+  const response = await apiClient.post<BackendLatexDocument>(
     `${API_BASE}/documents`,
     toBackendLatexDocumentRequest(request)
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to create document')
-  }
-
-  return toFrontendLatexDocument(response.data.data)
+  return toFrontendLatexDocument(response)
 }
 
 /**
  * Update LaTeX document
  */
 export async function updateLatexDocument(id: number, request: UpdateLatexDocumentRequest): Promise<void> {
-  const response = await apiClient.put<{ success: boolean }>(
+  // service 拦截器已处理，直接发送请求即可
+  await apiClient.put(
     `${API_BASE}/documents/${id}`,
     toBackendLatexDocumentUpdate(request)
   )
-
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to update document')
-  }
 }
 
 /**
  * Delete LaTeX document
  */
 export async function deleteLatexDocument(id: number): Promise<void> {
-  const response = await apiClient.delete<{ success: boolean }>(
+  // service 拦截器已处理，直接发送请求即可
+  await apiClient.delete(
     `${API_BASE}/documents/${id}`
   )
-
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to delete document')
-  }
 }
 
 /**
  * Compile LaTeX document to PDF
  */
 export async function compileLatexDocument(id: number): Promise<FrontendLatexCompilationResult> {
-  const response = await apiClient.post<{ success: boolean; data?: BackendLatexCompilationResult; error?: string }>(
+  // service 拦截器已提取 data 字段
+  const response = await apiClient.post<BackendLatexCompilationResult>(
     `${API_BASE}/documents/${id}/compile`,
     {}
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Failed to compile document')
-  }
-
-  return toFrontendCompilationResult(response.data.data || { success: false })
+  return toFrontendCompilationResult(response)
 }
 
 /**
  * Auto-save LaTeX document
  */
 export async function autoSaveLatexDocument(id: number, content: string): Promise<void> {
-  const response = await apiClient.post<{ success: boolean }>(
+  // service 拦截器已处理，直接发送请求即可
+  await apiClient.post(
     `${API_BASE}/documents/${id}/autosave`,
     { content }
   )
-
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to auto-save')
-  }
 }
 
 /**
@@ -397,74 +386,344 @@ export async function autoSaveLatexDocument(id: number, content: string): Promis
 export async function listLatexTemplates(category?: string): Promise<FrontendLatexTemplate[]> {
   const queryParams = category ? `?category=${encodeURIComponent(category)}` : ''
 
-  const response = await apiClient.get<{ success: boolean; data: { items: BackendLatexTemplate[]; total: number } }>(
+  // service 拦截器已提取 data 字段，response 就是 { items, total }
+  const response = await apiClient.get<{ items: BackendLatexTemplate[]; total: number }>(
     `${API_BASE}/templates${queryParams}`
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to list templates')
-  }
-
-  return response.data.data.items.map(toFrontendLatexTemplate)
+  return response.items.map(toFrontendLatexTemplate)
 }
 
 /**
  * Get LaTeX template by ID
  */
 export async function getLatexTemplate(id: number): Promise<FrontendLatexTemplate> {
-  const response = await apiClient.get<{ success: boolean; data: BackendLatexTemplate }>(
+  // service 拦截器已提取 data 字段
+  const response = await apiClient.get<BackendLatexTemplate>(
     `${API_BASE}/templates/${id}`
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to get template')
-  }
-
-  return toFrontendLatexTemplate(response.data.data)
+  return toFrontendLatexTemplate(response)
 }
 
 /**
  * Create document from template
  */
 export async function createFromTemplate(request: CreateFromTemplateRequest): Promise<FrontendLatexDocument> {
-  const response = await apiClient.post<{ success: boolean; data: BackendLatexDocument }>(
+  // service 拦截器已提取 data 字段
+  const response = await apiClient.post<BackendLatexDocument>(
     `${API_BASE}/templates`,
     toBackendCreateFromTemplateRequest(request)
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to create from template')
-  }
-
-  return toFrontendLatexDocument(response.data.data)
+  return toFrontendLatexDocument(response)
 }
 
 /**
  * Get LaTeX statistics
  */
 export async function getLatexStats(): Promise<FrontendLatexStats> {
-  const response = await apiClient.get<{ success: boolean; data: BackendLatexStats }>(
+  // service 拦截器已提取 data 字段
+  const response = await apiClient.get<BackendLatexStats>(
     `${API_BASE}/stats`
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to get statistics')
-  }
-
-  return toFrontendStats(response.data.data)
+  return toFrontendStats(response)
 }
 
 /**
  * Download PDF
  */
 export async function downloadLatexPDF(id: number): Promise<string> {
-  const response = await apiClient.get<{ success: boolean; data: { pdf_path: string } }>(
+  // service 拦截器已提取 data 字段
+  const response = await apiClient.get<{ pdf_path: string }>(
     `${API_BASE}/documents/${id}/pdf`
   )
 
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Failed to get PDF path')
-  }
+  return response.pdf_path
+}
 
-  return response.data.data.pdf_path
+// ============================================================================
+// 项目相关类型定义
+// ============================================================================
+
+/**
+ * Backend Project File structure
+ */
+interface BackendLatexProjectFile {
+  id: number
+  project_id: number
+  name: string
+  path: string
+  content: string
+  type: string
+  created_at: number
+  updated_at: number
+}
+
+/**
+ * Backend LaTeX Project structure
+ */
+interface BackendLatexProject {
+  id: number
+  name: string
+  owner_id: string
+  main_file: string
+  description: string
+  is_public: boolean
+  created_at: number
+  updated_at: number
+  version: number
+}
+
+/**
+ * Frontend Project File structure
+ */
+export interface FrontendLatexProjectFile {
+  id: number
+  projectId: number
+  name: string
+  path: string
+  content: string
+  type: 'main' | 'included' | 'bibliography' | 'image' | 'other'
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * Frontend LaTeX Project structure
+ */
+export interface FrontendLatexProject {
+  id: number
+  name: string
+  ownerId: string
+  mainFile: string
+  description: string
+  isPublic: boolean
+  createdAt: number
+  updatedAt: number
+  version: number
+  files: FrontendLatexProjectFile[]
+}
+
+/**
+ * Create Project Request
+ */
+export interface CreateLatexProjectRequest {
+  name: string
+  mainFile?: string
+  description?: string
+  isPublic?: boolean
+  ownerId?: string
+}
+
+/**
+ * Update Project Request
+ */
+export interface UpdateLatexProjectRequest {
+  name?: string
+  mainFile?: string
+  description?: string
+  isPublic?: boolean
+}
+
+/**
+ * Create Project File Request
+ */
+export interface CreateProjectFileRequest {
+  projectId: number
+  name: string
+  path: string
+  content: string
+  type?: string
+}
+
+/**
+ * Update Project File Request
+ */
+export interface UpdateProjectFileRequest {
+  content?: string
+}
+
+/**
+ * Project Query Parameters
+ */
+export interface LatexProjectQueryParams {
+  page?: number
+  limit?: number
+  ownerId?: string
+}
+
+// ============================================================================
+// Transformation Functions
+// ============================================================================
+
+function toFrontendProjectFile(backend: BackendLatexProjectFile): FrontendLatexProjectFile {
+  return {
+    id: backend.id,
+    projectId: backend.project_id,
+    name: backend.name,
+    path: backend.path,
+    content: backend.content,
+    type: backend.type as any,
+    createdAt: backend.created_at,
+    updatedAt: backend.updated_at
+  }
+}
+
+function toFrontendProject(backend: BackendLatexProject, files: FrontendLatexProjectFile[] = []): FrontendLatexProject {
+  return {
+    id: backend.id,
+    name: backend.name,
+    ownerId: backend.owner_id,
+    mainFile: backend.main_file,
+    description: backend.description,
+    isPublic: backend.is_public,
+    createdAt: backend.created_at,
+    updatedAt: backend.updated_at,
+    version: backend.version,
+    files
+  }
+}
+
+// ============================================================================
+// 项目 API 客户端函数
+// ============================================================================
+
+/**
+ * 获取项目列表
+ */
+export async function listLatexProjects(params: LatexProjectQueryParams = {}): Promise<{
+  items: FrontendLatexProject[]
+  total: number
+  page: number
+  limit: number
+}> {
+  const queryParams = new URLSearchParams()
+  if (params.page) queryParams.append('page', params.page.toString())
+  if (params.limit) queryParams.append('limit', params.limit.toString())
+  if (params.ownerId) queryParams.append('owner_id', params.ownerId)
+
+  const response = await apiClient.get<{ items: BackendLatexProject[]; total: number; page: number; limit: number }>(
+    `${API_BASE}/projects?${queryParams.toString()}`
+  )
+
+  return {
+    items: response.items.map(p => toFrontendProject(p)),
+    total: response.total,
+    page: response.page,
+    limit: response.limit
+  }
+}
+
+/**
+ * 获取项目详情
+ */
+export async function getLatexProject(id: number): Promise<FrontendLatexProject> {
+  const response = await apiClient.get<{
+    id: number
+    name: string
+    owner_id: string
+    main_file: string
+    description: string
+    is_public: boolean
+    created_at: number
+    updated_at: number
+    version: number
+    files: BackendLatexProjectFile[]
+  }>(`${API_BASE}/projects/${id}`)
+
+  const files = response.files.map(toFrontendProjectFile)
+  return toFrontendProject(response, files)
+}
+
+/**
+ * 创建项目
+ */
+export async function createLatexProject(request: CreateLatexProjectRequest): Promise<FrontendLatexProject> {
+  const response = await apiClient.post<{ id: number; name: string; main_file: string }>(
+    `${API_BASE}/projects`,
+    request
+  )
+
+  // 创建后返回的只有基本信息，需要重新获取完整信息
+  return await getLatexProject(response.id)
+}
+
+/**
+ * 更新项目
+ */
+export async function updateLatexProject(id: number, request: UpdateLatexProjectRequest): Promise<void> {
+  await apiClient.put(`${API_BASE}/projects/${id}`, request)
+}
+
+/**
+ * 删除项目
+ */
+export async function deleteLatexProject(id: number): Promise<void> {
+  await apiClient.del(`${API_BASE}/projects/${id}`)
+}
+
+/**
+ * 编译项目
+ */
+export async function compileLatexProject(id: number): Promise<FrontendLatexCompilationResult> {
+  const response = await apiClient.post<BackendLatexCompilationResult>(
+    `${API_BASE}/projects/${id}/compile`,
+    {}
+  )
+
+  return toFrontendCompilationResult(response)
+}
+
+/**
+ * 添加项目文件
+ */
+export async function addProjectFile(request: CreateProjectFileRequest): Promise<FrontendLatexProjectFile> {
+  const response = await apiClient.post<{ id: number; name: string; path: string }>(
+    `${API_BASE}/projects/files`,
+    {
+      project_id: request.projectId,
+      name: request.name,
+      path: request.path,
+      content: request.content || '',
+      type: request.type || 'other'
+    }
+  )
+
+  return toFrontendProjectFile({
+    id: response.id,
+    project_id: request.projectId,
+    name: response.name,
+    path: response.path,
+    content: request.content || '',
+    type: request.type || 'other',
+    created_at: Date.now() / 1000,
+    updated_at: Date.now() / 1000
+  })
+}
+
+/**
+ * 更新项目文件
+ */
+export async function updateProjectFile(fileId: number, content: string): Promise<void> {
+  await apiClient.put(`${API_BASE}/projects/files/${fileId}`, { content })
+}
+
+/**
+ * 删除项目文件
+ */
+export async function deleteProjectFile(fileId: number): Promise<void> {
+  await apiClient.del(`${API_BASE}/projects/files/${fileId}`)
+}
+
+/**
+ * 获取项目文件内容
+ */
+export async function getProjectFile(fileId: number): Promise<FrontendLatexProjectFile> {
+  const response = await apiClient.get<BackendLatexProjectFile>(
+    `${API_BASE}/projects/files/${fileId}`
+  )
+
+  return toFrontendProjectFile(response)
 }

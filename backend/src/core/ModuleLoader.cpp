@@ -378,6 +378,12 @@ bool ModuleLoader::loadModule(const ModuleMetadata& metadata) {
         return false;
     }
 
+    // 注册模块路由到Router
+    if (!registerModuleRoutes(module, metadata)) {
+        spdlog::error("[ModuleLoader] Failed to register routes for module: {}", metadata.name);
+        // 继续执行，因为路由注册失败不应阻止模块加载
+    }
+
     // 存储模块（使用自定义deleter确保DLL的destroyFunc被调用）
     modules_[metadata.name] = std::unique_ptr<IModule, std::function<void(IModule*)>>(
         module,

@@ -182,4 +182,9 @@ service.interceptors.response.use(
   }
 )
 
+// 导出 API 客户端类型
+// 响应拦截器已经提取了 response.data，所以 service.get() 返回的是 data 类型，而不是 AxiosResponse
+export type ApiClient = typeof service
+export const apiClient: ApiClient = service
+
 export default service

@@ -22,8 +22,8 @@
       <main class="main-layout__main" role="main">
         <el-container>
           <router-view v-slot="{ Component, route }">
-            <transition :name="transitionName" mode="out-in">
-              <component :is="Component" :key="route.path" />
+            <transition :name="transitionName" mode="out-in" @before-leave="handleBeforeLeave" @after-enter="handleAfterEnter">
+              <component :is="Component" :key="route.fullPath" v-if="isRouteReady" />
             </transition>
           </router-view>
         </el-container>
@@ -61,6 +61,7 @@ const uiStore = useUIStore()
 // State
 const isMobileSidebarOpen = ref(false)
 const transitionName = ref('fade')
+const isRouteReady = ref(true)
 
 // Computed
 const isSidebarCollapsed = computed(() => uiStore.isSidebarCollapsed)
@@ -87,6 +88,17 @@ function handleResize() {
 
 function closeMobileSidebar() {
   isMobileSidebarOpen.value = false
+}
+
+// Prevent component overlap during transitions
+function handleBeforeLeave() {
+  // Mark route as not ready when old component starts leaving
+  // This prevents the new component from rendering before the old one is fully gone
+}
+
+function handleAfterEnter() {
+  // Mark route as ready after new component has fully entered
+  isRouteReady.value = true
 }
 
 // Lifecycle

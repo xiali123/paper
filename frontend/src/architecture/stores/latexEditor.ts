@@ -195,6 +195,14 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
   const statusBarVisible: Ref<boolean> = ref(true);
   const currentTheme: Ref<'light' | 'dark'> = ref('light');
 
+  // ==========================================
+  // 项目状态（多文件支持）
+  // ==========================================
+  const isProjectMode: Ref<boolean> = ref(false);
+  const currentProject: Ref<any | null> = ref(null);
+  const currentProjectFile: Ref<any | null> = ref(null);
+  const projectFiles: Ref<any[]> = ref([]);
+
   // 计算属性
   const computedEditorContent = computed(() => {
     return currentDocument.value?.content || editorContent.value;
@@ -286,7 +294,9 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
       });
 
       if (response.success) {
-        console.log('Document saved successfully:', currentDocument.value.name);
+        if (import.meta.env.DEV) {
+          console.log('Document saved successfully:', currentDocument.value.name);
+        }
       } else {
         console.error('Document save failed:', response.error);
       }
@@ -529,6 +539,147 @@ Your conclusion here.
     stopCollaboration();
   }
 
+  // ==========================================
+  // 项目管理方法（多文件支持）
+  // ==========================================
+
+  async function loadProject(projectId: number) {
+    try {
+      isLoading.value = true
+      const { listLatexProjects, getLatexProject } = await import('@/api/adapters/latexAdapter')
+      const project = await getLatexProject(projectId)
+
+      currentProject.value = project
+      projectFiles.value = project.files
+      isProjectMode.value = true
+
+      // 默认打开主文件
+      const mainFile = project.files.find(f => f.path === project.mainFile)
+      if (mainFile) {
+        currentProjectFile.value = mainFile
+        editorContent.value = mainFile.content
+      }
+
+      return project
+    } catch (error) {
+      console.error('Failed to load project:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  function switchProjectFile(file: any) {
+    currentProjectFile.value = file
+    editorContent.value = file.content || ''
+  }
+
+  async function saveCurrentProjectFile() {
+    if (!currentProject.value || !currentProjectFile.value) return
+
+    try {
+      const { updateProjectFile } = await import('@/api/adapters/latexAdapter')
+      await updateProjectFile(currentProjectFile.value.id, editorContent.value)
+
+      currentProjectFile.value.content = editorContent.value
+      // 更新项目文件列表中的内容
+      const idx = projectFiles.value.findIndex(f => f.id === currentProjectFile.value!.id)
+      if (idx !== -1) {
+        projectFiles.value[idx].content = editorContent.value
+      }
+    } catch (error) {
+      console.error('Failed to save project file:', error)
+      throw error
+    }
+  }
+
+  async function createProjectFile(fileData: { name: string; path: string; type: string }) {
+    if (!currentProject.value) return
+
+    try {
+      const { addProjectFile } = await import('@/api/adapters/latexAdapter')
+      const newFile = await addProjectFile({
+        projectId: currentProject.value.id,
+        name: fileData.name,
+        path: fileData.path,
+        content: '',
+        type: fileData.type
+      })
+
+      projectFiles.value.push(newFile)
+      return newFile
+    } catch (error) {
+      console.error('Failed to create project file:', error)
+      throw error
+    }
+  }
+
+  async function deleteProjectFile(fileId: number) {
+    if (!currentProject.value) return
+
+    try {
+      const { deleteProjectFile } = await import('@/api/adapters/latexAdapter')
+      await deleteProjectFile(fileId)
+
+      projectFiles.value = projectFiles.value.filter(f => f.id !== fileId)
+
+      // 如果删除的是当前文件，切换到主文件
+      if (currentProjectFile.value?.id === fileId) {
+        const mainFile = projectFiles.value.find(f => f.path === currentProject.value.mainFile)
+        if (mainFile) {
+          switchProjectFile(mainFile)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete project file:', error)
+      throw error
+    }
+  }
+
+  async function compileProject() {
+    if (!currentProject.value) return
+
+    try {
+      compilationStatus.value = 'compiling'
+      const startTime = Date.now()
+
+      const { compileLatexProject } = await import('@/api/adapters/latexAdapter')
+      const result = await compileLatexProject(currentProject.value.id)
+
+      const duration = Date.now() - startTime
+      compilationResult.value = {
+        success: result.success,
+        output: result.pdfPath,
+        errors: result.error ? [{
+          line: 0,
+          message: result.error,
+          type: 'error'
+        }] : [],
+        warnings: [],
+        log: result.log || '',
+        duration
+      }
+
+      compilationStatus.value = result.success ? 'success' : 'error'
+      lastCompilationTime.value = duration
+
+      return compilationResult.value
+    } catch (error) {
+      compilationStatus.value = 'error'
+      console.error('Failed to compile project:', error)
+      throw error
+    }
+  }
+
+  function setProjectMode(enabled: boolean) {
+    isProjectMode.value = enabled
+    if (!enabled) {
+      currentProject.value = null
+      currentProjectFile.value = null
+      projectFiles.value = []
+    }
+  }
+
   return {
     // 状态
     currentDocument,
@@ -559,6 +710,12 @@ Your conclusion here.
     statusBarVisible,
     currentTheme,
 
+    // 项目状态
+    isProjectMode,
+    currentProject,
+    currentProjectFile,
+    projectFiles,
+
     // 计算属性
     compilationSuccess,
     activeCollaborationUsers,
@@ -582,7 +739,16 @@ Your conclusion here.
     updateEditorSettings,
     updatePreviewSettings,
     setTheme,
-    cleanup
+    cleanup,
+
+    // 项目方法
+    loadProject,
+    switchProjectFile,
+    saveCurrentProjectFile,
+    createProjectFile,
+    deleteProjectFile,
+    compileProject,
+    setProjectMode
   };
 });
 
