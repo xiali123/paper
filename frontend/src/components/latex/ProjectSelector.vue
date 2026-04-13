@@ -136,6 +136,11 @@ import {
 } from '@element-plus/icons-vue'
 import { useLatexEditorStore } from '@/architecture/stores/latexEditor'
 
+// 定义emit
+const emit = defineEmits<{
+  (e: 'toggle-tree', visible: boolean): void
+}>()
+
 const latexStore = useLatexEditorStore()
 
 // 状态
@@ -228,6 +233,7 @@ async function handleCommand(command: string) {
     case 'toggle':
       showTree.value = !showTree.value
       // 触发父组件事件
+      emit('toggle-tree', showTree.value)
       break
     case 'exit':
       await handleExitProject()
@@ -243,6 +249,9 @@ async function handleSwitchProject(projectId: number) {
 
   try {
     await latexStore.switchProject(projectId)
+    // 切换项目后自动隐藏文件树，避免占用空间
+    showTree.value = false
+    emit('toggle-tree', false)
     ElMessage.success('项目切换成功')
   } catch (error: any) {
     ElMessage.error('项目切换失败: ' + (error.message || '未知错误'))
@@ -309,11 +318,6 @@ onMounted(() => {
   // 预加载项目列表
   loadProjectsList()
 })
-
-// 暴露事件
-defineEmits<{
-  (e: 'toggle-tree', visible: boolean): void
-}>()
 </script>
 
 <style scoped lang="scss">

@@ -2411,15 +2411,21 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     var(--el-bg-color-page) 0%,
     rgba(0, 0, 0, 0.02) 100%
   );
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0; // 允许flex子项正确收缩
 
   .document-info {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex: 1;
+    min-width: 0; // 允许flex子项正确收缩
 
     .document-actions {
       display: flex;
       gap: 8px;
+      flex-shrink: 0; // 防止按钮组被压缩
     }
   }
 
@@ -3550,6 +3556,10 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 // ==========================================
 
 :deep(.el-breadcrumb) {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+
   .el-breadcrumb__item {
     font-size: 13px;
     font-weight: 500;
@@ -3557,12 +3567,15 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     &:last-child {
       color: var(--el-text-color-primary);
       font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
 
   .el-breadcrumb__separator {
     color: var(--el-text-color-secondary);
     margin: 0 6px;
+    flex-shrink: 0;
   }
 }
 
