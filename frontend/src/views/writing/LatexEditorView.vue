@@ -2329,12 +2329,15 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 
 .latex-editor-view {
   height: 100vh;
+  width: 100%;
+  max-width: 100%; // 防止超出父容器
   display: flex;
   flex-direction: column;
   background: var(--el-bg-color);
   position: relative;
   isolation: isolate; // 创建新的层叠上下文，防止子元素重叠
   overflow: hidden; // 防止内容溢出导致重影
+  box-sizing: border-box;
 
   // 确保所有子元素正确渲染
   > * {
@@ -2467,6 +2470,8 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   flex: 1;
   display: flex;
   overflow: hidden;
+  width: 100%;
+  min-width: 0; // 允许flex子项正确收缩
 
   &.show-preview {
     .editor-panel {
@@ -2480,6 +2485,8 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   background: var(--el-bg-color);
+  width: 100%;
+  min-width: 0; // 允许flex子项正确收缩
 
   &.with-preview {
     flex: 0.6;
@@ -2495,6 +2502,8 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: row;
     overflow: hidden;
+    width: 100%;
+    min-width: 0; // 允许flex子项正确收缩
   }
 
   .document-outline {
@@ -2826,6 +2835,8 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   background: var(--el-bg-color);
+  width: 100%;
+  min-width: 0; // 允许flex子项正确收缩
 
   .preview-header {
     display: flex;
