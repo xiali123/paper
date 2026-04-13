@@ -17,6 +17,12 @@ public:
     std::unordered_map<int, LatexTemplate> templates;
     std::unordered_map<int, LatexProject> projects;
     std::unordered_map<int, LatexProjectFile> projectFiles;
+
+    // 用户配额存储
+    std::unordered_map<std::string, LatexUserQuota> userQuotas;
+    std::vector<LatexCompilationRecord> compilationRecords;
+    int nextCompilationRecordId = 1;
+
     int nextDocumentId = 1;
     int nextProjectId = 1;
     int nextProjectFileId = 1;
@@ -171,6 +177,165 @@ public:
     bool deleteProjectFile(int fileId) {
         std::lock_guard<std::mutex> lock(mutex_);
         return projectFiles.erase(fileId) > 0;
+    }
+
+    // ==========================================
+    // 用户配额管理方法
+    // ==========================================
+
+    std::optional<LatexUserQuota> getUserQuota(const std::string& userId) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = userQuotas.find(userId);
+        if (it != userQuotas.end()) {
+            // 检查并重置过期的配额
+            checkAndResetQuota(it->second);
+            return it->second;
+        }
+        return std::nullopt;
+    }
+
+    void setUserQuota(const LatexUserQuota& quota) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        userQuotas[quota.userId] = quota;
+    }
+
+    void checkAndResetQuota(LatexUserQuota& quota) {
+        auto now = std::chrono::system_clock::now();
+
+        // 检查每日配额重置
+        if (now >= quota.dailyReset) {
+            quota.dailyCompilesUsed = 0;
+            quota.dailyReset = now + std::chrono::hours(24);
+            spdlog::info("[LatexStore] Daily quota reset for user: {}", quota.userId);
+        }
+
+        // 检查每月配额重置
+        if (now >= quota.monthlyReset) {
+            quota.monthlyCompilesUsed = 0;
+            // 重置到下个月1号
+            std::tm tm = std::tm();
+            time_t nowTime = std::chrono::system_clock::to_time_t(now);
+            localtime_r(&nowTime, &tm);
+            tm.tm_mon = (tm.tm_mon + 1) % 12;
+            if (tm.tm_mon == 0) tm.tm_year++;
+            tm.tm_mday = 1;
+            tm.tm_hour = 0;
+            tm.tm_min = 0;
+            tm.tm_sec = 0;
+            quota.monthlyReset = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+            spdlog::info("[LatexStore] Monthly quota reset for user: {}", quota.userId);
+        }
+    }
+
+    bool canCompile(const std::string& userId) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = userQuotas.find(userId);
+        if (it == userQuotas.end()) {
+            // 没有配额限制的用户（管理员）
+            return true;
+        }
+
+        checkAndResetQuota(it->second);
+        const auto& quota = it->second;
+
+        // 检查每日限制
+        if (quota.dailyCompilesUsed >= quota.dailyCompileLimit) {
+            spdlog::warn("[LatexStore] User {} exceeded daily compile limit: {}/{}",
+                userId, quota.dailyCompilesUsed, quota.dailyCompileLimit);
+            return false;
+        }
+
+        // 检查每月限制
+        if (quota.monthlyCompilesUsed >= quota.monthlyCompileLimit) {
+            spdlog::warn("[LatexStore] User {} exceeded monthly compile limit: {}/{}",
+                userId, quota.monthlyCompilesUsed, quota.monthlyCompileLimit);
+            return false;
+        }
+
+        return true;
+    }
+
+    void recordCompilation(const LatexCompilationRecord& record) {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // 保存编译记录
+        compilationRecords.push_back(record);
+
+        // 更新用户配额使用情况
+        auto it = userQuotas.find(record.userId);
+        if (it != userQuotas.end()) {
+            it->second.dailyCompilesUsed++;
+            it->second.monthlyCompilesUsed++;
+            spdlog::info("[LatexStore] Recorded compilation for user {}: daily={}/{}, monthly={}/{}",
+                record.userId,
+                it->second.dailyCompilesUsed,
+                it->second.dailyCompileLimit,
+                it->second.monthlyCompilesUsed,
+                it->second.monthlyCompileLimit);
+        }
+    }
+
+    std::vector<LatexCompilationRecord> getCompilationRecords(const std::string& userId, int limit = 100) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<LatexCompilationRecord> result;
+
+        for (const auto& record : compilationRecords) {
+            if (record.userId == userId) {
+                result.push_back(record);
+                if (result.size() >= limit) break;
+            }
+        }
+
+        return result;
+    }
+
+    void initializeDefaultQuota(const std::string& userId, const std::string& tier = "free") {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        if (userQuotas.find(userId) != userQuotas.end()) {
+            return; // 已存在
+        }
+
+        LatexUserQuota quota;
+        quota.userId = userId;
+
+        if (tier == "free") {
+            quota.dailyCompileLimit = 10;
+            quota.monthlyCompileLimit = 100;
+            quota.maxProjectCount = 3;
+            quota.canUseAdvancedFeatures = false;
+            quota.allowedPackages = {"amsmath", "amsfonts", "amssymb", "graphicx", "geometry"};
+        } else if (tier == "pro") {
+            quota.dailyCompileLimit = 100;
+            quota.monthlyCompileLimit = 2000;
+            quota.maxProjectCount = 50;
+            quota.canUseAdvancedFeatures = true;
+            quota.allowedPackages = {"all"}; // 所有包
+        } else if (tier == "admin") {
+            quota.dailyCompileLimit = -1; // 无限制
+            quota.monthlyCompileLimit = -1;
+            quota.maxProjectCount = -1;
+            quota.canUseAdvancedFeatures = true;
+            quota.allowedPackages = {"all"};
+        }
+
+        auto now = std::chrono::system_clock::now();
+        quota.dailyReset = now + std::chrono::hours(24);
+
+        // 设置月度重置时间（下个月1号）
+        std::tm tm = std::tm();
+        time_t nowTime = std::chrono::system_clock::to_time_t(now);
+        localtime_r(&nowTime, &tm);
+        tm.tm_mon = (tm.tm_mon + 1) % 12;
+        if (tm.tm_mon == 0) tm.tm_year++;
+        tm.tm_mday = 1;
+        tm.tm_hour = 0;
+        tm.tm_min = 0;
+        tm.tm_sec = 0;
+        quota.monthlyReset = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+
+        userQuotas[userId] = quota;
+        spdlog::info("[LatexStore] Initialized {} tier quota for user: {}", tier, userId);
     }
 };
 
@@ -516,6 +681,48 @@ void LatexApiModule::registerRoutes() {
         return response;
     });
 
+    // ========== 用户配额管理 ==========
+
+    // GET /api/latex/quota/:user_id - 获取用户配额
+    router.get(prefix + "/quota/:user_id", [this](const HttpRequest& req) -> HttpResponse {
+        std::string result = handleGetUserQuota(req.pathParams);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = result;
+        return response;
+    });
+
+    // POST /api/latex/quota - 设置用户配额
+    router.post(prefix + "/quota", [this](const HttpRequest& req) -> HttpResponse {
+        std::string result = handleSetUserQuota(req.body);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = result;
+        return response;
+    });
+
+    // POST /api/latex/quota/initialize - 初始化用户配额
+    router.post(prefix + "/quota/initialize", [this](const HttpRequest& req) -> HttpResponse {
+        std::string result = handleInitializeUserQuota(req.body);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = result;
+        return response;
+    });
+
+    // GET /api/latex/quota/:user_id/records - 获取用户编译记录
+    router.get(prefix + "/quota/:user_id/records", [this](const HttpRequest& req) -> HttpResponse {
+        std::string result = handleGetUserCompilationRecords(req.pathParams);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = result;
+        return response;
+    });
+
     spdlog::info("[LatexApi] Routes registered successfully");
 }
 
@@ -529,10 +736,36 @@ std::string LatexApiModule::handleListDocuments(const std::map<std::string, std:
         std::string ownerId;
 
         auto pageIt = params.find("page");
-        if (pageIt != params.end()) page = std::stoi(pageIt->second);
+        if (pageIt != params.end()) {
+            const std::string& pageStr = pageIt->second;
+            // Validate that page contains only digits
+            bool valid = true;
+            for (char c : pageStr) {
+                if (!std::isdigit(static_cast<unsigned char>(c))) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid && !pageStr.empty()) {
+                page = std::stoi(pageStr);
+            }
+        }
 
         auto limitIt = params.find("limit");
-        if (limitIt != params.end()) limit = std::stoi(limitIt->second);
+        if (limitIt != params.end()) {
+            const std::string& limitStr = limitIt->second;
+            // Validate that limit contains only digits
+            bool valid = true;
+            for (char c : limitStr) {
+                if (!std::isdigit(static_cast<unsigned char>(c))) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid && !limitStr.empty()) {
+                limit = std::stoi(limitStr);
+            }
+        }
 
         auto ownerIt = params.find("owner_id");
         if (ownerIt != params.end()) ownerId = ownerIt->second;
@@ -563,7 +796,7 @@ std::string LatexApiModule::handleListDocuments(const std::map<std::string, std:
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleListDocuments: {}", e.what());
-        return buildJsonResponse(false, "Failed to list documents");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -574,7 +807,21 @@ std::string LatexApiModule::handleGetDocument(const std::map<std::string, std::s
             return buildJsonResponse(false, "Missing document ID");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleGetDocument: Empty document ID");
+            return buildJsonResponse(400, false, "Invalid document ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleGetDocument: Non-numeric document ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid document ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         auto document = getDocument(id);
 
         if (!document) {
@@ -599,7 +846,7 @@ std::string LatexApiModule::handleGetDocument(const std::map<std::string, std::s
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleGetDocument: {}", e.what());
-        return buildJsonResponse(false, "Failed to get document");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -643,7 +890,21 @@ std::string LatexApiModule::handleUpdateDocument(const std::map<std::string, std
             return buildJsonResponse(false, "Missing document ID");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleUpdateDocument: Empty document ID");
+            return buildJsonResponse(400, false, "Invalid document ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleUpdateDocument: Non-numeric document ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid document ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         nlohmann::json json = nlohmann::json::parse(body);
 
         LatexDocument document;
@@ -658,9 +919,12 @@ std::string LatexApiModule::handleUpdateDocument(const std::map<std::string, std
         } else {
             return buildJsonResponse(404, false, "Failed to update document", "");
         }
+    } catch (const nlohmann::json::exception& e) {
+        spdlog::error("[LatexApi] JSON parse error in handleUpdateDocument: {}", e.what());
+        return buildJsonResponse(400, false, "Invalid JSON in request body", "");
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleUpdateDocument: {}", e.what());
-        return buildJsonResponse(false, "Failed to update document");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -671,7 +935,21 @@ std::string LatexApiModule::handleDeleteDocument(const std::map<std::string, std
             return buildJsonResponse(false, "Missing document ID");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleDeleteDocument: Empty document ID");
+            return buildJsonResponse(400, false, "Invalid document ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleDeleteDocument: Non-numeric document ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid document ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         bool success = deleteDocument(id);
 
         if (success) {
@@ -681,7 +959,7 @@ std::string LatexApiModule::handleDeleteDocument(const std::map<std::string, std
         }
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleDeleteDocument: {}", e.what());
-        return buildJsonResponse(false, "Failed to delete document");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -692,8 +970,30 @@ std::string LatexApiModule::handleCompile(const std::map<std::string, std::strin
             return buildJsonResponse(false, "Missing document ID");
         }
 
-        int id = std::stoi(idIt->second);
-        auto result = compileDocument(id);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleCompile: Empty document ID");
+            return buildJsonResponse(400, false, "Invalid document ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleCompile: Non-numeric document ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid document ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
+
+        // 从查询参数获取 user_id（可选）
+        std::string userId;
+        auto userIdIt = params.find("user_id");
+        if (userIdIt != params.end()) {
+            userId = userIdIt->second;
+        }
+
+        auto result = compileDocument(id, userId);
 
         nlohmann::json response;
         response["success"] = result.success;
@@ -710,7 +1010,7 @@ std::string LatexApiModule::handleCompile(const std::map<std::string, std::strin
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleCompile: {}", e.what());
-        return buildJsonResponse(false, "Failed to compile document");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -721,7 +1021,21 @@ std::string LatexApiModule::handleAutoSave(const std::map<std::string, std::stri
             return buildJsonResponse(false, "Missing document ID");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleAutoSave: Empty document ID");
+            return buildJsonResponse(400, false, "Invalid document ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleAutoSave: Non-numeric document ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid document ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         nlohmann::json json = nlohmann::json::parse(body);
         std::string content = json.value("content", "");
 
@@ -732,9 +1046,12 @@ std::string LatexApiModule::handleAutoSave(const std::map<std::string, std::stri
         } else {
             return buildJsonResponse(404, false, "Failed to auto-save", "");
         }
+    } catch (const nlohmann::json::exception& e) {
+        spdlog::error("[LatexApi] JSON parse error in handleAutoSave: {}", e.what());
+        return buildJsonResponse(400, false, "Invalid JSON in request body", "");
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleAutoSave: {}", e.what());
-        return buildJsonResponse(false, "Failed to auto-save");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -777,7 +1094,21 @@ std::string LatexApiModule::handleGetTemplate(const std::map<std::string, std::s
             return buildJsonResponse(false, "Missing template ID");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleGetTemplate: Empty template ID");
+            return buildJsonResponse(400, false, "Invalid template ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleGetTemplate: Non-numeric template ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid template ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         auto tmpl = getTemplate(id);
 
         if (!tmpl) {
@@ -798,7 +1129,7 @@ std::string LatexApiModule::handleGetTemplate(const std::map<std::string, std::s
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleGetTemplate: {}", e.what());
-        return buildJsonResponse(false, "Failed to get template");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -855,7 +1186,21 @@ std::string LatexApiModule::handleDownloadPDF(const std::map<std::string, std::s
             return buildJsonResponse(false, "Missing document ID");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleDownloadPDF: Empty document ID");
+            return buildJsonResponse(400, false, "Invalid document ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleDownloadPDF: Non-numeric document ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid document ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         std::string pdfPath = getPDFPath(id);
 
         if (pdfPath.empty()) {
@@ -870,7 +1215,7 @@ std::string LatexApiModule::handleDownloadPDF(const std::map<std::string, std::s
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleDownloadPDF: {}", e.what());
-        return buildJsonResponse(false, "Failed to get PDF path");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -1111,16 +1456,37 @@ bool LatexApiModule::deleteDocument(int id) {
     return success;
 }
 
-LatexCompilationResult LatexApiModule::compileDocument(int id) {
-    spdlog::info("[LatexApi] Compiling document: id={}", id);
+LatexCompilationResult LatexApiModule::compileDocument(int id, const std::string& userId) {
+    spdlog::info("[LatexApi] Compiling document: id={}, user={}", id, userId);
 
     std::lock_guard<std::mutex> lock(compileMutex_);
+
+    // 检查用户配额（如果提供了用户ID）
+    if (!userId.empty() && !g_latexStore.canCompile(userId)) {
+        auto quota = g_latexStore.getUserQuota(userId);
+        std::ostringstream errorMsg;
+        if (quota) {
+            errorMsg << "编译配额已用完。已使用 " << quota->dailyCompilesUsed << "/" << quota->dailyCompileLimit
+                    << " (每日), " << quota->monthlyCompilesUsed << "/" << quota->monthlyCompileLimit << " (每月)。"
+                    << "请升级套餐或等待配额重置。";
+        } else {
+            errorMsg << "编译配额已用完。请升级套餐或等待配额重置。";
+        }
+
+        LatexCompilationResult result;
+        result.success = false;
+        result.errorMessage = errorMsg.str();
+        result.log = "QUOTA_EXCEEDED";
+        spdlog::warn("[LatexApi] Compilation blocked due to quota limit for user: {}", userId);
+        return result;
+    }
 
     auto document = getDocument(id);
     if (!document) {
         LatexCompilationResult result;
         result.success = false;
-        result.errorMessage = "Document not found";
+        result.errorMessage = "文档不存在";
+        result.log = "DOCUMENT_NOT_FOUND";
         return result;
     }
 
@@ -1130,10 +1496,29 @@ LatexCompilationResult LatexApiModule::compileDocument(int id) {
     // 编译LaTeX
     auto result = compileLatex(document->content, outputPath);
 
+    // 记录编译
+    if (!userId.empty()) {
+        LatexCompilationRecord record;
+        record.id = g_latexStore.nextCompilationRecordId++;
+        record.userId = userId;
+        record.projectId = 0; // 单文档
+        record.documentId = std::to_string(id);
+        record.contentHash = std::to_string(std::hash<std::string>{}(document->content));
+        record.success = result.success;
+        record.errorMessage = result.errorMessage;
+        record.timestamp = std::chrono::system_clock::now();
+        g_latexStore.recordCompilation(record);
+    }
+
     // 更新文档状态
     if (result.success) {
         // TODO: 更新数据库
         spdlog::info("[LatexApi] Compilation successful: {}", outputPath);
+    } else {
+        // 改进错误消息
+        if (result.errorMessage.empty()) {
+            result.errorMessage = "编译失败，请检查LaTeX语法";
+        }
     }
 
     return result;
@@ -1795,13 +2180,29 @@ bool LatexApiModule::deleteProject(int id) {
     return g_latexStore.deleteProject(id);
 }
 
-LatexCompilationResult LatexApiModule::compileProject(int id) {
-    spdlog::info("[LatexApi] Compiling project: {}", id);
+LatexCompilationResult LatexApiModule::compileProject(int id, const std::string& userId) {
+    spdlog::info("[LatexApi] Compiling project: {}, user={}", id, userId);
+
+    // 检查用户配额（如果提供了用户ID）
+    if (!userId.empty() && !g_latexStore.canCompile(userId)) {
+        auto quota = g_latexStore.getUserQuota(userId);
+        std::ostringstream errorMsg;
+        if (quota) {
+            errorMsg << "编译配额已用完。已使用 " << quota->dailyCompilesUsed << "/" << quota->dailyCompileLimit
+                    << " (每日), " << quota->monthlyCompilesUsed << "/" << quota->monthlyCompileLimit << " (每月)。"
+                    << "请升级套餐或等待配额重置。";
+        } else {
+            errorMsg << "编译配额已用完。请升级套餐或等待配额重置。";
+        }
+
+        spdlog::warn("[LatexApi] Compilation blocked due to quota limit for user: {}", userId);
+        return {false, "", "", errorMsg.str(), 0};
+    }
 
     auto project = g_latexStore.getProject(id);
     if (!project) {
         spdlog::error("[LatexApi] Project not found: {}", id);
-        return {false, "", "", "Project not found", 0};
+        return {false, "", "", "项目不存在", 0};
     }
 
     // 获取项目文件
@@ -1818,7 +2219,7 @@ LatexCompilationResult LatexApiModule::compileProject(int id) {
 
     if (mainContent.empty()) {
         spdlog::error("[LatexApi] Main file not found: {}", project->mainFile);
-        return {false, "", "", "Main file not found", 0};
+        return {false, "", "", "主文件不存在: " + project->mainFile, 0};
     }
 
     // 创建临时目录存放所有文件
@@ -1838,6 +2239,25 @@ LatexCompilationResult LatexApiModule::compileProject(int id) {
     // 编译主文件
     std::string outputPath = impl_->pdfDirectory + "/project_" + std::to_string(id) + ".pdf";
     auto result = compileLatex(mainContent, outputPath);
+
+    // 记录编译
+    if (!userId.empty()) {
+        LatexCompilationRecord record;
+        record.id = g_latexStore.nextCompilationRecordId++;
+        record.userId = userId;
+        record.projectId = id;
+        record.documentId = "";
+        record.contentHash = std::to_string(std::hash<std::string>{}(mainContent));
+        record.success = result.success;
+        record.errorMessage = result.errorMessage;
+        record.timestamp = std::chrono::system_clock::now();
+        g_latexStore.recordCompilation(record);
+    }
+
+    // 改进错误消息
+    if (!result.success && result.errorMessage.empty()) {
+        result.errorMessage = "项目编译失败，请检查LaTeX语法";
+    }
 
     spdlog::info("[LatexApi] Project compilation {}: success={}, time={}ms",
         id, result.success, result.compileTime);
@@ -1887,10 +2307,36 @@ std::string LatexApiModule::handleListProjects(const std::map<std::string, std::
         std::string ownerId;
 
         auto pageIt = params.find("page");
-        if (pageIt != params.end()) page = std::stoi(pageIt->second);
+        if (pageIt != params.end()) {
+            const std::string& pageStr = pageIt->second;
+            // Validate that page contains only digits
+            bool valid = true;
+            for (char c : pageStr) {
+                if (!std::isdigit(static_cast<unsigned char>(c))) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid && !pageStr.empty()) {
+                page = std::stoi(pageStr);
+            }
+        }
 
         auto limitIt = params.find("limit");
-        if (limitIt != params.end()) limit = std::stoi(limitIt->second);
+        if (limitIt != params.end()) {
+            const std::string& limitStr = limitIt->second;
+            // Validate that limit contains only digits
+            bool valid = true;
+            for (char c : limitStr) {
+                if (!std::isdigit(static_cast<unsigned char>(c))) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid && !limitStr.empty()) {
+                limit = std::stoi(limitStr);
+            }
+        }
 
         auto ownerIt = params.find("owner_id");
         if (ownerIt != params.end()) ownerId = ownerIt->second;
@@ -1923,7 +2369,7 @@ std::string LatexApiModule::handleListProjects(const std::map<std::string, std::
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleListProjects: {}", e.what());
-        return buildJsonResponse(false, "Failed to list projects");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -1934,7 +2380,21 @@ std::string LatexApiModule::handleGetProject(const std::map<std::string, std::st
             return buildJsonResponse(400, false, "Missing project ID", "");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleGetProject: Empty project ID");
+            return buildJsonResponse(400, false, "Invalid project ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleGetProject: Non-numeric project ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid project ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         auto project = getProject(id);
 
         if (!project) {
@@ -1970,7 +2430,7 @@ std::string LatexApiModule::handleGetProject(const std::map<std::string, std::st
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleGetProject: {}", e.what());
-        return buildJsonResponse(false, "Failed to get project");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -2042,7 +2502,21 @@ std::string LatexApiModule::handleUpdateProject(const std::map<std::string, std:
             return buildJsonResponse(400, false, "Missing project ID", "");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleUpdateProject: Empty project ID");
+            return buildJsonResponse(400, false, "Invalid project ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleUpdateProject: Non-numeric project ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid project ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
         nlohmann::json json = nlohmann::json::parse(body);
 
         auto existing = g_latexStore.getProject(id);
@@ -2061,9 +2535,12 @@ std::string LatexApiModule::handleUpdateProject(const std::map<std::string, std:
         } else {
             return buildJsonResponse(false, "Failed to update project");
         }
+    } catch (const nlohmann::json::exception& e) {
+        spdlog::error("[LatexApi] JSON parse error in handleUpdateProject: {}", e.what());
+        return buildJsonResponse(400, false, "Invalid JSON in request body", "");
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleUpdateProject: {}", e.what());
-        return buildJsonResponse(false, "Failed to update project");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -2074,7 +2551,21 @@ std::string LatexApiModule::handleDeleteProject(const std::map<std::string, std:
             return buildJsonResponse(400, false, "Missing project ID", "");
         }
 
-        int id = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleDeleteProject: Empty project ID");
+            return buildJsonResponse(400, false, "Invalid project ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleDeleteProject: Non-numeric project ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid project ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
 
         if (deleteProject(id)) {
             return buildJsonResponse(true, "Project deleted");
@@ -2083,7 +2574,7 @@ std::string LatexApiModule::handleDeleteProject(const std::map<std::string, std:
         }
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleDeleteProject: {}", e.what());
-        return buildJsonResponse(false, "Failed to delete project");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -2094,8 +2585,30 @@ std::string LatexApiModule::handleCompileProject(const std::map<std::string, std
             return buildJsonResponse(400, false, "Missing project ID", "");
         }
 
-        int id = std::stoi(idIt->second);
-        auto result = compileProject(id);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleCompileProject: Empty project ID");
+            return buildJsonResponse(400, false, "Invalid project ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleCompileProject: Non-numeric project ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid project ID: must be a number", "");
+            }
+        }
+
+        int id = std::stoi(idStr);
+
+        // 从查询参数获取 user_id（可选）
+        std::string userId;
+        auto userIdIt = params.find("user_id");
+        if (userIdIt != params.end()) {
+            userId = userIdIt->second;
+        }
+
+        auto result = compileProject(id, userId);
 
         nlohmann::json response;
         response["success"] = result.success;
@@ -2112,7 +2625,7 @@ std::string LatexApiModule::handleCompileProject(const std::map<std::string, std
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleCompileProject: {}", e.what());
-        return buildJsonResponse(false, "Failed to compile project");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -2158,7 +2671,21 @@ std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, 
             return buildJsonResponse(400, false, "Missing file ID", "");
         }
 
-        int fileId = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleUpdateProjectFile: Empty file ID");
+            return buildJsonResponse(400, false, "Invalid file ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleUpdateProjectFile: Non-numeric file ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid file ID: must be a number", "");
+            }
+        }
+
+        int fileId = std::stoi(idStr);
         nlohmann::json json = nlohmann::json::parse(body);
 
         auto existing = g_latexStore.getProjectFile(fileId);
@@ -2175,9 +2702,12 @@ std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, 
         } else {
             return buildJsonResponse(false, "Failed to update file");
         }
+    } catch (const nlohmann::json::exception& e) {
+        spdlog::error("[LatexApi] JSON parse error in handleUpdateProjectFile: {}", e.what());
+        return buildJsonResponse(400, false, "Invalid JSON in request body", "");
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleUpdateProjectFile: {}", e.what());
-        return buildJsonResponse(false, "Failed to update file");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -2188,7 +2718,21 @@ std::string LatexApiModule::handleDeleteProjectFile(const std::map<std::string, 
             return buildJsonResponse(400, false, "Missing file ID", "");
         }
 
-        int fileId = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleDeleteProjectFile: Empty file ID");
+            return buildJsonResponse(400, false, "Invalid file ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleDeleteProjectFile: Non-numeric file ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid file ID: must be a number", "");
+            }
+        }
+
+        int fileId = std::stoi(idStr);
 
         if (deleteProjectFile(fileId)) {
             return buildJsonResponse(true, "File deleted");
@@ -2197,7 +2741,7 @@ std::string LatexApiModule::handleDeleteProjectFile(const std::map<std::string, 
         }
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleDeleteProjectFile: {}", e.what());
-        return buildJsonResponse(false, "Failed to delete file");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
 }
 
@@ -2208,7 +2752,21 @@ std::string LatexApiModule::handleGetProjectFile(const std::map<std::string, std
             return buildJsonResponse(400, false, "Missing file ID", "");
         }
 
-        int fileId = std::stoi(idIt->second);
+        const std::string& idStr = idIt->second;
+        if (idStr.empty()) {
+            spdlog::error("[LatexApi] Error in handleGetProjectFile: Empty file ID");
+            return buildJsonResponse(400, false, "Invalid file ID: empty value", "");
+        }
+
+        // Validate that ID contains only digits
+        for (char c : idStr) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                spdlog::error("[LatexApi] Error in handleGetProjectFile: Non-numeric file ID: '{}'", idStr);
+                return buildJsonResponse(400, false, "Invalid file ID: must be a number", "");
+            }
+        }
+
+        int fileId = std::stoi(idStr);
         auto file = getProjectFile(fileId);
 
         if (!file) {
@@ -2228,8 +2786,188 @@ std::string LatexApiModule::handleGetProjectFile(const std::map<std::string, std
         return response.dump();
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Error in handleGetProjectFile: {}", e.what());
-        return buildJsonResponse(false, "Failed to get file");
+        return buildJsonResponse(500, false, "Internal server error", "");
     }
+}
+
+// ==========================================
+// 用户配额HTTP请求处理器
+// ==========================================
+
+std::string LatexApiModule::handleGetUserQuota(const std::map<std::string, std::string>& params) {
+    try {
+        auto userIdIt = params.find("user_id");
+        if (userIdIt == params.end()) {
+            return buildJsonResponse(400, false, "Missing user_id", "");
+        }
+
+        std::string userId = userIdIt->second;
+        auto quota = g_latexStore.getUserQuota(userId);
+
+        if (!quota) {
+            return buildJsonResponse(404, false, "User quota not found. Initialize quota first.", "");
+        }
+
+        nlohmann::json response;
+        response["success"] = true;
+        response["message"] = "Quota retrieved";
+        response["data"]["user_id"] = quota->userId;
+        response["data"]["daily_compile_limit"] = quota->dailyCompileLimit;
+        response["data"]["monthly_compile_limit"] = quota->monthlyCompileLimit;
+        response["data"]["max_project_count"] = quota->maxProjectCount;
+        response["data"]["can_use_advanced_features"] = quota->canUseAdvancedFeatures;
+        response["data"]["daily_compiles_used"] = quota->dailyCompilesUsed;
+        response["data"]["monthly_compiles_used"] = quota->monthlyCompilesUsed;
+        response["data"]["project_count_used"] = quota->projectCountUsed;
+        response["data"]["daily_reset"] = std::chrono::system_clock::to_time_t(quota->dailyReset);
+        response["data"]["monthly_reset"] = std::chrono::system_clock::to_time_t(quota->monthlyReset);
+
+        return response.dump();
+    } catch (const std::exception& e) {
+        spdlog::error("[LatexApi] Error in handleGetUserQuota: {}", e.what());
+        return buildJsonResponse(false, "Failed to get user quota");
+    }
+}
+
+std::string LatexApiModule::handleSetUserQuota(const std::string& body) {
+    try {
+        nlohmann::json json = nlohmann::json::parse(body);
+
+        std::string userId = json.value("user_id", "");
+        if (userId.empty()) {
+            return buildJsonResponse(400, false, "Missing user_id", "");
+        }
+
+        LatexUserQuota quota;
+        quota.userId = userId;
+        quota.dailyCompileLimit = json.value("daily_compile_limit", 10);
+        quota.monthlyCompileLimit = json.value("monthly_compile_limit", 100);
+        quota.maxProjectCount = json.value("max_project_count", 5);
+        quota.canUseAdvancedFeatures = json.value("can_use_advanced_features", false);
+
+        if (json.contains("allowed_packages") && json["allowed_packages"].is_array()) {
+            for (const auto& pkg : json["allowed_packages"]) {
+                quota.allowedPackages.push_back(pkg.get<std::string>());
+            }
+        }
+
+        g_latexStore.setUserQuota(quota);
+
+        nlohmann::json response;
+        response["success"] = true;
+        response["message"] = "Quota updated";
+        response["data"]["user_id"] = userId;
+
+        return response.dump();
+    } catch (const std::exception& e) {
+        spdlog::error("[LatexApi] Error in handleSetUserQuota: {}", e.what());
+        return buildJsonResponse(false, "Failed to set user quota");
+    }
+}
+
+std::string LatexApiModule::handleInitializeUserQuota(const std::string& body) {
+    try {
+        nlohmann::json json = nlohmann::json::parse(body);
+
+        std::string userId = json.value("user_id", "");
+        std::string tier = json.value("tier", "free");
+
+        if (userId.empty()) {
+            return buildJsonResponse(400, false, "Missing user_id", "");
+        }
+
+        g_latexStore.initializeDefaultQuota(userId, tier);
+
+        nlohmann::json response;
+        response["success"] = true;
+        response["message"] = "Quota initialized";
+        response["data"]["user_id"] = userId;
+        response["data"]["tier"] = tier;
+
+        return response.dump();
+    } catch (const std::exception& e) {
+        spdlog::error("[LatexApi] Error in handleInitializeUserQuota: {}", e.what());
+        return buildJsonResponse(false, "Failed to initialize user quota");
+    }
+}
+
+std::string LatexApiModule::handleGetUserCompilationRecords(const std::map<std::string, std::string>& params) {
+    try {
+        auto userIdIt = params.find("user_id");
+        if (userIdIt == params.end()) {
+            return buildJsonResponse(400, false, "Missing user_id", "");
+        }
+
+        std::string userId = userIdIt->second;
+        int limit = 100;
+
+        auto limitIt = params.find("limit");
+        if (limitIt != params.end()) {
+            const std::string& limitStr = limitIt->second;
+            // Validate that limit contains only digits
+            bool valid = true;
+            for (char c : limitStr) {
+                if (!std::isdigit(static_cast<unsigned char>(c))) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid && !limitStr.empty()) {
+                limit = std::stoi(limitStr);
+            }
+        }
+
+        auto records = g_latexStore.getCompilationRecords(userId, limit);
+
+        nlohmann::json response;
+        response["success"] = true;
+        response["message"] = "Compilation records retrieved";
+        response["data"]["records"] = nlohmann::json::array();
+        response["data"]["total"] = records.size();
+
+        for (const auto& record : records) {
+            nlohmann::json r;
+            r["id"] = record.id;
+            r["user_id"] = record.userId;
+            r["project_id"] = record.projectId;
+            r["document_id"] = record.documentId;
+            r["content_hash"] = record.contentHash;
+            r["success"] = record.success;
+            r["error_message"] = record.errorMessage;
+            r["timestamp"] = std::chrono::system_clock::to_time_t(record.timestamp);
+            response["data"]["records"].push_back(r);
+        }
+
+        return response.dump();
+    } catch (const std::exception& e) {
+        spdlog::error("[LatexApi] Error in handleGetUserCompilationRecords: {}", e.what());
+        return buildJsonResponse(500, false, "Internal server error", "");
+    }
+}
+
+// ==========================================
+// 用户配额管理实现
+// ==========================================
+
+std::optional<LatexUserQuota> LatexApiModule::getUserQuota(const std::string& userId) {
+    return g_latexStore.getUserQuota(userId);
+}
+
+bool LatexApiModule::setUserQuota(const LatexUserQuota& quota) {
+    g_latexStore.setUserQuota(quota);
+    return true;
+}
+
+void LatexApiModule::initializeUserQuota(const std::string& userId, const std::string& tier) {
+    g_latexStore.initializeDefaultQuota(userId, tier);
+}
+
+bool LatexApiModule::canUserCompile(const std::string& userId) {
+    return g_latexStore.canCompile(userId);
+}
+
+std::vector<LatexCompilationRecord> LatexApiModule::getUserCompilationRecords(const std::string& userId, int limit) {
+    return g_latexStore.getCompilationRecords(userId, limit);
 }
 
 // ==========================================

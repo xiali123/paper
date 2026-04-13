@@ -148,6 +148,72 @@ struct LatexCompilationResult {
 };
 
 /**
+ * @brief 用户编译配额
+ */
+struct LatexUserQuota {
+    std::string userId;
+    int dailyCompileLimit{10};      // 每日编译次数限制
+    int monthlyCompileLimit{100};    // 每月编译次数限制
+    int maxProjectCount{5};          // 最大项目数
+    bool canUseAdvancedFeatures{false}; // 是否可以使用高级功能
+    std::vector<std::string> allowedPackages; // 允许使用的LaTeX包
+    std::chrono::system_clock::time_point dailyReset;
+    std::chrono::system_clock::time_point monthlyReset;
+
+    // 当前使用统计
+    int dailyCompilesUsed{0};
+    int monthlyCompilesUsed{0};
+    int projectCountUsed{0};
+
+    // 序列化为JSON
+    std::string toJSON() const {
+        std::ostringstream json;
+        json << "{";
+        json << "\"userId\":\"" << userId << "\",";
+        json << "\"dailyCompileLimit\":" << dailyCompileLimit << ",";
+        json << "\"monthlyCompileLimit\":" << monthlyCompileLimit << ",";
+        json << "\"maxProjectCount\":" << maxProjectCount << ",";
+        json << "\"canUseAdvancedFeatures\":" << (canUseAdvancedFeatures ? "true" : "false") << ",";
+        json << "\"dailyCompilesUsed\":" << dailyCompilesUsed << ",";
+        json << "\"monthlyCompilesUsed\":" << monthlyCompilesUsed << ",";
+        json << "\"projectCountUsed\":" << projectCountUsed << ",";
+        json << "\"dailyReset\":" << std::chrono::system_clock::to_time_t(dailyReset) << ",";
+        json << "\"monthlyReset\":" << std::chrono::system_clock::to_time_t(monthlyReset);
+        json << "}";
+        return json.str();
+    }
+};
+
+/**
+ * @brief 编译记录
+ */
+struct LatexCompilationRecord {
+    int id;
+    std::string userId;
+    int projectId;  // 0表示单文档
+    std::string documentId;
+    std::string contentHash;  // 内容哈希，用于去重
+    bool success;
+    std::string errorMessage;
+    std::chrono::system_clock::time_point timestamp;
+
+    std::string toJSON() const {
+        std::ostringstream json;
+        json << "{";
+        json << "\"id\":" << id << ",";
+        json << "\"userId\":\"" << userId << "\",";
+        json << "\"projectId\":" << projectId << ",";
+        json << "\"documentId\":\"" << documentId << "\",";
+        json << "\"contentHash\":\"" << contentHash << "\",";
+        json << "\"success\":" << (success ? "true" : "false") << ",";
+        json << "\"errorMessage\":\"" << errorMessage << "\",";
+        json << "\"timestamp\":" << std::chrono::system_clock::to_time_t(timestamp);
+        json << "}";
+        return json.str();
+    }
+};
+
+/**
  * @brief LaTeX文档统计
  */
 struct LatexDocumentStats {
@@ -256,8 +322,10 @@ public:
 
     /**
      * @brief 编译文档（LaTeX -> PDF）
+     * @param id 文档ID
+     * @param userId 用户ID（用于配额检查，为空则不检查）
      */
-    LatexCompilationResult compileDocument(int id);
+    LatexCompilationResult compileDocument(int id, const std::string& userId = "");
 
     /**
      * @brief 自动保存文档
@@ -354,8 +422,10 @@ public:
 
     /**
      * @brief 编译项目（使用主文件）
+     * @param id 项目ID
+     * @param userId 用户ID（用于配额检查，为空则不检查）
      */
-    LatexCompilationResult compileProject(int id);
+    LatexCompilationResult compileProject(int id, const std::string& userId = "");
 
     /**
      * @brief 添加文件到项目
@@ -376,6 +446,37 @@ public:
      * @brief 获取项目文件内容
      */
     std::optional<LatexProjectFile> getProjectFile(int fileId);
+
+    // ==========================================
+    // 用户配额和权限管理方法
+    // ==========================================
+
+    /**
+     * @brief 获取用户配额信息
+     */
+    std::optional<LatexUserQuota> getUserQuota(const std::string& userId);
+
+    /**
+     * @brief 设置用户配额
+     */
+    bool setUserQuota(const LatexUserQuota& quota);
+
+    /**
+     * @brief 初始化用户默认配额
+     * @param userId 用户ID
+     * @param tier 套餐类型: "free", "pro", "admin"
+     */
+    void initializeUserQuota(const std::string& userId, const std::string& tier = "free");
+
+    /**
+     * @brief 检查用户是否可以编译
+     */
+    bool canUserCompile(const std::string& userId);
+
+    /**
+     * @brief 获取用户编译记录
+     */
+    std::vector<LatexCompilationRecord> getUserCompilationRecords(const std::string& userId, int limit = 100);
 
 private:
     class Impl;
@@ -422,6 +523,12 @@ private:
     std::string handleUpdateProjectFile(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleDeleteProjectFile(const std::map<std::string, std::string>& params);
     std::string handleGetProjectFile(const std::map<std::string, std::string>& params);
+
+    // 用户配额HTTP请求处理器
+    std::string handleGetUserQuota(const std::map<std::string, std::string>& params);
+    std::string handleSetUserQuota(const std::string& body);
+    std::string handleInitializeUserQuota(const std::string& body);
+    std::string handleGetUserCompilationRecords(const std::map<std::string, std::string>& params);
 
     // 辅助函数
     std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "");
