@@ -1,176 +1,176 @@
 <template>
   <div class="branch-tree-view" ref="containerRef">
-    <!-- 顶部工具栏 -->
+    <!-- 工具栏 -->
     <div class="toolbar">
       <div class="toolbar-left">
-        <el-radio-group v-model="layoutMode" size="small">
-          <el-radio-button value="horizontal">横向</el-radio-button>
-          <el-radio-button value="vertical">纵向</el-radio-button>
+        <el-radio-group v-model="viewMode" size="small">
+          <el-radio-button value="tree">树形图</el-radio-button>
+          <el-radio-button value="graph">有向图</el-radio-button>
+          <el-radio-button value="timeline">时间轴</el-radio-button>
         </el-radio-group>
         <el-divider direction="vertical" />
         <el-button-group size="small">
-          <el-button :icon="ZoomOut" @click="handleZoom('out')" />
-          <el-button @click="handleZoom('reset')">100%</el-button>
-          <el-button :icon="ZoomIn" @click="handleZoom('in')" />
+          <el-button :icon="ZoomOut" @click="zoomOut" />
+          <el-button @click="zoomReset">100%</el-button>
+          <el-button :icon="ZoomIn" @click="zoomIn" />
         </el-button-group>
-        <el-button :icon="FullScreen" @click="fitToScreen" size="small">适配</el-button>
+        <el-button :icon="FullScreen" @click="fitView" size="small">适配</el-button>
       </div>
       <div class="toolbar-right">
         <el-switch v-model="showLabels" size="small" active-text="标签" />
-        <el-switch v-model="showStats" size="small" active-text="统计" />
-        <el-switch v-model="showAvatars" size="small" active-text="头像" />
+        <el-switch v-model="showMeta" size="small" active-text="详情" />
       </div>
     </div>
 
-    <!-- SVG画布 -->
-    <div class="canvas-container" :style="{ transform: `scale(${zoomLevel})` }">
+    <!-- SVG容器 -->
+    <div class="svg-container" ref="svgContainerRef" :style="{ transform: `scale(${zoomLevel}) translate(${panX}px, ${panY}px)` }">
       <svg
         ref="svgRef"
         class="tree-svg"
-        :width="svgWidth"
-        :height="svgHeight"
-        :viewBox="`0 0 ${svgWidth} ${svgHeight}`"
+        :width="canvasSize.width"
+        :height="canvasSize.height"
+        @mousedown="startPan"
+        @mousemove="onPan"
+        @mouseup="endPan"
+        @mouseleave="endPan"
+        @wheel.prevent="onWheel"
       >
         <defs>
           <!-- 节点阴影 -->
-          <filter id="nodeShadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+          <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.2"/>
           </filter>
 
           <!-- 发光效果 -->
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
             <feMerge>
               <feMergeNode in="coloredBlur"/>
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
 
-          <!-- 渐变定义 -->
-          <linearGradient v-for="branch in branches" :key="branch.name" :id="`gradient-${branch.name}`" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" :stop-color="branch.color" stop-opacity="0.8"/>
-            <stop offset="100%" :stop-color="branch.color" stop-opacity="0.4"/>
+          <!-- 渐变 -->
+          <linearGradient id="grad-main" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#667eea"/>
+            <stop offset="100%" stop-color="#764ba2"/>
           </linearGradient>
 
-          <!-- 主分支特殊渐变 -->
-          <linearGradient id="gradient-main" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#667eea" stop-opacity="0.9"/>
-            <stop offset="100%" stop-color="#764ba2" stop-opacity="0.7"/>
+          <!-- 分支颜色渐变 -->
+          <linearGradient v-for="color in branchColors" :key="color.name" :id="`grad-${color.name}`">
+            <stop offset="0%" :stop-color="color.color"/>
+            <stop offset="100%" :stop-color="lightenColor(color.color, 20)"/>
           </linearGradient>
 
-          <!-- 箭头标记 -->
-          <marker id="arrowhead-main" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#667eea"/>
+          <!-- 箭头 -->
+          <marker id="arrow-main" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#667eea"/>
           </marker>
-          <marker v-for="branch in branches.filter(b => b.name !== 'main')" :key="`arrow-${branch.name}`"
-                  :id="`arrowhead-${branch.name}`" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 L2,4 Z" :fill="branch.color"/>
+          <marker v-for="color in branchColors" :key="`arrow-${color.name}`"
+                  :id="`arrow-${color.name}`" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" :fill="color.color"/>
           </marker>
         </defs>
 
         <!-- 背景网格 -->
-        <g class="grid-lines" v-if="showGrid">
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f0f0f0" stroke-width="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
+        <g class="grid" v-if="showGrid">
+          <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="#e0e0e0"/>
+          </pattern>
+          <rect width="100%" height="100%" fill="url(#smallGrid)" opacity="0.5"/>
         </g>
 
-        <!-- 时间轴线 -->
-        <g class="time-axis" v-if="layoutMode === 'vertical'">
-          <line :x1="timeAxisX" :y1="padding.top" :x2="timeAxisX" :y2="svgHeight - padding.bottom"
-                stroke="#e0e0e0" stroke-width="2" stroke-dasharray="5,5"/>
-          <g v-for="tick in timeTicks" :key="tick.label">
-            <line :x1="timeAxisX - 5" :y1="tick.y" :x2="timeAxisX + 5" :y2="tick.y" stroke="#9e9e9e" stroke-width="1"/>
-            <text :x="timeAxisX - 10" :y="tick.y + 4" text-anchor="end" font-size="10" fill="#757575">{{ tick.label }}</text>
-          </g>
-        </g>
-
-        <!-- 分支连接线 -->
-        <g class="connections">
-          <!-- 主分支线 -->
-          <path
-            v-for="path in mainBranchPath"
-            :key="path.id"
-            :d="path.d"
-            stroke="url(#gradient-main)"
-            stroke-width="3"
-            fill="none"
-            stroke-linecap="round"
-            marker-end="url(#arrowhead-main)"
-            class="connection-line main-branch"
+        <!-- 分支泳道背景 -->
+        <g class="swimlanes">
+          <rect
+            v-for="lane in swimlanes"
+            :key="lane.name"
+            :x="lane.x"
+            :y="0"
+            :width="lane.width"
+            :height="canvasSize.height"
+            :fill="lane.color"
+            opacity="0.03"
           />
+          <text
+            v-for="lane in swimlanes"
+            :key="`label-${lane.name}`"
+            :x="lane.x + 10"
+            :y="20"
+            :fill="lane.color"
+            font-size="12"
+            font-weight="bold"
+            opacity="0.5"
+          >{{ lane.displayName }}</text>
+        </g>
 
-          <!-- 其他分支线 -->
+        <!-- 连接线组 -->
+        <g class="connections">
+          <!-- 父子连接 -->
           <path
-            v-for="conn in branchConnections"
-            :key="conn.id"
-            :d="conn.d"
+            v-for="conn in parentChildConnections"
+            :key="`conn-${conn.from.id}-${conn.to.id}`"
+            :d="conn.path"
             :stroke="conn.color"
             stroke-width="2"
             fill="none"
-            stroke-linecap="round"
-            :marker-end="`url(#arrowhead-${conn.branchName})`"
-            class="connection-line"
+            :marker-end="conn.markerEnd"
+            class="connection parent-child"
             :class="{ 'is-merge': conn.isMerge }"
+          />
+
+          <!-- 合并连接（特殊样式） -->
+          <path
+            v-for="conn in mergeConnections"
+            :key="`merge-${conn.from.id}-${conn.to.id}`"
+            :d="conn.path"
+            stroke="#67C23A"
+            stroke-width="2.5"
+            fill="none"
+            stroke-dasharray="5,3"
+            class="connection merge"
           />
         </g>
 
-        <!-- 分支标签 -->
-        <g class="branch-labels">
-          <g v-for="branch in branches" :key="`label-${branch.name}`"
-             :transform="`translate(${branch.labelX}, ${branch.labelY})`"
-             class="branch-label">
-            <rect
-              :width="branch.labelWidth"
-              height="24"
-              rx="12"
-              :fill="branch.name === 'main' ? 'url(#gradient-main)' : `url(#gradient-${branch.name})`"
-              filter="url(#nodeShadow)"
-            />
-            <text x="12" y="17" font-size="12" font-weight="bold" fill="#fff">
-              {{ branch.displayName }}
-            </text>
-            <!-- 徽章 -->
-            <g v-if="branch.commitCount > 0">
-              <circle :cx="branch.labelWidth - 8" cy="8" r="8" fill="#ff4757"/>
-              <text :x="branch.labelWidth - 8" y="11" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">
-                {{ branch.commitCount > 99 ? '99+' : branch.commitCount }}
-              </text>
-            </g>
-          </g>
-        </g>
-
-        <!-- 版本节点组 -->
+        <!-- 节点组 -->
         <g class="nodes">
           <g
-            v-for="node in computedNodes"
+            v-for="node in laidOutNodes"
             :key="node.id"
             :transform="`translate(${node.x}, ${node.y})`"
-            class="node-group"
+            class="node"
             :class="{
               'is-selected': selectedVersion?.id === node.id,
               'is-comparing': comparingVersions.has(node.id),
               'is-merged': node.isMerged,
               'is-auto-save': node.isAutoSave,
-              'has-conflicts': node.hasConflicts
+              'is-branch-point': node.isBranchPoint,
+              'is-merge-point': node.isMergePoint
             }"
             @click="handleNodeClick(node)"
-            @mouseenter="handleNodeHover(node, $event)"
-            @mouseleave="handleNodeLeave"
+            @mouseenter="showTooltip(node, $event)"
+            @mouseleave="hideTooltip"
           >
-            <!-- 节点外圈（选中效果） -->
+            <!-- 选中光环 -->
             <circle
               v-if="selectedVersion?.id === node.id"
-              :r="nodeRadius + 6"
+              :r="nodeRadius + 8"
               :fill="getNodeColor(node)"
-              opacity="0.2"
-              class="selection-ring"
+              opacity="0.15"
+              class="selection-halo"
             >
-              <animate attributeName="r" :from="nodeRadius + 6" :to="nodeRadius + 10" dur="1.5s" repeatCount="indefinite"/>
-              <animate attributeName="opacity" values="0.2;0.1;0.2" dur="1.5s" repeatCount="indefinite"/>
+              <animate
+                attributeName="r"
+                :values="`${nodeRadius + 8};${nodeRadius + 12};${nodeRadius + 8}`"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                values="0.15;0.05;0.15"
+                dur="2s"
+                repeatCount="indefinite"
+              />
             </circle>
 
             <!-- 节点主体 -->
@@ -179,99 +179,85 @@
               :fill="getNodeFill(node)"
               :stroke="getNodeStroke(node)"
               :stroke-width="getNodeStrokeWidth(node)"
-              filter="url(#nodeShadow)"
               class="node-circle"
             />
 
-            <!-- 节点图标 -->
-            <g class="node-icon">
-              <!-- 合并图标 -->
-              <g v-if="node.isMerged" transform="translate(-6, -6) scale(0.8)">
-                <path d="M6 3L2 7l4 4M10 3l4 4-4 4M5 7h6" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <!-- 节点图标/文字 -->
+            <g class="node-content" pointer-events="none">
+              <!-- 合并点 -->
+              <g v-if="node.isMergePoint">
+                <path d="M-5,-3 L0,3 L5,-3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="0" cy="3" r="1.5" fill="#fff"/>
               </g>
-              <!-- 分支图标 -->
-              <g v-else-if="node.isBranchPoint" transform="translate(-6, -6) scale(0.8)">
-                <circle cx="6" cy="6" r="1" fill="#fff"/>
-                <path d="M6 2v8M2 6h8" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+              <!-- 分支点 -->
+              <g v-else-if="node.isBranchPoint">
+                <circle cx="0" cy="0" r="2" fill="#fff"/>
+                <path d="M-6,0 L6,0 M0,-6 L0,6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
               </g>
-              <!-- 自动保存点 -->
-              <g v-else-if="node.isAutoSave" transform="translate(-5, -5)">
-                <path d="M5 2v6M2 5h6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
-              </g>
-              <!-- 默认点 -->
-              <circle v-else r="2" fill="#fff"/>
+              <!-- 普通点 -->
+              <circle v-else-if="!node.isAutoSave" r="2.5" fill="#fff"/>
             </g>
 
-            <!-- 用户头像 -->
-            <g v-if="showAvatars && node.author" class="node-avatar" :transform="`translate(${nodeRadius - 2}, -${nodeRadius - 2})`">
-              <clipPath :id="`avatar-${node.id}`">
-                <circle r="10"/>
-              </clipPath>
-              <image
-                :x="-10" :y="-10" width="20" height="20"
-                :href="getAvatarUrl(node.author)"
-                :clip-path="`url(#avatar-${node.id})`"
-              />
-              <circle r="10" fill="none" stroke="#fff" stroke-width="2"/>
+            <!-- 标签 -->
+            <g v-if="showLabels" class="node-label" transform="translate(0, 24)">
+              <foreignObject :x="-75" :y="0" width="150" height="50">
+                <div class="label-content" :class="`label-${node.branchName}`">
+                  <div class="label-summary">{{ node.summary || '未命名版本' }}</div>
+                  <div v-if="showMeta" class="label-meta">
+                    <span class="label-author">{{ node.author }}</span>
+                    <span class="label-time">{{ formatTimeRelative(node.timestamp) }}</span>
+                  </div>
+                </div>
+              </foreignObject>
             </g>
 
-            <!-- 节点标签 -->
-            <g v-if="showLabels" class="node-label" :transform="`translate(0, ${nodeRadius + 8})`">
-              <rect
-                :x="-(node.labelWidth / 2)"
-                y="0"
-                :width="node.labelWidth"
-                height="28"
-                rx="6"
-                :fill="getNodeLabelFill(node)"
-                filter="url(#nodeShadow)"
-              />
-              <text
-                :x="0"
-                y="12"
-                text-anchor="middle"
-                font-size="11"
-                font-weight="500"
-                fill="#fff"
-              >{{ truncateText(node.summary || '未命名', 20) }}</text>
-              <text
-                v-if="showStats"
-                :x="0"
-                y="24"
-                text-anchor="middle"
-                font-size="9"
-                fill="rgba(255,255,255,0.8)"
-              >{{ formatTimeShort(node.timestamp) }}</text>
+            <!-- 统计徽章 -->
+            <g v-if="showMeta && node.changeCount > 0" transform="translate(12, -12)">
+              <rect :x="-10" :y="-8" :width="20" height="16" rx="4" fill="#67C23A"/>
+              <text x="0" y="4" text-anchor="middle" font-size="10" fill="#fff" font-weight="bold">
+                +{{ node.changeCount }}
+              </text>
             </g>
           </g>
         </g>
       </svg>
     </div>
 
-    <!-- 悬浮提示 -->
+    <!-- 工具提示 -->
     <transition name="el-fade-in">
       <div
-        v-if="hoveredNode"
-        class="node-tooltip"
+        v-if="tooltipNode"
+        class="tooltip"
         :style="{
-          left: tooltipPosition.x + 'px',
-          top: tooltipPosition.y + 'px'
+          left: tooltipPos.x + 'px',
+          top: tooltipPos.y + 'px'
         }"
       >
         <div class="tooltip-header">
-          <el-tag :type="hoveredNode.branchName === 'main' ? 'primary' : 'success'" size="small">
-            {{ hoveredNode.branchName }}
+          <el-tag :type="tooltipNode.branchName === 'main' ? '' : 'success'" size="small">
+            {{ tooltipNode.branchName }}
           </el-tag>
-          <span class="tooltip-time">{{ formatTime(hoveredNode.timestamp) }}</span>
+          <span class="tooltip-time">{{ formatTime(tooltipNode.timestamp) }}</span>
         </div>
-        <div class="tooltip-content">
-          <div class="tooltip-summary">{{ hoveredNode.summary || '无摘要' }}</div>
-          <div class="tooltip-meta">
-            <span><el-icon><User /></el-icon> {{ hoveredNode.author }}</span>
-            <span><el-icon><Document /></el-icon> {{ hoveredNode.totalLines }}行</span>
-            <span v-if="hoveredNode.changeCount > 0">
-              <el-icon><Edit /></el-icon> +{{ hoveredNode.changeCount }}
-            </span>
+        <div class="tooltip-body">
+          <div class="tooltip-summary">{{ tooltipNode.summary || '无摘要' }}</div>
+          <div class="tooltip-info">
+            <div class="info-item">
+              <span class="info-label">作者:</span>
+              <span class="info-value">{{ tooltipNode.author }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">内容:</span>
+              <span class="info-value">{{ tooltipNode.totalLines }} 行</span>
+            </div>
+            <div v-if="tooltipNode.changeCount > 0" class="info-item">
+              <span class="info-label">变更:</span>
+              <span class="info-value" class="change-add">+{{ tooltipNode.changeCount }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">位置:</span>
+              <span class="info-value">v{{ tooltipNode.position }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -281,62 +267,30 @@
     <div class="legend" v-if="showLegend">
       <div class="legend-title">图例</div>
       <div class="legend-items">
-        <div class="legend-item">
+        <div class="legend-item" @click="toggleFilter('main')">
           <span class="legend-dot main"></span>
           <span>主分支</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-dot feature"></span>
+        <div class="legend-item" @click="toggleFilter('branch')">
+          <span class="legend-dot branch"></span>
           <span>特性分支</span>
         </div>
-        <div class="legend-item">
+        <div class="legend-item" @click="toggleFilter('auto-save')">
           <span class="legend-dot auto-save"></span>
           <span>自动保存</span>
         </div>
-        <div class="legend-item">
+        <div class="legend-item" @click="toggleFilter('merged')">
           <span class="legend-dot merged"></span>
           <span>已合并</span>
         </div>
-        <div class="legend-item">
-          <span class="legend-dot selected"></span>
-          <span>已选择</span>
-        </div>
       </div>
-    </div>
-
-    <!-- 迷你地图 -->
-    <div v-if="showMinimap" class="minimap">
-      <svg :width="minimapWidth" :height="minimapHeight">
-        <rect width="100%" height="100%" fill="#f5f5f5"/>
-        <g :transform="`scale(${minimapScale})`">
-          <circle
-            v-for="node in computedNodes"
-            :key="`minimap-${node.id}`"
-            :cx="node.x"
-            :cy="node.y"
-            :r="3"
-            :fill="getNodeColor(node)"
-            opacity="0.6"
-          />
-        </g>
-        <rect
-          :x="viewportX"
-          :y="viewportY"
-          :width="viewportWidth"
-          :height="viewportHeight"
-          fill="none"
-          stroke="#409EFF"
-          stroke-width="1"
-          stroke-opacity="0.5"
-        />
-      </svg>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { ZoomIn, ZoomOut, FullScreen, User, Document, Edit } from '@element-plus/icons-vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { ZoomIn, ZoomOut, FullScreen } from '@element-plus/icons-vue'
 import type { FrontendLatexVersionNode } from '@/api/adapters/latexAdapter'
 
 const props = defineProps<{
@@ -349,316 +303,258 @@ const emit = defineEmits<{
   (e: 'compare', versions: FrontendLatexVersionNode[]): void
 }>()
 
-// 布局参数
-const nodeRadius = 14
-const padding = { top: 60, right: 60, bottom: 60, left: 120 }
-const nodeSpacing = { x: 100, y: 80 }
-const labelWidth = 160
+// 布局常量
+const NODE_RADIUS = 12
+const LANE_WIDTH = 180
+const LANE_SPACING = 20
+const TIME_COLUMN_WIDTH = 120
+const ROW_SPACING = 70
 
 // 状态
 const containerRef = ref<HTMLElement>()
+const svgContainerRef = ref<HTMLElement>()
 const svgRef = ref<SVGSVGElement>()
-const layoutMode = ref<'horizontal' | 'vertical'>('horizontal')
+const viewMode = ref<'tree' | 'graph' | 'timeline'>('tree')
 const zoomLevel = ref(1)
+const panX = ref(0)
+const panY = ref(0)
+const isPanning = ref(false)
+const panStart = ref({ x: 0, y: 0 })
 const showLabels = ref(true)
-const showStats = ref(true)
-const showAvatars = ref(false)
+const showMeta = ref(true)
 const showGrid = ref(true)
 const showLegend = ref(true)
-const showMinimap = ref(true)
-
 const comparingVersions = ref<Set<string>>(new Set())
-const hoveredNode = ref<(FrontendLatexVersionNode & { x: number; y: number }) | null>(null)
-const tooltipPosition = ref({ x: 0, y: 0 })
 
-// SVG尺寸
-const svgWidth = ref(1200)
-const svgHeight = ref(800)
+// 工具提示
+const tooltipNode = ref<(FrontendLatexVersionNode & { x: number; y: number }) | null>(null)
+const tooltipPos = ref({ x: 0, y: 0 })
 
-// 计算分支
-const branches = computed(() => {
-  const branchMap = new Map<string, {
-    name: string
-    displayName: string
-    color: string
-    commitCount: number
-    labelX: number
-    labelY: number
-    labelWidth: number
-  }>()
+// 分支颜色
+const branchColors = computed(() => {
+  const colorMap = new Map<string, string>()
+  const colors = [
+    { name: 'main', color: '#667eea' },
+    { name: 'develop', color: '#f093fb' },
+    { name: 'feature', color: '#4facfe' },
+    { name: 'hotfix', color: '#fa709a' },
+    { name: 'release', color: '#fee140' }
+  ]
 
-  // 按分支统计提交数
-  const branchCounts = new Map<string, number>()
-  props.versions.forEach(v => {
-    branchCounts.set(v.branchName, (branchCounts.get(v.branchName) || 0) + 1)
-  })
-
-  // 分支颜色
-  const branchColors: Record<string, string> = {
-    'main': '#667eea',
-    'develop': '#f093fb',
-    'feature': '#4facfe',
-    'hotfix': '#fa709a',
-    'release': '#fee140'
-  }
-
-  const getColor = (name: string, index: number) => {
-    return branchColors[name] || `hsl(${(index * 60) % 360}, 70%, 55%)`
-  }
-
-  let index = 0
-  props.versions.forEach((v, i) => {
-    if (!branchMap.has(v.branchName)) {
-      const color = getColor(v.branchName, index)
-      branchMap.set(v.branchName, {
-        name: v.branchName,
-        displayName: v.branchName === 'main' ? 'main' : v.branchName,
-        color,
-        commitCount: branchCounts.get(v.branchName) || 0,
-        labelX: 10,
-        labelY: 30 + index * 30,
-        labelWidth: Math.max(60, v.branchName.length * 8 + 30)
-      })
-      index++
-    }
-  })
-
-  return Array.from(branchMap.values()).map((b, i) => ({
-    ...b,
-    labelY: 40 + i * 28
+  const branches = [...new Set(props.versions.map(v => v.branchName))]
+  return branches.map((name, i) => ({
+    name,
+    color: colorMap.get(name) || colors[i % colors.length].color,
+    displayName: name === 'main' ? '主分支' : name
   }))
 })
 
-// 时间轴
-const timeAxisX = computed(() => padding.left - 20)
-
-const timeTicks = computed(() => {
-  if (props.versions.length === 0) return []
-
-  const timestamps = props.versions.map(v => new Date(v.timestamp).getTime())
-  const minTime = Math.min(...timestamps)
-  const maxTime = Math.max(...timestamps)
-  const timeRange = maxTime - minTime
-
-  // 生成5-8个时间刻度
-  const tickCount = Math.min(8, Math.max(5, Math.ceil(timeRange / (24 * 60 * 60 * 1000))))
-  const ticks: Array<{ y: number; label: string }> = []
-
-  for (let i = 0; i < tickCount; i++) {
-    const time = minTime + (timeRange * i) / (tickCount - 1)
-    const date = new Date(time)
-    const y = padding.top + ((svgHeight.value - padding.top - padding.bottom) * i) / (tickCount - 1)
-
-    let label: string
-    if (timeRange > 30 * 24 * 60 * 60 * 1000) {
-      label = date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
-    } else {
-      label = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    }
-
-    ticks.push({ y, label })
-  }
-
-  return ticks
+// 泳道（分支垂直区域）
+const swimlanes = computed(() => {
+  return branchColors.value.map((branch, i) => ({
+    ...branch,
+    x: 80 + i * LANE_WIDTH,
+    width: LANE_WIDTH - LANE_SPACING
+  }))
 })
 
-// 计算节点布局
-const computedNodes = computed(() => {
+// 核心布局算法 - 按分支和时间组织节点
+const laidOutNodes = computed(() => {
   if (props.versions.length === 0) return []
 
+  // 按分支分组
+  const branchGroups = new Map<string, FrontendLatexVersionNode[]>()
+  props.versions.forEach(v => {
+    if (!branchGroups.has(v.branchName)) {
+      branchGroups.set(v.branchName, [])
+    }
+    branchGroups.get(v.branchName)!.push(v)
+  })
+
+  // 对每个分支按时间排序
+  branchGroups.forEach((versions, branchName) => {
+    versions.sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    )
+  })
+
+  // 布局节点
   const nodes: Array<FrontendLatexVersionNode & {
     x: number
     y: number
-    labelWidth: number
+    branchIndex: number
+    timeIndex: number
     isBranchPoint: boolean
+    isMergePoint: boolean
   }> = []
 
-  // 按时间排序
-  const sortedVersions = [...props.versions].sort((a, b) =>
-    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  )
+  const branchIndexMap = new Map<string, number>()
+  branchColors.value.forEach((b, i) => branchIndexMap.set(b.name, i))
 
-  // 分配位置
-  const branchPositions = new Map<string, number>()
-  const columnCount = new Map<number, number>()
-  let currentColumn = 0
+  // 时间列索引
+  const timeColumnMap = new Map<string, number>()
+  let currentTimeColumn = 0
 
-  sortedVersions.forEach((v, index) => {
-    // 分支Y位置
-    if (!branchPositions.has(v.branchName)) {
-      const branchIndex = branches.value.findIndex(b => b.name === v.branchName)
-      branchPositions.set(v.branchName, padding.top + branchIndex * nodeSpacing.y)
-    }
+  branchGroups.forEach((versions, branchName) => {
+    const branchIndex = branchIndexMap.get(branchName)!
+    const laneX = 80 + branchIndex * LANE_WIDTH + LANE_WIDTH / 2
 
-    // X位置（时间列）
-    const branchCommits = sortedVersions.filter(sv => sv.branchName === v.branchName)
-    const branchIndex = branchCommits.findIndex(sv => sv.id === v.id)
-    const columnCountInBranch = columnCount.get(branchIndex) || 0
-    columnCount.set(branchIndex, columnCountInBranch + 1)
+    versions.forEach((v, idx) => {
+      // 计算时间列（简化：使用索引）
+      if (!timeColumnMap.has(v.timestamp as unknown as string)) {
+        timeColumnMap.set(v.timestamp as unknown as string, currentTimeColumn++)
+      }
+      const timeIndex = timeColumnMap.get(v.timestamp as unknown as string)!
 
-    const x = padding.left + columnCountInBranch * nodeSpacing.x
-    const y = branchPositions.get(v.branchName)!
+      const x = laneX
+      const y = 80 + timeIndex * ROW_SPACING
 
-    // 检查是否是分支点
-    const isBranchPoint = sortedVersions.some(sv =>
-      sv.parentId === v.id && sv.branchName !== v.branchName
-    )
+      // 检查特殊点
+      const children = props.versions.filter(child => child.parentId === v.id)
+      const isBranchPoint = children.some(c => c.branchName !== v.branchName)
+      const isMergePoint = v.parentId && props.versions.find(p => p.id === v.parentId)?.branchName !== v.branchName
 
-    nodes.push({
-      ...v,
-      x,
-      y,
-      labelWidth: Math.min(180, (v.summary?.length || 10) * 7 + 40),
-      isBranchPoint
+      nodes.push({
+        ...v,
+        x,
+        y,
+        branchIndex,
+        timeIndex,
+        isBranchPoint,
+        isMergePoint
+      })
     })
   })
-
-  // 更新SVG尺寸
-  if (nodes.length > 0) {
-    const maxX = Math.max(...nodes.map(n => n.x)) + padding.right
-    const maxY = Math.max(...nodes.map(n => n.y)) + padding.bottom
-    svgWidth.value = Math.max(1200, maxX)
-    svgHeight.value = Math.max(800, maxY)
-  }
 
   return nodes
 })
 
-// 主分支路径
-const mainBranchPath = computed(() => {
-  const mainNodes = computedNodes.value.filter(n => n.branchName === 'main')
-  const paths: Array<{ id: string; d: string }> = []
-
-  for (let i = 0; i < mainNodes.length - 1; i++) {
-    const from = mainNodes[i]
-    const to = mainNodes[i + 1]
-    const d = createSmoothPath(from, to, 'main')
-    paths.push({ id: `${from.id}-${to.id}`, d })
+// 画布尺寸
+const canvasSize = computed(() => {
+  if (laidOutNodes.value.length === 0) {
+    return { width: 800, height: 600 }
   }
 
-  return paths
+  const maxX = Math.max(...laidOutNodes.value.map(n => n.x)) + 100
+  const maxY = Math.max(...laidOutNodes.value.map(n => n.y)) + 100
+
+  return {
+    width: Math.max(800, maxX),
+    height: Math.max(600, maxY)
+  }
 })
 
-// 分支连接
-const branchConnections = computed(() => {
-  const nodeMap = new Map(computedNodes.value.map(n => [n.id, n]))
-  const conns: Array<{
-    id: string
-    d: string
+// 父子连接
+const parentChildConnections = computed(() => {
+  const nodeMap = new Map(laidOutNodes.value.map(n => [n.id, n]))
+  const connections: Array<{
+    from: typeof laidOutNodes.value[0]
+    to: typeof laidOutNodes.value[0]
+    path: string
     color: string
-    branchName: string
+    markerEnd: string
     isMerge: boolean
   }> = []
 
-  computedNodes.value.forEach(node => {
+  laidOutNodes.value.forEach(node => {
     if (node.parentId && nodeMap.has(node.parentId)) {
       const parent = nodeMap.get(node.parentId)!
-      const branch = branches.value.find(b => b.name === node.branchName)
-      const isMerge = node.isMerged || (parent.branchName !== node.branchName)
+      const branch = branchColors.value.find(b => b.name === node.branchName)
+      const isMerge = parent.branchName !== node.branchName
 
-      const d = createSmoothPath(parent, node, node.branchName, isMerge)
+      let path: string
+      if (isMerge) {
+        // 合并连接 - 从父节点到子节点，带拐角
+        const midY = (parent.y + node.y) / 2
+        path = `M ${parent.x} ${parent.y + NODE_RADIUS}
+                L ${parent.x} ${midY}
+                L ${node.x} ${midY}
+                L ${node.x} ${node.y - NODE_RADIUS}`
+      } else {
+        // 同分支连接 - 直线
+        path = `M ${parent.x} ${parent.y + NODE_RADIUS}
+                L ${node.x} ${node.y - NODE_RADIUS}`
+      }
 
-      conns.push({
-        id: `${parent.id}-${node.id}`,
-        d,
+      connections.push({
+        from: parent,
+        to: node,
+        path,
         color: branch?.color || '#909399',
-        branchName: node.branchName,
+        markerEnd: `url(#arrow-${node.branchName})`,
         isMerge
       })
     }
   })
 
-  return conns
+  return connections
 })
 
-// 创建平滑路径
-const createSmoothPath = (
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  branchName: string,
-  isMerge = false
-) => {
-  const r = nodeRadius
-  const midX = (from.x + to.x) / 2
+// 合并连接（特殊显示）
+const mergeConnections = computed(() => {
+  return parentChildConnections.value.filter(c => c.isMerge)
+})
 
-  if (isMerge) {
-    // 合并路径 - 先横向再纵向
-    return `M ${from.x + r} ${from.y}
-            L ${midX} ${from.y}
-            Q ${midX + 20} ${(from.y + to.y) / 2}, ${to.x - r - 10} ${to.y}
-            L ${to.x - r} ${to.y}`
-  } else {
-    // 普通路径 - S形曲线
-    return `M ${from.x + r} ${from.y}
-            C ${from.x + nodeSpacing.x / 2} ${from.y},
-              ${to.x - nodeSpacing.x / 2} ${to.y},
-              ${to.x - r} ${to.y}`
-  }
-}
-
-// 节点相关方法
+// 获取节点属性
 const getNodeRadius = (node: FrontendLatexVersionNode) => {
-  if (node.isAutoSave) return nodeRadius - 4
-  if (node.isMerged) return nodeRadius + 2
-  return nodeRadius
-}
-
-const getNodeColor = (node: FrontendLatexVersionNode) => {
-  if (node.isAutoSave) return '#E4E7ED'
-  const branch = branches.value.find(b => b.name === node.branchName)
-  return branch?.color || '#909399'
+  if (node.isAutoSave) return NODE_RADIUS - 4
+  if (node.isMerged) return NODE_RADIUS + 2
+  return NODE_RADIUS
 }
 
 const getNodeFill = (node: FrontendLatexVersionNode) => {
-  if (node.branchName === 'main') return 'url(#gradient-main)'
-  return `url(#gradient-${node.branchName})`
+  if (node.isAutoSave) return '#E4E7ED'
+  return `url(#grad-${node.branchName})`
+}
+
+const getNodeColor = (node: FrontendLatexVersionNode) => {
+  const branch = branchColors.value.find(b => b.name === node.branchName)
+  return branch?.color || '#909399'
 }
 
 const getNodeStroke = (node: FrontendLatexVersionNode) => {
-  if (props.selectedVersion?.id === node.id) return '#409EFF'
+  if (selectedVersion.value?.id === node.id) return '#409EFF'
   if (comparingVersions.value.has(node.id)) return '#E6A23C'
   if (node.isMerged) return '#67C23A'
   return '#fff'
 }
 
 const getNodeStrokeWidth = (node: FrontendLatexVersionNode) => {
-  if (props.selectedVersion?.id === node.id) return 3
+  if (selectedVersion.value?.id === node.id) return 3
   if (comparingVersions.value.has(node.id)) return 3
   return 2
 }
 
-const getNodeLabelFill = (node: FrontendLatexVersionNode) => {
-  return getNodeColor(node)
-}
-
-// 获取用户头像URL
-const getAvatarUrl = (author: string) => {
-  // 基于用户名生成头像
-  const seed = encodeURIComponent(author)
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${seed}&backgroundColor=409EFF`
+// 颜色辅助函数
+const lightenColor = (color: string, percent: number) => {
+  const num = parseInt(color.replace('#', ''), 16)
+  const amt = Math.round(2.55 * percent)
+  const R = (num >> 16) + amt
+  const G = (num >> 8 & 0x00FF) + amt
+  const B = (num & 0x0000FF) + amt
+  return '#' + (0x1000000 +
+    (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+    (B < 255 ? B < 1 ? 0 : B : 255)
+  ).toString(16).slice(1)
 }
 
 // 格式化时间
 const formatTime = (timestamp: Date) => {
-  const date = new Date(timestamp)
-  return date.toLocaleString('zh-CN')
+  return new Date(timestamp).toLocaleString('zh-CN')
 }
 
-const formatTimeShort = (timestamp: Date) => {
-  const date = new Date(timestamp)
+const formatTimeRelative = (timestamp: Date) => {
   const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
+  const diff = now.getTime() - new Date(timestamp).getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
 
-  if (diffMins < 60) return `${diffMins}m`
-  const diffHours = Math.floor(diffMs / 3600000)
-  if (diffHours < 24) return `${diffHours}h`
-  return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
-}
-
-// 截断文本
-const truncateText = (text: string, maxLength: number) => {
-  return text?.length > maxLength ? text.substring(0, maxLength) + '...' : text
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 7) return `${days}天前`
+  return new Date(timestamp).toLocaleDateString('zh-CN')
 }
 
 // 交互处理
@@ -666,70 +562,75 @@ const handleNodeClick = (node: FrontendLatexVersionNode & { x: number; y: number
   emit('select', node)
 }
 
-const handleNodeHover = (
-  node: FrontendLatexVersionNode & { x: number; y: number },
-  event: MouseEvent
-) => {
-  hoveredNode.value = node
-  tooltipPosition.value = {
+const showTooltip = (node: FrontendLatexVersionNode & { x: number; y: number }, event: MouseEvent) => {
+  tooltipNode.value = node
+  tooltipPos.value = {
     x: event.clientX + 15,
     y: event.clientY + 15
   }
 }
 
-const handleNodeLeave = () => {
-  hoveredNode.value = null
+const hideTooltip = () => {
+  tooltipNode.value = null
 }
 
-// 缩放处理
-const handleZoom = (action: 'in' | 'out' | 'reset') => {
-  if (action === 'in') zoomLevel.value = Math.min(2, zoomLevel.value + 0.1)
-  else if (action === 'out') zoomLevel.value = Math.max(0.5, zoomLevel.value - 0.1)
-  else zoomLevel.value = 1
+// 缩放和拖拽
+const zoomIn = () => { zoomLevel.value = Math.min(2, zoomLevel.value * 1.2) }
+const zoomOut = () => { zoomLevel.value = Math.max(0.3, zoomLevel.value / 1.2) }
+const zoomReset = () => { zoomLevel.value = 1; panX.value = 0; panY.value = 0 }
+const fitView = () => {
+  zoomReset()
+  if (!svgContainerRef.value || !containerRef.value) return
+
+  const container = containerRef.value
+  const scale = Math.min(
+    (container.clientWidth - 40) / canvasSize.value.width,
+    (container.clientHeight - 100) / canvasSize.value.height
+  )
+  zoomLevel.value = Math.min(scale, 1)
 }
 
-const fitToScreen = () => {
-  zoomLevel.value = 1
-  if (!containerRef.value) return
-
-  const containerWidth = containerRef.value.clientWidth
-  const containerHeight = containerRef.value.clientHeight
-  const scaleX = containerWidth / svgWidth.value
-  const scaleY = containerHeight / svgHeight.value
-  zoomLevel.value = Math.min(scaleX, scaleY, 1) * 0.95
+const startPan = (e: MouseEvent) => {
+  isPanning.value = true
+  panStart.value = { x: e.clientX - panX.value, y: e.clientY - panY.value }
 }
 
-// 迷你地图
-const minimapWidth = 150
-const minimapHeight = 100
+const onPan = (e: MouseEvent) => {
+  if (!isPanning.value) return
+  panX.value = e.clientX - panStart.value.x
+  panY.value = e.clientY - panStart.value.y
+}
 
-const minimapScale = computed(() => {
-  return Math.min(minimapWidth / svgWidth.value, minimapHeight / svgHeight.value)
-})
+const endPan = () => {
+  isPanning.value = false
+}
 
-const viewportX = ref(0)
-const viewportY = ref(0)
-const viewportWidth = ref(50)
-const viewportHeight = ref(50)
+const onWheel = (e: WheelEvent) => {
+  const delta = e.deltaY > 0 ? 0.9 : 1.1
+  zoomLevel.value = Math.min(2, Math.max(0.3, zoomLevel.value * delta))
+}
+
+// 过滤器（预留）
+const toggleFilter = (type: string) => {
+  // TODO: 实现分支过滤
+}
 
 // 生命周期
 onMounted(() => {
-  fitToScreen()
+  fitView()
 })
 
 watch(() => props.versions, () => {
-  fitToScreen()
+  fitView()
 }, { deep: true })
 </script>
 
 <style scoped lang="scss">
 .branch-tree-view {
-  position: relative;
-  width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fafafa;
+  height: 100%;
+  background: #f8f9fa;
   overflow: hidden;
 
   .toolbar {
@@ -739,23 +640,15 @@ watch(() => props.versions, () => {
     padding: 8px 16px;
     background: #fff;
     border-bottom: 1px solid #e4e7ed;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     z-index: 10;
-
-    .toolbar-left,
-    .toolbar-right {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-    }
   }
 
-  .canvas-container {
+  .svg-container {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     position: relative;
-    transition: transform 0.3s ease;
     cursor: grab;
+    transition: transform 0.1s ease-out;
 
     &:active {
       cursor: grabbing;
@@ -764,25 +657,21 @@ watch(() => props.versions, () => {
 
   .tree-svg {
     display: block;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   }
 
-  .connection-line {
-    transition: stroke-width 0.2s, opacity 0.2s;
+  .connection {
+    transition: stroke-width 0.2s;
 
     &:hover {
       stroke-width: 3 !important;
-      opacity: 0.8;
     }
 
     &.is-merge {
-      stroke-dasharray: 5 3;
+      opacity: 0.6;
     }
   }
 
-  .node-group {
+  .node {
     cursor: pointer;
     transition: transform 0.2s;
 
@@ -791,8 +680,6 @@ watch(() => props.versions, () => {
     }
 
     &.is-selected .node-circle {
-      stroke: #409EFF;
-      stroke-width: 3;
       filter: url(#glow);
     }
 
@@ -814,18 +701,36 @@ watch(() => props.versions, () => {
     }
   }
 
-  .selection-ring {
-    animation: pulse 1.5s ease-in-out infinite;
+  .node-label {
+    pointer-events: none;
+
+    .label-content {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 6px;
+      padding: 6px 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+
+      .label-summary {
+        font-size: 12px;
+        color: #303133;
+        margin-bottom: 4px;
+        word-break: break-word;
+      }
+
+      .label-meta {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        font-size: 10px;
+        color: #909399;
+      }
+    }
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.1; }
-  }
-
-  .node-tooltip {
+  .tooltip {
     position: fixed;
-    z-index: 1000;
+    z-index: 9999;
     background: #fff;
     border: 1px solid #e4e7ed;
     border-radius: 8px;
@@ -851,24 +756,27 @@ watch(() => props.versions, () => {
     .tooltip-summary {
       font-size: 13px;
       color: #303133;
-      margin-bottom: 8px;
-      line-height: 1.5;
+      margin-bottom: 12px;
     }
 
-    .tooltip-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-size: 12px;
-      color: #606266;
-
-      span {
+    .tooltip-info {
+      .info-item {
         display: flex;
-        align-items: center;
-        gap: 4px;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        font-size: 12px;
 
-        .el-icon {
-          font-size: 14px;
+        .info-label {
+          color: #909399;
+        }
+
+        .info-value {
+          color: #606266;
+
+          &.change-add {
+            color: #67C23A;
+            font-weight: 500;
+          }
         }
       }
     }
@@ -884,16 +792,16 @@ watch(() => props.versions, () => {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 
     .legend-title {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       color: #303133;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .legend-items {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     .legend-item {
@@ -902,6 +810,14 @@ watch(() => props.versions, () => {
       gap: 8px;
       font-size: 12px;
       color: #606266;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+
+      &:hover {
+        background: #f5f7fa;
+      }
 
       .legend-dot {
         width: 12px;
@@ -909,22 +825,11 @@ watch(() => props.versions, () => {
         border-radius: 50%;
 
         &.main { background: linear-gradient(135deg, #667eea, #764ba2); }
-        &.feature { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        &.branch { background: linear-gradient(135deg, #4facfe, #00f2fe); }
         &.auto-save { background: #E4E7ED; }
         &.merged { background: #67C23A; }
-        &.selected { background: #409EFF; }
       }
     }
-  }
-
-  .minimap {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background: #fff;
-    padding: 8px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   }
 }
 </style>
