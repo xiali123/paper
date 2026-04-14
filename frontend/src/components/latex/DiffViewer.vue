@@ -3,43 +3,104 @@
     <!-- 对比头部 -->
     <div class="diff-header">
       <div class="version-selectors">
-        <div class="selector-item">
-          <label>基线版本:</label>
-          <el-select
-            v-model="baseVersionId"
-            placeholder="选择基线版本"
-            @change="handleVersionChange"
-          >
-            <el-option
-              v-for="v in availableVersions"
-              :key="v.id"
-              :label="formatVersionLabel(v)"
-              :value="v.id"
-            />
-          </el-select>
+        <div class="selector-group">
+          <div class="selector-item base">
+            <label class="selector-label">
+              <el-icon class="label-icon"><Back /></el-icon>
+              旧版本
+            </label>
+            <el-select
+              v-model="baseVersionId"
+              placeholder="选择旧版本"
+              @change="handleVersionChange"
+              size="default"
+              class="version-select"
+            >
+              <el-option
+                v-for="v in availableVersions"
+                :key="v.id"
+                :label="formatVersionLabel(v)"
+                :value="v.id"
+              >
+                <div class="version-option">
+                  <div class="option-header">
+                    <span class="option-summary">{{ v.summary || '未命名版本' }}</span>
+                    <el-tag v-if="v.branchName !== 'main'" size="small" type="success">{{ v.branchName }}</el-tag>
+                  </div>
+                  <div class="option-meta">
+                    <span class="option-time">{{ formatTimeRelative(v.timestamp) }}</span>
+                    <span class="option-author">{{ v.author }}</span>
+                  </div>
+                </div>
+              </el-option>
+            </el-select>
+          </div>
+
+          <div class="vs-divider">
+            <span>VS</span>
+          </div>
+
+          <div class="selector-item compare">
+            <label class="selector-label">
+              新版本
+              <el-icon class="label-icon"><Right /></el-icon>
+            </label>
+            <el-select
+              v-model="compareVersionId"
+              placeholder="选择新版本"
+              @change="handleVersionChange"
+              size="default"
+              class="version-select"
+            >
+              <el-option
+                v-for="v in availableVersions"
+                :key="v.id"
+                :label="formatVersionLabel(v)"
+                :value="v.id"
+              >
+                <div class="version-option">
+                  <div class="option-header">
+                    <span class="option-summary">{{ v.summary || '未命名版本' }}</span>
+                    <el-tag v-if="v.branchName !== 'main'" size="small" type="success">{{ v.branchName }}</el-tag>
+                  </div>
+                  <div class="option-meta">
+                    <span class="option-time">{{ formatTimeRelative(v.timestamp) }}</span>
+                    <span class="option-author">{{ v.author }}</span>
+                  </div>
+                </div>
+              </el-option>
+            </el-select>
+          </div>
         </div>
-        <div class="selector-item">
-          <label>对比版本:</label>
-          <el-select
-            v-model="compareVersionId"
-            placeholder="选择对比版本"
-            @change="handleVersionChange"
-          >
-            <el-option
-              v-for="v in availableVersions"
-              :key="v.id"
-              :label="formatVersionLabel(v)"
-              :value="v.id"
-            />
-          </el-select>
+
+        <!-- 快捷对比按钮 -->
+        <div class="quick-compare">
+          <el-tooltip content="对比最新2个版本" placement="top">
+            <el-button size="small" @click="compareLatestTwo" :disabled="availableVersions.length < 2">
+              <el-icon><Top /></el-icon>
+              最新2个
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="对比相邻版本" placement="top">
+            <el-button size="small" @click="compareAdjacent" :disabled="!baseVersion || !compareVersion">
+              <el-icon><Sort /></el-icon>
+              相邻版本
+            </el-button>
+          </el-tooltip>
         </div>
       </div>
 
       <div class="diff-actions">
         <el-button-group size="small">
-          <el-button :icon="RefreshLeft" @click="swapVersions">交换</el-button>
-          <el-button :icon="Download" @click="downloadDiff">下载</el-button>
-          <el-button :icon="Close" @click="$emit('clearCompare')">清除</el-button>
+          <el-tooltip content="交换版本" placement="top">
+            <el-button :icon="RefreshLeft" @click="swapVersions">交换</el-button>
+          </el-tooltip>
+          <el-tooltip content="下载差异" placement="top">
+            <el-button :icon="Download" @click="downloadDiff">下载</el-button>
+          </el-tooltip>
+          <el-tooltip content="清除对比" placement="top">
+            <el-button :icon="Close" @click="$emit('clearCompare')">清除</el-button>
+          </el-tooltip>
         </el-button-group>
       </div>
     </div>
@@ -160,7 +221,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { Plus, Minus, Edit, RefreshLeft, Download, Close } from '@element-plus/icons-vue'
+import { Plus, Minus, Edit, RefreshLeft, Download, Close, Back, Right, Top, Sort } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FrontendLatexVersionNode } from '@/api/adapters/latexAdapter'
 import { compareLatexVersions } from '@/api/adapters/latexAdapter'
@@ -224,6 +285,65 @@ const formatVersionLabel = (version: FrontendLatexVersionNode) => {
   const date = new Date(version.timestamp).toLocaleDateString('zh-CN')
   const summary = version.summary || '未命名'
   return `${date} - ${summary.substring(0, 20)}`
+}
+
+// 格式化相对时间
+const formatTimeRelative = (timestamp: Date) => {
+  const now = new Date()
+  const diff = now.getTime() - new Date(timestamp).getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 7) return `${days}天前`
+  return new Date(timestamp).toLocaleDateString('zh-CN')
+}
+
+// 快捷对比：最新2个版本
+const compareLatestTwo = () => {
+  if (availableVersions.value.length < 2) {
+    ElMessage.warning('版本不足，无法对比')
+    return
+  }
+  // 排除自动保存版本，取最新的2个
+  const nonAutoSave = availableVersions.value.filter(v => !v.isAutoSave)
+  if (nonAutoSave.length >= 2) {
+    baseVersionId.value = nonAutoSave[1].id
+    compareVersionId.value = nonAutoSave[0].id
+  } else {
+    baseVersionId.value = availableVersions.value[1].id
+    compareVersionId.value = availableVersions.value[0].id
+  }
+}
+
+// 快捷对比：相邻版本（按时间排序）
+const compareAdjacent = () => {
+  if (!baseVersion.value || !compareVersion.value) {
+    ElMessage.warning('请先选择版本')
+    return
+  }
+
+  // 按时间排序
+  const sorted = [...availableVersions.value].sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+
+  // 找到当前选中的版本索引
+  const baseIndex = sorted.findIndex(v => v.id === baseVersionId.value)
+  const compareIndex = sorted.findIndex(v => v.id === compareVersionId.value)
+
+  if (baseIndex === -1 || compareIndex === -1) return
+
+  // 如果版本不相邻，调整为相邻
+  if (Math.abs(baseIndex - compareIndex) > 1) {
+    // 选择compareIndex的相邻版本
+    const adjacentIndex = compareIndex > 0 ? compareIndex - 1 : compareIndex + 1
+    baseVersionId.value = sorted[adjacentIndex].id
+    ElMessage.info('已调整为相邻版本进行对比')
+  }
 }
 
 // 差异映射 - 用于并排视图高亮
@@ -507,30 +627,121 @@ watch(() => props.versions, (newVersions) => {
   .diff-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 16px;
     padding: 16px;
     background: #fff;
     border-bottom: 1px solid #e4e7ed;
 
     .version-selectors {
       display: flex;
-      gap: 16px;
+      flex-direction: column;
+      gap: 12px;
       flex: 1;
 
-      .selector-item {
+      .selector-group {
         display: flex;
         align-items: center;
+        gap: 12px;
+
+        .selector-item {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+
+          .selector-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #606266;
+
+            .label-icon {
+              font-size: 14px;
+            }
+          }
+
+          &.base .selector-label {
+            color: #909399;
+          }
+
+          &.compare .selector-label {
+            color: #67C23A;
+          }
+
+          .version-select {
+            min-width: 240px;
+          }
+        }
+
+        .vs-divider {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 50%;
+          color: #fff;
+          font-weight: bold;
+          font-size: 12px;
+          flex-shrink: 0;
+          margin: 0 4px;
+        }
+      }
+
+      .quick-compare {
+        display: flex;
         gap: 8px;
 
-        label {
-          font-size: 13px;
-          color: #606266;
-          white-space: nowrap;
+        .el-button {
+          display: flex;
+          align-items: center;
+          gap: 4px;
         }
+      }
+    }
 
-        .el-select {
-          width: 200px;
-        }
+    .diff-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+  }
+
+  // 版本选项样式
+  :deep(.version-option) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+
+    .option-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .option-summary {
+        flex: 1;
+        font-size: 13px;
+        color: #303133;
+        font-weight: 500;
+      }
+    }
+
+    .option-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      color: #909399;
+
+      .option-time {
+        min-width: 60px;
+      }
+
+      .option-author {
+        min-width: 50px;
       }
     }
   }
