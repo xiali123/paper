@@ -464,14 +464,15 @@ LatexCompilationResult LatexApiModule::compileProject(int id, const std::string&
     std::string outputFile = workDir + "/" + projectIt->second.name + ".pdf";
     result = compileLatexContent(mainContent, outputFile, workDir);
 
-    // Rename output to standard name
-    if (result.success && std::filesystem::exists(outputFile)) {
+    // Copy compiled PDF to standard location
+    // Use result.pdfPath which is the actual path returned by compileLatexContent
+    if (result.success && !result.pdfPath.empty()) {
         std::string finalPdfPath = impl_->pdfDirectory_ + "/project_" + std::to_string(id) + ".pdf";
         // Remove existing file if it exists
         if (std::filesystem::exists(finalPdfPath)) {
             std::filesystem::remove(finalPdfPath);
         }
-        std::filesystem::copy_file(outputFile, finalPdfPath);
+        std::filesystem::copy_file(result.pdfPath, finalPdfPath);
         result.pdfPath = finalPdfPath;
     }
 

@@ -538,6 +538,8 @@ private:
     std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "");
     std::string escapeJson(const std::string& str);
     LatexCompilationResult compileLatex(const std::string& content, const std::string& outputPath);
+    LatexCompilationResult compileLatexContent(const std::string& content, const std::string& outputPath, const std::string& workDir);
+    std::string createErrorPDF(const std::string& outputPath, const std::string& title, const std::string& errorMessage);
     void initializeBuiltInTemplates();
     std::string getLatexTemplate();
 };
