@@ -590,7 +590,6 @@
         :user-id="currentUserId || 'default'"
         :current-content="editorContent"
         @restore="handleVersionRestore"
-        @restore="handleVersionRestore"
       />
     </el-drawer>
 
