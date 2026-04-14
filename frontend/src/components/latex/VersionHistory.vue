@@ -26,7 +26,7 @@
         <el-table-column prop="author" label="作者" width="100" />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click.stop="previewVersion(row)" link>
+            <el-button size="small" @click.stop="showVersionPreview(row)" link>
               预览
             </el-button>
             <el-button size="small" @click.stop="restoreToVersion(row)" link type="warning">
@@ -160,7 +160,7 @@ const handleSaveVersion = async () => {
   }
 }
 
-const previewVersion = (version: FrontendLatexVersionNode) => {
+const showVersionPreview = (version: FrontendLatexVersionNode) => {
   previewVersion.value = version
   showPreviewDialog.value = true
 }
