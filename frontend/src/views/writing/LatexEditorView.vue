@@ -45,7 +45,7 @@
             <el-button
               size="small"
               @click="showVersionHistory = true"
-              :aria-label="版本历史"
+              aria-label="版本历史"
             >
               <el-icon><Clock /></el-icon>
               版本历史

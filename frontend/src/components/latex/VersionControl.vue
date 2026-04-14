@@ -276,6 +276,21 @@ onMounted(() => {
   refreshData()
 })
 
+// 监听视图切换，自动选择对比版本
+watch(currentView, (newView) => {
+  if (newView === 'diff' && compareVersions.value.length === 0) {
+    // 自动选择最新的2个非自动保存版本进行对比
+    const nonAutoSaveVersions = sortedVersions.value.filter(v => !v.isAutoSave)
+    if (nonAutoSaveVersions.length >= 2) {
+      compareVersions.value = [nonAutoSaveVersions[1], nonAutoSaveVersions[0]]
+    } else if (sortedVersions.value.length >= 2) {
+      compareVersions.value = [sortedVersions.value[1], sortedVersions.value[0]]
+    } else if (sortedVersions.value.length === 1) {
+      ElMessage.info('需要至少2个版本才能进行对比，请先保存更多版本')
+    }
+  }
+})
+
 watch(() => [props.fileId, props.projectId], () => {
   refreshData()
 })
