@@ -42,6 +42,14 @@
               <el-icon><View /></el-icon>
               {{ showPreview ? '隐藏预览' : '显示预览' }}
             </el-button>
+            <el-button
+              size="small"
+              @click="showVersionHistory = true"
+              :aria-label="版本历史"
+            >
+              <el-icon><Clock /></el-icon>
+              版本历史
+            </el-button>
           </el-button-group>
 
           <!-- 文件操作按钮 -->
@@ -301,6 +309,7 @@
             <el-tooltip content="版本历史" placement="top">
               <el-button size="small" @click="showVersionHistory = true">
                 <el-icon><Clock /></el-icon>
+                版本
               </el-button>
             </el-tooltip>
             <el-divider direction="vertical" />
