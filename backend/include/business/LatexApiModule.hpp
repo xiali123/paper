@@ -148,6 +148,29 @@ struct LatexCompilationResult {
 };
 
 /**
+ * @brief LaTeX版本节点
+ */
+struct LatexVersionNode {
+    std::string id;                // UUID
+    std::string parentId;          // 父版本ID
+    std::string branchId;          // 分支ID
+    std::string branchName;        // 分支名称 ("主线" / "恢复分支_xxx")
+    std::string content;           // 完整内容
+    std::string summary;           // 摘要
+    std::chrono::system_clock::time_point timestamp;
+    std::string author;
+    bool isAutoSave{false};
+    int changeCount{0};
+    int totalLines{0};
+    std::string fileId;
+    std::string projectId;
+    std::string userId;
+    int position{0};                // 时间线位置
+    int depth{0};                   // 深度(主线=0, 分支=1)
+    bool isMerged{false};          // 是否已合并
+};
+
+/**
  * @brief 用户编译配额
  */
 struct LatexUserQuota {
@@ -478,6 +501,66 @@ public:
      */
     std::vector<LatexCompilationRecord> getUserCompilationRecords(const std::string& userId, int limit = 100);
 
+    // ==========================================
+    // 版本控制方法
+    // ==========================================
+
+    /**
+     * @brief 保存版本
+     * @param fileId 文件ID
+     * @param projectId 项目ID
+     * @param userId 用户ID
+     * @param content 内容
+     * @param summary 摘要
+     * @param isAutoSave 是否自动保存
+     * @return 保存的版本节点
+     */
+    std::optional<LatexVersionNode> saveVersion(int fileId, int projectId, const std::string& userId,
+                                                  const std::string& content, const std::string& summary,
+                                                  bool isAutoSave = false);
+
+    /**
+     * @brief 获取版本历史
+     */
+    std::vector<LatexVersionNode> getVersionHistory(int fileId, int projectId, const std::string& userId);
+
+    /**
+     * @brief 获取版本树（用于可视化分支）
+     */
+    std::vector<LatexVersionNode> getVersionTree(int fileId, int projectId, const std::string& userId);
+
+    /**
+     * @brief 恢复版本
+     * @param versionId 版本ID
+     * @return 新版本节点（恢复后的版本）
+     */
+    std::optional<LatexVersionNode> restoreVersion(const std::string& versionId);
+
+    /**
+     * @brief 创建分支
+     */
+    std::optional<LatexVersionNode> createBranch(const std::string& parentVersionId, const std::string& branchName);
+
+    /**
+     * @brief 合并分支到主线
+     */
+    std::optional<LatexVersionNode> mergeBranch(const std::string& branchId);
+
+    /**
+     * @brief 删除版本
+     */
+    bool deleteVersion(const std::string& versionId);
+
+    /**
+     * @brief 比较两个版本
+     */
+    std::string compareVersions(const std::string& versionId1, const std::string& versionId2);
+
+    /**
+     * @brief 获取存储路径
+     */
+    std::string getStoragePath(const std::string& userId, int projectId, int fileId);
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
@@ -532,6 +615,16 @@ private:
     std::string handleSetUserQuota(const std::string& body);
     std::string handleInitializeUserQuota(const std::string& body);
     std::string handleGetUserCompilationRecords(const std::map<std::string, std::string>& params);
+
+    // 版本控制HTTP请求处理器
+    std::string handleSaveVersion(const std::string& body);
+    std::string handleGetVersionHistory(const std::map<std::string, std::string>& params);
+    std::string handleGetVersionTree(const std::map<std::string, std::string>& params);
+    std::string handleRestoreVersion(const std::string& body);
+    std::string handleCreateBranch(const std::string& body);
+    std::string handleMergeBranch(const std::string& body);
+    std::string handleDeleteVersion(const std::map<std::string, std::string>& params);
+    std::string handleCompareVersions(const std::map<std::string, std::string>& params);
 
     // 辅助函数
     std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "");

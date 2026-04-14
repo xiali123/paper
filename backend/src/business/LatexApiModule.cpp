@@ -32,6 +32,13 @@ public:
     int nextTemplateId_{1};
     int nextCompilationId_{1};
 
+    // 版本控制存储
+    std::map<std::string, LatexVersionNode> versions_;  // key: versionId
+    std::map<std::string, std::vector<std::string>> fileVersions_;  // key: "userId_projectId_fileId", value: versionIds
+    std::map<std::string, std::string> branchTips_;  // key: branchId, value: versionId
+    int nextVersionPosition_{1};
+    std::map<std::string, int> branchCounters_;  // branch name -> counter
+
     explicit Impl(std::shared_ptr<IDatabase> database)
         : database_(database) {
         pdfDirectory_ = "output/pdfs";
@@ -259,6 +266,91 @@ void LatexApiModule::registerRoutes() {
 
     router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleStats();
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    // Version control routes
+    router.post(prefix + "/versions/save", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleSaveVersion(req.body);
+        HttpResponse response;
+        response.statusCode = 201;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.get(prefix + "/versions/history", [this](const HttpRequest& req) -> HttpResponse {
+        std::map<std::string, std::string> params;
+        for (const auto& [key, value] : req.queryParams) {
+            params[key] = value;
+        }
+        std::string body = handleGetVersionHistory(params);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.get(prefix + "/versions/tree", [this](const HttpRequest& req) -> HttpResponse {
+        std::map<std::string, std::string> params;
+        for (const auto& [key, value] : req.queryParams) {
+            params[key] = value;
+        }
+        std::string body = handleGetVersionTree(params);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.post(prefix + "/versions/restore", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleRestoreVersion(req.body);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.post(prefix + "/versions/branch", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleCreateBranch(req.body);
+        HttpResponse response;
+        response.statusCode = 201;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.post(prefix + "/versions/merge", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleMergeBranch(req.body);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.del(prefix + "/versions/:id", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleDeleteVersion(req.pathParams);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.get(prefix + "/versions/compare", [this](const HttpRequest& req) -> HttpResponse {
+        std::map<std::string, std::string> params;
+        for (const auto& [key, value] : req.queryParams) {
+            params[key] = value;
+        }
+        std::string body = handleCompareVersions(params);
         HttpResponse response;
         response.statusCode = 200;
         response.setHeader("Content-Type", "application/json");
@@ -1117,13 +1209,21 @@ std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, 
         int fileId = std::stoi(idIt->second);
         auto jsonBody = nlohmann::json::parse(body);
         std::string content = jsonBody.value("content", "");
+        std::string userId = jsonBody.value("user_id", "default");
+        bool createVersion = jsonBody.value("create_version", true);
 
         // Search for the file in all projects
         for (auto& [projectId, project] : impl_->projects_) {
             for (auto& file : project.files) {
                 if (file.id == fileId) {
+                    std::string oldContent = file.content;
                     file.content = content;
                     file.updatedAt = std::chrono::system_clock::now();
+
+                    // 自动创建版本（如果内容有变化）
+                    if (createVersion && content != oldContent) {
+                        saveVersion(fileId, project.id, userId, content, "文件更新", false);
+                    }
 
                     return impl_->buildJsonResponse(200, true, "Project file updated");
                 }
@@ -1267,6 +1367,241 @@ std::string LatexApiModule::handleStats() {
     result["total_characters"] = stats.totalCharacters;
 
     return impl_->buildJsonResponse(200, true, "Statistics retrieved", result.dump());
+}
+
+// ============================================================================
+// 版本控制辅助函数
+// ============================================================================
+
+namespace {
+    // 辅助函数：序列化版本节点为JSON字符串
+    std::string versionToJson(const LatexVersionNode& v) {
+        nlohmann::json j;
+        j["id"] = v.id;
+        j["parentId"] = v.parentId;
+        j["branchId"] = v.branchId;
+        j["branchName"] = v.branchName;
+        j["content"] = v.content;
+        j["summary"] = v.summary;
+        j["timestamp"] = std::chrono::system_clock::to_time_t(v.timestamp);
+        j["author"] = v.author;
+        j["isAutoSave"] = v.isAutoSave;
+        j["changeCount"] = v.changeCount;
+        j["totalLines"] = v.totalLines;
+        j["fileId"] = v.fileId;
+        j["projectId"] = v.projectId;
+        j["userId"] = v.userId;
+        j["position"] = v.position;
+        j["depth"] = v.depth;
+        j["isMerged"] = v.isMerged;
+        return j.dump();
+    }
+}
+
+// ============================================================================
+// 版本控制HTTP请求处理器
+// ============================================================================
+
+std::string LatexApiModule::handleSaveVersion(const std::string& body) {
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+
+        int fileId = jsonBody.value("file_id", 0);
+        int projectId = jsonBody.value("project_id", 0);
+        std::string userId = jsonBody.value("user_id", "");
+        std::string content = jsonBody.value("content", "");
+        std::string summary = jsonBody.value("summary", "");
+        bool isAutoSave = jsonBody.value("is_auto_save", false);
+
+        if (fileId == 0 || projectId == 0 || userId.empty()) {
+            return impl_->buildJsonResponse(400, false, "Missing required fields: file_id, project_id, user_id");
+        }
+
+        auto version = saveVersion(fileId, projectId, userId, content, summary, isAutoSave);
+
+        if (version) {
+            nlohmann::json result;
+            result["version"] = nlohmann::json::parse(versionToJson(*version));
+
+            return impl_->buildJsonResponse(201, true, "Version saved", result.dump());
+        }
+
+        return impl_->buildJsonResponse(500, false, "Failed to save version");
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleGetVersionHistory(const std::map<std::string, std::string>& params) {
+    auto fileIdIt = params.find("file_id");
+    auto projectIdIt = params.find("project_id");
+    auto userIdIt = params.find("user_id");
+
+    if (fileIdIt == params.end() || projectIdIt == params.end() || userIdIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing required parameters: file_id, project_id, user_id");
+    }
+
+    try {
+        int fileId = std::stoi(fileIdIt->second);
+        int projectId = std::stoi(projectIdIt->second);
+        std::string userId = userIdIt->second;
+
+        auto versions = getVersionHistory(fileId, projectId, userId);
+
+        nlohmann::json result;
+        result["versions"] = nlohmann::json::array();
+        for (const auto& version : versions) {
+            result["versions"].push_back(nlohmann::json::parse(versionToJson(version)));
+        }
+        result["total"] = versions.size();
+
+        return impl_->buildJsonResponse(200, true, "Version history retrieved", result.dump());
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleGetVersionTree(const std::map<std::string, std::string>& params) {
+    auto fileIdIt = params.find("file_id");
+    auto projectIdIt = params.find("project_id");
+    auto userIdIt = params.find("user_id");
+
+    if (fileIdIt == params.end() || projectIdIt == params.end() || userIdIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing required parameters: file_id, project_id, user_id");
+    }
+
+    try {
+        int fileId = std::stoi(fileIdIt->second);
+        int projectId = std::stoi(projectIdIt->second);
+        std::string userId = userIdIt->second;
+
+        auto versions = getVersionTree(fileId, projectId, userId);
+
+        nlohmann::json result;
+        result["tree"] = nlohmann::json::array();
+        for (const auto& version : versions) {
+            result["tree"].push_back(nlohmann::json::parse(versionToJson(version)));
+        }
+        result["total"] = versions.size();
+
+        return impl_->buildJsonResponse(200, true, "Version tree retrieved", result.dump());
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleRestoreVersion(const std::string& body) {
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+        std::string versionId = jsonBody.value("version_id", "");
+
+        if (versionId.empty()) {
+            return impl_->buildJsonResponse(400, false, "Missing required field: version_id");
+        }
+
+        auto newVersion = restoreVersion(versionId);
+
+        if (newVersion) {
+            nlohmann::json result;
+            result["version"] = nlohmann::json::parse(versionToJson(*newVersion));
+
+            return impl_->buildJsonResponse(200, true, "Version restored", result.dump());
+        }
+
+        return impl_->buildJsonResponse(404, false, "Version not found");
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleCreateBranch(const std::string& body) {
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+        std::string parentVersionId = jsonBody.value("parent_version_id", "");
+        std::string branchName = jsonBody.value("branch_name", "新分支");
+
+        if (parentVersionId.empty()) {
+            return impl_->buildJsonResponse(400, false, "Missing required field: parent_version_id");
+        }
+
+        auto branch = createBranch(parentVersionId, branchName);
+
+        if (branch) {
+            nlohmann::json result;
+            result["branch"] = nlohmann::json::parse(versionToJson(*branch));
+
+            return impl_->buildJsonResponse(201, true, "Branch created", result.dump());
+        }
+
+        return impl_->buildJsonResponse(404, false, "Parent version not found");
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleMergeBranch(const std::string& body) {
+    try {
+        auto jsonBody = nlohmann::json::parse(body);
+        std::string branchId = jsonBody.value("branch_id", "");
+
+        if (branchId.empty()) {
+            return impl_->buildJsonResponse(400, false, "Missing required field: branch_id");
+        }
+
+        auto mergedVersion = mergeBranch(branchId);
+
+        if (mergedVersion) {
+            nlohmann::json result;
+            result["version"] = nlohmann::json::parse(versionToJson(*mergedVersion));
+
+            return impl_->buildJsonResponse(200, true, "Branch merged", result.dump());
+        }
+
+        return impl_->buildJsonResponse(404, false, "Branch not found");
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleDeleteVersion(const std::map<std::string, std::string>& params) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing version ID");
+    }
+
+    std::string versionId = idIt->second;
+
+    if (deleteVersion(versionId)) {
+        return impl_->buildJsonResponse(200, true, "Version deleted");
+    }
+
+    return impl_->buildJsonResponse(404, false, "Version not found");
+}
+
+std::string LatexApiModule::handleCompareVersions(const std::map<std::string, std::string>& params) {
+    auto v1It = params.find("version1");
+    auto v2It = params.find("version2");
+
+    if (v1It == params.end() || v2It == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing required parameters: version1, version2");
+    }
+
+    try {
+        std::string version1 = v1It->second;
+        std::string version2 = v2It->second;
+
+        auto comparison = compareVersions(version1, version2);
+
+        // 检查是否包含错误
+        auto comparisonJson = nlohmann::json::parse(comparison);
+        if (comparisonJson.contains("error")) {
+            return impl_->buildJsonResponse(404, false, comparisonJson["error"]);
+        }
+
+        return impl_->buildJsonResponse(200, true, "Versions compared", comparison);
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
 }
 
 // ============================================================================
@@ -1498,6 +1833,295 @@ void LatexApiModule::initializeBuiltInTemplates() {
     presTmpl.isBuiltIn = true;
     presTmpl.content = getLatexTemplate();
     impl_->templates_[presTmpl.id] = presTmpl;
+}
+
+// ============================================================================
+// 版本控制方法实现
+// ============================================================================
+
+std::string LatexApiModule::getStoragePath(const std::string& userId, int projectId, int fileId) {
+    return impl_->pdfDirectory_ + "/versions/" + userId + "/project_" + std::to_string(projectId) + "/file_" + std::to_string(fileId);
+}
+
+std::optional<LatexVersionNode> LatexApiModule::saveVersion(int fileId, int projectId, const std::string& userId,
+                                                             const std::string& content, const std::string& summary,
+                                                             bool isAutoSave) {
+    std::lock_guard<std::mutex> lock(saveMutex_);
+
+    // 生成版本ID
+    std::string versionId = "v_" + std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())) + "_" + std::to_string(fileId);
+
+    // 查找父版本（主线最新版本）
+    std::string fileKey = userId + "_" + std::to_string(projectId) + "_" + std::to_string(fileId);
+    std::string parentId;
+    std::string branchId = "main";
+    std::string branchName = "主线";
+
+    auto it = impl_->fileVersions_.find(fileKey);
+    if (it != impl_->fileVersions_.end() && !it->second.empty()) {
+        parentId = it->second.back();
+        auto parentIt = impl_->versions_.find(parentId);
+        if (parentIt != impl_->versions_.end()) {
+            branchId = parentIt->second.branchId;
+            if (!parentIt->second.branchName.empty()) {
+                branchName = parentIt->second.branchName;
+            }
+        }
+    }
+
+    // 创建版本节点
+    LatexVersionNode version;
+    version.id = versionId;
+    version.parentId = parentId;
+    version.branchId = branchId;
+    version.branchName = branchName;
+    version.content = content;
+    version.summary = summary.empty() ? (isAutoSave ? "自动保存" : "手动保存") : summary;
+    version.timestamp = std::chrono::system_clock::now();
+    version.author = userId;
+    version.isAutoSave = isAutoSave;
+    version.fileId = std::to_string(fileId);
+    version.projectId = std::to_string(projectId);
+    version.userId = userId;
+    version.position = impl_->nextVersionPosition_++;
+    version.depth = (branchId == "main") ? 0 : 1;
+
+    // 计算变更统计
+    if (!parentId.empty()) {
+        auto parentIt = impl_->versions_.find(parentId);
+        if (parentIt != impl_->versions_.end()) {
+            int changes = 0;
+            for (size_t i = 0; i < std::min(content.size(), parentIt->second.content.size()); ++i) {
+                if (content[i] != parentIt->second.content[i]) changes++;
+            }
+            version.changeCount = changes;
+        }
+    }
+
+    version.totalLines = std::count(content.begin(), content.end(), '\n') + 1;
+
+    // 保存版本
+    impl_->versions_[versionId] = version;
+    impl_->fileVersions_[fileKey].push_back(versionId);
+    impl_->branchTips_[branchId] = versionId;
+
+    spdlog::info("[LatexApiModule] Saved version {} for file {} (project {}, user {})",
+                 versionId, fileId, projectId, userId);
+
+    return version;
+}
+
+std::vector<LatexVersionNode> LatexApiModule::getVersionHistory(int fileId, int projectId, const std::string& userId) {
+    std::vector<LatexVersionNode> result;
+    std::string fileKey = userId + "_" + std::to_string(projectId) + "_" + std::to_string(fileId);
+
+    auto it = impl_->fileVersions_.find(fileKey);
+    if (it != impl_->fileVersions_.end()) {
+        for (const auto& versionId : it->second) {
+            auto vit = impl_->versions_.find(versionId);
+            if (vit != impl_->versions_.end()) {
+                result.push_back(vit->second);
+            }
+        }
+    }
+
+    return result;
+}
+
+std::vector<LatexVersionNode> LatexApiModule::getVersionTree(int fileId, int projectId, const std::string& userId) {
+    std::vector<LatexVersionNode> result;
+    std::string fileKey = userId + "_" + std::to_string(projectId) + "_" + std::to_string(fileId);
+
+    auto it = impl_->fileVersions_.find(fileKey);
+    if (it != impl_->fileVersions_.end()) {
+        for (const auto& versionId : it->second) {
+            auto vit = impl_->versions_.find(versionId);
+            if (vit != impl_->versions_.end()) {
+                result.push_back(vit->second);
+            }
+        }
+    }
+
+    // 按位置排序
+    std::sort(result.begin(), result.end(), [](const LatexVersionNode& a, const LatexVersionNode& b) {
+        return a.position < b.position;
+    });
+
+    return result;
+}
+
+std::optional<LatexVersionNode> LatexApiModule::restoreVersion(const std::string& versionId) {
+    auto it = impl_->versions_.find(versionId);
+    if (it == impl_->versions_.end()) {
+        return std::nullopt;
+    }
+
+    // 解析文件和项目信息
+    int fileId = std::stoi(it->second.fileId);
+    int projectId = std::stoi(it->second.projectId);
+    const std::string& userId = it->second.userId;
+
+    // 创建恢复分支的新版本
+    std::string branchName = "恢复分支_" + std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+
+    // 创建新分支
+    auto branchVersion = saveVersion(fileId, projectId, userId, it->second.content,
+                                      "恢复至版本: " + versionId, false);
+
+    if (branchVersion) {
+        branchVersion->parentId = versionId;
+        branchVersion->branchName = branchName;
+        branchVersion->depth = 1;
+
+        // 更新存储
+        impl_->versions_[branchVersion->id] = *branchVersion;
+
+        spdlog::info("[LatexApiModule] Restored version {} as new version {}", versionId, branchVersion->id);
+        return branchVersion;
+    }
+
+    return std::nullopt;
+}
+
+std::optional<LatexVersionNode> LatexApiModule::createBranch(const std::string& parentVersionId, const std::string& branchName) {
+    auto it = impl_->versions_.find(parentVersionId);
+    if (it == impl_->versions_.end()) {
+        return std::nullopt;
+    }
+
+    // 创建新分支ID
+    std::string newBranchId = "branch_" + std::to_string(impl_->branchCounters_["branch"]++);
+
+    // 创建新版本节点（分支起点）
+    LatexVersionNode newVersion = it->second;
+    newVersion.id = "v_" + std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())) + "_branch";
+    newVersion.parentId = parentVersionId;
+    newVersion.branchId = newBranchId;
+    newVersion.branchName = branchName;
+    newVersion.timestamp = std::chrono::system_clock::now();
+    newVersion.position = impl_->nextVersionPosition_++;
+    newVersion.depth = 1;
+    newVersion.isMerged = false;
+
+    impl_->versions_[newVersion.id] = newVersion;
+    impl_->branchTips_[newBranchId] = newVersion.id;
+
+    spdlog::info("[LatexApiModule] Created branch {} from version {}", newBranchId, parentVersionId);
+
+    return newVersion;
+}
+
+std::optional<LatexVersionNode> LatexApiModule::mergeBranch(const std::string& branchId) {
+    // 查找分支最新版本
+    auto tipIt = impl_->branchTips_.find(branchId);
+    if (tipIt == impl_->branchTips_.end()) {
+        return std::nullopt;
+    }
+
+    auto branchVersionIt = impl_->versions_.find(tipIt->second);
+    if (branchVersionIt == impl_->versions_.end()) {
+        return std::nullopt;
+    }
+
+    // 创建合并后的主线版本
+    int fileId = std::stoi(branchVersionIt->second.fileId);
+    int projectId = std::stoi(branchVersionIt->second.projectId);
+    const std::string& userId = branchVersionIt->second.userId;
+
+    auto mergedVersion = saveVersion(fileId, projectId, userId, branchVersionIt->second.content,
+                                      "合并分支: " + branchId, false);
+
+    if (mergedVersion) {
+        mergedVersion->branchId = "main";
+        mergedVersion->branchName = "主线";
+        mergedVersion->depth = 0;
+        mergedVersion->isMerged = true;
+
+        // 标记原分支为已合并
+        impl_->versions_[tipIt->second].isMerged = true;
+
+        impl_->versions_[mergedVersion->id] = *mergedVersion;
+        impl_->branchTips_["main"] = mergedVersion->id;
+
+        spdlog::info("[LatexApiModule] Merged branch {} into main as version {}", branchId, mergedVersion->id);
+        return mergedVersion;
+    }
+
+    return std::nullopt;
+}
+
+bool LatexApiModule::deleteVersion(const std::string& versionId) {
+    auto it = impl_->versions_.find(versionId);
+    if (it == impl_->versions_.end()) {
+        return false;
+    }
+
+    // 从文件版本列表中移除
+    std::string fileKey = it->second.userId + "_" + it->second.projectId + "_" + it->second.fileId;
+    auto fvIt = impl_->fileVersions_.find(fileKey);
+    if (fvIt != impl_->fileVersions_.end()) {
+        auto& versions = fvIt->second;
+        versions.erase(std::remove(versions.begin(), versions.end(), versionId), versions.end());
+    }
+
+    // 删除版本
+    impl_->versions_.erase(it);
+
+    spdlog::info("[LatexApiModule] Deleted version {}", versionId);
+    return true;
+}
+
+std::string LatexApiModule::compareVersions(const std::string& versionId1, const std::string& versionId2) {
+    nlohmann::json result;
+
+    auto it1 = impl_->versions_.find(versionId1);
+    auto it2 = impl_->versions_.find(versionId2);
+
+    if (it1 == impl_->versions_.end() || it2 == impl_->versions_.end()) {
+        result["error"] = "One or both versions not found";
+        return result.dump();
+    }
+
+    const auto& v1 = it1->second;
+    const auto& v2 = it2->second;
+
+    // 统计差异
+    int additions = 0, deletions = 0, modifications = 0;
+
+    std::vector<std::string> lines1, lines2;
+    std::stringstream ss1(v1.content), ss2(v2.content);
+    std::string line;
+
+    while (std::getline(ss1, line)) lines1.push_back(line);
+    while (std::getline(ss2, line)) lines2.push_back(line);
+
+    // 简单行比较
+    size_t maxLines = std::max(lines1.size(), lines2.size());
+
+    for (size_t i = 0; i < maxLines; ++i) {
+        if (i >= lines1.size()) {
+            additions++;
+        } else if (i >= lines2.size()) {
+            deletions++;
+        } else if (lines1[i] != lines2[i]) {
+            modifications++;
+        }
+    }
+
+    result["version1"] = v1.id;
+    result["version2"] = v2.id;
+    result["timestamp1"] = std::chrono::system_clock::to_time_t(v1.timestamp);
+    result["timestamp2"] = std::chrono::system_clock::to_time_t(v2.timestamp);
+    result["summary1"] = v1.summary;
+    result["summary2"] = v2.summary;
+    result["additions"] = additions;
+    result["deletions"] = deletions;
+    result["modifications"] = modifications;
+    result["totalChanges"] = additions + deletions + modifications;
+    result["lineCount1"] = lines1.size();
+    result["lineCount2"] = lines2.size();
+
+    return result.dump();
 }
 
 // ============================================================================
