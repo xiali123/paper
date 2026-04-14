@@ -678,7 +678,7 @@
       :selected-index="autocomplete.selectedIndex.value"
       :filtered-options="autocomplete.filteredOptions.value"
       @select="() => autocomplete.selectCurrent()"
-      @hover="(index) => autocomplete.selectedIndex.value = index"
+      @hover="(index) => autocomplete.setSelectedIndex(index)"
     />
   </div>
 </template>

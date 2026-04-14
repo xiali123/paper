@@ -391,6 +391,13 @@ export function useLatexAutocomplete(options: AutocompleteOptions) {
   }
 
   /**
+   * 设置选中的索引
+   */
+  function setSelectedIndex(index: number) {
+    selectedIndex.value = index
+  }
+
+  /**
    * 选择当前高亮的选项
    */
   function selectCurrent() {
@@ -566,6 +573,7 @@ export function useLatexAutocomplete(options: AutocompleteOptions) {
     // 方法
     showAutocomplete,
     hideAutocomplete,
+    setSelectedIndex,
     selectOption,
     selectCurrent,
     navigateUp,
