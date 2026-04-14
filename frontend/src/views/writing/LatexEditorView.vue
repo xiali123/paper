@@ -2276,8 +2276,6 @@ function handleVersionRestore(content: string) {
   ElMessage.success('版本已恢复，请记得保存更改')
   showVersionHistory.value = false
 }
-  }
-}
 
 // ==========================================
 // 项目模式下的编译和保存
