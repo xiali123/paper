@@ -904,3 +904,239 @@ export async function getUserCompilationRecords(
     timestamp: r.timestamp
   }))
 }
+
+// ============================================================================
+// 版本控制类型定义
+// ============================================================================
+
+/**
+ * Backend Version Node structure
+ */
+interface BackendLatexVersionNode {
+  id: string
+  parentId: string
+  branchId: string
+  branchName: string
+  content: string
+  summary: string
+  timestamp: number
+  author: string
+  isAutoSave: boolean
+  changeCount: number
+  totalLines: number
+  fileId: string
+  projectId: string
+  userId: string
+  position: number
+  depth: number
+  isMerged: boolean
+}
+
+/**
+ * Frontend Version Node structure
+ */
+export interface FrontendLatexVersionNode {
+  id: string
+  parentId: string
+  branchId: string
+  branchName: string
+  content: string
+  summary: string
+  timestamp: Date
+  author: string
+  isAutoSave: boolean
+  changeCount: number
+  totalLines: number
+  fileId: string
+  projectId: string
+  userId: string
+  position: number
+  depth: number
+  isMerged: boolean
+}
+
+/**
+ * Save Version Request
+ */
+export interface SaveLatexVersionRequest {
+  fileId: number
+  projectId: number
+  userId: string
+  content: string
+  summary?: string
+  isAutoSave?: boolean
+}
+
+/**
+ * Restore Version Request
+ */
+export interface RestoreLatexVersionRequest {
+  versionId: string
+}
+
+/**
+ * Create Branch Request
+ */
+export interface CreateLatexVersionBranchRequest {
+  parentVersionId: string
+  branchName: string
+}
+
+/**
+ * Merge Branch Request
+ */
+export interface MergeLatexVersionBranchRequest {
+  branchId: string
+}
+
+/**
+ * Version Comparison Result
+ */
+export interface LatexVersionComparison {
+  version1: string
+  version2: string
+  timestamp1: number
+  timestamp2: number
+  summary1: string
+  summary2: string
+  additions: number
+  deletions: number
+  modifications: number
+  totalChanges: number
+  lineCount1: number
+  lineCount2: number
+}
+
+// ============================================================================
+// 版本控制 API 客户端函数
+// ============================================================================
+
+function toFrontendVersionNode(backend: BackendLatexVersionNode): FrontendLatexVersionNode {
+  return {
+    id: backend.id,
+    parentId: backend.parentId,
+    branchId: backend.branchId,
+    branchName: backend.branchName,
+    content: backend.content,
+    summary: backend.summary,
+    timestamp: new Date(backend.timestamp * 1000),
+    author: backend.author,
+    isAutoSave: backend.isAutoSave,
+    changeCount: backend.changeCount,
+    totalLines: backend.totalLines,
+    fileId: backend.fileId,
+    projectId: backend.projectId,
+    userId: backend.userId,
+    position: backend.position,
+    depth: backend.depth,
+    isMerged: backend.isMerged
+  }
+}
+
+/**
+ * 保存版本
+ */
+export async function saveLatexVersion(request: SaveLatexVersionRequest): Promise<FrontendLatexVersionNode> {
+  const response = await apiClient.post<{ version: BackendLatexVersionNode }>(
+    `${API_BASE}/versions/save`,
+    {
+      file_id: request.fileId,
+      project_id: request.projectId,
+      user_id: request.userId,
+      content: request.content,
+      summary: request.summary || '',
+      is_auto_save: request.isAutoSave || false
+    }
+  )
+
+  return toFrontendVersionNode(response.version)
+}
+
+/**
+ * 获取版本历史
+ */
+export async function getLatexVersionHistory(
+  fileId: number,
+  projectId: number,
+  userId: string
+): Promise<FrontendLatexVersionNode[]> {
+  const response = await apiClient.get<{ versions: BackendLatexVersionNode[]; total: number }>(
+    `${API_BASE}/versions/history?file_id=${fileId}&project_id=${projectId}&user_id=${userId}`
+  )
+
+  return response.versions.map(toFrontendVersionNode)
+}
+
+/**
+ * 获取版本树（用于分支可视化）
+ */
+export async function getLatexVersionTree(
+  fileId: number,
+  projectId: number,
+  userId: string
+): Promise<FrontendLatexVersionNode[]> {
+  const response = await apiClient.get<{ tree: BackendLatexVersionNode[]; total: number }>(
+    `${API_BASE}/versions/tree?file_id=${fileId}&project_id=${projectId}&user_id=${userId}`
+  )
+
+  return response.tree.map(toFrontendVersionNode)
+}
+
+/**
+ * 恢复版本
+ */
+export async function restoreLatexVersion(request: RestoreLatexVersionRequest): Promise<FrontendLatexVersionNode> {
+  const response = await apiClient.post<{ version: BackendLatexVersionNode }>(
+    `${API_BASE}/versions/restore`,
+    {
+      version_id: request.versionId
+    }
+  )
+
+  return toFrontendVersionNode(response.version)
+}
+
+/**
+ * 创建分支
+ */
+export async function createLatexVersionBranch(request: CreateLatexVersionBranchRequest): Promise<FrontendLatexVersionNode> {
+  const response = await apiClient.post<{ branch: BackendLatexVersionNode }>(
+    `${API_BASE}/versions/branch`,
+    {
+      parent_version_id: request.parentVersionId,
+      branch_name: request.branchName
+    }
+  )
+
+  return toFrontendVersionNode(response.branch)
+}
+
+/**
+ * 合并分支
+ */
+export async function mergeLatexVersionBranch(request: MergeLatexVersionBranchRequest): Promise<FrontendLatexVersionNode> {
+  const response = await apiClient.post<{ version: BackendLatexVersionNode }>(
+    `${API_BASE}/versions/merge`,
+    {
+      branch_id: request.branchId
+    }
+  )
+
+  return toFrontendVersionNode(response.version)
+}
+
+/**
+ * 删除版本
+ */
+export async function deleteLatexVersion(versionId: string): Promise<void> {
+  await apiClient.del(`${API_BASE}/versions/${versionId}`)
+}
+
+/**
+ * 比较两个版本
+ */
+export async function compareLatexVersions(versionId1: string, versionId2: string): Promise<LatexVersionComparison> {
+  return await apiClient.get<LatexVersionComparison>(
+    `${API_BASE}/versions/compare?version1=${versionId1}&version2=${versionId2}`
+  )
+}

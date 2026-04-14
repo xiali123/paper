@@ -298,6 +298,11 @@
                 <el-icon><QuestionFilled /></el-icon>
               </el-button>
             </el-tooltip>
+            <el-tooltip content="版本历史" placement="top">
+              <el-button size="small" @click="showVersionHistory = true">
+                <el-icon><Clock /></el-icon>
+              </el-button>
+            </el-tooltip>
             <el-divider direction="vertical" />
             <el-tooltip content="查找替换 (Ctrl+F)" placement="top">
               <el-button size="small" @click="showFindReplace = !showFindReplace" :aria-pressed="showFindReplace">
@@ -562,6 +567,23 @@
       />
     </el-drawer>
 
+    <!-- 版本历史面板 -->
+    <el-drawer
+      v-model="showVersionHistory"
+      title="版本历史"
+      direction="rtl"
+      size="450px"
+    >
+      <VersionHistory
+        v-if="currentFileId && currentProjectId"
+        :file-id="currentFileId"
+        :project-id="currentProjectId"
+        :user-id="currentUserId || 'default'"
+        :current-content="editorContent"
+        @restore="handleVersionRestore"
+      />
+    </el-drawer>
+
     <!-- 快捷键面板 -->
     <el-dialog
       v-model="showKeyboardShortcuts"
@@ -666,7 +688,7 @@ import {
   Tickets, Loading, Warning, InfoFilled, Close,
   ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
   Search, ArrowUp, ArrowDown, Document, DocumentAdd, Collection,
-  FolderOpened, FolderAdd
+  FolderOpened, FolderAdd, Clock
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
 import PdfViewer from '@/components/latex/PdfViewer.vue'
@@ -678,6 +700,7 @@ import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
 import ProjectSelector from '@/components/latex/ProjectSelector.vue'
+import VersionHistory from '@/components/latex/VersionHistory.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
 // Props and emits
@@ -703,6 +726,7 @@ const showSnippets = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
 const showProjectTree = ref(false) // 新增：项目文件树
+const showVersionHistory = ref(false) // 新增：版本历史面板
 const isProjectMode = computed(() => latexStore.isProjectMode) // 从store读取
 const saving = ref(false)
 const compiling = ref(false)
@@ -807,6 +831,26 @@ const compilationStatusText = computed(() => {
 
 const activeErrors = computed(() => {
   return activeErrorTab.value === 'errors' ? errors.value : warnings.value
+})
+
+// 版本历史相关计算属性
+const currentUserId = computed(() => latexStore.currentUserId || 'default')
+const currentFileId = computed(() => {
+  // 项目模式：返回当前选中的文件ID
+  if (isProjectMode.value && latexStore.currentFile) {
+    return latexStore.currentFile.id
+  }
+  // 文档模式：返回文档ID
+  if (currentDocument.value) {
+    return parseInt(currentDocument.value.id) || 1
+  }
+  return 1
+})
+const currentProjectId = computed(() => {
+  if (isProjectMode.value && currentProject.value) {
+    return currentProject.value.id
+  }
+  return 1
 })
 
 // ==========================================
@@ -2221,6 +2265,17 @@ async function handleRefreshProject() {
     ElMessage.success('项目已刷新')
   } catch (error: any) {
     ElMessage.error('刷新项目失败: ' + (error.message || '未知错误'))
+  }
+}
+
+// 版本历史处理函数
+function handleVersionRestore(content: string) {
+  // 恢复版本内容到编辑器
+  latexStore.updateDocumentContent(content)
+  isModified.value = true
+  ElMessage.success('版本已恢复，请记得保存更改')
+  showVersionHistory.value = false
+}
   }
 }
 
