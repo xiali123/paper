@@ -559,10 +559,6 @@ const layoutGraphNodes = () => {
     levelGroups.get(level)!.push(v)
   })
 
-  // 计算每个层中节点的水平位置
-  const GRAPH_COLUMN_WIDTH = 200
-  const GRAPH_ROW_HEIGHT = 100
-
   levelGroups.forEach((versionsInLevel, level) => {
     const layerWidth = versionsInLevel.length * GRAPH_COLUMN_WIDTH
     const startX = (canvasSize.value.width - layerWidth) / 2
