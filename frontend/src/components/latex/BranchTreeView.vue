@@ -220,14 +220,14 @@
             <!-- 选中光环 -->
             <circle
               v-if="selectedVersion?.id === node.id"
-              :r="nodeRadius + 8"
+              :r="NODE_RADIUS + 8"
               :fill="getNodeColor(node)"
               opacity="0.15"
               class="selection-halo"
             >
               <animate
                 attributeName="r"
-                :values="`${nodeRadius + 8};${nodeRadius + 12};${nodeRadius + 8}`"
+                :values="`${NODE_RADIUS + 8};${NODE_RADIUS + 12};${NODE_RADIUS + 8}`"
                 dur="2s"
                 repeatCount="indefinite"
               />
