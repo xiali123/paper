@@ -226,10 +226,50 @@ const formatVersionLabel = (version: FrontendLatexVersionNode) => {
   return `${date} - ${summary.substring(0, 20)}`
 }
 
+// 差异映射 - 用于并排视图高亮
+const baseLineDiffMap = ref<Map<number, 'added' | 'deleted' | 'modified' | 'context'>>(new Map())
+const compareLineDiffMap = ref<Map<number, 'added' | 'deleted' | 'modified' | 'context'>>(new Map())
+
 // 获取行的样式类
 const getLineClass = (index: number, side: 'base' | 'compare') => {
-  // 简单实现：可以根据diff结果添加类
+  const map = side === 'base' ? baseLineDiffMap.value : compareLineDiffMap.value
+  const type = map.get(index)
+  if (!type) return ''
+
+  if (type === 'added') return 'diff-added'
+  if (type === 'deleted') return 'diff-deleted'
+  if (type === 'modified') return 'diff-modified'
   return ''
+}
+
+// 计算行差异映射（用于并排视图）
+const computeLineDiffMaps = () => {
+  const baseMap = new Map<number, 'added' | 'deleted' | 'modified' | 'context'>()
+  const compareMap = new Map<number, 'added' | 'deleted' | 'modified' | 'context'>()
+
+  const baseSet = new Set(baseLines.value)
+  const compareSet = new Set(compareLines.value)
+
+  // 标记base中的行
+  baseLines.value.forEach((line, i) => {
+    if (!compareSet.has(line)) {
+      baseMap.set(i, 'deleted')
+    } else {
+      baseMap.set(i, 'context')
+    }
+  })
+
+  // 标记compare中的行
+  compareLines.value.forEach((line, i) => {
+    if (!baseSet.has(line)) {
+      compareMap.set(i, 'added')
+    } else {
+      compareMap.set(i, 'context')
+    }
+  })
+
+  baseLineDiffMap.value = baseMap
+  compareLineDiffMap.value = compareMap
 }
 
 // 加载版本差异
@@ -308,6 +348,9 @@ const loadDiff = async () => {
     // 生成统一diff格式
     unifiedDiff.value = generateUnifiedDiff(baseLines.value, compareLines.value)
     console.log('[DiffViewer] 生成的diff块数:', unifiedDiff.value.length)
+
+    // 计算并排视图的差异映射
+    computeLineDiffMaps()
   } catch (error) {
     console.error('Failed to load diff:', error)
     ElMessage.error('加载版本对比失败')
@@ -623,6 +666,11 @@ watch(() => props.versions, (newVersions) => {
       &.diff-deleted {
         background: #fef0f0;
         .line-content { color: #F56C6C; }
+      }
+
+      &.diff-modified {
+        background: #fff7e6;
+        .line-content { color: #E6A23C; }
       }
 
       &.diff-context {
