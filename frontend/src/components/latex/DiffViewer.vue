@@ -3,18 +3,21 @@
     <!-- 对比头部 -->
     <div class="diff-header">
       <div class="version-selectors">
-        <div class="selector-group">
-          <div class="selector-item base">
+        <div class="selector-main">
+          <div class="selector-item">
             <label class="selector-label">
-              <el-icon class="label-icon"><Back /></el-icon>
-              旧版本
+              <el-icon class="label-icon"><Files /></el-icon>
+              选择对比版本 (可多选)
             </label>
             <el-select
-              v-model="baseVersionId"
-              placeholder="选择旧版本"
-              @change="handleVersionChange"
-              size="default"
-              class="version-select"
+              v-model="selectedVersionIds"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              placeholder="选择要对比的版本..."
+              @change="handleVersionsChange"
+              class="version-select-multiple"
+              max-collapse-tags="3"
             >
               <el-option
                 v-for="v in availableVersions"
@@ -26,46 +29,12 @@
                   <div class="option-header">
                     <span class="option-summary">{{ v.summary || '未命名版本' }}</span>
                     <el-tag v-if="v.branchName !== 'main'" size="small" type="success">{{ v.branchName }}</el-tag>
+                    <el-tag v-if="v.isAutoSave" size="small" type="info">自动</el-tag>
                   </div>
                   <div class="option-meta">
                     <span class="option-time">{{ formatTimeRelative(v.timestamp) }}</span>
                     <span class="option-author">{{ v.author }}</span>
-                  </div>
-                </div>
-              </el-option>
-            </el-select>
-          </div>
-
-          <div class="vs-divider">
-            <span>VS</span>
-          </div>
-
-          <div class="selector-item compare">
-            <label class="selector-label">
-              新版本
-              <el-icon class="label-icon"><Right /></el-icon>
-            </label>
-            <el-select
-              v-model="compareVersionId"
-              placeholder="选择新版本"
-              @change="handleVersionChange"
-              size="default"
-              class="version-select"
-            >
-              <el-option
-                v-for="v in availableVersions"
-                :key="v.id"
-                :label="formatVersionLabel(v)"
-                :value="v.id"
-              >
-                <div class="version-option">
-                  <div class="option-header">
-                    <span class="option-summary">{{ v.summary || '未命名版本' }}</span>
-                    <el-tag v-if="v.branchName !== 'main'" size="small" type="success">{{ v.branchName }}</el-tag>
-                  </div>
-                  <div class="option-meta">
-                    <span class="option-time">{{ formatTimeRelative(v.timestamp) }}</span>
-                    <span class="option-author">{{ v.author }}</span>
+                    <span class="option-lines">{{ v.totalLines }}行</span>
                   </div>
                 </div>
               </el-option>
@@ -73,33 +42,36 @@
           </div>
         </div>
 
-        <!-- 快捷对比按钮 -->
-        <div class="quick-compare">
-          <el-tooltip content="对比最新2个版本" placement="top">
-            <el-button size="small" @click="compareLatestTwo" :disabled="availableVersions.length < 2">
-              <el-icon><Top /></el-icon>
-              最新2个
-            </el-button>
-          </el-tooltip>
-          <el-tooltip content="对比相邻版本" placement="top">
-            <el-button size="small" @click="compareAdjacent" :disabled="!baseVersion || !compareVersion">
-              <el-icon><Sort /></el-icon>
-              相邻版本
-            </el-button>
-          </el-tooltip>
+        <!-- 快捷选择按钮 -->
+        <div class="quick-select">
+          <el-button size="small" @click="selectLatestTwo" :disabled="availableVersions.length < 2">
+            最新2个
+          </el-button>
+          <el-button size="small" @click="selectLatestThree" :disabled="availableVersions.length < 3">
+            最新3个
+          </el-button>
+          <el-button size="small" @click="selectAllManual" :disabled="availableVersions.length === 0">
+            全部手动
+          </el-button>
+          <el-button size="small" @click="clearSelection" :disabled="selectedVersionIds.length === 0">
+            <el-icon><Close /></el-icon>
+          </el-button>
         </div>
       </div>
 
       <div class="diff-actions">
+        <div class="selection-info">
+          <el-tag size="small" type="info">已选择 {{ selectedVersionIds.length }} 个版本</el-tag>
+          <span v-if="selectedVersionIds.length >= 2" class="compare-hint">
+            下方显示多版本对比内容
+          </span>
+        </div>
         <el-button-group size="small">
-          <el-tooltip content="交换版本" placement="top">
-            <el-button :icon="RefreshLeft" @click="swapVersions">交换</el-button>
-          </el-tooltip>
-          <el-tooltip content="下载差异" placement="top">
+          <el-tooltip content="下载对比" placement="top">
             <el-button :icon="Download" @click="downloadDiff">下载</el-button>
           </el-tooltip>
           <el-tooltip content="清除对比" placement="top">
-            <el-button :icon="Close" @click="$emit('clearCompare')">清除</el-button>
+            <el-button :icon="Close" @click="$emit('clearCompare')">关闭</el-button>
           </el-tooltip>
         </el-button-group>
       </div>
@@ -115,13 +87,13 @@
         <el-icon><Minus /></el-icon>
         <span>删除 {{ diffStats.deletions }} 行</span>
       </div>
-      <div class="stat-item modified">
-        <el-icon><Edit /></el-icon>
-        <span>修改 {{ diffStats.modifications }} 处</span>
+      <div class="stat-item versions">
+        <el-icon><Files /></el-icon>
+        <span>{{ selectedVersionIds.length }} 个版本</span>
       </div>
     </div>
 
-    <!-- 对比视图 -->
+    <!-- 多版本对比视图 -->
     <div class="diff-content" ref="diffContainer">
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-state">
@@ -129,102 +101,62 @@
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="baseLines.length === 0 && compareLines.length === 0" class="empty-state">
-        <el-empty description="版本内容为空或未选择版本" />
+      <div v-else-if="selectedVersions.length === 0" class="empty-state">
+        <el-empty description="请选择要对比的版本">
+          <el-button type="primary" @click="selectLatestTwo">快速选择最新2个版本</el-button>
+        </el-empty>
       </div>
 
-      <!-- 并排视图 -->
-      <div v-else-if="viewMode === 'side-by-side'" class="side-by-side-view">
-        <div class="diff-panel base-panel">
-          <div class="panel-header">
-            <span>{{ baseVersion?.summary || '基线版本' }}</span>
-            <el-tag size="small">{{ baseVersion?.branchName || 'main' }}</el-tag>
-            <span class="line-count">{{ baseLines.length }} 行</span>
-          </div>
-          <div class="panel-content">
-            <div
-              v-for="(line, index) in baseLines"
-              :key="`base-${index}`"
-              class="diff-line"
-              :class="getLineClass(index, 'base')"
-            >
-              <span class="line-number">{{ index + 1 }}</span>
-              <span class="line-content">{{ line || ' ' }}</span>
+      <!-- 多版本并排视图 -->
+      <div v-else class="multi-version-view">
+        <div class="versions-header">
+          <div class="version-cell header-cell row-number">#</div>
+          <div
+            v-for="(version, idx) in selectedVersions"
+            :key="version.id"
+            class="version-cell header-cell version-name"
+          >
+            <div class="version-info">
+              <el-tag :type="getVersionTagType(idx)" size="small">
+                V{{ idx + 1 }}
+              </el-tag>
+              <span class="version-summary">{{ version.summary?.substring(0, 20) || '未命名' }}</span>
             </div>
-            <div v-if="baseLines.length === 0" class="no-content">无内容</div>
+            <div class="version-meta">
+              <span>{{ formatTimeRelative(version.timestamp) }}</span>
+            </div>
           </div>
         </div>
 
-        <div class="diff-divider"></div>
-
-        <div class="diff-panel compare-panel">
-          <div class="panel-header">
-            <span>{{ compareVersion?.summary || '对比版本' }}</span>
-            <el-tag size="small" type="success">{{ compareVersion?.branchName || 'main' }}</el-tag>
-            <span class="line-count">{{ compareLines.length }} 行</span>
-          </div>
-          <div class="panel-content">
+        <div class="versions-content">
+          <div
+            v-for="line in maxLines"
+            :key="line"
+            class="version-row"
+            :class="{ 'has-diff': hasDifference(line) }"
+          >
+            <div class="version-cell row-number">{{ line }}</div>
             <div
-              v-for="(line, index) in compareLines"
-              :key="`compare-${index}`"
-              class="diff-line"
-              :class="getLineClass(index, 'compare')"
+              v-for="(version, idx) in selectedVersions"
+              :key="version.id"
+              class="version-cell line-content"
+              :class="getLineClassForVersion(line, idx)"
+              :title="getVersionLine(version, line)"
             >
-              <span class="line-number">{{ index + 1 }}</span>
-              <span class="line-content">{{ line || ' ' }}</span>
+              <span class="content-text">{{ getVersionLine(version, line) || ' ' }}</span>
             </div>
-            <div v-if="compareLines.length === 0" class="no-content">无内容</div>
           </div>
         </div>
       </div>
-
-      <!-- 统一视图 -->
-      <div v-else class="unified-view">
-        <div class="diff-panel">
-          <div class="panel-content">
-            <div
-              v-for="(chunk, chunkIndex) in unifiedDiff"
-              :key="`chunk-${chunkIndex}`"
-              class="diff-chunk"
-            >
-              <div class="chunk-header">{{ chunk.header }}</div>
-              <div
-                v-for="(line, lineIndex) in chunk.lines"
-                :key="`line-${chunkIndex}-${lineIndex}`"
-                class="diff-line"
-                :class="`diff-${line.type}`"
-              >
-                <span class="line-number">{{ line.number }}</span>
-                <span class="line-prefix">{{ line.prefix }}</span>
-                <span class="line-content">{{ line.content }}</span>
-              </div>
-            </div>
-            <div v-if="unifiedDiff.length === 0" class="no-content">无差异内容</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 视图切换 -->
-    <div class="view-mode-toggle">
-      <el-radio-group v-model="viewMode" size="small">
-        <el-radio-button value="side-by-side">
-          并排视图
-        </el-radio-button>
-        <el-radio-button value="unified">
-          统一视图
-        </el-radio-button>
-      </el-radio-group>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { Plus, Minus, Edit, RefreshLeft, Download, Close, Back, Right, Top, Sort } from '@element-plus/icons-vue'
+import { Plus, Minus, Download, Close, Files } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FrontendLatexVersionNode } from '@/api/adapters/latexAdapter'
-import { compareLatexVersions } from '@/api/adapters/latexAdapter'
 
 const props = defineProps<{
   versions: FrontendLatexVersionNode[]
@@ -251,34 +183,108 @@ onMounted(() => {
 })
 
 // 状态
-const viewMode = ref<'side-by-side' | 'unified'>('side-by-side')
-const baseVersionId = ref<string>('')
-const compareVersionId = ref<string>('')
 const loading = ref(false)
+const selectedVersionIds = ref<string[]>([])
 
-// 差异数据
-const baseLines = ref<string[]>([])
-const compareLines = ref<string[]>([])
-const unifiedDiff = ref<any[]>([])
-const diffStats = ref<{
-  additions: number
-  deletions: number
-  modifications: number
-} | null>(null)
+// 选中的版本
+const selectedVersions = computed(() => {
+  return props.versions.filter(v => selectedVersionIds.value.includes(v.id))
+})
 
-// 可用版本列表（包含自动保存版本，以便有足够数据进行对比）
+// 可用版本列表
 const availableVersions = computed(() => {
   return props.versions
 })
 
-// 选中的版本
-const baseVersion = computed(() => {
-  return availableVersions.value.find(v => v.id === baseVersionId.value)
+// 版本内容行缓存
+const versionLinesCache = ref<Map<string, string[]>>(new Map())
+
+// 最大行数
+const maxLines = computed(() => {
+  if (selectedVersions.value.length === 0) return 0
+  return Math.max(...selectedVersions.value.map(v => getVersionLines(v).length))
 })
 
-const compareVersion = computed(() => {
-  return availableVersions.value.find(v => v.id === compareVersionId.value)
+// 差异统计
+const diffStats = computed(() => {
+  if (selectedVersions.value.length < 2) return null
+
+  const linesArray = selectedVersions.value.map(v => getVersionLines(v))
+  const allLines = new Set<string>()
+  linesArray.forEach(lines => lines.forEach(line => allLines.add(line)))
+
+  const firstLines = new Set(linesArray[0])
+  let additions = 0
+  let deletions = 0
+
+  for (let i = 1; i < linesArray.length; i++) {
+    const currentSet = new Set(linesArray[i])
+    linesArray[i].forEach(line => {
+      if (!firstLines.has(line)) additions++
+    })
+    firstLines.forEach(line => {
+      if (!currentSet.has(line)) deletions++
+    })
+  }
+
+  return { additions, deletions, modifications: 0 }
 })
+
+// 获取版本标签类型
+const getVersionTagType = (idx: number) => {
+  const total = selectedVersions.value.length
+  if (idx === 0) return 'danger' // 最早版本 - 红色
+  if (idx === total - 1) return 'success' // 最新版本 - 绿色
+  return 'primary' // 中间版本 - 蓝色
+}
+
+// 获取版本内容行
+const getVersionLines = (version: FrontendLatexVersionNode): string[] => {
+  if (!versionLinesCache.value.has(version.id)) {
+    const content = version.content || ''
+    versionLinesCache.value.set(version.id, content === '' ? [] : content.split('\n'))
+  }
+  return versionLinesCache.value.get(version.id)!
+}
+
+// 获取指定行的内容
+const getVersionLine = (version: FrontendLatexVersionNode, line: number): string => {
+  const lines = getVersionLines(version)
+  return lines[line - 1] || ''
+}
+
+// 检查某行是否有差异
+const hasDifference = (line: number): boolean => {
+  if (selectedVersions.value.length < 2) return false
+  const firstLine = getVersionLine(selectedVersions.value[0], line)
+  return selectedVersions.value.some(v => getVersionLine(v, line) !== firstLine)
+}
+
+// 获取行的样式类
+const getLineClassForVersion = (line: number, versionIdx: number): string => {
+  if (selectedVersions.value.length < 2) return ''
+
+  const currentLine = getVersionLine(selectedVersions.value[versionIdx], line)
+  const firstLine = getVersionLine(selectedVersions.value[0], line)
+
+  if (currentLine !== firstLine) {
+    // 检查是否在其他版本中出现过
+    const appearsInOther = selectedVersions.value.some((v, idx) =>
+      idx !== versionIdx && getVersionLine(v, line) === currentLine
+    )
+    return appearsInOther ? 'diff-modified' : 'diff-added'
+  }
+
+  // 检查是否仅在第一个版本中存在
+  const onlyInFirst = selectedVersions.value.slice(1).every(v =>
+    getVersionLine(v, line) !== currentLine
+  )
+  if (versionIdx === 0 && onlyInFirst && currentLine) {
+    return 'diff-deleted'
+  }
+
+  return ''
+}
 
 // 格式化版本标签
 const formatVersionLabel = (version: FrontendLatexVersionNode) => {
@@ -302,317 +308,85 @@ const formatTimeRelative = (timestamp: Date) => {
   return new Date(timestamp).toLocaleDateString('zh-CN')
 }
 
-// 快捷对比：最新2个版本
-const compareLatestTwo = () => {
-  if (availableVersions.value.length < 2) {
-    ElMessage.warning('版本不足，无法对比')
-    return
-  }
-  // 排除自动保存版本，取最新的2个
+// 快捷选择：最新2个
+const selectLatestTwo = () => {
   const nonAutoSave = availableVersions.value.filter(v => !v.isAutoSave)
   if (nonAutoSave.length >= 2) {
-    baseVersionId.value = nonAutoSave[1].id
-    compareVersionId.value = nonAutoSave[0].id
-  } else {
-    baseVersionId.value = availableVersions.value[1].id
-    compareVersionId.value = availableVersions.value[0].id
+    selectedVersionIds.value = [nonAutoSave[1].id, nonAutoSave[0].id]
+  } else if (availableVersions.value.length >= 2) {
+    selectedVersionIds.value = [availableVersions.value[1].id, availableVersions.value[0].id]
   }
 }
 
-// 快捷对比：相邻版本（按时间排序）
-const compareAdjacent = () => {
-  if (!baseVersion.value || !compareVersion.value) {
-    ElMessage.warning('请先选择版本')
-    return
-  }
-
-  // 按时间排序
-  const sorted = [...availableVersions.value].sort((a, b) =>
-    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  )
-
-  // 找到当前选中的版本索引
-  const baseIndex = sorted.findIndex(v => v.id === baseVersionId.value)
-  const compareIndex = sorted.findIndex(v => v.id === compareVersionId.value)
-
-  if (baseIndex === -1 || compareIndex === -1) return
-
-  // 如果版本不相邻，调整为相邻
-  if (Math.abs(baseIndex - compareIndex) > 1) {
-    // 选择compareIndex的相邻版本
-    const adjacentIndex = compareIndex > 0 ? compareIndex - 1 : compareIndex + 1
-    baseVersionId.value = sorted[adjacentIndex].id
-    ElMessage.info('已调整为相邻版本进行对比')
+// 快捷选择：最新3个
+const selectLatestThree = () => {
+  const nonAutoSave = availableVersions.value.filter(v => !v.isAutoSave)
+  if (nonAutoSave.length >= 3) {
+    selectedVersionIds.value = [nonAutoSave[2].id, nonAutoSave[1].id, nonAutoSave[0].id]
+  } else if (availableVersions.value.length >= 3) {
+    selectedVersionIds.value = [
+      availableVersions.value[2].id,
+      availableVersions.value[1].id,
+      availableVersions.value[0].id
+    ]
   }
 }
 
-// 差异映射 - 用于并排视图高亮
-const baseLineDiffMap = ref<Map<number, 'added' | 'deleted' | 'modified' | 'context'>>(new Map())
-const compareLineDiffMap = ref<Map<number, 'added' | 'deleted' | 'modified' | 'context'>>(new Map())
-
-// 获取行的样式类
-const getLineClass = (index: number, side: 'base' | 'compare') => {
-  const map = side === 'base' ? baseLineDiffMap.value : compareLineDiffMap.value
-  const type = map.get(index)
-  if (!type) return ''
-
-  if (type === 'added') return 'diff-added'
-  if (type === 'deleted') return 'diff-deleted'
-  if (type === 'modified') return 'diff-modified'
-  return ''
-}
-
-// 计算行差异映射（用于并排视图）
-const computeLineDiffMaps = () => {
-  const baseMap = new Map<number, 'added' | 'deleted' | 'modified' | 'context'>()
-  const compareMap = new Map<number, 'added' | 'deleted' | 'modified' | 'context'>()
-
-  const baseSet = new Set(baseLines.value)
-  const compareSet = new Set(compareLines.value)
-
-  // 标记base中的行
-  baseLines.value.forEach((line, i) => {
-    if (!compareSet.has(line)) {
-      baseMap.set(i, 'deleted')
-    } else {
-      baseMap.set(i, 'context')
-    }
-  })
-
-  // 标记compare中的行
-  compareLines.value.forEach((line, i) => {
-    if (!baseSet.has(line)) {
-      compareMap.set(i, 'added')
-    } else {
-      compareMap.set(i, 'context')
-    }
-  })
-
-  baseLineDiffMap.value = baseMap
-  compareLineDiffMap.value = compareMap
-}
-
-// 加载版本差异
-const loadDiff = async () => {
-  if (!baseVersionId.value || !compareVersionId.value) {
-    console.log('[DiffViewer] 版本ID未设置:', { baseVersionId: baseVersionId.value, compareVersionId: compareVersionId.value })
-    return
-  }
-
-  if (baseVersionId.value === compareVersionId.value) {
-    ElMessage.warning('请选择不同的版本进行对比')
-    return
-  }
-
-  loading.value = true
-  try {
-    console.log('[DiffViewer] 加载差异:', {
-      baseVersionId: baseVersionId.value,
-      compareVersionId: compareVersionId.value,
-      baseVersion: baseVersion.value,
-      compareVersion: compareVersion.value
-    })
-
-    // 直接使用版本内容
-    const baseContent = baseVersion.value?.content || ''
-    const compareContent = compareVersion.value?.content || ''
-
-    console.log('[DiffViewer] 版本内容:', {
-      baseContentLength: baseContent.length,
-      compareContentLength: compareContent.length,
-      baseContentPreview: baseContent.substring(0, 100),
-      compareContentPreview: compareContent.substring(0, 100)
-    })
-
-    if (!baseContent.trim() && !compareContent.trim()) {
-      ElMessage.warning('版本内容为空，无法对比')
-      baseLines.value = []
-      compareLines.value = []
-      loading.value = false
-      return
-    }
-
-    // 解析内容为行
-    baseLines.value = baseContent === '' ? [] : baseContent.split('\n')
-    compareLines.value = compareContent === '' ? [] : compareContent.split('\n')
-
-    console.log('[DiffViewer] 解析后的行数:', {
-      baseLines: baseLines.value.length,
-      compareLines: compareLines.value.length
-    })
-
-    // 计算差异统计（简单实现）
-    const baseSet = new Set(baseLines.value)
-    const compareSet = new Set(compareLines.value)
-
-    let additions = 0
-    let deletions = 0
-
-    compareLines.value.forEach(line => {
-      if (!baseSet.has(line)) additions++
-    })
-
-    baseLines.value.forEach(line => {
-      if (!compareSet.has(line)) deletions++
-    })
-
-    const modifications = Math.min(additions, deletions)
-    diffStats.value = {
-      additions: additions - modifications,
-      deletions: deletions - modifications,
-      modifications
-    }
-
-    console.log('[DiffViewer] 差异统计:', diffStats.value)
-
-    // 生成统一diff格式
-    unifiedDiff.value = generateUnifiedDiff(baseLines.value, compareLines.value)
-    console.log('[DiffViewer] 生成的diff块数:', unifiedDiff.value.length)
-
-    // 计算并排视图的差异映射
-    computeLineDiffMaps()
-  } catch (error) {
-    console.error('Failed to load diff:', error)
-    ElMessage.error('加载版本对比失败')
-  } finally {
-    loading.value = false
+// 快捷选择：全部手动保存版本
+const selectAllManual = () => {
+  const manualVersions = availableVersions.value.filter(v => !v.isAutoSave)
+  if (manualVersions.length > 5) {
+    ElMessage.warning(`手动版本过多(${manualVersions.length}个)，仅选择最新5个`)
+    selectedVersionIds.value = manualVersions.slice(0, 5).map(v => v.id).reverse()
+  } else if (manualVersions.length > 0) {
+    selectedVersionIds.value = manualVersions.map(v => v.id).reverse()
   }
 }
 
-// 生成统一diff
-const generateUnifiedDiff = (base: string[], compare: string[]) => {
-  const chunks: any[] = []
-
-  // 如果两个内容完全相同且为空
-  if (base.length === 0 && compare.length === 0) {
-    return [{
-      header: '@@ -0,0 +0,0 @@',
-      lines: [{
-        type: 'context',
-        prefix: ' ',
-        content: '(无内容)',
-        number: 0
-      }]
-    }]
-  }
-
-  // 如果两个内容完全相同
-  if (base.length === compare.length && base.every((line, i) => line === compare[i])) {
-    return [{
-      header: `@@ -1,${base.length} +1,${compare.length} @@`,
-      lines: base.map((line, i) => ({
-        type: 'context',
-        prefix: ' ',
-        content: line || '',
-        number: i + 1
-      }))
-    }]
-  }
-
-  // 简单实现：逐行对比
-  let currentChunk: any = {
-    header: '@@ -1,' + base.length + ' +1,' + compare.length + ' @@',
-    lines: []
-  }
-
-  const maxLines = Math.max(base.length, compare.length)
-
-  for (let i = 0; i < maxLines; i++) {
-    const baseLine = base[i]
-    const compareLine = compare[i]
-
-    if (baseLine === compareLine) {
-      // 相同行
-      currentChunk.lines.push({
-        type: 'context',
-        prefix: ' ',
-        content: baseLine || '',
-        number: i + 1
-      })
-    } else if (baseLine && !compareLine) {
-      // 删除行
-      currentChunk.lines.push({
-        type: 'deleted',
-        prefix: '-',
-        content: baseLine,
-        number: i + 1
-      })
-    } else if (!baseLine && compareLine) {
-      // 新增行
-      currentChunk.lines.push({
-        type: 'added',
-        prefix: '+',
-        content: compareLine,
-        number: i + 1
-      })
-    } else {
-      // 修改行
-      currentChunk.lines.push({
-        type: 'deleted',
-        prefix: '-',
-        content: baseLine,
-        number: i + 1
-      })
-      currentChunk.lines.push({
-        type: 'added',
-        prefix: '+',
-        content: compareLine,
-        number: i + 1
-      })
-    }
-  }
-
-  if (currentChunk.lines.length > 0) {
-    chunks.push(currentChunk)
-  }
-
-  return chunks
+// 清空选择
+const clearSelection = () => {
+  selectedVersionIds.value = []
 }
 
-// 交换版本
-const swapVersions = () => {
-  const temp = baseVersionId.value
-  baseVersionId.value = compareVersionId.value
-  compareVersionId.value = temp
-  loadDiff()
+// 处理版本变化
+const handleVersionsChange = () => {
+  console.log('[DiffViewer] Selected versions:', selectedVersionIds.value)
+  // 清空缓存以重新计算
+  versionLinesCache.value.clear()
 }
 
 // 下载差异
 const downloadDiff = () => {
-  if (!unifiedDiff.value.length) {
-    ElMessage.warning('没有差异内容')
+  if (selectedVersions.value.length === 0) {
+    ElMessage.warning('请先选择版本')
     return
   }
 
-  let content = ''
-  unifiedDiff.value.forEach(chunk => {
-    content += chunk.header + '\n'
-    chunk.lines.forEach(line => {
-      content += line.prefix + line.content + '\n'
-    })
+  let content = `多版本对比 (${selectedVersions.value.length}个版本)\n`
+  content += `${'='.repeat(50)}\n\n`
+
+  selectedVersions.value.forEach((v, idx) => {
+    content += `版本${idx + 1}: ${v.summary || '未命名'}\n`
+    content += `时间: ${formatTimeRelative(v.timestamp)}\n`
+    content += `行数: ${v.totalLines}\n`
+    content += `${'-'.repeat(30)}\n`
   })
 
-  const blob = new Blob([content], { type: 'text/plain' })
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `diff-${baseVersionId.value?.slice(0, 8)}-${compareVersionId.value?.slice(0, 8)}.txt`
+  link.download = `multi-version-diff-${Date.now()}.txt`
   link.click()
   URL.revokeObjectURL(url)
-}
-
-// 处理版本变化
-const handleVersionChange = () => {
-  loadDiff()
+  ElMessage.success('下载已开始')
 }
 
 // 监听props.versions变化
 watch(() => props.versions, (newVersions) => {
-  if (newVersions.length >= 2) {
-    // 自动设置基线和对比版本
-    baseVersionId.value = newVersions[newVersions.length - 2].id
-    compareVersionId.value = newVersions[newVersions.length - 1].id
-    loadDiff()
+  if (newVersions.length >= 2 && selectedVersionIds.value.length === 0) {
+    // 自动选择最新2个版本
+    selectLatestTwo()
   }
 }, { immediate: true })
 </script>
@@ -639,74 +413,56 @@ watch(() => props.versions, (newVersions) => {
       gap: 12px;
       flex: 1;
 
-      .selector-group {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-
+      .selector-main {
         .selector-item {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 8px;
 
           .selector-label {
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 13px;
+            gap: 6px;
+            font-size: 14px;
             font-weight: 500;
-            color: #606266;
+            color: #303133;
 
             .label-icon {
-              font-size: 14px;
+              font-size: 16px;
+              color: #409EFF;
             }
           }
 
-          &.base .selector-label {
-            color: #909399;
+          .version-select-multiple {
+            width: 100%;
+            max-width: 600px;
           }
-
-          &.compare .selector-label {
-            color: #67C23A;
-          }
-
-          .version-select {
-            min-width: 240px;
-          }
-        }
-
-        .vs-divider {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 40px;
-          height: 40px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-radius: 50%;
-          color: #fff;
-          font-weight: bold;
-          font-size: 12px;
-          flex-shrink: 0;
-          margin: 0 4px;
         }
       }
 
-      .quick-compare {
+      .quick-select {
         display: flex;
         gap: 8px;
-
-        .el-button {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
+        flex-wrap: wrap;
       }
     }
 
     .diff-actions {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      gap: 16px;
       flex-shrink: 0;
+
+      .selection-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .compare-hint {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
     }
   }
 
@@ -736,12 +492,13 @@ watch(() => props.versions, (newVersions) => {
       font-size: 11px;
       color: #909399;
 
-      .option-time {
-        min-width: 60px;
-      }
-
-      .option-author {
-        min-width: 50px;
+      .option-time,
+      .option-author,
+      .option-lines {
+        &:not(:last-child)::after {
+          content: '·';
+          margin-left: 12px;
+        }
       }
     }
   }
@@ -761,7 +518,7 @@ watch(() => props.versions, (newVersions) => {
 
       &.added { color: #67C23A; }
       &.removed { color: #F56C6C; }
-      &.modified { color: #E6A23C; }
+      &.versions { color: #409EFF; }
     }
   }
 
@@ -779,158 +536,129 @@ watch(() => props.versions, (newVersions) => {
       min-height: 300px;
     }
 
-    .side-by-side-view {
-      display: flex;
-      height: 100%;
-      gap: 16px;
+    .multi-version-view {
+      background: #fff;
+      border: 1px solid #e4e7ed;
+      border-radius: 4px;
+      overflow: hidden;
 
-      .diff-panel {
-        flex: 1;
-        background: #fff;
-        border: 1px solid #e4e7ed;
-        border-radius: 4px;
-        overflow: hidden;
+      .versions-header {
         display: flex;
-        flex-direction: column;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f5f7fa;
+        border-bottom: 2px solid #e4e7ed;
 
-        .panel-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          background: #f5f7fa;
-          border-bottom: 1px solid #e4e7ed;
-          font-size: 13px;
-          font-weight: 500;
+        .version-cell {
+          padding: 12px 8px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #606266;
+          text-align: center;
+          border-right: 1px solid #e4e7ed;
 
-          .line-count {
-            font-size: 11px;
-            color: #909399;
+          &.row-number {
+            width: 60px;
+            min-width: 60px;
+            background: #909399;
+            color: #fff;
+          }
+
+          &.version-name {
+            flex: 1;
+            min-width: 150px;
+            padding: 8px;
+
+            .version-info {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              margin-bottom: 4px;
+
+              .version-summary {
+                font-size: 13px;
+                font-weight: 500;
+              }
+            }
+
+            .version-meta {
+              font-size: 11px;
+              color: #909399;
+              font-weight: normal;
+            }
+          }
+
+          &:last-child {
+            border-right: none;
           }
         }
+      }
 
-        .panel-content {
-          flex: 1;
-          overflow: auto;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          line-height: 1.6;
+      .versions-content {
+        .version-row {
+          display: flex;
+          border-bottom: 1px solid #f0f0f0;
+
+          &:hover {
+            background: #f5f7fa;
+          }
+
+          &.has-diff {
+            background: #fff9e6;
+          }
+
+          .version-cell {
+            padding: 4px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            border-right: 1px solid #f0f0f0;
+            white-space: pre;
+            overflow: hidden;
+            text-overflow: ellipsis;
+
+            &.row-number {
+              width: 60px;
+              min-width: 60px;
+              text-align: center;
+              color: #909399;
+              background: #fafafa;
+              font-weight: 500;
+              user-select: none;
+            }
+
+            &.line-content {
+              flex: 1;
+              min-width: 150px;
+
+              .content-text {
+                word-break: break-all;
+              }
+
+              &.diff-added {
+                background: #f0f9ff;
+                color: #67C23A;
+              }
+
+              &.diff-deleted {
+                background: #fef0f0;
+                color: #F56C6C;
+              }
+
+              &.diff-modified {
+                background: #fff7e6;
+                color: #E6A23C;
+              }
+            }
+
+            &:last-child {
+              border-right: none;
+            }
+          }
         }
-
-        .no-content {
-          padding: 40px;
-          text-align: center;
-          color: #909399;
-          font-style: italic;
-        }
-      }
-
-      .diff-divider {
-        width: 1px;
-        background: #e4e7ed;
       }
     }
-
-    .unified-view {
-      height: 100%;
-
-      .diff-panel {
-        height: 100%;
-        background: #fff;
-        border: 1px solid #e4e7ed;
-        border-radius: 4px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .panel-content {
-        flex: 1;
-        overflow: auto;
-        font-family: 'Courier New', monospace;
-        font-size: 12px;
-        line-height: 1.6;
-      }
-
-      .no-content {
-        padding: 40px;
-        text-align: center;
-        color: #909399;
-        font-style: italic;
-      }
-    }
-
-    .diff-line {
-      display: flex;
-      padding: 2px 8px;
-
-      &:hover {
-        background: #f5f7fa;
-      }
-
-      &.diff-added {
-        background: #f0f9ff;
-        .line-content { color: #67C23A; }
-      }
-
-      &.diff-deleted {
-        background: #fef0f0;
-        .line-content { color: #F56C6C; }
-      }
-
-      &.diff-modified {
-        background: #fff7e6;
-        .line-content { color: #E6A23C; }
-      }
-
-      &.diff-context {
-        .line-content { color: #606266; }
-      }
-
-      .line-number {
-        width: 40px;
-        color: #909399;
-        text-align: right;
-        margin-right: 12px;
-        user-select: none;
-        flex-shrink: 0;
-      }
-
-      .line-prefix {
-        width: 16px;
-        text-align: center;
-        margin-right: 8px;
-        font-weight: bold;
-        flex-shrink: 0;
-      }
-
-      .line-content {
-        flex: 1;
-        white-space: pre-wrap;
-        word-break: break-all;
-        min-width: 0;
-      }
-    }
-
-    .diff-chunk {
-      .chunk-header {
-        padding: 4px 8px;
-        background: #f5f7fa;
-        color: #909399;
-        font-size: 12px;
-        border-bottom: 1px solid #e4e7ed;
-        font-weight: 500;
-      }
-    }
-  }
-
-  .view-mode-toggle {
-    display: flex;
-    justify-content: center;
-    padding: 8px;
-    background: #fff;
-    border-top: 1px solid #e4e7ed;
   }
 }
 </style>
