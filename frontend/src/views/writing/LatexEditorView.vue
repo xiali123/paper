@@ -2251,14 +2251,12 @@ compileDocument = async function() {
     })
 
     try {
-      // 先保存当前编辑器内容到项目文件
+      // 先保存当前编辑器内容到项目文件（同步到后端内存）
       if (isModified.value) {
         await latexStore.saveCurrentProjectFile()
       }
 
-      // 重新从后端获取最新的项目数据（确保使用最新内容）
-      await latexStore.loadProject(latexStore.currentProject.id)
-
+      // 直接编译，后端使用内存中的最新数据
       const result = await latexStore.compileProject()
       loadingInstance.close()
 
