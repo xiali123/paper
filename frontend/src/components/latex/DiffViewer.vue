@@ -62,12 +62,23 @@
 
     <!-- 对比视图 -->
     <div class="diff-content" ref="diffContainer">
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-state">
+        <el-skeleton :rows="10" animated />
+      </div>
+
+      <!-- 空状态 -->
+      <div v-else-if="baseLines.length === 0 && compareLines.length === 0" class="empty-state">
+        <el-empty description="版本内容为空或未选择版本" />
+      </div>
+
       <!-- 并排视图 -->
-      <div v-if="viewMode === 'side-by-side'" class="side-by-side-view">
+      <div v-else-if="viewMode === 'side-by-side'" class="side-by-side-view">
         <div class="diff-panel base-panel">
           <div class="panel-header">
             <span>{{ baseVersion?.summary || '基线版本' }}</span>
-            <el-tag size="small">{{ baseVersion?.branchName }}</el-tag>
+            <el-tag size="small">{{ baseVersion?.branchName || 'main' }}</el-tag>
+            <span class="line-count">{{ baseLines.length }} 行</span>
           </div>
           <div class="panel-content">
             <div
@@ -79,6 +90,7 @@
               <span class="line-number">{{ index + 1 }}</span>
               <span class="line-content">{{ line || ' ' }}</span>
             </div>
+            <div v-if="baseLines.length === 0" class="no-content">无内容</div>
           </div>
         </div>
 
@@ -87,7 +99,8 @@
         <div class="diff-panel compare-panel">
           <div class="panel-header">
             <span>{{ compareVersion?.summary || '对比版本' }}</span>
-            <el-tag size="small" type="success">{{ compareVersion?.branchName }}</el-tag>
+            <el-tag size="small" type="success">{{ compareVersion?.branchName || 'main' }}</el-tag>
+            <span class="line-count">{{ compareLines.length }} 行</span>
           </div>
           <div class="panel-content">
             <div
@@ -99,6 +112,7 @@
               <span class="line-number">{{ index + 1 }}</span>
               <span class="line-content">{{ line || ' ' }}</span>
             </div>
+            <div v-if="compareLines.length === 0" class="no-content">无内容</div>
           </div>
         </div>
       </div>
@@ -124,6 +138,7 @@
                 <span class="line-content">{{ line.content }}</span>
               </div>
             </div>
+            <div v-if="unifiedDiff.length === 0" class="no-content">无差异内容</div>
           </div>
         </div>
       </div>
@@ -177,9 +192,9 @@ const diffStats = ref<{
   modifications: number
 } | null>(null)
 
-// 可用版本列表
+// 可用版本列表（包含自动保存版本，以便有足够数据进行对比）
 const availableVersions = computed(() => {
-  return props.versions.filter(v => !v.isAutoSave)
+  return props.versions
 })
 
 // 选中的版本
@@ -207,6 +222,7 @@ const getLineClass = (index: number, side: 'base' | 'compare') => {
 // 加载版本差异
 const loadDiff = async () => {
   if (!baseVersionId.value || !compareVersionId.value) {
+    console.log('[DiffViewer] 版本ID未设置:', { baseVersionId: baseVersionId.value, compareVersionId: compareVersionId.value })
     return
   }
 
@@ -217,21 +233,66 @@ const loadDiff = async () => {
 
   loading.value = true
   try {
-    const result = await compareLatexVersions(baseVersionId.value, compareVersionId.value)
+    console.log('[DiffViewer] 加载差异:', {
+      baseVersionId: baseVersionId.value,
+      compareVersionId: compareVersionId.value,
+      baseVersion: baseVersion.value,
+      compareVersion: compareVersion.value
+    })
+
+    // 直接使用版本内容，不再调用API
+    const baseContent = baseVersion.value?.content || ''
+    const compareContent = compareVersion.value?.content || ''
+
+    console.log('[DiffViewer] 版本内容:', {
+      baseContentLength: baseContent.length,
+      compareContentLength: compareContent.length,
+      baseContentPreview: baseContent.substring(0, 100),
+      compareContentPreview: compareContent.substring(0, 100)
+    })
+
+    if (!baseContent && !compareContent) {
+      ElMessage.warning('版本内容为空，无法对比')
+      loading.value = false
+      return
+    }
 
     // 解析内容为行
-    baseLines.value = (baseVersion.value?.content || '').split('\n')
-    compareLines.value = (compareVersion.value?.content || '').split('\n')
+    baseLines.value = baseContent.split('\n')
+    compareLines.value = compareContent.split('\n')
 
-    // 计算差异统计
+    console.log('[DiffViewer] 解析后的行数:', {
+      baseLines: baseLines.value.length,
+      compareLines: compareLines.value.length
+    })
+
+    // 计算差异统计（简单实现）
+    const baseSet = new Set(baseLines.value)
+    const compareSet = new Set(compareLines.value)
+
+    let additions = 0
+    let deletions = 0
+
+    compareLines.value.forEach(line => {
+      if (!baseSet.has(line)) additions++
+    })
+
+    baseLines.value.forEach(line => {
+      if (!compareSet.has(line)) deletions++
+    })
+
+    const modifications = Math.min(additions, deletions)
     diffStats.value = {
-      additions: result.additions || 0,
-      deletions: result.deletions || 0,
-      modifications: result.modifications || 0
+      additions: additions - modifications,
+      deletions: deletions - modifications,
+      modifications
     }
+
+    console.log('[DiffViewer] 差异统计:', diffStats.value)
 
     // 生成统一diff格式
     unifiedDiff.value = generateUnifiedDiff(baseLines.value, compareLines.value)
+    console.log('[DiffViewer] 生成的diff块数:', unifiedDiff.value.length)
   } catch (error) {
     console.error('Failed to load diff:', error)
     ElMessage.error('加载版本对比失败')
@@ -242,8 +303,35 @@ const loadDiff = async () => {
 
 // 生成统一diff
 const generateUnifiedDiff = (base: string[], compare: string[]) => {
-  // 简单实现：逐行对比
   const chunks: any[] = []
+
+  // 如果两个内容完全相同且为空
+  if (base.length === 0 && compare.length === 0) {
+    return [{
+      header: '@@ -0,0 +0,0 @@',
+      lines: [{
+        type: 'context',
+        prefix: ' ',
+        content: '(无内容)',
+        number: 0
+      }]
+    }]
+  }
+
+  // 如果两个内容完全相同
+  if (base.length === compare.length && base.every((line, i) => line === compare[i])) {
+    return [{
+      header: `@@ -1,${base.length} +1,${compare.length} @@`,
+      lines: base.map((line, i) => ({
+        type: 'context',
+        prefix: ' ',
+        content: line || '',
+        number: i + 1
+      }))
+    }]
+  }
+
+  // 简单实现：逐行对比
   let currentChunk: any = {
     header: '@@ -1,' + base.length + ' +1,' + compare.length + ' @@',
     lines: []
@@ -256,10 +344,7 @@ const generateUnifiedDiff = (base: string[], compare: string[]) => {
     const compareLine = compare[i]
 
     if (baseLine === compareLine) {
-      if (currentChunk.lines.length > 0) {
-        chunks.push({ ...currentChunk })
-        currentChunk = { header: '', lines: [] }
-      }
+      // 相同行
       currentChunk.lines.push({
         type: 'context',
         prefix: ' ',
@@ -267,6 +352,7 @@ const generateUnifiedDiff = (base: string[], compare: string[]) => {
         number: i + 1
       })
     } else if (baseLine && !compareLine) {
+      // 删除行
       currentChunk.lines.push({
         type: 'deleted',
         prefix: '-',
@@ -274,6 +360,7 @@ const generateUnifiedDiff = (base: string[], compare: string[]) => {
         number: i + 1
       })
     } else if (!baseLine && compareLine) {
+      // 新增行
       currentChunk.lines.push({
         type: 'added',
         prefix: '+',
@@ -281,6 +368,7 @@ const generateUnifiedDiff = (base: string[], compare: string[]) => {
         number: i + 1
       })
     } else {
+      // 修改行
       currentChunk.lines.push({
         type: 'deleted',
         prefix: '-',
@@ -413,6 +501,15 @@ watch(() => props.versions, (newVersions) => {
     overflow: auto;
     padding: 16px;
 
+    .loading-state,
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 300px;
+    }
+
     .side-by-side-view {
       display: flex;
       height: 100%;
@@ -424,24 +521,39 @@ watch(() => props.versions, (newVersions) => {
         border: 1px solid #e4e7ed;
         border-radius: 4px;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
 
         .panel-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 8px;
           padding: 8px 12px;
           background: #f5f7fa;
           border-bottom: 1px solid #e4e7ed;
           font-size: 13px;
           font-weight: 500;
+
+          .line-count {
+            font-size: 11px;
+            color: #909399;
+          }
         }
 
         .panel-content {
-          height: calc(100% - 40px);
+          flex: 1;
           overflow: auto;
           font-family: 'Courier New', monospace;
           font-size: 12px;
           line-height: 1.6;
+        }
+
+        .no-content {
+          padding: 40px;
+          text-align: center;
+          color: #909399;
+          font-style: italic;
         }
       }
 
@@ -460,14 +572,23 @@ watch(() => props.versions, (newVersions) => {
         border: 1px solid #e4e7ed;
         border-radius: 4px;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
       }
 
       .panel-content {
-        height: 100%;
+        flex: 1;
         overflow: auto;
         font-family: 'Courier New', monospace;
         font-size: 12px;
         line-height: 1.6;
+      }
+
+      .no-content {
+        padding: 40px;
+        text-align: center;
+        color: #909399;
+        font-style: italic;
       }
     }
 
@@ -499,6 +620,7 @@ watch(() => props.versions, (newVersions) => {
         text-align: right;
         margin-right: 12px;
         user-select: none;
+        flex-shrink: 0;
       }
 
       .line-prefix {
@@ -506,12 +628,14 @@ watch(() => props.versions, (newVersions) => {
         text-align: center;
         margin-right: 8px;
         font-weight: bold;
+        flex-shrink: 0;
       }
 
       .line-content {
         flex: 1;
         white-space: pre-wrap;
         word-break: break-all;
+        min-width: 0;
       }
     }
 
@@ -522,6 +646,7 @@ watch(() => props.versions, (newVersions) => {
         color: #909399;
         font-size: 12px;
         border-bottom: 1px solid #e4e7ed;
+        font-weight: 500;
       }
     }
   }
