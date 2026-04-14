@@ -7,6 +7,7 @@
 #include <cstring>
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -106,9 +107,16 @@ public:
 
             SOCKET clientSocket = accept(serverSocket_, (sockaddr*)&clientAddr, &clientAddrLen);
             if (clientSocket == INVALID_SOCKET) {
-                if (running_) {
-                    spdlog::error("Accept failed");
+#ifdef _WIN32
+                int error = WSAGetLastError();
+                if (running_ && error != WSAEINTR) {
+                    spdlog::error("Accept failed: WSA error {}", error);
                 }
+#else
+                if (running_ && errno != EINTR) {
+                    spdlog::error("Accept failed: {}", strerror(errno));
+                }
+#endif
                 continue;
             }
 
