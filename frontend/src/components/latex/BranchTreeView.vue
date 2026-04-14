@@ -429,18 +429,7 @@ const swimlanes = computed(() => {
   }))
 })
 
-// 核心布局算法 - 根据视图模式组织节点
-const laidOutNodes = computed(() => {
-  if (props.versions.length === 0) return []
-
-  if (viewMode.value === 'timeline') {
-    return layoutTimelineNodes()
-  } else if (viewMode.value === 'graph') {
-    return layoutGraphNodes()
-  } else {
-    return layoutTreeNodes()
-  }
-})
+// 布局辅助函数 - 必须在 laidOutNodes 之前定义
 
 // 树形图布局 - 分支泳道
 const layoutTreeNodes = () => {
@@ -631,6 +620,19 @@ const layoutTimelineNodes = () => {
   })
 
   return nodes
+}
+
+// 核心布局算法 - 根据视图模式组织节点
+const laidOutNodes = computed(() => {
+  if (props.versions.length === 0) return []
+
+  if (viewMode.value === 'timeline') {
+    return layoutTimelineNodes()
+  } else if (viewMode.value === 'graph') {
+    return layoutGraphNodes()
+  } else {
+    return layoutTreeNodes()
+  }
 })
 
 // 画布尺寸
