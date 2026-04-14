@@ -513,14 +513,14 @@ const getNodeColor = (node: FrontendLatexVersionNode) => {
 }
 
 const getNodeStroke = (node: FrontendLatexVersionNode) => {
-  if (selectedVersion.value?.id === node.id) return '#409EFF'
+  if (props.selectedVersion?.id === node.id) return '#409EFF'
   if (comparingVersions.value.has(node.id)) return '#E6A23C'
   if (node.isMerged) return '#67C23A'
   return '#fff'
 }
 
 const getNodeStrokeWidth = (node: FrontendLatexVersionNode) => {
-  if (selectedVersion.value?.id === node.id) return 3
+  if (props.selectedVersion?.id === node.id) return 3
   if (comparingVersions.value.has(node.id)) return 3
   return 2
 }
