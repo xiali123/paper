@@ -576,19 +576,20 @@
       />
     </el-drawer>
 
-    <!-- 版本历史面板 -->
+    <!-- 版本控制面板 -->
     <el-drawer
       v-model="showVersionHistory"
-      title="版本历史"
+      title="版本控制"
       direction="rtl"
-      size="450px"
+      size="70%"
     >
-      <VersionHistory
+      <VersionControl
         v-if="currentFileId && currentProjectId"
         :file-id="currentFileId"
         :project-id="currentProjectId"
         :user-id="currentUserId || 'default'"
         :current-content="editorContent"
+        @restore="handleVersionRestore"
         @restore="handleVersionRestore"
       />
     </el-drawer>
@@ -710,6 +711,7 @@ import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vu
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
 import ProjectSelector from '@/components/latex/ProjectSelector.vue'
 import VersionHistory from '@/components/latex/VersionHistory.vue'
+import VersionControl from '@/components/latex/VersionControl.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
 // Props and emits
