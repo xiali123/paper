@@ -2256,6 +2256,9 @@ compileDocument = async function() {
         await latexStore.saveCurrentProjectFile()
       }
 
+      // 重新从后端获取最新的项目数据（确保使用最新内容）
+      await latexStore.loadProject(latexStore.currentProject.id)
+
       const result = await latexStore.compileProject()
       loadingInstance.close()
 
