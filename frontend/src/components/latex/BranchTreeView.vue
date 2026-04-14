@@ -252,7 +252,7 @@
             </div>
             <div v-if="tooltipNode.changeCount > 0" class="info-item">
               <span class="info-label">变更:</span>
-              <span class="info-value" class="change-add">+{{ tooltipNode.changeCount }}</span>
+              <span class="info-value change-add">+{{ tooltipNode.changeCount }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">位置:</span>
