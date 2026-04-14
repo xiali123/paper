@@ -627,7 +627,7 @@ const layoutTimelineNodes = () => {
       lane,
       isBranchPoint,
       isMergePoint
-    } as any)
+    })
   })
 
   return nodes
