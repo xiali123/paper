@@ -159,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Plus, Minus, Edit, RefreshLeft, Download, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FrontendLatexVersionNode } from '@/api/adapters/latexAdapter'
@@ -175,6 +175,19 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'clearCompare'): void
 }>()
+
+// 组件挂载时打印调试信息
+onMounted(() => {
+  console.log('[DiffViewer] Mounted with props:', {
+    versionsCount: props.versions.length,
+    versions: props.versions.map(v => ({
+      id: v.id,
+      summary: v.summary,
+      hasContent: !!v.content,
+      contentLength: v.content?.length || 0
+    }))
+  })
+})
 
 // 状态
 const viewMode = ref<'side-by-side' | 'unified'>('side-by-side')
@@ -240,7 +253,7 @@ const loadDiff = async () => {
       compareVersion: compareVersion.value
     })
 
-    // 直接使用版本内容，不再调用API
+    // 直接使用版本内容
     const baseContent = baseVersion.value?.content || ''
     const compareContent = compareVersion.value?.content || ''
 
@@ -251,15 +264,17 @@ const loadDiff = async () => {
       compareContentPreview: compareContent.substring(0, 100)
     })
 
-    if (!baseContent && !compareContent) {
+    if (!baseContent.trim() && !compareContent.trim()) {
       ElMessage.warning('版本内容为空，无法对比')
+      baseLines.value = []
+      compareLines.value = []
       loading.value = false
       return
     }
 
     // 解析内容为行
-    baseLines.value = baseContent.split('\n')
-    compareLines.value = compareContent.split('\n')
+    baseLines.value = baseContent === '' ? [] : baseContent.split('\n')
+    compareLines.value = compareContent === '' ? [] : compareContent.split('\n')
 
     console.log('[DiffViewer] 解析后的行数:', {
       baseLines: baseLines.value.length,
