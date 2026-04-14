@@ -81,7 +81,7 @@
         </g>
 
         <!-- 分支泳道背景 -->
-        <g class="swimlanes">
+        <g class="swimlanes" v-if="viewMode === 'tree'">
           <rect
             v-for="lane in swimlanes"
             :key="lane.name"
@@ -102,6 +102,72 @@
             font-weight="bold"
             opacity="0.5"
           >{{ lane.displayName }}</text>
+        </g>
+
+        <!-- 时间轴模式的水平时间线 -->
+        <g class="timeline-axis" v-if="viewMode === 'timeline'">
+          <!-- 为每个分支绘制水平泳道线 -->
+          <g v-for="(branch, index) in branchColors" :key="`timeline-${branch.name}`">
+            <line
+              :x1="100"
+              :y1="60 + index * TIMELINE_LANE_HEIGHT + TIMELINE_LANE_HEIGHT / 2"
+              :x2="canvasSize.width - 50"
+              :y2="60 + index * TIMELINE_LANE_HEIGHT + TIMELINE_LANE_HEIGHT / 2"
+              :stroke="branch.color"
+              stroke-width="2"
+              opacity="0.3"
+            />
+            <text
+              :x="canvasSize.width - 45"
+              :y="60 + index * TIMELINE_LANE_HEIGHT + TIMELINE_LANE_HEIGHT / 2 + 4"
+              :fill="branch.color"
+              font-size="11"
+              font-weight="600"
+              text-anchor="end"
+            >{{ branch.displayName }}</text>
+          </g>
+
+          <!-- 时间刻度 -->
+          <g v-for="tick in timelineTicks" :key="`tick-${tick.label}`">
+            <line
+              :x1="tick.x"
+              :y1="40"
+              :x2="tick.x"
+              :y2="canvasSize.height - 40"
+              stroke="#e0e0e0"
+              stroke-width="1"
+              stroke-dasharray="4,4"
+            />
+            <text
+              :x="tick.x"
+              :y="35"
+              text-anchor="middle"
+              font-size="10"
+              fill="#909399"
+            >{{ tick.label }}</text>
+          </g>
+        </g>
+
+        <!-- 有向图模式的层级线 -->
+        <g class="graph-levels" v-if="viewMode === 'graph'">
+          <g v-for="level in graphLevels" :key="`level-${level}`">
+            <line
+              :x1="50"
+              :y1="80 + level * GRAPH_ROW_HEIGHT"
+              :x2="canvasSize.width - 50"
+              :y2="80 + level * GRAPH_ROW_HEIGHT"
+              stroke="#e0e0e0"
+              stroke-width="1"
+              stroke-dasharray="5,5"
+            />
+            <text
+              :x="45"
+              :y="80 + level * GRAPH_ROW_HEIGHT + 4"
+              text-anchor="end"
+              font-size="10"
+              fill="#909399"
+            >L{{ level }}</text>
+          </g>
         </g>
 
         <!-- 连接线组 -->
@@ -309,6 +375,10 @@ const LANE_WIDTH = 180
 const LANE_SPACING = 20
 const TIME_COLUMN_WIDTH = 120
 const ROW_SPACING = 70
+const TIMELINE_LANE_HEIGHT = 80
+const TIMELINE_SPACING_X = 150
+const GRAPH_ROW_HEIGHT = 100
+const GRAPH_COLUMN_WIDTH = 200
 
 // 状态
 const containerRef = ref<HTMLElement>()
@@ -349,8 +419,9 @@ const branchColors = computed(() => {
   }))
 })
 
-// 泳道（分支垂直区域）
+// 泳道（分支垂直区域）- 仅在树形图模式下使用
 const swimlanes = computed(() => {
+  if (viewMode.value !== 'tree') return []
   return branchColors.value.map((branch, i) => ({
     ...branch,
     x: 80 + i * LANE_WIDTH,
@@ -358,9 +429,29 @@ const swimlanes = computed(() => {
   }))
 })
 
-// 核心布局算法 - 按分支和时间组织节点
+// 核心布局算法 - 根据视图模式组织节点
 const laidOutNodes = computed(() => {
   if (props.versions.length === 0) return []
+
+  if (viewMode.value === 'timeline') {
+    return layoutTimelineNodes()
+  } else if (viewMode.value === 'graph') {
+    return layoutGraphNodes()
+  } else {
+    return layoutTreeNodes()
+  }
+})
+
+// 树形图布局 - 分支泳道
+const layoutTreeNodes = () => {
+  const nodes: Array<FrontendLatexVersionNode & {
+    x: number
+    y: number
+    branchIndex: number
+    timeIndex: number
+    isBranchPoint: boolean
+    isMergePoint: boolean
+  }> = []
 
   // 按分支分组
   const branchGroups = new Map<string, FrontendLatexVersionNode[]>()
@@ -377,16 +468,6 @@ const laidOutNodes = computed(() => {
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     )
   })
-
-  // 布局节点
-  const nodes: Array<FrontendLatexVersionNode & {
-    x: number
-    y: number
-    branchIndex: number
-    timeIndex: number
-    isBranchPoint: boolean
-    isMergePoint: boolean
-  }> = []
 
   const branchIndexMap = new Map<string, number>()
   branchColors.value.forEach((b, i) => branchIndexMap.set(b.name, i))
@@ -427,6 +508,133 @@ const laidOutNodes = computed(() => {
   })
 
   return nodes
+}
+
+// 有向图布局 - 力导向风格
+const layoutGraphNodes = () => {
+  const nodes: Array<FrontendLatexVersionNode & {
+    x: number
+    y: number
+    level: number
+    position: number
+    isBranchPoint: boolean
+    isMergePoint: boolean
+  }> = []
+
+  // 按时间排序
+  const sortedVersions = [...props.versions].sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+
+  // 分层计算（根据父子关系）
+  const levels = new Map<string, number>()
+  const calculateLevel = (version: FrontendLatexVersionNode, depth = 0): number => {
+    if (levels.has(version.id)) return levels.get(version.id)!
+
+    if (!version.parentId) {
+      levels.set(version.id, 0)
+      return 0
+    }
+
+    const parent = props.versions.find(v => v.id === version.parentId)
+    if (parent) {
+      const parentLevel = calculateLevel(parent, depth + 1)
+      levels.set(version.id, parentLevel + 1)
+      return parentLevel + 1
+    }
+
+    levels.set(version.id, 0)
+    return 0
+  }
+
+  sortedVersions.forEach(v => calculateLevel(v))
+
+  // 按层分组
+  const levelGroups = new Map<number, FrontendLatexVersionNode[]>()
+  sortedVersions.forEach(v => {
+    const level = levels.get(v.id) || 0
+    if (!levelGroups.has(level)) {
+      levelGroups.set(level, [])
+    }
+    levelGroups.get(level)!.push(v)
+  })
+
+  // 计算每个层中节点的水平位置
+  const GRAPH_COLUMN_WIDTH = 200
+  const GRAPH_ROW_HEIGHT = 100
+
+  levelGroups.forEach((versionsInLevel, level) => {
+    const layerWidth = versionsInLevel.length * GRAPH_COLUMN_WIDTH
+    const startX = (canvasSize.value.width - layerWidth) / 2
+
+    versionsInLevel.forEach((v, idx) => {
+      const x = startX + idx * GRAPH_COLUMN_WIDTH + GRAPH_COLUMN_WIDTH / 2
+      const y = 80 + level * GRAPH_ROW_HEIGHT
+
+      // 检查特殊点
+      const children = props.versions.filter(child => child.parentId === v.id)
+      const isBranchPoint = children.some(c => c.branchName !== v.branchName)
+      const isMergePoint = v.parentId && props.versions.find(p => p.id === v.parentId)?.branchName !== v.branchName
+
+      nodes.push({
+        ...v,
+        x,
+        y,
+        level,
+        position: idx,
+        isBranchPoint,
+        isMergePoint
+      })
+    })
+  })
+
+  return nodes
+}
+
+// 时间轴布局 - 水平时间线
+const layoutTimelineNodes = () => {
+  const nodes: Array<FrontendLatexVersionNode & {
+    x: number
+    y: number
+    lane: number
+    isBranchPoint: boolean
+    isMergePoint: boolean
+  }> = []
+
+  // 按时间排序
+  const sortedVersions = [...props.versions].sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+
+  // 为每个分支分配泳道（水平方向）
+  const branchLaneMap = new Map<string, number>()
+  branchColors.value.forEach((b, i) => branchLaneMap.set(b.name, i))
+
+  const TIMELINE_START_X = 120
+  const TIMELINE_SPACING_X = 150
+  const TIMELINE_LANE_HEIGHT = 80
+
+  sortedVersions.forEach((v, idx) => {
+    const lane = branchLaneMap.get(v.branchName) || 0
+    const x = TIMELINE_START_X + idx * TIMELINE_SPACING_X
+    const y = 60 + lane * TIMELINE_LANE_HEIGHT
+
+    // 检查特殊点
+    const children = props.versions.filter(child => child.parentId === v.id)
+    const isBranchPoint = children.some(c => c.branchName !== v.branchName)
+    const isMergePoint = v.parentId && props.versions.find(p => p.id === v.parentId)?.branchName !== v.branchName
+
+    nodes.push({
+      ...v,
+      x,
+      y,
+      lane,
+      isBranchPoint,
+      isMergePoint
+    } as any)
+  })
+
+  return nodes
 })
 
 // 画布尺寸
@@ -435,13 +643,29 @@ const canvasSize = computed(() => {
     return { width: 800, height: 600 }
   }
 
-  const maxX = Math.max(...laidOutNodes.value.map(n => n.x)) + 100
-  const maxY = Math.max(...laidOutNodes.value.map(n => n.y)) + 100
+  let width = 800
+  let height = 600
 
-  return {
-    width: Math.max(800, maxX),
-    height: Math.max(600, maxY)
+  if (viewMode.value === 'timeline') {
+    // 时间轴模式：水平延伸
+    const nodeCount = laidOutNodes.value.length
+    width = Math.max(1200, 120 + nodeCount * TIMELINE_SPACING_X + 100)
+    height = Math.max(400, 60 + branchColors.value.length * TIMELINE_LANE_HEIGHT + 60)
+  } else if (viewMode.value === 'graph') {
+    // 有向图模式：根据层级和每层节点数
+    const maxX = Math.max(...laidOutNodes.value.map(n => n.x)) + 150
+    const maxY = Math.max(...laidOutNodes.value.map(n => n.y)) + 100
+    width = Math.max(800, maxX)
+    height = Math.max(600, maxY)
+  } else {
+    // 树形图模式：分支泳道
+    const maxX = Math.max(...laidOutNodes.value.map(n => n.x)) + 100
+    const maxY = Math.max(...laidOutNodes.value.map(n => n.y)) + 100
+    width = Math.max(800, maxX)
+    height = Math.max(600, maxY)
   }
+
+  return { width, height }
 })
 
 // 父子连接
@@ -463,17 +687,43 @@ const parentChildConnections = computed(() => {
       const isMerge = parent.branchName !== node.branchName
 
       let path: string
-      if (isMerge) {
-        // 合并连接 - 从父节点到子节点，带拐角
-        const midY = (parent.y + node.y) / 2
-        path = `M ${parent.x} ${parent.y + NODE_RADIUS}
-                L ${parent.x} ${midY}
-                L ${node.x} ${midY}
-                L ${node.x} ${node.y - NODE_RADIUS}`
+
+      if (viewMode.value === 'timeline') {
+        // 时间轴模式：水平连接
+        if (isMerge) {
+          // 跨泳道连接 - 贝塞尔曲线
+          const midX = (parent.x + node.x) / 2
+          path = `M ${parent.x + NODE_RADIUS} ${parent.y}
+                  C ${midX} ${parent.y}, ${midX} ${node.y}, ${node.x - NODE_RADIUS} ${node.y}`
+        } else {
+          // 同泳道连接 - 水平直线
+          path = `M ${parent.x + NODE_RADIUS} ${parent.y}
+                  L ${node.x - NODE_RADIUS} ${node.y}`
+        }
+      } else if (viewMode.value === 'graph') {
+        // 有向图模式：垂直层级连接
+        if (isMerge) {
+          const midX = (parent.x + node.x) / 2
+          path = `M ${parent.x} ${parent.y + NODE_RADIUS}
+                  C ${parent.x} ${parent.y + 40}, ${node.x} ${parent.y + 20}, ${node.x} ${node.y - NODE_RADIUS}`
+        } else {
+          path = `M ${parent.x} ${parent.y + NODE_RADIUS}
+                  L ${node.x} ${node.y - NODE_RADIUS}`
+        }
       } else {
-        // 同分支连接 - 直线
-        path = `M ${parent.x} ${parent.y + NODE_RADIUS}
-                L ${node.x} ${node.y - NODE_RADIUS}`
+        // 树形图模式：分支泳道连接
+        if (isMerge) {
+          // 合并连接 - 从父节点到子节点，带拐角
+          const midY = (parent.y + node.y) / 2
+          path = `M ${parent.x} ${parent.y + NODE_RADIUS}
+                  L ${parent.x} ${midY}
+                  L ${node.x} ${midY}
+                  L ${node.x} ${node.y - NODE_RADIUS}`
+        } else {
+          // 同分支连接 - 直线
+          path = `M ${parent.x} ${parent.y + NODE_RADIUS}
+                  L ${node.x} ${node.y - NODE_RADIUS}`
+        }
       }
 
       connections.push({
@@ -493,6 +743,52 @@ const parentChildConnections = computed(() => {
 // 合并连接（特殊显示）
 const mergeConnections = computed(() => {
   return parentChildConnections.value.filter(c => c.isMerge)
+})
+
+// 时间轴刻度
+const timelineTicks = computed(() => {
+  if (props.versions.length === 0 || viewMode.value !== 'timeline') return []
+
+  const timestamps = props.versions.map(v => new Date(v.timestamp).getTime())
+  const minTime = Math.min(...timestamps)
+  const maxTime = Math.max(...timestamps)
+  const timeRange = maxTime - minTime
+
+  // 生成5-8个时间刻度
+  const tickCount = Math.min(8, Math.max(5, Math.ceil(timeRange / (24 * 60 * 60 * 1000))))
+  const ticks: Array<{ x: number; label: string }> = []
+
+  const startX = 120
+  const availableWidth = canvasSize.value.width - 170
+
+  for (let i = 0; i < tickCount; i++) {
+    const time = minTime + (timeRange * i) / Math.max(1, tickCount - 1)
+    const date = new Date(time)
+    const x = startX + (availableWidth * i) / Math.max(1, tickCount - 1)
+
+    let label: string
+    if (timeRange > 30 * 24 * 60 * 60 * 1000) {
+      label = date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+    } else {
+      label = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    }
+
+    ticks.push({ x, label })
+  }
+
+  return ticks
+})
+
+// 有向图层级
+const graphLevels = computed(() => {
+  if (viewMode.value !== 'graph' || laidOutNodes.value.length === 0) return []
+
+  const levels = new Set<number>()
+  laidOutNodes.value.forEach(n => {
+    if ('level' in n) levels.add((n as any).level)
+  })
+
+  return Array.from(levels).sort((a, b) => a - b)
 })
 
 // 获取节点属性
