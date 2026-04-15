@@ -637,9 +637,6 @@ onUnmounted(() => {
     white-space: pre-wrap;
     word-break: break-all;
   }
-    font-size: 0.9em;
-    color: var(--el-color-danger);
-  }
 
   // 列表样式增强
   :deep(.latex-list) {
