@@ -126,13 +126,23 @@ async function renderLatex() {
 
     let html = contentToRender
 
-    // 过滤掉不应该在预览中显示的环境
+    // 过滤掉不应该在预览中显示的环境和命令
     // abstract环境通常出现在导言区，不直接显示在正文中
     html = html.replace(/\\begin\{abstract\}[\s\S]*?\\end\{abstract\}/gi, '')
     // 过滤掉其他常见的导言区命令
     html = html.replace(/\\title\s*\{[^}]*\}/gi, '')
     html = html.replace(/\\author\s*\{[^}]*\}/gi, '')
     html = html.replace(/\\date\s*\{[^}]*\}/gi, '')
+    html = html.replace(/\\maketitle/gi, '')
+    // 过滤掉tagging相关命令
+    html = html.replace(/\\tag\*?\s*\{[^}]*\}/gi, '')
+    html = html.replace(/\\tag\s*\*\{[^}]*\}/gi, '')
+    // 过滤掉其他文档结构命令
+    html = html.replace(/\\tableofcontents/gi, '')
+    html = html.replace(/\\listoffigures/gi, '')
+    html = html.replace(/\\listoftables/gi, '')
+    html = html.replace(/\\bibliographystyle\s*\{[^}]*\}/gi, '')
+    html = html.replace(/\\bibliography\{[^}]*\}/gi, '')
 
     // 处理行内数学公式 $...$
     if (katex) {
