@@ -2991,7 +2991,8 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 
   .preview-content {
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 
     // GPU 加速
     will-change: transform;

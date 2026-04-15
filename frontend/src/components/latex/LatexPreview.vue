@@ -521,6 +521,10 @@ onUnmounted(() => {
   line-height: 1.8;
   color: var(--el-text-color-primary);
 
+  // 确保内容可以正确滚动
+  min-height: 100%;
+  width: 100%;
+
   // KaTeX 样式调整
   :deep(.katex) {
     font-size: 1.1em;
