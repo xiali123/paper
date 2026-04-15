@@ -274,18 +274,54 @@ export async function highlightSyntax(content: string, theme = 'default') {
   const startTime = performance.now();
 
   try {
-    // Simple LaTeX syntax highlighting without external dependencies
+    // Escape HTML first
     let html = content
-      // Escape HTML first
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
 
-      // Highlight LaTeX commands
-      .replace(/(\\[a-zA-Z]+)(\{)?/g, '<span class="token keyword">$1</span>$2')
-      .replace(/(\{)([^}]+)(\})/g, '$1<span class="token string">$2</span>$3')
-      .replace(/(%[^\n]*)/g, '<span class="token comment">$1</span>')
-      .replace(/(\$\$?)([^$]+)(\$\$?)/g, '<span class="token equation">$1$2$3</span>')
+    // LaTeX语法高亮 - 按类型区分颜色
+
+    // 1. 注释 %...
+    html = html.replace(/(%[^\n]*)/g, '<span class="token comment">$1</span>')
+
+    // 2. 数学公式 $...$ 和 $$...$$
+    html = html.replace(/(\$\$)([^\$]+?)(\$\$)/g, '<span class="latex-math">$1$2$3</span>')
+    html = html.replace(/(\$)([^\$]+?)(\$)/g, '<span class="latex-math">$1$2$3</span>')
+
+    // 3. 结构命令 - section, subsection等 - 青色
+    const structureCmds = ['section', 'subsection', 'subsubsection', 'chapter', 'part', 'paragraph', 'subparagraph']
+    structureCmds.forEach(cmd => {
+      const regex = new RegExp(`(\\\\\\\\${cmd}\\*?)(\\{)`, 'g')
+      html = html.replace(regex, '<span class="latex-cmd-structure">$1</span><span class="latex-bracket">$2</span>')
+    })
+
+    // 4. 环境命令 - begin, end - 紫色
+    html = html.replace(/(\\begin\{)([a-zA-Z*]+)(\})/g, '<span class="latex-cmd-env">$1</span><span class="latex-bracket">$2</span><span class="latex-bracket">$3</span>')
+    html = html.replace(/(\\end\{)([a-zA-Z*]+)(\})/g, '<span class="latex-cmd-env">$1</span><span class="latex-bracket">$2</span><span class="latex-bracket">$3</span>')
+
+    // 5. 文本格式命令 - 黄色
+    const textCmds = ['textbf', 'textit', 'texttt', 'textsc', 'textsuperscript', 'textsubscript', 'emph', 'underline', 'textcolor', 'colorbox']
+    textCmds.forEach(cmd => {
+      const regex = new RegExp(`(\\\\\\\\${cmd})(\\{)`, 'g')
+      html = html.replace(regex, '<span class="latex-cmd-text">$1</span><span class="latex-bracket">$2</span>')
+    })
+
+    // 6. 引用命令 - 橙色
+    const refCmds = ['cite', 'ref', 'eqref', 'label', 'bibitem']
+    refCmds.forEach(cmd => {
+      const regex = new RegExp(`(\\\\\\\\${cmd})(\\{)`, 'g')
+      html = html.replace(regex, '<span class="token keyword">$1</span><span class="latex-bracket">$2</span>')
+    })
+
+    // 7. 其他LaTeX命令 - 蓝色
+    html = html.replace(/(\\[a-zA-Z]+)(\{)/g, '<span class="token keyword">$1</span><span class="latex-bracket">$2</span>')
+
+    // 8. 花括号内的内容 - 橙色
+    html = html.replace(/(\{)([^\{\}]*?)(\})/g, '$1<span class="token string">$2</span>$3')
+
+    // 9. 可选参数 [...] - 绿色
+    html = html.replace(/(\[)([^\[\]]*?)(\])/g, '<span class="latex-bracket">$1</span><span class="token string">$2</span><span class="latex-bracket">$3</span>')
 
     const endTime = performance.now();
 

@@ -2,12 +2,20 @@
   <div class="latex-editor">
     <!-- 编辑器容器 - 使用单一容器防止重影 -->
     <div class="latex-editor-container">
+      <!-- 高亮显示层 -->
+      <pre
+        v-if="showHighlight"
+        class="latex-highlight"
+        aria-hidden="true"
+        v-html="highlightedCode"
+      ></pre>
+
       <!-- 实际编辑器 (始终显示) -->
       <textarea
         ref="textareaRef"
         v-model="innerContent"
         class="latex-textarea"
-        :class="{ 'latex-textarea--highlight': showHighlight && !isFocused }"
+        :class="{ 'latex-textarea--transparent': showHighlight }"
         spellcheck="false"
         @focus="handleFocus"
         @blur="handleBlur"
@@ -78,7 +86,7 @@ const emit = defineEmits<{
 
 const textareaRef = ref<HTMLTextAreaElement>()
 const isFocused = ref(false)
-const showHighlight = ref(false) // 默认关闭语法高亮，避免重影
+const showHighlight = ref(true) // 默认启用语法高亮
 const showToolbar = ref(true)
 
 // Setup virtual scrolling for large documents
@@ -88,15 +96,11 @@ const lineHeight = 20
 // 同步处理焦点状态，确保状态更新无延迟
 function handleFocus() {
   isFocused.value = true
-  showHighlight.value = false
+  // 聚焦时保持高亮显示
 }
 
 function handleBlur() {
   isFocused.value = false
-  // 使用 nextTick 确保 DOM 更新后再显示高亮
-  nextTick(() => {
-    showHighlight.value = true
-  })
 }
 
 const innerContent = computed({
@@ -383,6 +387,75 @@ defineExpose({
   overflow: hidden;
 }
 
+// 高亮显示层 - 必须与textarea完全同步
+.latex-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 16px;
+  border: none;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: auto;
+  overflow-wrap: normal;
+  tab-size: 2;
+  pointer-events: none; // 确保点击穿透到textarea
+  z-index: 1;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+
+  // LaTeX语法高亮颜色
+  :deep(.token.keyword) {
+    color: #569cd6; // 蓝色 - 命令
+    font-weight: 500;
+  }
+
+  :deep(.token.string) {
+    color: #ce9178; // 橙色 - 参数
+  }
+
+  :deep(.token.comment) {
+    color: #6a9955; // 绿色 - 注释
+    font-style: italic;
+  }
+
+  :deep(.token.equation) {
+    color: #dcdcaa; // 黄色 - 公式
+    font-weight: 500;
+  }
+
+  // LaTeX特定命令高亮
+  :deep(.latex-cmd-structure) {
+    color: #4ec9b0; // 青色 - 结构命令
+    font-weight: 600;
+  }
+
+  :deep(.latex-cmd-text) {
+    color: #dcdcaa; // 黄色 - 文本格式
+  }
+
+  :deep(.latex-cmd-env) {
+    color: #c586c0; // 紫色 - 环境命令
+    font-weight: 600;
+  }
+
+  :deep(.latex-bracket) {
+    color: #ffd700; // 金色 - 花括号
+  }
+
+  :deep(.latex-math) {
+    color: #b5cea8; // 浅绿色 - 数学内容
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+}
+
 .latex-textarea {
   width: 100%;
   height: 100%;
@@ -402,7 +475,25 @@ defineExpose({
   overflow-y: auto;
   tab-size: 2;
   position: relative;
-  z-index: 2; // 确保在顶层
+  z-index: 2;
+  caret-color: var(--el-text-color-primary);
+
+  // 透明模式 - 显示高亮层
+  &.latex-textarea--transparent {
+    color: transparent;
+    background: transparent;
+    caret-color: var(--el-text-color-primary);
+
+    &::selection {
+      background: rgba(64, 158, 255, 0.3);
+      color: transparent;
+    }
+
+    &::placeholder {
+      color: var(--el-text-color-placeholder);
+      text-shadow: none;
+    }
+  }
 
   // 移除可能导致重影的样式
   &::placeholder {
@@ -413,6 +504,12 @@ defineExpose({
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+
+  // 文本选择样式
+  &::selection {
+    background: var(--el-color-primary-light-7);
+    color: var(--el-color-primary-contrast);
+  }
 }
 
 .latex-toolbar {
