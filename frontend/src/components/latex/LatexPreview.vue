@@ -256,13 +256,38 @@ async function renderLatex() {
     html = html.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>')
     html = html.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
 
-    // 处理换行
-    html = html.replace(/\\\\/g, '<br>')
-    html = html.replace(/\n\n/g, '</p><p>')
-    html = html.replace(/^[^<]/, '<p>$&')
+    // 处理换行 - 在段落之前处理
+    html = html.replace(/\\\\/g, '\n') // 先将LaTeX换行转为实际换行
+
+    // 按段落分割内容
+    const paragraphs = html.split(/\n\n+/).filter((p: string) => p.trim())
+
+    // 处理每个段落
+    html = paragraphs.map((para: string) => {
+      // 检查是否已经被HTML标签包裹（如表格、列表等）
+      if (para.trim().startsWith('<') && !para.trim().startsWith('<p>')) {
+        return para
+      }
+      // 普通文本段落
+      return `<p>${para}</p>`
+    }).join('\n')
+
+    // 清理未处理的LaTeX命令 - 标记为灰色
+    html = html.replace(/\\[a-zA-Z]+(?:\[[^\]]*\])?\{[^}]*\}/g, (match) => {
+      // 跳过已处理的命令（已经被替换为HTML）
+      if (match.startsWith('<')) return match
+      return `<code class="unprocessed-latex" title="未处理的LaTeX命令">${match}</code>`
+    })
+
+    // 处理剩余的换行
+    html = html.replace(/\n/g, '<br>')
 
     // 使用DOMPurify清理HTML
-    renderedHtml.value = DOMPurify.sanitize(html)
+    renderedHtml.value = DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 'sub', 'sup', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 'table', 'tbody', 'thead', 'tr', 'td', 'th', 'figure', 'figcaption', 'img', 'span', 'a', 'div', 'sup', 'sub', 'center'],
+      ALLOWED_ATTR: ['class', 'id', 'style', 'href', 'title', 'src', 'alt', 'loading', 'onerror', 'target'],
+      ALLOW_DATA_ATTR: false
+    })
     renderError.value = null
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
@@ -599,6 +624,19 @@ onUnmounted(() => {
     border: 1px solid var(--el-border-color-light);
     border-radius: 3px;
     font-family: 'Courier New', monospace;
+  }
+
+  :deep(.unprocessed-latex) {
+    padding: 2px 4px;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #856404;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
     font-size: 0.9em;
     color: var(--el-color-danger);
   }
