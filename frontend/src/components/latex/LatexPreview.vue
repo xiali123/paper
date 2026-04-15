@@ -23,6 +23,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { Files } from '@element-plus/icons-vue'
 import DOMPurify from 'dompurify'
 import { performanceMonitor, checkPerformanceThreshold, PERFORMANCE_THRESHOLDS } from '@/utils/performance'
 import { debounce } from '@/utils/performance'
@@ -55,7 +56,7 @@ async function renderLatex() {
 
   isRendering.value = true
 
-  const contentToRender = props.content?.trim()
+  let contentToRender = props.content?.trim()
 
   if (!contentToRender) {
     renderedHtml.value = ''
@@ -78,6 +79,37 @@ async function renderLatex() {
         if (import.meta.env.DEV) {
           console.warn('[LatexPreview] KaTeX import failed:', e)
         }
+      }
+    }
+
+    // 过滤LaTeX导言区 - 只渲染 \begin{document} 之后的内容
+    const documentBeginMatch = contentToRender.match(/\\begin\{document\}([\s\S]*)/i)
+    if (documentBeginMatch) {
+      // 有 \begin{document}，只渲染之后的内容
+      contentToRender = documentBeginMatch[1]
+      // 移除 \end{document}
+      contentToRender = contentToRender.replace(/\\end\{document\}.*$/i, '')
+    } else {
+      // 没有 \begin{document}，检查是否是完整文档结构
+      const documentClassMatch = contentToRender.match(/\\documentclass\{[^}]+\}/i)
+      if (documentClassMatch) {
+        // 这是导言区或只有配置的文档，显示提示
+        renderedHtml.value = `
+          <div class="latex-preamble-info">
+            <el-empty description="请输入 \\begin{document} 之后的内容">
+              <template #image>
+                <el-icon :size="60"><Files /></el-icon>
+              </template>
+            </el-empty>
+            <div class="preamble-hint">
+              <p><strong>提示：</strong>LaTeX导言区（\\documentclass、\\usepackage等）不会显示在预览中</p>
+              <p>请在 <code>\\begin{document}</code> 之后输入文档内容</p>
+            </div>
+          </div>
+        `
+        endTimer()
+        isRendering.value = false
+        return
       }
     }
 
@@ -393,6 +425,45 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
+}
+
+.latex-preamble-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+  text-align: center;
+
+  .preamble-hint {
+    max-width: 500px;
+    margin: 24px auto 0;
+    padding: 20px;
+    background: var(--el-fill-color-light);
+    border-radius: 8px;
+    text-align: left;
+
+    p {
+      margin: 8px 0;
+      font-size: 14px;
+      color: var(--el-text-color-regular);
+      line-height: 1.6;
+
+      &:first-child {
+        margin-top: 0;
+      }
+
+      code {
+        padding: 2px 6px;
+        background: var(--el-fill-color);
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        color: var(--el-color-primary);
+      }
+    }
+  }
 }
 
 .preview-error {
