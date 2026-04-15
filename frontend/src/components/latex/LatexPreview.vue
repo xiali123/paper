@@ -333,11 +333,34 @@ async function renderLatex() {
       return `<p>${para}</p>`
     }).join('\n')
 
-    // 清理未处理的LaTeX命令 - 标记为灰色
-    html = html.replace(/\\[a-zA-Z]+(?:\[[^\]]*\])?\{[^}]*\}/g, (match) => {
+    // 清理未处理的LaTeX命令 - 使用不同颜色区分类型
+    html = html.replace(/\\([a-zA-Z]+)(\*)?(?:\[[^\]]*\])?\{[^}]*\}/g, (match, cmd, star) => {
       // 跳过已处理的命令（已经被替换为HTML）
       if (match.startsWith('<')) return match
-      return `<code class="unprocessed-latex" title="未处理的LaTeX命令">${match}</code>`
+
+      const fullCmd = cmd + (star || '')
+      let colorClass = 'unprocessed-latex-default'
+
+      // 根据命令类型分配颜色
+      if (['section', 'subsection', 'subsubsection', 'chapter', 'part', 'paragraph', 'subparagraph'].includes(fullCmd)) {
+        colorClass = 'unprocessed-latex-structure' // 蓝色 - 结构命令
+      } else if (['textbf', 'textit', 'texttt', 'textsc', 'textsuperscript', 'textsubscript', 'emph', 'underline', 'textcolor', 'colorbox'].includes(fullCmd)) {
+        colorClass = 'unprocessed-latex-text' // 绿色 - 文本格式
+      } else if (['begin', 'end'].includes(cmd)) {
+        colorClass = 'unprocessed-latex-env' // 紫色 - 环境命令
+      } else if (['cite', 'ref', 'eqref', 'label', 'bibitem', 'bibliography', 'bibliographystyle'].includes(fullCmd)) {
+        colorClass = 'unprocessed-latex-ref' // 橙色 - 引用命令
+      } else if (['include', 'input', 'includegraphics'].includes(fullCmd)) {
+        colorClass = 'unprocessed-latex-file' // 青色 - 文件命令
+      } else if (['caption', 'footnote', 'marginpar'].includes(fullCmd)) {
+        colorClass = 'unprocessed-latex-meta' // 粉色 - 元数据
+      } else if (['newcommand', 'renewcommand', 'providecommand', 'newenvironment', 'renewenvironment'].includes(fullCmd)) {
+        colorClass = 'unprocessed-latex-def' // 红色 - 定义命令
+      } else if (['hspace', 'vspace', 'rule', 'linebreak', 'pagebreak', 'noindent', 'indent', 'par', 'newline'].includes(fullCmd)) {
+        colorClass = 'unprocessed-latex-spacing' // 灰色 - 间距命令
+      }
+
+      return `<code class="unprocessed-latex ${colorClass}" title="未处理的LaTeX命令: \\${fullCmd}">${match}</code>`
     })
 
     // 处理剩余的换行
@@ -747,15 +770,82 @@ onUnmounted(() => {
   }
 
   :deep(.unprocessed-latex) {
-    padding: 2px 4px;
-    background-color: #fff3cd;
-    border: 1px solid #ffc107;
-    border-radius: 3px;
-    font-family: 'Courier New', monospace;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 0.9em;
-    color: #856404;
     white-space: pre-wrap;
     word-break: break-all;
+    font-weight: 500;
+    transition: all 0.2s;
+
+    &:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    // 默认样式 - 黄色
+    &.unprocessed-latex-default {
+      background: linear-gradient(135deg, #fff9e6 0%, #ffe8a1 100%);
+      border: 1px solid #ffc107;
+      color: #856404;
+    }
+
+    // 结构命令 - 蓝色 (section, subsection等)
+    &.unprocessed-latex-structure {
+      background: linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%);
+      border: 1px solid #2196f3;
+      color: #0d47a1;
+    }
+
+    // 文本格式 - 绿色 (textbf, textit等)
+    &.unprocessed-latex-text {
+      background: linear-gradient(135deg, #e8f5e9 0%, #a5d6a7 100%);
+      border: 1px solid #4caf50;
+      color: #1b5e20;
+    }
+
+    // 环境命令 - 紫色 (begin, end)
+    &.unprocessed-latex-env {
+      background: linear-gradient(135deg, #f3e5f5 0%, #ce93d8 100%);
+      border: 1px solid #9c27b0;
+      color: #4a148c;
+    }
+
+    // 引用命令 - 橙色 (cite, ref, eqref等)
+    &.unprocessed-latex-ref {
+      background: linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%);
+      border: 1px solid #ff9800;
+      color: #e65100;
+    }
+
+    // 文件命令 - 青色 (include, input等)
+    &.unprocessed-latex-file {
+      background: linear-gradient(135deg, #e0f7fa 0%, #80deea 100%);
+      border: 1px solid #00bcd4;
+      color: #006064;
+    }
+
+    // 元数据 - 粉色 (caption, footnote等)
+    &.unprocessed-latex-meta {
+      background: linear-gradient(135deg, #fce4ec 0%, #f48fb1 100%);
+      border: 1px solid #e91e63;
+      color: #880e4f;
+    }
+
+    // 定义命令 - 红色 (newcommand等)
+    &.unprocessed-latex-def {
+      background: linear-gradient(135deg, #ffebee 0%, #ef9a9a 100%);
+      border: 1px solid #f44336;
+      color: #b71c1c;
+    }
+
+    // 间距命令 - 灰色 (hspace, vspace等)
+    &.unprocessed-latex-spacing {
+      background: linear-gradient(135deg, #f5f5f5 0%, #bdbdbd 100%);
+      border: 1px solid #9e9e9e;
+      color: #424242;
+    }
   }
 
   // 列表样式增强
