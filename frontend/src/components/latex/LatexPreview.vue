@@ -102,8 +102,19 @@ async function renderLatex() {
               </template>
             </el-empty>
             <div class="preamble-hint">
-              <p><strong>提示：</strong>LaTeX导言区（\\documentclass、\\usepackage等）不会显示在预览中</p>
-              <p>请在 <code>\\begin{document}</code> 之后输入文档内容</p>
+              <p><strong>不会显示的内容：</strong></p>
+              <ul class="preamble-list">
+                <li><code>\\documentclass</code> - 文档类声明</li>
+                <li><code>\\usepackage</code> - 宏包引用</li>
+                <li><code>\\begin{abstract}</code> - 摘要环境</li>
+                <li><code>\\title</code>, <code>\\author</code>, <code>\\date</code> - 文档元数据</li>
+                <li><code>\\maketitle</code> - 标题生成命令</li>
+              </ul>
+              <p><strong>预览仅显示：</strong></p>
+              <ul class="preamble-list">
+                <li><code>\\begin{document}</code> 之后的正文内容</li>
+                <li>章节、段落、公式、图表等</li>
+              </ul>
             </div>
           </div>
         `
@@ -114,6 +125,14 @@ async function renderLatex() {
     }
 
     let html = contentToRender
+
+    // 过滤掉不应该在预览中显示的环境
+    // abstract环境通常出现在导言区，不直接显示在正文中
+    html = html.replace(/\\begin\{abstract\}[\s\S]*?\\end\{abstract\}/gi, '')
+    // 过滤掉其他常见的导言区命令
+    html = html.replace(/\\title\s*\{[^}]*\}/gi, '')
+    html = html.replace(/\\author\s*\{[^}]*\}/gi, '')
+    html = html.replace(/\\date\s*\{[^}]*\}/gi, '')
 
     // 处理行内数学公式 $...$
     if (katex) {
@@ -461,6 +480,22 @@ onUnmounted(() => {
         font-family: 'Courier New', monospace;
         font-size: 13px;
         color: var(--el-color-primary);
+      }
+    }
+
+    .preamble-list {
+      margin: 12px 0;
+      padding-left: 20px;
+      text-align: left;
+
+      li {
+        margin: 6px 0;
+        font-size: 13px;
+        color: var(--el-text-color-regular);
+
+        code {
+          margin-left: 4px;
+        }
       }
     }
   }
