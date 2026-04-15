@@ -172,40 +172,34 @@ async function renderLatex() {
       })
     }
 
-    // 处理LaTeX结构 - 保留标签显示
-    html = html.replace(/\\(section)\*?\{([^}]+)\}/g, (_match, cmd, content) => {
-      return `<h2><code class="latex-tag unprocessed-latex-structure">\\${cmd}</code> ${content}</h2>`
-    })
-    html = html.replace(/\\(subsection)\*?\{([^}]+)\}/g, (_match, cmd, content) => {
-      return `<h3><code class="latex-tag unprocessed-latex-structure">\\${cmd}</code> ${content}</h3>`
-    })
-    html = html.replace(/\\(subsubsection)\*?\{([^}]+)\}/g, (_match, cmd, content) => {
-      return `<h4><code class="latex-tag unprocessed-latex-structure">\\${cmd}</code> ${content}</h4>`
-    })
+    // 处理LaTeX结构
+    html = html.replace(/\\section\*?\{([^}]+)\}/g, '<h2>$1</h2>')
+    html = html.replace(/\\subsection\*?\{([^}]+)\}/g, '<h3>$1</h3>')
+    html = html.replace(/\\subsubsection\*?\{([^}]+)\}/g, '<h4>$1</h4>')
 
-    // 处理文本格式 - 保留标签显示
-    html = html.replace(/\\(textbf)\{([^}]+)\}/g, '<strong><code class="latex-tag unprocessed-latex-text">\\$1</code></strong> $2</strong>')
-    html = html.replace(/\\(textit)\{([^}]+)\}/g, '<em><code class="latex-tag unprocessed-latex-text">\\$1</code></em> $2</em>')
-    html = html.replace(/\\(emph)\{([^}]+)\}/g, '<em><code class="latex-tag unprocessed-latex-text">\\$1</code></em> $2</em>')
-    html = html.replace(/\\(underline)\{([^}]+)\}/g, '<u><code class="latex-tag unprocessed-latex-text">\\$1</code></u> $2</u>')
+    // 处理文本格式
+    html = html.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+    html = html.replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+    html = html.replace(/\\underline\{([^}]+)\}/g, '<u>$1</u>')
+    html = html.replace(/\\emph\{([^}]+)\}/g, '<em>$1</em>')
 
-    // 处理列表 - 显示环境标签
-    html = html.replace(/\\begin\{(itemize)\}([\s\S]*?)\\end\{itemize\}/g, (_match, env, content) => {
+    // 处理列表
+    html = html.replace(/\\begin\{itemize\}([\s\S]*?)\\end\{itemize\}/g, (_match, content) => {
       const items = content.split('\\item').filter((s: string) => s.trim())
-      return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{${env}}</code><ul class="latex-list">` + items.map((item: string) => `<li>${item}</li>`).join('') + '</ul><code class="latex-tag unprocessed-latex-env">\\end{${env}}</code></div>'
+      return '<ul class="latex-list">' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ul>'
     })
 
-    html = html.replace(/\\begin\{(enumerate)\}([\s\S]*?)\\end\{enumerate\}/g, (_match, env, content) => {
+    html = html.replace(/\\begin\{enumerate\}([\s\S]*?)\\end\{enumerate\}/g, (_match, content) => {
       const items = content.split('\\item').filter((s: string) => s.trim())
-      return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{${env}}</code><ol class="latex-list">` + items.map((item: string) => `<li>${item}</li>`).join('') + '</ol><code class="latex-tag unprocessed-latex-env">\\end{${env}}</code></div>'
+      return '<ol class="latex-list">' + items.map((item: string) => `<li>${item}</li>`).join('') + '</ol>'
     })
 
     // ==========================================
-    // 处理表格环境 - 显示标签
+    // 处理表格环境
     // ==========================================
     html = html.replace(/\\begin\{tabular\}\{[^}]*\}([\s\S]*?)\\end\{tabular\}/g, (_match, content) => {
       const rows = content.split('\\\\').filter((s: string) => s.trim())
-      let tableHtml = '<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{tabular}</code><table class="latex-table"><tbody>'
+      let tableHtml = '<table class="latex-table"><tbody>'
       rows.forEach((row: string) => {
         const cells = row.split('&').map((cell: string) => cell.trim()).filter((c: string) => c)
         if (cells.length > 0) {
@@ -216,7 +210,7 @@ async function renderLatex() {
           tableHtml += '</tr>'
         }
       })
-      tableHtml += '</tbody></table><code class="latex-tag unprocessed-latex-env">\\end{tabular}</code></div>'
+      tableHtml += '</tbody></table>'
       return tableHtml
     })
 
@@ -224,34 +218,35 @@ async function renderLatex() {
       const captionMatch = content.match(/\\caption\{([^}]+)\}/)
       const caption = captionMatch ? captionMatch[1] : ''
       const tabularContent = content.replace(/\\caption\{[^}]+\}/g, '').replace(/\\centering/g, '').replace(/\\hline/g, '')
-      return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{table}</code><figure class="latex-figure">${tabularContent}${caption ? `<figcaption><code class="latex-tag unprocessed-latex-meta">\\caption</code> ${caption}</figcaption>` : ''}</figure><code class="latex-tag unprocessed-latex-env">\\end{table}</code></div>`
+      return `<figure class="latex-figure">${tabularContent}${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`
     })
 
     // ==========================================
-    // 处理图片环境 - 显示标签
+    // 处理图片环境
     // ==========================================
-    html = html.replace(/\\(includegraphics)(?:\[[^\]]*\])?\{([^}]+)\}/g, (_match, cmd, path) => {
+    html = html.replace(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g, (_match, path) => {
       const alt = path.split('/').pop() || path
-      return `<span class="latex-image-wrapper"><code class="latex-tag unprocessed-latex-file">\\${cmd}</code><img src="${path}" alt="${alt}" class="latex-image" loading="lazy" onerror="this.style.display='none';this.nextElementSibling?.style.display='inline';" /><span style="display:none;color:var(--el-color-warning);font-size:0.9em;">[图片: ${alt}]</span></span>`
+      return `<img src="${path}" alt="${alt}" class="latex-image" loading="lazy" onerror="this.style.display='none';this.nextElementSibling?.style.display='inline';" /><span style="display:none;color:var(--el-color-warning);font-size:0.9em;">[图片: ${alt}]</span>`
     })
 
     html = html.replace(/\\begin\{figure\}([\s\S]*?)\\end\{figure\}/g, (_match, content) => {
       const captionMatch = content.match(/\\caption\{([^}]+)\}/)
       const caption = captionMatch ? captionMatch[1] : ''
-      const imageHtml = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/g)?.[0] || ''
+      const imageMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/)
+      const imageHtml = imageMatch ? _match : ''
       const cleanContent = content
         .replace(/\\caption\{[^}]+\}/g, '')
         .replace(/\\centering/g, '')
         .replace(/\\includegraphics[^}]*\}/g, '')
-      return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{figure}</code><figure class="latex-figure latex-figure-float">${imageHtml}${caption ? `<figcaption><code class="latex-tag unprocessed-latex-meta">\\caption</code> ${caption}</figcaption>` : ''}</figure><code class="latex-tag unprocessed-latex-env">\\end{figure}</code></div>`
+      return `<figure class="latex-figure latex-figure-float">${imageHtml}${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`
     })
 
     // ==========================================
-    // 处理引用和参考文献 - 显示标签
+    // 处理引用和参考文献
     // ==========================================
-    html = html.replace(/\\(cite)\{([^}]+)\}/g, '<span class="latex-cite"><code class="latex-tag unprocessed-latex-ref">\\$1</code><a href="#ref-$2" title="引用: $2">[$2]</a></span>')
-    html = html.replace(/\\(ref)\{([^}]+)\}/g, '<a href="#$2" class="latex-ref"><code class="latex-tag unprocessed-latex-ref">\\$1</code>[$2]</a>')
-    html = html.replace(/\\(eqref)\{([^}]+)\}/g, '<a href="#$2" class="latex-ref latex-eqref"><code class="latex-tag unprocessed-latex-ref">\\$1</code>($2)</a>')
+    html = html.replace(/\\cite\{([^}]+)\}/g, '<span class="latex-cite" title="引用: $1">[$1]</span>')
+    html = html.replace(/\\ref\{([^}]+)\}/g, '<a href="#$1" class="latex-ref" title="引用: $1">[$1]</a>')
+    html = html.replace(/\\eqref\{([^}]+)\}/g, '<a href="#$1" class="latex-ref latex-eqref" title="公式引用: $1">($1)</a>')
 
     html = html.replace(/\\begin\{thebibliography\}\{[^}]*\}([\s\S]*?)\\end\{thebibliography\}/g, (_match, content) => {
       const items = content.split('\\bibitem').filter((s: string) => s.trim())
@@ -277,7 +272,7 @@ async function renderLatex() {
           const num = math.match(/\\tag\{([^}]+)\}/)
           const cleanMath = math.replace(/\\tag\{[^}]+\}/, '').trim()
           const rendered = katex.renderToString(cleanMath, { displayMode: true, throwOnError: false })
-          return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{equation}</code><div class="math-display math-numbered">${rendered}${num ? `<span class="equation-number">(${num[1]})</span>` : ''}</div><code class="latex-tag unprocessed-latex-env">\\end{equation}</code></div>`
+          return `<div class="math-display math-numbered">${rendered}${num ? `<span class="equation-number">(${num[1]})</span>` : ''}</div>`
         } catch (e) {
           return `<div class="math-display">\\begin{equation}${math}\\end{equation}</div>`
         }
@@ -290,10 +285,10 @@ async function renderLatex() {
         try {
           const cleanMath = math.replace(/\\label\{[^}]+\}/g, '').replace(/\\tag\{[^}]+\}/g, '').trim()
           const lines = cleanMath.split('\\\\').filter((s: string) => s.trim())
-          return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{align}</code><div class="math-align">` + lines.map((line: string) => {
+          return '<div class="math-align">' + lines.map((line: string) => {
             const rendered = katex.renderToString(line.trim(), { displayMode: true, throwOnError: false })
             return `<div class="math-align-row">${rendered}</div>`
-          }).join('') + '</div><code class="latex-tag unprocessed-latex-env">\\end{align}</code></div>'
+          }).join('') + '</div>'
         } catch (e) {
           return `<div class="math-display">\\begin{align}${math}\\end{align}</div>`
         }
@@ -302,25 +297,23 @@ async function renderLatex() {
     })
 
     // ==========================================
-    // 处理其他环境 - 显示标签
+    // 处理其他环境
     // ==========================================
-    html = html.replace(/\\begin\{quote\}([\s\S]*?)\\end\{quote\}/g, (_match, content) => {
-      return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{quote}</code><blockquote class="latex-quote">${content}</blockquote><code class="latex-tag unprocessed-latex-env">\\end{quote}</code></div>`
-    })
+    html = html.replace(/\\begin\{quote\}([\s\S]*?)\\end\{quote\}/g, '<blockquote class="latex-quote">$1</blockquote>')
     html = html.replace(/\\begin\{verbatim\}([\s\S]*?)\\end\{verbatim\}/g, (_match, content) => {
-      return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{verbatim}</code><pre class="latex-verbatim"><code>${content}</code></pre><code class="latex-tag unprocessed-latex-env">\\end{verbatim}</code></div>`
+      return `<pre class="latex-verbatim"><code>${content}</code></pre>`
     })
     html = html.replace(/\\begin\{verbatim\*?\}([\s\S]*?)\\end\{verbatim\*?\}/g, (_match, content) => {
-      return `<div class="latex-env-wrapper"><code class="latex-tag unprocessed-latex-env">\\begin{verbatim*}</code><pre class="latex-verbatim"><code>${content}</code></pre><code class="latex-tag unprocessed-latex-env">\\end{verbatim*}</code></div>`
+      return `<pre class="latex-verbatim"><code>${content}</code></pre>`
     })
 
     // ==========================================
-    // 处理更多文本格式 - 显示标签
+    // 处理更多文本格式
     // ==========================================
-    html = html.replace(/\\(texttt)\{([^}]+)\}/g, '<code class="inline-code"><code class="latex-tag unprocessed-latex-text">\\$1</code>$2</code>')
-    html = html.replace(/\\(textsc)\{([^}]+)\}/g, '<span style="font-variant: small-caps;"><code class="latex-tag unprocessed-latex-text">\\$1</code>$2</span>')
-    html = html.replace(/\\(textsuperscript)\{([^}]+)\}/g, '<sup><code class="latex-tag unprocessed-latex-text">\\$1</code>$2</sup>')
-    html = html.replace(/\\(textsubscript)\{([^}]+)\}/g, '<sub><code class="latex-tag unprocessed-latex-text">\\$1</code>$2</sub>')
+    html = html.replace(/\\texttt\{([^}]+)\}/g, '<code class="inline-code">$1</code>')
+    html = html.replace(/\\textsc\{([^}]+)\}/g, '<span style="font-variant: small-caps;">$1</span>')
+    html = html.replace(/\\textsuperscript\{([^}]+)\}/g, '<sup>$1</sup>')
+    html = html.replace(/\\textsubscript\{([^}]+)\}/g, '<sub>$1</sub>')
     html = html.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>')
     html = html.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
 
@@ -340,34 +333,11 @@ async function renderLatex() {
       return `<p>${para}</p>`
     }).join('\n')
 
-    // 清理未处理的LaTeX命令 - 使用不同颜色区分类型
-    html = html.replace(/\\([a-zA-Z]+)(\*)?(?:\[[^\]]*\])?\{[^}]*\}/g, (match, cmd, star) => {
+    // 清理未处理的LaTeX命令 - 标记为灰色
+    html = html.replace(/\\[a-zA-Z]+(?:\[[^\]]*\])?\{[^}]*\}/g, (match) => {
       // 跳过已处理的命令（已经被替换为HTML）
       if (match.startsWith('<')) return match
-
-      const fullCmd = cmd + (star || '')
-      let colorClass = 'unprocessed-latex-default'
-
-      // 根据命令类型分配颜色
-      if (['section', 'subsection', 'subsubsection', 'chapter', 'part', 'paragraph', 'subparagraph'].includes(fullCmd)) {
-        colorClass = 'unprocessed-latex-structure' // 蓝色 - 结构命令
-      } else if (['textbf', 'textit', 'texttt', 'textsc', 'textsuperscript', 'textsubscript', 'emph', 'underline', 'textcolor', 'colorbox'].includes(fullCmd)) {
-        colorClass = 'unprocessed-latex-text' // 绿色 - 文本格式
-      } else if (['begin', 'end'].includes(cmd)) {
-        colorClass = 'unprocessed-latex-env' // 紫色 - 环境命令
-      } else if (['cite', 'ref', 'eqref', 'label', 'bibitem', 'bibliography', 'bibliographystyle'].includes(fullCmd)) {
-        colorClass = 'unprocessed-latex-ref' // 橙色 - 引用命令
-      } else if (['include', 'input', 'includegraphics'].includes(fullCmd)) {
-        colorClass = 'unprocessed-latex-file' // 青色 - 文件命令
-      } else if (['caption', 'footnote', 'marginpar'].includes(fullCmd)) {
-        colorClass = 'unprocessed-latex-meta' // 粉色 - 元数据
-      } else if (['newcommand', 'renewcommand', 'providecommand', 'newenvironment', 'renewenvironment'].includes(fullCmd)) {
-        colorClass = 'unprocessed-latex-def' // 红色 - 定义命令
-      } else if (['hspace', 'vspace', 'rule', 'linebreak', 'pagebreak', 'noindent', 'indent', 'par', 'newline'].includes(fullCmd)) {
-        colorClass = 'unprocessed-latex-spacing' // 灰色 - 间距命令
-      }
-
-      return `<code class="unprocessed-latex ${colorClass}" title="未处理的LaTeX命令: \\${fullCmd}">${match}</code>`
+      return `<code class="unprocessed-latex" title="未处理的LaTeX命令">${match}</code>`
     })
 
     // 处理剩余的换行
@@ -632,22 +602,11 @@ onUnmounted(() => {
   // ==========================================
   // 图片样式
   // ==========================================
-  :deep(.latex-image-wrapper) {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0.5em 0;
-
-    .latex-tag {
-      flex-shrink: 0;
-    }
-  }
-
   :deep(.latex-image) {
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 0;
+    margin: 1em auto;
     border-radius: 4px;
   }
 
@@ -788,82 +747,15 @@ onUnmounted(() => {
   }
 
   :deep(.unprocessed-latex) {
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    padding: 2px 4px;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
     font-size: 0.9em;
+    color: #856404;
     white-space: pre-wrap;
     word-break: break-all;
-    font-weight: 500;
-    transition: all 0.2s;
-
-    &:hover {
-      transform: scale(1.05);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    // 默认样式 - 黄色
-    &.unprocessed-latex-default {
-      background: linear-gradient(135deg, #fff9e6 0%, #ffe8a1 100%);
-      border: 1px solid #ffc107;
-      color: #856404;
-    }
-
-    // 结构命令 - 蓝色 (section, subsection等)
-    &.unprocessed-latex-structure {
-      background: linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%);
-      border: 1px solid #2196f3;
-      color: #0d47a1;
-    }
-
-    // 文本格式 - 绿色 (textbf, textit等)
-    &.unprocessed-latex-text {
-      background: linear-gradient(135deg, #e8f5e9 0%, #a5d6a7 100%);
-      border: 1px solid #4caf50;
-      color: #1b5e20;
-    }
-
-    // 环境命令 - 紫色 (begin, end)
-    &.unprocessed-latex-env {
-      background: linear-gradient(135deg, #f3e5f5 0%, #ce93d8 100%);
-      border: 1px solid #9c27b0;
-      color: #4a148c;
-    }
-
-    // 引用命令 - 橙色 (cite, ref, eqref等)
-    &.unprocessed-latex-ref {
-      background: linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%);
-      border: 1px solid #ff9800;
-      color: #e65100;
-    }
-
-    // 文件命令 - 青色 (include, input等)
-    &.unprocessed-latex-file {
-      background: linear-gradient(135deg, #e0f7fa 0%, #80deea 100%);
-      border: 1px solid #00bcd4;
-      color: #006064;
-    }
-
-    // 元数据 - 粉色 (caption, footnote等)
-    &.unprocessed-latex-meta {
-      background: linear-gradient(135deg, #fce4ec 0%, #f48fb1 100%);
-      border: 1px solid #e91e63;
-      color: #880e4f;
-    }
-
-    // 定义命令 - 红色 (newcommand等)
-    &.unprocessed-latex-def {
-      background: linear-gradient(135deg, #ffebee 0%, #ef9a9a 100%);
-      border: 1px solid #f44336;
-      color: #b71c1c;
-    }
-
-    // 间距命令 - 灰色 (hspace, vspace等)
-    &.unprocessed-latex-spacing {
-      background: linear-gradient(135deg, #f5f5f5 0%, #bdbdbd 100%);
-      border: 1px solid #9e9e9e;
-      color: #424242;
-    }
   }
 
   // 列表样式增强
@@ -874,93 +766,6 @@ onUnmounted(() => {
     li {
       margin: 0.4em 0;
       line-height: 1.6;
-    }
-  }
-
-  // LaTeX标签样式 - 渲染内容中保留的命令标签
-  :deep(.latex-tag) {
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 0.85em;
-    font-weight: 500;
-    margin-right: 4px;
-    white-space: nowrap;
-    display: inline-block;
-
-    // 结构命令标签 - 蓝色
-    &.unprocessed-latex-structure {
-      background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-      color: #fff;
-      border: 1px solid #1565c0;
-    }
-
-    // 文本格式标签 - 绿色
-    &.unprocessed-latex-text {
-      background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
-      color: #fff;
-      border: 1px solid #2e7d32;
-    }
-
-    // 环境标签 - 紫色
-    &.unprocessed-latex-env {
-      background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
-      color: #fff;
-      border: 1px solid #6a1b9a;
-    }
-
-    // 引用标签 - 橙色
-    &.unprocessed-latex-ref {
-      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-      color: #fff;
-      border: 1px solid #e65100;
-    }
-
-    // 文件标签 - 青色
-    &.unprocessed-latex-file {
-      background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
-      color: #fff;
-      border: 1px solid #00838f;
-    }
-
-    // 元数据标签 - 粉色
-    &.unprocessed-latex-meta {
-      background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
-      color: #fff;
-      border: 1px solid #ad1457;
-    }
-
-    // 定义标签 - 红色
-    &.unprocessed-latex-def {
-      background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-      color: #fff;
-      border: 1px solid #c62828;
-    }
-
-    // 间距标签 - 灰色
-    &.unprocessed-latex-spacing {
-      background: linear-gradient(135deg, #757575 0%, #616161 100%);
-      color: #fff;
-      border: 1px solid #424242;
-    }
-  }
-
-  // 环境包装器样式
-  :deep(.latex-env-wrapper) {
-    margin: 1em 0;
-    padding: 0.5em;
-    border-left: 3px solid #9c27b0;
-    background: rgba(156, 39, 176, 0.03);
-    border-radius: 4px;
-
-    .latex-tag {
-      display: block;
-      margin: 0.5em 0;
-      font-size: 0.9em;
-    }
-
-    ul, ol {
-      margin: 0.5em 0;
     }
   }
 
