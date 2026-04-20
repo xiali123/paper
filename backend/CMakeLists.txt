@@ -973,6 +973,12 @@ add_dynamic_module_with_system(LatexApiModule
     src/business/LatexApiModule.cpp
 )
 target_include_directories(LatexApiModule PRIVATE ${EXTERNAL_DIR})
+if(WIN32)
+    target_include_directories(LatexApiModule PRIVATE ${CURL_DIR}/include) # OpenSSL headers
+elseif(UNIX)
+    # Linux: OpenSSL通常在/usr/include/openssl
+    # 如果需要自定义路径，可以在这里添加
+endif()
 
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）
 # ============================================================================

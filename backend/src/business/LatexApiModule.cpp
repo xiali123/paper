@@ -10,6 +10,8 @@
 #include <filesystem>
 #include <iomanip>
 #include <random>
+#include <openssl/sha.h>
+#include <openssl/evp.h>
 
 namespace PaperCrawler {
 
@@ -27,6 +29,7 @@ public:
     std::map<std::string, LatexUserQuota> userQuotas_;
     std::vector<LatexCompilationRecord> compilationRecords_;
     std::string pdfDirectory_;
+    std::string cacheDirectory_;  // PDF缓存目录
     int nextDocumentId_{1};
     int nextProjectId_{1};
     int nextTemplateId_{1};
@@ -42,7 +45,9 @@ public:
     explicit Impl(std::shared_ptr<IDatabase> database)
         : database_(database) {
         pdfDirectory_ = "output/pdfs";
+        cacheDirectory_ = "cache/pdf";
         std::filesystem::create_directories(pdfDirectory_);
+        std::filesystem::create_directories(cacheDirectory_);
     }
 
     std::string escapeJson(const std::string& str) {
@@ -76,6 +81,104 @@ public:
 
     std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "") {
         return buildJsonResponse(200, success, message, data);
+    }
+
+    // 计算内容的SHA256哈希
+    std::string computeContentHash(const std::string& content) {
+        EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+        const EVP_MD* md = EVP_sha256();
+        unsigned char hash[EVP_MAX_MD_SIZE];
+        unsigned int hashLen;
+
+        if (mdctx == nullptr) {
+            return "";
+        }
+
+        if (EVP_DigestInit_ex(mdctx, md, nullptr) != 1) {
+            EVP_MD_CTX_free(mdctx);
+            return "";
+        }
+
+        if (EVP_DigestUpdate(mdctx, content.c_str(), content.size()) != 1) {
+            EVP_MD_CTX_free(mdctx);
+            return "";
+        }
+
+        if (EVP_DigestFinal_ex(mdctx, hash, &hashLen) != 1) {
+            EVP_MD_CTX_free(mdctx);
+            return "";
+        }
+
+        EVP_MD_CTX_free(mdctx);
+
+        // 转换为十六进制字符串
+        std::ostringstream ss;
+        for (unsigned int i = 0; i < hashLen; i++) {
+            ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+        }
+
+        return ss.str();
+    }
+
+    // 检查缓存是否存在
+    std::string checkPdfCache(const std::string& contentHash) {
+        std::string cachedPdfPath = cacheDirectory_ + "/" + contentHash + ".pdf";
+
+        if (std::filesystem::exists(cachedPdfPath)) {
+            spdlog::info("[LatexApiModule] Cache hit for hash: {}", contentHash);
+            return cachedPdfPath;
+        }
+
+        return "";
+    }
+
+    // 保存PDF到缓存
+    void savePdfToCache(const std::string& sourcePdfPath, const std::string& contentHash) {
+        std::string cachedPdfPath = cacheDirectory_ + "/" + contentHash + ".pdf";
+
+        try {
+            std::filesystem::copy_file(sourcePdfPath, cachedPdfPath, std::filesystem::copy_options::overwrite_existing);
+            spdlog::info("[LatexApiModule] Cached PDF: {} -> {}", sourcePdfPath, cachedPdfPath);
+        } catch (const std::exception& e) {
+            spdlog::error("[LatexApiModule] Failed to cache PDF: {}", e.what());
+        }
+    }
+
+    // 清理旧缓存（超过30天）
+    void cleanOldCache() {
+        try {
+            auto now = std::chrono::system_clock::now();
+            auto maxAge = std::chrono::hours(30 * 24); // 30天
+
+            for (const auto& entry : std::filesystem::directory_iterator(cacheDirectory_)) {
+                if (entry.is_regular_file()) {
+                    auto lastWrite = std::filesystem::last_write_time(entry.path());
+                    auto age = now - lastWrite;
+
+                    if (age > maxAge) {
+                        std::filesystem::remove(entry.path());
+                        spdlog::info("[LatexApiModule] Removed old cache: {}", entry.path().filename().string());
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[LatexApiModule] Failed to clean old cache: {}", e.what());
+        }
+    }
+
+    // 获取缓存目录大小
+    size_t getCacheSize() {
+        size_t totalSize = 0;
+        try {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(cacheDirectory_)) {
+                if (entry.is_regular_file()) {
+                    totalSize += entry.file_size();
+                }
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[LatexApiModule] Failed to calculate cache size: {}", e.what());
+        }
+        return totalSize;
     }
 };
 
@@ -252,6 +355,25 @@ void LatexApiModule::registerRoutes() {
 
     router.get(prefix + "/projects/:id/pdf", [this](const HttpRequest& req) -> HttpResponse {
         return handleDownloadProjectPDFBinary(req.pathParams);
+    });
+
+    // PDF cache management routes
+    router.get(prefix + "/cache/stats", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleGetCacheStats();
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.post(prefix + "/cache/clear", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleClearCache();
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
     });
 
     // Template routes
@@ -1390,6 +1512,71 @@ std::string LatexApiModule::handleStats() {
 }
 
 // ============================================================================
+// HTTP request handlers - Cache Management
+// ============================================================================
+
+std::string LatexApiModule::handleGetCacheStats() {
+    try {
+        size_t cacheSize = impl_->getCacheSize();
+        int cacheFileCount = 0;
+
+        // 计算缓存文件数量
+        for (const auto& entry : std::filesystem::directory_iterator(impl_->cacheDirectory_)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".pdf") {
+                cacheFileCount++;
+            }
+        }
+
+        nlohmann::json result;
+        result["cache_size_bytes"] = static_cast<long long>(cacheSize);
+        result["cache_size_mb"] = static_cast<double>(cacheSize) / (1024 * 1024);
+        result["cache_file_count"] = cacheFileCount;
+        result["cache_directory"] = impl_->cacheDirectory_;
+
+        // 格式化缓存大小
+        size_t sizeMB = cacheSize / (1024 * 1024);
+        size_t sizeGB = cacheSize / (1024 * 1024 * 1024);
+        std::string sizeStr;
+        if (sizeGB > 0) {
+            sizeStr = std::to_string(sizeGB) + " GB";
+        } else if (sizeMB > 0) {
+            sizeStr = std::to_string(sizeMB) + " MB";
+        } else {
+            sizeStr = std::to_string(cacheSize / 1024) + " KB";
+        }
+        result["cache_size_formatted"] = sizeStr;
+
+        return impl_->buildJsonResponse(200, true, "Cache statistics retrieved", result.dump());
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, "Failed to get cache stats: " + std::string(e.what()));
+    }
+}
+
+std::string LatexApiModule::handleClearCache() {
+    try {
+        int deletedCount = 0;
+
+        for (const auto& entry : std::filesystem::directory_iterator(impl_->cacheDirectory_)) {
+            if (entry.is_regular_file()) {
+                std::filesystem::remove(entry.path());
+                deletedCount++;
+            }
+        }
+
+        spdlog::info("[LatexApiModule] Cleared {} cache files", deletedCount);
+
+        nlohmann::json result;
+        result["deleted_count"] = deletedCount;
+        result["message"] = "Cache cleared successfully";
+
+        return impl_->buildJsonResponse(200, true, "Cache cleared", result.dump());
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, "Failed to clear cache: " + std::string(e.what()));
+    }
+}
+}
+
+// ============================================================================
 // 版本控制辅助函数
 // ============================================================================
 
@@ -1676,6 +1863,36 @@ LatexCompilationResult LatexApiModule::compileLatexContent(const std::string& co
     LatexCompilationResult result;
     auto startTime = std::chrono::high_resolution_clock::now();
 
+    // 计算内容哈希用于缓存
+    std::string contentHash = impl_->computeContentHash(content);
+
+    // 检查缓存
+    std::string cachedPdfPath = impl_->checkPdfCache(contentHash);
+    if (!cachedPdfPath.empty()) {
+        // 使用缓存的PDF
+        spdlog::info("[LatexApiModule] Using cached PDF: {}", cachedPdfPath);
+
+        // 复制缓存的PDF到输出路径
+        try {
+            std::filesystem::copy_file(cachedPdfPath, outputPath, std::filesystem::copy_options::overwrite_existing);
+
+            auto endTime = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+            result.success = true;
+            result.pdfPath = outputPath;
+            result.compileTime = duration.count();
+            result.log = "Using cached PDF (content hash: " + contentHash + ")";
+
+            return result;
+        } catch (const std::exception& e) {
+            spdlog::error("[LatexApiModule] Failed to copy cached PDF: {}", e.what());
+            // 继续执行编译
+        }
+    } else {
+        spdlog::info("[LatexApiModule] Cache miss for hash: {}, compiling...", contentHash);
+    }
+
     // Write .tex file
     std::string texFile = workDir + "/document.tex";
     std::ofstream tex(texFile);
@@ -1730,6 +1947,21 @@ LatexCompilationResult LatexApiModule::compileLatexContent(const std::string& co
         result.success = true;
         result.pdfPath = outputFile;
         result.compileTime = duration.count();
+
+        // 保存PDF到缓存（使用内容哈希）
+        if (!contentHash.empty()) {
+            impl_->savePdfToCache(outputFile, contentHash);
+        }
+
+        // 复制PDF到最终输出路径（如果不同）
+        if (outputFile != outputPath) {
+            try {
+                std::filesystem::copy_file(outputFile, outputPath, std::filesystem::copy_options::overwrite_existing);
+                result.pdfPath = outputPath;
+            } catch (const std::exception& e) {
+                spdlog::error("[LatexApiModule] Failed to copy PDF to output path: {}", e.what());
+            }
+        }
     } else {
         result.success = false;
         result.errorMessage = "LaTeX compilation failed. Please check your LaTeX syntax.";

@@ -289,6 +289,7 @@ struct LatexProject {
  * 4. 版本历史
  * 5. 模板管理
  * 6. 协作编辑支持
+ * 7. PDF缓存管理
  *
  * 端点：
  * - GET    /api/latex/documents       - 列表（分页）
@@ -302,6 +303,8 @@ struct LatexProject {
  * - GET    /api/latex/templates/:id   - 模板详情
  * - GET    /api/latex/stats           - 统计信息
  * - GET    /api/latex/documents/:id/pdf - 下载PDF
+ * - GET    /api/latex/cache/stats     - 缓存统计
+ * - POST   /api/latex/cache/clear     - 清空缓存
  */
 class LatexApiModule : public BusinessModuleBase {
 public:
@@ -590,6 +593,10 @@ private:
     std::string handleDownloadPDF(const std::map<std::string, std::string>& params);
     HttpResponse handleDownloadPDFBinary(const std::map<std::string, std::string>& params);
     HttpResponse handleDownloadProjectPDFBinary(const std::map<std::string, std::string>& params);
+
+    // 缓存管理HTTP请求处理器
+    std::string handleGetCacheStats();
+    std::string handleClearCache();
 
     // 协作HTTP请求处理器
     std::string handleJoinCollaboration(const std::string& body);
