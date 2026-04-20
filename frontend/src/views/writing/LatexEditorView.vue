@@ -836,7 +836,6 @@ const previewPanelRef = ref<HTMLElement | null>(null)
 // ==========================================
 const showFindReplace = ref(false)
 const showReplace = ref(false)
-const showTemplates = ref(false)
 const findQuery = ref('')
 const replaceQuery = ref('')
 const currentMatchIndex = ref(0)
