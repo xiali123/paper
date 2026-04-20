@@ -1687,13 +1687,13 @@ async function compileDocument() {
           // 使用项目ID获取PDF
           const projectId = currentProject.value?.id
           if (projectId) {
-            pdfUrlValue = `http://localhost:8080/api/latex/projects/${projectId}/pdf?t=${Date.now()}`
+            pdfUrlValue = `/api/latex/projects/${projectId}/pdf?t=${Date.now()}`
           }
         } else {
           // 使用文档ID获取PDF
           const documentId = currentDocument.value?.id
           if (documentId) {
-            pdfUrlValue = `http://localhost:8080/api/latex/documents/${documentId}/pdf?t=${Date.now()}`
+            pdfUrlValue = `/api/latex/documents/${documentId}/pdf?t=${Date.now()}`
           }
         }
 
