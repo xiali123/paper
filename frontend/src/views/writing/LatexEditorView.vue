@@ -220,7 +220,12 @@
             <div class="outline-content" role="tree" aria-labelledby="outline-title">
               <DocumentOutline
                 :content="editorContent"
+                :is-project-mode="isProjectMode"
+                :project-files="latexStore.projectFiles"
+                :current-file-id="latexStore.currentProjectFile?.id"
+                :main-file-path="latexStore.currentProject?.mainFile"
                 @navigate="navigateToSection"
+                @file-select="handleOutlineFileSelect"
               />
             </div>
           </aside>
@@ -244,6 +249,11 @@
                 @file-create="handleFileCreate"
                 @file-delete="handleFileDelete"
                 @file-rename="handleFileRename"
+                @file-duplicate="handleFileDuplicate"
+                @file-move="handleFileMove"
+                @folder-create="handleFolderCreate"
+                @folder-delete="handleFolderDelete"
+                @folder-rename="handleFolderRename"
                 @main-file-change="handleMainFileChange"
                 @refresh="handleRefreshProject"
               />
@@ -255,9 +265,9 @@
             <!-- 编辑器工具栏 -->
             <div class="editor-toolbar">
           <el-button-group>
-            <el-button size="small" @click="toggleOutline">
+            <el-button size="small" @click="toggleLeftPanel" :class="{ 'is-active': showOutline || showProjectTree }">
               <el-icon><Menu /></el-icon>
-              大纲
+              {{ leftPanelTitle }}
             </el-button>
             <el-tooltip content="撤销 (Ctrl+Z)" placement="top">
               <el-button size="small" @click="undoRedo.undo()" :disabled="!undoRedo.canUndo.value">
@@ -800,6 +810,14 @@ const collaborationSession = computed(() => latexStore.collaborationSession)
 const collaborationUsers = computed(() => Array.from(latexStore.collaborationUsers.values()))
 const activeCollaborationUsers = computed(() => latexStore.activeCollaborationUsers)
 const documentStats = computed(() => latexStore.documentStats)
+
+// 左侧面板标题
+const leftPanelTitle = computed(() => {
+  if (isProjectMode.value) {
+    return showProjectTree.value ? '文件树' : '大纲'
+  }
+  return showOutline.value ? '大纲' : '菜单'
+})
 
 // Sync cursor position with store
 watch(() => latexStore.editorCursor, (newPosition) => {
@@ -1750,13 +1768,61 @@ function insertSymbol(symbol: string) {
   showSymbolPalette.value = false
 }
 
+function toggleLeftPanel() {
+  if (import.meta.env.DEV) {
+    console.log('Toggle left panel, project mode:', isProjectMode.value, 'outline:', showOutline.value, 'tree:', showProjectTree.value)
+  }
+
+  // 在项目模式下，切换文件树和大纲
+  if (isProjectMode.value) {
+    if (showProjectTree.value) {
+      // 当前显示文件树，切换到大纲
+      showProjectTree.value = false
+      showOutline.value = true
+    } else {
+      // 当前显示大纲或都没显示，切换到文件树
+      showProjectTree.value = true
+      showOutline.value = false
+    }
+  } else {
+    // 非项目模式，切换大纲
+    showOutline.value = !showOutline.value
+  }
+
+  if (import.meta.env.DEV) {
+    console.log('After toggle - outline:', showOutline.value, 'tree:', showProjectTree.value)
+  }
+}
+
 function toggleOutline() {
   if (import.meta.env.DEV) {
-    console.log('Toggle outline clicked, current state:', showOutline.value)
+    console.log('Toggle outline clicked, current state:', showOutline.value, 'project mode:', isProjectMode.value)
   }
-  showOutline.value = !showOutline.value
+
+  // 在项目模式下，大纲和项目文件树互斥
+  if (isProjectMode.value) {
+    if (!showOutline.value) {
+      // 打开大纲，关闭项目文件树
+      showOutline.value = true
+      showProjectTree.value = false
+      if (import.meta.env.DEV) {
+        console.log('Opening outline, closing project tree')
+      }
+    } else {
+      // 关闭大纲，重新打开项目文件树
+      showOutline.value = false
+      showProjectTree.value = true
+      if (import.meta.env.DEV) {
+        console.log('Closing outline, opening project tree')
+      }
+    }
+  } else {
+    // 非项目模式，正常切换大纲
+    showOutline.value = !showOutline.value
+  }
+
   if (import.meta.env.DEV) {
-    console.log('New outline state:', showOutline.value)
+    console.log('New outline state:', showOutline.value, 'project tree state:', showProjectTree.value)
   }
 }
 
@@ -1788,6 +1854,17 @@ function navigateToSection(position: { line: number; column?: number }) {
   } catch (error) {
     console.error('Navigation failed:', error)
   }
+}
+
+function handleOutlineFileSelect(file: any) {
+  // 从大纲选择文件
+  if (import.meta.env.DEV) {
+    console.log('Outline file selected:', file)
+  }
+
+  // 切换到选中的文件
+  latexStore.switchProjectFile(file)
+  ElMessage.success(`已切换到文件: ${file.name}`)
 }
 
 function navigateToError(error: any) {
@@ -2212,6 +2289,20 @@ onMounted(async () => {
       }
     }
   })
+
+  // 监听项目模式变化，自动显示文件树
+  watch(() => latexStore.isProjectMode, (isProjectMode) => {
+    if (isProjectMode) {
+      // 进入项目模式时自动显示文件树
+      showProjectTree.value = true
+      if (import.meta.env.DEV) {
+        console.log('[LaTeXEditorView] Project mode enabled, showing file tree')
+      }
+    } else {
+      // 退出项目模式时隐藏文件树
+      showProjectTree.value = false
+    }
+  })
 })
 
 onUnmounted(() => {
@@ -2247,8 +2338,27 @@ async function handleFileDelete(fileId: number | string) {
   }
 }
 
+function handleFileSelect(file: any) {
+  if (import.meta.env.DEV) {
+    console.log('[LaTeX Editor] File selected:', file.name, 'path:', file.path)
+  }
+
+  try {
+    // 切换到选中的文件
+    latexStore.switchProjectFile(file)
+    ElMessage.success(`已切换到文件: ${file.name}`)
+  } catch (error: any) {
+    ElMessage.error('切换文件失败: ' + (error.message || '未知错误'))
+  }
+}
+
 async function handleFileRename(fileId: number | string, newName: string) {
-  ElMessage.info('重命名功能待实现')
+  try {
+    await latexStore.renameProjectFile(Number(fileId), newName)
+    ElMessage.success('文件重命名成功')
+  } catch (error: any) {
+    ElMessage.error('文件重命名失败: ' + (error.message || '未知错误'))
+  }
 }
 
 async function handleMainFileChange(filePath: string) {
@@ -2276,6 +2386,113 @@ async function handleRefreshProject() {
   } catch (error: any) {
     ElMessage.error('刷新项目失败: ' + (error.message || '未知错误'))
   }
+}
+
+// ==========================================
+// 文件夹操作
+// ==========================================
+
+async function handleFolderCreate(folderPath: string) {
+  try {
+    // 在LaTeX项目中，通过在目录下创建一个默认文件来实现目录创建
+    const folderName = folderPath.split('/').pop() || 'new_folder'
+    const defaultFileName = 'README.tex'
+
+    await latexStore.createProjectFile({
+      name: defaultFileName,
+      path: `${folderPath}/${defaultFileName}`,
+      type: 'other'
+    })
+
+    ElMessage.success(`目录 "${folderName}" 创建成功（已添加 README.tex）`)
+  } catch (error: any) {
+    ElMessage.error('创建目录失败: ' + (error.message || '未知错误'))
+  }
+}
+
+async function handleFolderDelete(folderPath: string) {
+  try {
+    // 删除文件夹需要删除该文件夹下的所有文件
+    const filesInFolder = latexStore.projectFiles.filter(f => {
+      const filePath = f.path.startsWith('/') ? f.path.substring(1) : f.path
+      return filePath.startsWith(folderPath) || f.path.startsWith(folderPath + '/')
+    })
+
+    if (filesInFolder.length === 0) {
+      ElMessage.warning('该文件夹为空或不存在')
+      return
+    }
+
+    // 确认删除
+    await ElMessageBox.confirm(
+      `将删除 ${filesInFolder.length} 个文件，确定继续吗？`,
+      '删除文件夹',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    // 删除所有文件
+    for (const file of filesInFolder) {
+      await latexStore.deleteProjectFile(Number(file.id))
+    }
+
+    await latexStore.loadProject(latexStore.currentProject!.id)
+    ElMessage.success(`已删除 ${filesInFolder.length} 个文件`)
+  } catch (error: any) {
+    // 用户取消或其他错误
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error('删除文件夹失败: ' + (error.message || '未知错误'))
+    }
+  }
+}
+
+async function handleFolderRename(oldPath: string, newName: string) {
+  try {
+    // 重命名文件夹需要更新所有该文件夹下文件的路径
+    const filesInFolder = latexStore.projectFiles.filter(f => f.path.startsWith(oldPath))
+
+    for (const file of filesInFolder) {
+      const newPath = file.path.replace(oldPath, newName)
+      await latexStore.renameProjectFile(Number(file.id), file.name, newPath)
+    }
+
+    await latexStore.loadProject(latexStore.currentProject!.id)
+    ElMessage.success('文件夹重命名成功')
+  } catch (error: any) {
+    ElMessage.error('重命名文件夹失败: ' + (error.message || '未知错误'))
+  }
+}
+
+// ==========================================
+// 文件操作
+// ==========================================
+
+async function handleFileDuplicate(fileId: number | string) {
+  try {
+    const file = latexStore.projectFiles.find(f => f.id === fileId)
+    if (!file) {
+      ElMessage.error('文件不存在')
+      return
+    }
+
+    // 创建副本
+    await latexStore.createProjectFile({
+      name: file.name.replace(/(\.[^.]+)$/, '_copy$1'),
+      path: file.path.replace(/(\.[^.]+)$/, '_copy$1'),
+      type: file.type
+    })
+
+    ElMessage.success('文件复制成功')
+  } catch (error: any) {
+    ElMessage.error('复制文件失败: ' + (error.message || '未知错误'))
+  }
+}
+
+async function handleFileMove(fileId: number | string, targetPath: string) {
+  ElMessage.info('移动文件功能开发中，敬请期待')
 }
 
 // 版本历史处理函数
@@ -2630,7 +2847,8 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   }
 
   .project-file-tree-panel {
-    width: 280px;
+    width: 320px;
+    min-width: 280px;
     border-right: 1px solid var(--el-border-color-lighter);
     background: var(--el-bg-color-page);
     flex-shrink: 0;

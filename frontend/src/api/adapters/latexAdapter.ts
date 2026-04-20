@@ -554,6 +554,8 @@ export interface CreateProjectFileRequest {
  */
 export interface UpdateProjectFileRequest {
   content?: string
+  name?: string
+  path?: string
 }
 
 /**
@@ -722,6 +724,17 @@ export async function addProjectFile(request: CreateProjectFileRequest): Promise
  */
 export async function updateProjectFile(fileId: number, content: string): Promise<void> {
   await apiClient.put(`${API_BASE}/projects/files/${fileId}`, { content })
+}
+
+/**
+ * 重命名项目文件
+ */
+export async function renameProjectFile(fileId: number, newName: string, newPath?: string): Promise<void> {
+  const data: UpdateProjectFileRequest = { name: newName }
+  if (newPath) {
+    data.path = newPath
+  }
+  await apiClient.put(`${API_BASE}/projects/files/${fileId}`, data)
 }
 
 /**

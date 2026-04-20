@@ -289,39 +289,43 @@ export async function highlightSyntax(content: string, theme = 'default') {
     html = html.replace(/(\$\$)([^\$]+?)(\$\$)/g, '<span class="latex-math">$1$2$3</span>')
     html = html.replace(/(\$)([^\$]+?)(\$)/g, '<span class="latex-math">$1$2$3</span>')
 
-    // 3. 结构命令 - section, subsection等 - 青色
+    // 3. 结构命令 - section, subsection等 - 只高亮命令，参数保持黑色
     const structureCmds = ['section', 'subsection', 'subsubsection', 'chapter', 'part', 'paragraph', 'subparagraph']
     structureCmds.forEach(cmd => {
       const regex = new RegExp(`(\\\\\\\\${cmd}\\*?)(\\{)`, 'g')
-      html = html.replace(regex, '<span class="latex-cmd-structure">$1</span><span class="latex-bracket">$2</span>')
+      html = html.replace(regex, '<span class="latex-cmd-structure">$1</span>$2')
     })
 
-    // 4. 环境命令 - begin, end - 紫色
-    html = html.replace(/(\\begin\{)([a-zA-Z*]+)(\})/g, '<span class="latex-cmd-env">$1</span><span class="latex-bracket">$2</span><span class="latex-bracket">$3</span>')
-    html = html.replace(/(\\end\{)([a-zA-Z*]+)(\})/g, '<span class="latex-cmd-env">$1</span><span class="latex-bracket">$2</span><span class="latex-bracket">$3</span>')
+    // 4. 环境命令 - begin, end - 只高亮命令，参数保持黑色
+    html = html.replace(/(\\begin)(\{)([a-zA-Z*]+)(\})/g, '<span class="latex-cmd-env">$1</span>$2$3$4')
+    html = html.replace(/(\\end)(\{)([a-zA-Z*]+)(\})/g, '<span class="latex-cmd-env">$1</span>$2$3$4')
 
-    // 5. 文本格式命令 - 黄色
+    // 5. 文本格式命令 - 只高亮命令，参数保持黑色
     const textCmds = ['textbf', 'textit', 'texttt', 'textsc', 'textsuperscript', 'textsubscript', 'emph', 'underline', 'textcolor', 'colorbox']
     textCmds.forEach(cmd => {
       const regex = new RegExp(`(\\\\\\\\${cmd})(\\{)`, 'g')
-      html = html.replace(regex, '<span class="latex-cmd-text">$1</span><span class="latex-bracket">$2</span>')
+      html = html.replace(regex, '<span class="latex-cmd-text">$1</span>$2')
     })
 
-    // 6. 引用命令 - 橙色
+    // 6. 引用命令 - 只高亮命令，参数保持黑色
     const refCmds = ['cite', 'ref', 'eqref', 'label', 'bibitem']
     refCmds.forEach(cmd => {
       const regex = new RegExp(`(\\\\\\\\${cmd})(\\{)`, 'g')
-      html = html.replace(regex, '<span class="token keyword">$1</span><span class="latex-bracket">$2</span>')
+      html = html.replace(regex, '<span class="token keyword">$1</span>$2')
     })
 
-    // 7. 其他LaTeX命令 - 蓝色
-    html = html.replace(/(\\[a-zA-Z]+)(\{)/g, '<span class="token keyword">$1</span><span class="latex-bracket">$2</span>')
+    // 6.5. 包命令 - 只高亮\usepackage，参数保持黑色
+    html = html.replace(/(\\usepackage)(\{[^}]+\})/g, '<span class="token keyword">$1</span>$2')
 
-    // 8. 花括号内的内容 - 橙色
-    html = html.replace(/(\{)([^\{\}]*?)(\})/g, '$1<span class="token string">$2</span>$3')
+    // 7. 其他LaTeX命令 - 只高亮命令本身
+    html = html.replace(/(\\[a-zA-Z]+)(\{)/g, '<span class="token keyword">$1</span>$2')
 
-    // 9. 可选参数 [...] - 绿色
-    html = html.replace(/(\[)([^\[\]]*?)(\])/g, '<span class="latex-bracket">$1</span><span class="token string">$2</span><span class="latex-bracket">$3</span>')
+    // 8. 花括号 - 保持原色，不高亮内容
+    // 移除内容高亮，只保留括号本身
+    html = html.replace(/(\{)([^\{\}]*?)(\})/g, '$1$2$3')
+
+    // 9. 可选参数 [...] - 保持原色
+    html = html.replace(/(\[)([^\[\]]*?)(\])/g, '$1$2$3')
 
     const endTime = performance.now();
 

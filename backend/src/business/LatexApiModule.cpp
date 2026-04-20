@@ -1138,7 +1138,11 @@ std::string LatexApiModule::handleCreateProject(const std::string& body) {
             nlohmann::json result;
             result["id"] = newProject->id;
             result["name"] = newProject->name;
+            result["main_file"] = newProject->mainFile;
             result["owner_id"] = newProject->ownerId;
+
+            spdlog::info("[LatexApi] Project created: id={}, name={}, mainFile={}, files={}",
+                newProject->id, newProject->name, newProject->mainFile, newProject->files.size());
 
             return impl_->buildJsonResponse(201, true, "Project created", result.dump());
         }
@@ -1209,6 +1213,8 @@ std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, 
         int fileId = std::stoi(idIt->second);
         auto jsonBody = nlohmann::json::parse(body);
         std::string content = jsonBody.value("content", "");
+        std::string name = jsonBody.value("name", "");
+        std::string path = jsonBody.value("path", "");
         std::string userId = jsonBody.value("user_id", "default");
         bool createVersion = jsonBody.value("create_version", true);
 
@@ -1217,11 +1223,25 @@ std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, 
             for (auto& file : project.files) {
                 if (file.id == fileId) {
                     std::string oldContent = file.content;
-                    file.content = content;
+
+                    // 更新内容（如果提供）
+                    if (!content.empty()) {
+                        file.content = content;
+                    }
+
+                    // 更新文件名和路径（重命名功能）
+                    if (!name.empty()) {
+                        file.name = name;
+                        spdlog::info("[LatexApi] Renaming file {} to {}", file.name, name);
+                    }
+                    if (!path.empty()) {
+                        file.path = path;
+                    }
+
                     file.updatedAt = std::chrono::system_clock::now();
 
                     // 自动创建版本（如果内容有变化）
-                    if (createVersion && content != oldContent) {
+                    if (createVersion && !content.empty() && content != oldContent) {
                         saveVersion(fileId, project.id, userId, content, "文件更新", false);
                     }
 

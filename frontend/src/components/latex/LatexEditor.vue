@@ -444,10 +444,6 @@ defineExpose({
     font-weight: 600;
   }
 
-  :deep(.latex-bracket) {
-    color: #ffd700; // 金色 - 花括号
-  }
-
   :deep(.latex-math) {
     color: #b5cea8; // 浅绿色 - 数学内容
     background: rgba(255, 255, 255, 0.05);

@@ -781,7 +781,9 @@ Your conclusion here.
         type: fileData.type
       })
 
-      projectFiles.value.push(newFile)
+      // 刷新项目以获取最新的文件列表（包括新创建的文件）
+      await loadProject(currentProject.value.id)
+
       return newFile
     } catch (error) {
       console.error('Failed to create project file:', error)
@@ -807,6 +809,43 @@ Your conclusion here.
       }
     } catch (error) {
       console.error('Failed to delete project file:', error)
+      throw error
+    }
+  }
+
+  async function renameProjectFile(fileId: number, newName: string) {
+    if (!currentProject.value) return
+
+    try {
+      const { renameProjectFile } = await import('@/api/adapters/latexAdapter')
+
+      // 查找文件并构建新路径
+      const file = projectFiles.value.find(f => f.id === fileId)
+      if (!file) {
+        throw new Error('File not found')
+      }
+
+      // 更新路径（保持目录结构，只更新文件名）
+      const pathParts = file.path.split('/')
+      pathParts[pathParts.length - 1] = newName
+      const newPath = pathParts.join('/')
+
+      await renameProjectFile(fileId, newName, newPath)
+
+      // 更新本地文件列表
+      const idx = projectFiles.value.findIndex(f => f.id === fileId)
+      if (idx !== -1) {
+        projectFiles.value[idx].name = newName
+        projectFiles.value[idx].path = newPath
+      }
+
+      // 如果重命名的是当前文件，更新当前文件引用
+      if (currentProjectFile.value?.id === fileId) {
+        currentProjectFile.value.name = newName
+        currentProjectFile.value.path = newPath
+      }
+    } catch (error) {
+      console.error('Failed to rename project file:', error)
       throw error
     }
   }
@@ -1042,6 +1081,7 @@ Your conclusion here.
     saveCurrentProjectFile,
     createProjectFile,
     deleteProjectFile,
+    renameProjectFile,
     compileProject,
     setProjectMode,
 
