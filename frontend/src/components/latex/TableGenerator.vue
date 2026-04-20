@@ -22,9 +22,8 @@
                 :key="ci"
                 :colspan="cell.colspan"
                 :rowspan="cell.rowspan"
-                :class="{ 'merged': cell.merged }"
+                :class="{ 'merged': cell.merged, 'selected': selectedCell.row === ri && selectedCell.col === ci }"
                 @click="selectCell(ri, ci)"
-                :class="{ 'selected': selectedCell.row === ri && selectedCell.col === ci }"
               >
                 <input
                   v-if="!cell.merged"
