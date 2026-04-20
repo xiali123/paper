@@ -357,6 +357,39 @@ void LatexApiModule::registerRoutes() {
         return handleDownloadProjectPDFBinary(req.pathParams);
     });
 
+    // PDF debug endpoint (returns info about PDF request)
+    router.get(prefix + "/debug/pdf/:type/:id", [this](const HttpRequest& req) -> HttpResponse {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+
+        auto typeIt = req.pathParams.find("type");
+        auto idIt = req.pathParams.find("id");
+
+        nlohmann::json debugInfo;
+        debugInfo["type"] = typeIt != req.pathParams.end() ? typeIt->second : "unknown";
+        debugInfo["id"] = idIt != req.pathParams.end() ? idIt->second : "unknown";
+        debugInfo["pdfDirectory"] = impl_->pdfDirectory_;
+        debugInfo["cacheDirectory"] = impl_->cacheDirectory_;
+
+        std::string pdfPath;
+        if (typeIt != req.pathParams.end() && typeIt->second == "project") {
+            pdfPath = impl_->pdfDirectory_ + "/project_" + idIt->second + ".pdf";
+        } else {
+            pdfPath = impl_->pdfDirectory_ + "/document_" + idIt->second + ".pdf";
+        }
+
+        debugInfo["expectedPath"] = pdfPath;
+        debugInfo["exists"] = std::filesystem::exists(pdfPath);
+
+        if (std::filesystem::exists(pdfPath)) {
+            debugInfo["fileSize"] = std::filesystem::file_size(pdfPath);
+        }
+
+        response.body = impl_->buildJsonResponse(200, true, "PDF debug info", debugInfo.dump());
+        return response;
+    });
+
     // PDF cache management routes
     router.get(prefix + "/cache/stats", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetCacheStats();
@@ -753,10 +786,10 @@ LatexDocumentStats LatexApiModule::getStats() {
 
 HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string, std::string>& params) {
     HttpResponse response;
-    response.statusCode = 200;
 
     auto idIt = params.find("id");
     if (idIt == params.end()) {
+        spdlog::error("[LatexApiModule] Missing document ID in PDF download request");
         response.statusCode = 400;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Missing document ID");
@@ -767,8 +800,11 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         int id = std::stoi(idIt->second);
         std::string pdfPath = impl_->pdfDirectory_ + "/document_" + std::to_string(id) + ".pdf";
 
+        spdlog::info("[LatexApiModule] PDF download request for document: {}, path: {}", id, pdfPath);
+
         // Check file exists, create minimal valid PDF if not
         if (!std::filesystem::exists(pdfPath)) {
+            spdlog::warn("[LatexApiModule] PDF file not found, creating placeholder: {}", pdfPath);
             std::ofstream pdf(pdfPath, std::ios::binary);
             // Minimal valid PDF with one page
             const char* minimalPdf =
@@ -832,8 +868,16 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         // Set response body (binary data in string)
         response.body = std::string(fileData.begin(), fileData.end());
 
+        spdlog::info("[LatexApiModule] PDF sent successfully: {} bytes", fileSize);
+        return response;
+    } catch (const std::invalid_argument& e) {
+        spdlog::error("[LatexApiModule] Invalid document ID: {}", idIt->second);
+        response.statusCode = 400;
+        response.setHeader("Content-Type", "application/json");
+        response.body = impl_->buildJsonResponse(false, "Invalid document ID: " + idIt->second);
         return response;
     } catch (const std::exception& e) {
+        spdlog::error("[LatexApiModule] PDF download error: {}", e.what());
         response.statusCode = 500;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
@@ -843,10 +887,10 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
 
 HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::string, std::string>& params) {
     HttpResponse response;
-    response.statusCode = 200;
 
     auto idIt = params.find("id");
     if (idIt == params.end()) {
+        spdlog::error("[LatexApiModule] Missing project ID in PDF download request");
         response.statusCode = 400;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Missing project ID");
@@ -857,8 +901,11 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
         int id = std::stoi(idIt->second);
         std::string pdfPath = impl_->pdfDirectory_ + "/project_" + std::to_string(id) + ".pdf";
 
+        spdlog::info("[LatexApiModule] PDF download request for project: {}, path: {}", id, pdfPath);
+
         // Check file exists, create minimal valid PDF if not
         if (!std::filesystem::exists(pdfPath)) {
+            spdlog::warn("[LatexApiModule] PDF file not found, creating placeholder: {}", pdfPath);
             std::ofstream pdf(pdfPath, std::ios::binary);
             // Minimal valid PDF with one page
             const char* minimalPdf =
@@ -921,8 +968,16 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
 
         response.body = std::string(fileData.begin(), fileData.end());
 
+        spdlog::info("[LatexApiModule] Project PDF sent successfully: {} bytes", fileSize);
+        return response;
+    } catch (const std::invalid_argument& e) {
+        spdlog::error("[LatexApiModule] Invalid project ID: {}", idIt->second);
+        response.statusCode = 400;
+        response.setHeader("Content-Type", "application/json");
+        response.body = impl_->buildJsonResponse(false, "Invalid project ID: " + idIt->second);
         return response;
     } catch (const std::exception& e) {
+        spdlog::error("[LatexApiModule] Project PDF download error: {}", e.what());
         response.statusCode = 500;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
