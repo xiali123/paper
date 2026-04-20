@@ -317,6 +317,12 @@
                 拼写
               </el-button>
             </el-tooltip>
+            <el-tooltip content="文档模板" placement="top">
+              <el-button size="small" @click="showTemplates = !showTemplates" :aria-pressed="showTemplates">
+                <el-icon><Memo /></el-icon>
+                模板
+              </el-button>
+            </el-tooltip>
             <el-tooltip content="代码片段 (Ctrl+Space)" placement="top">
               <el-button size="small" @click="showSnippets = !showSnippets" :aria-pressed="showSnippets">
                 <el-icon><Collection /></el-icon>
@@ -607,6 +613,16 @@
       />
     </el-drawer>
 
+    <!-- 模板管理面板 -->
+    <el-drawer
+      v-model="showTemplates"
+      title="文档模板"
+      direction="rtl"
+      size="500px"
+    >
+      <TemplateManager @insert="insertTemplateContent" />
+    </el-drawer>
+
     <!-- 协作面板 -->
     <el-drawer
       v-model="showCollaborationPanel"
@@ -742,7 +758,7 @@ import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
   Tickets, Loading, Warning, InfoFilled, Close,
   ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
-  Search, ArrowUp, ArrowDown, Document, DocumentAdd, DocumentChecked, Collection, Grid,
+  Search, ArrowUp, ArrowDown, Document, DocumentAdd, DocumentChecked, Memo, Collection, Grid,
   FolderOpened, FolderAdd, Clock
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
@@ -753,6 +769,7 @@ import DocumentOutline from '@/components/latex/DocumentOutline.vue'
 import SymbolPalette from '@/components/latex/SymbolPalette.vue'
 import TableGenerator from '@/components/latex/TableGenerator.vue'
 import SpellChecker from '@/components/latex/SpellChecker.vue'
+import TemplateManager from '@/components/latex/TemplateManager.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
@@ -782,6 +799,7 @@ const showOutline = ref(false)
 const showSymbolPalette = ref(false)
 const showTableGenerator = ref(false)
 const showSpellChecker = ref(false)
+const showTemplates = ref(false)
 const showSnippets = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
@@ -1853,6 +1871,12 @@ function handleSpellGoto(line: number, column: number) {
   if (!editorRef.value) return
 
   editorRef.value.navigateTo?.({ line, column })
+}
+
+function insertTemplateContent(content: string) {
+  editorContent.value = content
+  showTemplates.value = false
+  ElMessage.success('模板已应用')
 }
 
 function toggleLeftPanel() {
