@@ -243,7 +243,20 @@
       "Bash(pkill -9 PaperCrawlerServerHotPlug)",
       "Bash(./PaperCrawlerServerHotPlug config/modules.json)",
       "Bash(ls:*)",
-      "Bash(cmake --build . --target Router)"
+      "Bash(cmake --build . --target Router)",
+      "Bash(pkill -f \"vite|node.*dev\")",
+      "Bash(lsof -ti:4200)",
+      "Bash(xargs kill:*)",
+      "Bash(nohup npm:*)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(lsof -ti:5174)",
+      "Bash(xargs ps:*)",
+      "Bash(bash /tmp/fix_branch_tree.sed)",
+      "Bash(awk 'NR >= 614 && NR <= 830 {next} {print}' /home/xiali/progress/paper/paper/frontend/src/components/latex/BranchTreeView.vue)",
+      "Bash(netstat -tlnp)",
+      "Bash(./PaperCrawlerServerHotPlug)",
+      "Bash(npx vite:*)",
+      "Bash(git push:*)"
     ],
     "additionalDirectories": [
       "E:\\PaperCrawler\\backend\\build",

@@ -758,7 +758,7 @@ import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
   Tickets, Loading, Warning, InfoFilled, Close,
   ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
-  Search, ArrowUp, ArrowDown, Document, DocumentAdd, DocumentChecked, Memo, Collection, Grid,
+  Search, ArrowUp, ArrowDown, Document, DocumentAdd, Memo, Collection, Grid,
   FolderOpened, FolderAdd, Clock
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
