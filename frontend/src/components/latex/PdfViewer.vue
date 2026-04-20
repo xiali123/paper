@@ -1,7 +1,13 @@
 <template>
   <div class="pdf-viewer">
     <div class="viewer-header">
-      <h4 class="viewer-title">PDF 预览</h4>
+      <div class="header-left">
+        <h4 class="viewer-title">PDF 预览</h4>
+        <el-tag v-if="isFromCache" type="success" size="small" effect="plain">
+          <el-icon><CircleCheck /></el-icon>
+          本地缓存
+        </el-tag>
+      </div>
       <div class="viewer-controls">
         <el-button-group size="small">
           <el-button :disabled="currentPage <= 1" @click="previousPage">
@@ -26,6 +32,10 @@
         <el-button size="small" @click="downloadPdf" style="margin-left: 8px">
           <el-icon><Download /></el-icon>
           下载
+        </el-button>
+        <el-button size="small" @click="refreshPdf" style="margin-left: 8px">
+          <el-icon><RefreshRight /></el-icon>
+          刷新
         </el-button>
       </div>
     </div>
@@ -56,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   ArrowLeft,
@@ -64,12 +74,17 @@ import {
   ZoomIn,
   ZoomOut,
   Download,
-  Loading
+  Loading,
+  RefreshRight,
+  CircleCheck
 } from '@element-plus/icons-vue'
-
+import { pdfStorage, formatFileSize } from '@/utils/pdfStorage'
 
 interface Props {
   pdfUrl?: string
+  pdfId?: string // 用于本地缓存的唯一ID
+  documentId?: string
+  projectId?: string
   initialScale?: number
 }
 
@@ -84,30 +99,41 @@ const error = ref<string | null>(null)
 const currentPage = ref(1)
 const totalPages = ref(0)
 const scale = ref(props.initialScale)
+const isFromCache = ref(false)
+const currentPdfId = ref<string>()
 
 let pdfDocument: any = null
 let pageRendering = false
+let objectUrl: string | null = null
 
 let pdfjsLibCache: any = null
 
+// 计算PDF的唯一ID
+const getPdfId = computed(() => {
+  if (props.pdfId) return props.pdfId
+  if (props.projectId) return `project-${props.projectId}`
+  if (props.documentId) return `document-${props.documentId}`
+  return `pdf-${Date.now()}`
+})
+
 async function getPdfJs() {
   if (pdfjsLibCache) return pdfjsLibCache
-  
+
   try {
     // Import PDF.js and worker
     const pdfjsModule = await import('pdfjs-dist')
     pdfjsLibCache = pdfjsModule.default || pdfjsModule
-    
+
     // Import worker locally (Vite will handle it)
     await import('pdfjs-dist/build/pdf.worker.min.js')
-    
+
     // Set worker entry point (using the module that was just loaded)
     // Note: Vite automatically handles the worker, so we don't set workerSrc
-    
+
     if (import.meta.env.DEV) {
       console.log('[PdfViewer] PDF.js loaded (worker bundled by Vite)')
     }
-    
+
     return pdfjsLibCache
   } catch (e) {
     console.error('[PdfViewer] Failed to load PDF.js:', e)
@@ -177,6 +203,13 @@ async function loadPdf(url: string) {
 
   loading.value = true
   error.value = null
+  isFromCache.value = false
+
+  // 清理旧的object URL
+  if (objectUrl) {
+    URL.revokeObjectURL(objectUrl)
+    objectUrl = null
+  }
 
   if (import.meta.env.DEV) {
     console.log('[PdfViewer] loadPdf called with URL:', url)
@@ -189,17 +222,47 @@ async function loadPdf(url: string) {
       console.log('[PdfViewer] getPdfJs returned:', typeof pdfjs, 'has getDocument:', typeof pdfjs.getDocument)
     }
 
-    // 添加缓存破坏参数（如果没有的话）
-    const urlWithCacheBust = url.includes('?t=') ? url : `${url}?t=${Date.now()}`
+    // 使用PDF存储服务获取URL（优先从本地缓存）
+    const pdfId = getPdfId.value
+    currentPdfId.value = pdfId
+
+    let pdfUrl: string
+    try {
+      // 尝试从本地缓存获取
+      pdfUrl = await pdfStorage.getPdfUrl(
+        pdfId,
+        url,
+        {
+          name: props.projectId ? `Project-${props.projectId}` : `Document-${props.documentId || 'unknown'}`,
+          timestamp: Date.now(),
+          documentId: props.documentId,
+          projectId: props.projectId
+        }
+      )
+      isFromCache.value = true
+
+      if (import.meta.env.DEV) {
+        console.log('[PdfViewer] Using cached PDF URL')
+      }
+    } catch (cacheError) {
+      // 缓存失败，直接使用原始URL
+      if (import.meta.env.DEV) {
+        console.warn('[PdfViewer] Cache failed, using direct URL:', cacheError)
+      }
+      pdfUrl = url.includes('?t=') ? url : `${url}?t=${Date.now()}`
+      isFromCache.value = false
+    }
+
+    objectUrl = pdfUrl
 
     if (import.meta.env.DEV) {
-      console.log('[PdfViewer] Loading PDF with cache-busting URL:', urlWithCacheBust)
+      console.log('[PdfViewer] Loading PDF with URL:', pdfUrl, 'from cache:', isFromCache.value)
     }
 
     // 加载PDF文档 - use CMap files from public directory
     const cMapUrl = '/cmaps/'
     const loadingTask = pdfjs.getDocument({
-      url: urlWithCacheBust,
+      url: pdfUrl,
       cMapUrl: cMapUrl,
       cMapPacked: true,
       standardFontDataUrl: '/standard_fonts/'
@@ -216,7 +279,7 @@ async function loadPdf(url: string) {
     if (import.meta.env.DEV) {
       console.log('[PdfViewer] PDF loaded:', {
         url,
-        urlWithCacheBust,
+        pdfUrl,
         pages: totalPages.value,
         numPages: pdfDocument.numPages
       })
@@ -226,21 +289,22 @@ async function loadPdf(url: string) {
     if (import.meta.env.DEV) {
       console.log('[PdfViewer] Waiting for canvas element...')
     }
-    
+
     // 等待DOM更新
     await nextTick()
-    
+
     // 再等待一帧确保Canvas已挂载
     await new Promise(resolve => setTimeout(resolve, 50))
     await nextTick()
-    
+
     if (import.meta.env.DEV) {
       console.log('[PdfViewer] Canvas ref available:', !!canvasRef.value)
     }
-    
+
     await renderPage(1)
 
-    ElMessage.success(`PDF加载成功，共${totalPages.value}页`)
+    const cacheMsg = isFromCache.value ? '（本地缓存）' : ''
+    ElMessage.success(`PDF加载成功${cacheMsg}，共${totalPages.value}页`)
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
     console.error('[PdfViewer] Failed to load PDF:', err)
@@ -286,7 +350,20 @@ async function downloadPdf() {
   }
 
   try {
-    // 添加缓存破坏参数（如果没有的话）
+    // 如果有本地缓存的PDF，直接导出
+    if (currentPdfId.value) {
+      const filename = props.projectId
+        ? `project-${props.projectId}.pdf`
+        : props.documentId
+        ? `document-${props.documentId}.pdf`
+        : `latex-export-${Date.now()}.pdf`
+
+      await pdfStorage.exportToFile(currentPdfId.value, filename)
+      ElMessage.success('PDF下载成功')
+      return
+    }
+
+    // 否则从URL下载
     const urlWithCacheBust = props.pdfUrl.includes('?t=') ? props.pdfUrl : `${props.pdfUrl}?t=${Date.now()}`
 
     const response = await fetch(urlWithCacheBust)
@@ -304,6 +381,28 @@ async function downloadPdf() {
     console.error('[PdfViewer] Download failed:', err)
     ElMessage.error('PDF下载失败')
   }
+}
+
+async function refreshPdf() {
+  if (!props.pdfUrl) {
+    ElMessage.warning('没有可刷新的PDF')
+    return
+  }
+
+  // 删除本地缓存，强制重新下载
+  if (currentPdfId.value) {
+    try {
+      await pdfStorage.deletePdf(currentPdfId.value)
+      if (import.meta.env.DEV) {
+        console.log('[PdfViewer] Cache cleared for:', currentPdfId.value)
+      }
+    } catch (err) {
+      console.warn('[PdfViewer] Failed to clear cache:', err)
+    }
+  }
+
+  // 重新加载
+  await loadPdf(props.pdfUrl)
 }
 
 // 监听 PDF URL 变化
@@ -335,6 +434,11 @@ defineExpose({
 
 onUnmounted(() => {
   pdfDocument = null
+  // 清理object URL
+  if (objectUrl) {
+    URL.revokeObjectURL(objectUrl)
+    objectUrl = null
+  }
 })
 </script>
 

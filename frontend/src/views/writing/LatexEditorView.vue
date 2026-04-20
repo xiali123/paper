@@ -537,6 +537,9 @@
           <PdfViewer
             v-else-if="previewMode === 'pdf' && pdfUrl"
             :pdf-url="pdfUrl"
+            :pdf-id="currentPdfId"
+            :document-id="currentDocument?.id"
+            :project-id="currentProject?.id"
             ref="pdfViewerRef"
           />
           <div v-else-if="previewMode === 'pdf' && !pdfUrl" class="pdf-placeholder">
@@ -836,6 +839,17 @@ const cursorPosition = ref({ line: 1, column: 1 })
 // PDF预览相关状态
 const pdfUrl = ref<string | null>(null)
 const previewMode = ref<'html' | 'pdf'>('html') // 预览模式：HTML或PDF
+
+// 当前PDF的唯一ID（用于本地缓存）
+const currentPdfId = computed(() => {
+  if (isProjectMode.value && currentProject.value) {
+    return `project-${currentProject.value.id}`
+  }
+  if (currentDocument.value) {
+    return `document-${currentDocument.value.id}`
+  }
+  return `pdf-${Date.now()}`
+})
 
 // ==========================================
 // Layout state - 可调整布局
