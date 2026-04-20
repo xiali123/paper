@@ -24,6 +24,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0', // 监听所有网络接口，支持局域网访问
     port: 5173,
     strictPort: false,
     proxy: {
@@ -31,6 +32,7 @@ export default defineConfig({
         target: 'http://localhost:8080',
         secure: false,
         ws: true,
+        changeOrigin: true, // 支持跨域请求
       },
     },
   },
