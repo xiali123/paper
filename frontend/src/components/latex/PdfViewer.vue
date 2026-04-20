@@ -215,6 +215,27 @@ async function loadPdf(url: string) {
     console.log('[PdfViewer] loadPdf called with URL:', url)
   }
 
+  // 首先测试URL是否可访问（快速失败）
+  try {
+    const testResponse = await fetch(url, { method: 'HEAD' })
+    if (!testResponse.ok) {
+      throw new Error(`HTTP ${testResponse.status}: ${testResponse.statusText}`)
+    }
+    if (import.meta.env.DEV) {
+      console.log('[PdfViewer] URL accessible, Content-Type:', testResponse.headers.get('Content-Type'))
+    }
+  } catch (testErr) {
+    loading.value = false
+    const testError = testErr instanceof Error ? testErr : new Error(String(testErr))
+    error.value = `无法访问PDF URL: ${testError.message}`
+    console.error('[PdfViewer] PDF URL not accessible:', url, testError)
+    ElMessage.error(`PDF服务器无响应 (${testError.message})`)
+    return
+  }
+
+  try {
+    const pdfjs = await getPdfJs()
+
   try {
     const pdfjs = await getPdfJs()
 
@@ -265,7 +286,11 @@ async function loadPdf(url: string) {
       url: pdfUrl,
       cMapUrl: cMapUrl,
       cMapPacked: true,
-      standardFontDataUrl: '/standard_fonts/'
+      standardFontDataUrl: '/standard_fonts/',
+      // 添加HTTP错误处理
+      httpHeaders: {
+        'Accept': 'application/pdf,*/*'
+      }
     })
     pdfDocument = await loadingTask.promise
 
@@ -306,10 +331,30 @@ async function loadPdf(url: string) {
     const cacheMsg = isFromCache.value ? '（本地缓存）' : ''
     ElMessage.success(`PDF加载成功${cacheMsg}，共${totalPages.value}页`)
   } catch (err) {
+    loading.value = false
     error.value = err instanceof Error ? err.message : String(err)
+
     console.error('[PdfViewer] Failed to load PDF:', err)
+    console.error('[PdfViewer] PDF URL:', pdfUrl)
+    console.error('[PdfViewer] Original URL:', url)
     console.error('[PdfViewer] Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2))
-    ElMessage.error('PDF加载失败')
+
+    // 尝试诊断问题
+    if (err instanceof Error) {
+      if (err.name === 'UnexpectedResponseException') {
+        ElMessage.error(`PDF加载失败: 服务器返回错误响应`)
+      } else if (err.message.includes('fetch')) {
+        ElMessage.error(`PDF加载失败: 无法连接到服务器`)
+      } else if (err.message.includes('404')) {
+        ElMessage.error(`PDF加载失败: 文件不存在，请先编译文档`)
+      } else if (err.message.includes('500')) {
+        ElMessage.error(`PDF加载失败: 服务器内部错误，请检查后端日志`)
+      } else {
+        ElMessage.error(`PDF加载失败: ${err.message}`)
+      }
+    } else {
+      ElMessage.error('PDF加载失败，请查看控制台获取详细错误')
+    }
   } finally {
     loading.value = false
   }
