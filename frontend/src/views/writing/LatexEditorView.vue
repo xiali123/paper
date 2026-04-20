@@ -311,6 +311,12 @@
                 表格
               </el-button>
             </el-tooltip>
+            <el-tooltip content="拼写检查" placement="top">
+              <el-button size="small" @click="showSpellChecker = !showSpellChecker" :aria-pressed="showSpellChecker">
+                <el-icon><DocumentChecked /></el-icon>
+                拼写
+              </el-button>
+            </el-tooltip>
             <el-tooltip content="代码片段 (Ctrl+Space)" placement="top">
               <el-button size="small" @click="showSnippets = !showSnippets" :aria-pressed="showSnippets">
                 <el-icon><Collection /></el-icon>
@@ -587,6 +593,20 @@
       <TableGenerator @insert="insertTableCode" />
     </el-drawer>
 
+    <!-- 拼写检查面板 -->
+    <el-drawer
+      v-model="showSpellChecker"
+      title="拼写检查"
+      direction="rtl"
+      size="400px"
+    >
+      <SpellChecker
+        :content="editorContent"
+        @replace="handleSpellReplace"
+        @goto="handleSpellGoto"
+      />
+    </el-drawer>
+
     <!-- 协作面板 -->
     <el-drawer
       v-model="showCollaborationPanel"
@@ -722,7 +742,7 @@ import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
   Tickets, Loading, Warning, InfoFilled, Close,
   ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
-  Search, ArrowUp, ArrowDown, Document, DocumentAdd, Collection, Grid,
+  Search, ArrowUp, ArrowDown, Document, DocumentAdd, DocumentChecked, Collection, Grid,
   FolderOpened, FolderAdd, Clock
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
@@ -732,6 +752,7 @@ import LatexEditor from '@/components/latex/LatexEditor.vue'
 import DocumentOutline from '@/components/latex/DocumentOutline.vue'
 import SymbolPalette from '@/components/latex/SymbolPalette.vue'
 import TableGenerator from '@/components/latex/TableGenerator.vue'
+import SpellChecker from '@/components/latex/SpellChecker.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
@@ -760,6 +781,7 @@ const showPreview = ref(true)
 const showOutline = ref(false)
 const showSymbolPalette = ref(false)
 const showTableGenerator = ref(false)
+const showSpellChecker = ref(false)
 const showSnippets = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
@@ -1814,6 +1836,23 @@ function insertTableCode(code: string) {
 
   showTableGenerator.value = false
   ElMessage.success('表格已插入')
+}
+
+function handleSpellReplace(from: string, to: string) {
+  if (!editorRef.value) return
+
+  const textarea = editorRef.value.$el?.querySelector('textarea')
+  if (!textarea) return
+
+  const content = editorContent.value
+  const newContent = content.replaceAll(from, to)
+  editorContent.value = newContent
+}
+
+function handleSpellGoto(line: number, column: number) {
+  if (!editorRef.value) return
+
+  editorRef.value.navigateTo?.({ line, column })
 }
 
 function toggleLeftPanel() {
