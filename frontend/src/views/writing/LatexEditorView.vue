@@ -329,6 +329,12 @@
                 片段
               </el-button>
             </el-tooltip>
+            <el-tooltip content="编辑器字体" placement="top">
+              <el-button size="small" @click="showFontSelector = !showFontSelector" :aria-pressed="showFontSelector">
+                <el-icon><Edit /></el-icon>
+                字体
+              </el-button>
+            </el-tooltip>
             <el-tooltip content="快捷键 (?) " placement="top">
               <el-button size="small" @click="showKeyboardShortcuts = true">
                 <el-icon><QuestionFilled /></el-icon>
@@ -623,6 +629,16 @@
       <TemplateManager @insert="insertTemplateContent" />
     </el-drawer>
 
+    <!-- 字体选择面板 -->
+    <el-drawer
+      v-model="showFontSelector"
+      title="编辑器字体设置"
+      direction="rtl"
+      size="400px"
+    >
+      <FontSelector @font-change="handleFontChange" />
+    </el-drawer>
+
     <!-- 协作面板 -->
     <el-drawer
       v-model="showCollaborationPanel"
@@ -771,6 +787,7 @@ import TableGenerator from '@/components/latex/TableGenerator.vue'
 import SpellChecker from '@/components/latex/SpellChecker.vue'
 import TemplateManager from '@/components/latex/TemplateManager.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
+import FontSelector from '@/components/latex/FontSelector.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
 import ProjectSelector from '@/components/latex/ProjectSelector.vue'
@@ -801,6 +818,7 @@ const showTableGenerator = ref(false)
 const showSpellChecker = ref(false)
 const showTemplates = ref(false)
 const showSnippets = ref(false)
+const showFontSelector = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
 const showProjectTree = ref(false) // 新增：项目文件树
@@ -1908,6 +1926,13 @@ function insertTemplateContent(content: string) {
   editorContent.value = content
   showTemplates.value = false
   ElMessage.success('模板已应用')
+}
+
+function handleFontChange(fontFamily: string) {
+  // Font change is handled by FontSelector component via store
+  if (import.meta.env.DEV) {
+    console.log('Font changed to:', fontFamily)
+  }
 }
 
 function toggleLeftPanel() {

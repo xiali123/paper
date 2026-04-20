@@ -6,6 +6,7 @@
       <pre
         v-if="showHighlight"
         class="latex-highlight"
+        :style="editorStyle"
         aria-hidden="true"
         v-html="highlightedCode"
       ></pre>
@@ -16,6 +17,7 @@
         v-model="innerContent"
         class="latex-textarea"
         :class="{ 'latex-textarea--transparent': showHighlight }"
+        :style="editorStyle"
         spellcheck="false"
         @focus="handleFocus"
         @blur="handleBlur"
@@ -67,6 +69,7 @@ import { performanceMonitor, checkPerformanceThreshold, PERFORMANCE_THRESHOLDS }
 import { highlightSyntax } from '@/utils/workers'
 import { debounce } from '@/utils/performance'
 import { useTextVirtualScroll } from '@/composables/useVirtualScroll'
+import { useLatexEditorStore } from '@/architecture/stores/latexEditor'
 
 interface Props {
   modelValue: string
@@ -84,10 +87,18 @@ const emit = defineEmits<{
   'scroll': [event: Event]
 }>()
 
+const latexStore = useLatexEditorStore()
 const textareaRef = ref<HTMLTextAreaElement>()
 const isFocused = ref(false)
 const showHighlight = ref(true) // 默认启用语法高亮
 const showToolbar = ref(true)
+
+// 计算编辑器样式
+const editorStyle = computed(() => ({
+  fontFamily: latexStore.editorSettings.fontFamily,
+  fontSize: `${latexStore.editorSettings.fontSize}px`,
+  lineHeight: String(latexStore.editorSettings.lineHeight)
+}))
 
 // Setup virtual scrolling for large documents
 const containerHeight = ref(400)
@@ -397,9 +408,10 @@ defineExpose({
   margin: 0;
   padding: 16px;
   border: none;
-  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  // 字体由 editorStyle 动态控制
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
   white-space: pre;
   overflow: auto;
   overflow-wrap: normal;
@@ -460,9 +472,10 @@ defineExpose({
   outline: none;
   resize: none;
   padding: 16px;
-  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  // 字体由 editorStyle 动态控制
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
   background: var(--el-bg-color);
   color: var(--el-text-color-primary);
   white-space: pre;
