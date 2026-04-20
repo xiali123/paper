@@ -759,7 +759,7 @@ import {
   Tickets, Loading, Warning, InfoFilled, Close,
   ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
   Search, ArrowUp, ArrowDown, Document, DocumentAdd, Memo, Collection, Grid,
-  FolderOpened, FolderAdd, Clock
+  Clock
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
 import PdfViewer from '@/components/latex/PdfViewer.vue'
@@ -919,11 +919,11 @@ const activeErrors = computed(() => {
 })
 
 // 版本历史相关计算属性
-const currentUserId = computed(() => latexStore.currentUserId || 'default')
+const currentUserId = computed(() => 'default')
 const currentFileId = computed(() => {
   // 项目模式：返回当前选中的文件ID
-  if (isProjectMode.value && latexStore.currentFile) {
-    return latexStore.currentFile.id
+  if (isProjectMode.value && latexStore.currentProjectFile) {
+    return latexStore.currentProjectFile.id
   }
   // 文档模式：返回文档ID
   if (currentDocument.value) {
@@ -1593,13 +1593,17 @@ const editorFocus = () => {
 }
 
 // Methods
-function saveDocument() {
+async function saveDocument() {
   if (import.meta.env.DEV) {
-    console.log('Save document clicked')
+    console.log('Save document clicked, project mode:', isProjectMode.value)
   }
   saving.value = true
   try {
-    latexStore.saveDocument()
+    if (isProjectMode.value) {
+      await latexStore.saveCurrentProjectFile()
+    } else {
+      await latexStore.saveDocument()
+    }
     isModified.value = false
     if (import.meta.env.DEV) {
       console.log('Document saved successfully')
@@ -1617,37 +1621,65 @@ function saveDocument() {
 
 async function compileDocument() {
   compiling.value = true
+
+  // 根据模式选择不同的加载文本
+  const loadingText = isProjectMode.value ? '正在编译LaTeX项目...' : '正在编译LaTeX文档...'
   const loadingInstance = ElLoading.service({
     lock: true,
-    text: '正在编译LaTeX文档...',
+    text: loadingText,
     background: 'rgba(0, 0, 0, 0.7)',
   })
 
   try {
-    const result = await latexStore.compileDocument()
+    let result: any
+
+    if (isProjectMode.value) {
+      // 项目模式：先保存当前文件再编译项目
+      if (isModified.value) {
+        await latexStore.saveCurrentProjectFile()
+      }
+      result = await latexStore.compileProject()
+    } else {
+      // 单文档模式：编译单个文档
+      result = await latexStore.compileDocument()
+    }
+
     loadingInstance.close()
 
     if (result.success) {
       // 设置PDF URL并切换到PDF预览模式
       if (result.pdfPath) {
-        // 使用API端点获取PDF，而不是直接访问文件路径
-        // 假设文档ID可用，通过API获取PDF
-        const documentId = currentDocument.value?.id || currentProjectFile.value?.id
-        if (documentId) {
-          // 添加时间戳避免浏览器缓存旧的无效PDF
-          pdfUrl.value = `http://localhost:8080/api/latex/documents/${documentId}/pdf?t=${Date.now()}`
+        let pdfUrlValue = ''
+
+        if (isProjectMode.value) {
+          // 使用项目ID获取PDF
+          const projectId = currentProject.value?.id
+          if (projectId) {
+            pdfUrlValue = `http://localhost:8080/api/latex/projects/${projectId}/pdf?t=${Date.now()}`
+          }
+        } else {
+          // 使用文档ID获取PDF
+          const documentId = currentDocument.value?.id
+          if (documentId) {
+            pdfUrlValue = `http://localhost:8080/api/latex/documents/${documentId}/pdf?t=${Date.now()}`
+          }
+        }
+
+        if (pdfUrlValue) {
+          pdfUrl.value = pdfUrlValue
         }
         previewMode.value = 'pdf'
 
         // 显示成功消息，包含编译时间和文件大小信息
         const compileTime = result.compileTimeMs || 0
-        let message = `编译成功！耗时${compileTime}ms`
+        const modePrefix = isProjectMode.value ? '项目' : '文档'
+        let message = `${modePrefix}编译成功！耗时${compileTime}ms`
 
         // 如果编译时间较长，显示不同的提示
         if (compileTime > 5000) {
-          message = `编译完成（耗时${(compileTime / 1000).toFixed(1)}秒）`
+          message = `${modePrefix}编译完成（耗时${(compileTime / 1000).toFixed(1)}秒）`
         } else if (compileTime > 1000) {
-          message = `编译成功（耗时${(compileTime / 1000).toFixed(1)}秒）`
+          message = `${modePrefix}编译成功（耗时${(compileTime / 1000).toFixed(1)}秒）`
         }
 
         ElMessage({
@@ -1862,7 +1894,7 @@ function handleSpellReplace(from: string, to: string) {
   if (!textarea) return
 
   const content = editorContent.value
-  const newContent = content.replaceAll(from, to)
+  const newContent = content.split(from).join(to)
   editorContent.value = newContent
 }
 
@@ -2566,7 +2598,7 @@ async function handleFolderRename(oldPath: string, newName: string) {
 
     for (const file of filesInFolder) {
       const newPath = file.path.replace(oldPath, newName)
-      await latexStore.renameProjectFile(Number(file.id), file.name, newPath)
+      await latexStore.renameProjectFile(Number(file.id), file.name)
     }
 
     await latexStore.loadProject(latexStore.currentProject!.id)
@@ -2612,113 +2644,6 @@ function handleVersionRestore(content: string) {
   isModified.value = true
   ElMessage.success('版本已恢复，请记得保存更改')
   showVersionHistory.value = false
-}
-
-// ==========================================
-// 项目模式下的编译和保存
-// ==========================================
-
-// 重写保存和编译方法以支持项目模式
-const originalSaveDocument = saveDocument
-const originalCompileDocument = compileDocument
-
-saveDocument = function() {
-  if (isProjectMode.value) {
-    latexStore.saveCurrentProjectFile()
-    isModified.value = false
-  } else {
-    originalSaveDocument()
-  }
-}
-
-compileDocument = async function() {
-  if (isProjectMode.value) {
-    compiling.value = true
-    const loadingInstance = ElLoading.service({
-      lock: true,
-      text: '正在编译LaTeX项目...',
-      background: 'rgba(0, 0, 0, 0.7)',
-    })
-
-    try {
-      // 先保存当前编辑器内容到项目文件（同步到后端内存）
-      if (isModified.value) {
-        await latexStore.saveCurrentProjectFile()
-      }
-
-      // 直接编译，后端使用内存中的最新数据
-      const result = await latexStore.compileProject()
-      loadingInstance.close()
-
-      if (result.success) {
-        // 设置PDF URL并切换到PDF预览模式
-        if (result.pdfPath) {
-          // 使用项目ID获取PDF
-          const projectId = currentProject.value?.id
-          if (projectId) {
-            // 添加时间戳避免浏览器缓存旧的无效PDF
-            pdfUrl.value = `http://localhost:8080/api/latex/projects/${projectId}/pdf?t=${Date.now()}`
-          }
-          previewMode.value = 'pdf'
-
-          const compileTime = result.compileTimeMs || 0
-          let message = `项目编译成功！耗时${compileTime}ms`
-
-          if (compileTime > 5000) {
-            message = `项目编译完成（耗时${(compileTime / 1000).toFixed(1)}秒）`
-          } else if (compileTime > 1000) {
-            message = `项目编译成功（耗时${(compileTime / 1000).toFixed(1)}秒）`
-          }
-
-          ElMessage({
-            message,
-            type: 'success',
-            duration: 3000,
-            showClose: true
-          })
-        } else if (result.output) {
-          // 兼容旧的output格式
-          if (previewRef.value) {
-            previewRef.value.updatePreview(result.output)
-          }
-          ElMessage.success('项目预览已更新')
-        }
-      } else {
-        const errorMsg = result.error || '编译失败'
-
-        // 检查是否是配额限制错误
-        if (errorMsg.includes('quota') || errorMsg.includes('limit') || errorMsg.includes('配额')) {
-          ElMessage({
-            message: '编译配额已用完，请升级套餐或等待配额重置',
-            type: 'warning',
-            duration: 5000,
-            showClose: true
-          })
-        } else {
-          ElMessage.error({
-            message: `项目编译失败: ${errorMsg}`,
-            duration: 5000,
-            showClose: true
-          })
-        }
-      }
-    } catch (error) {
-      loadingInstance.close()
-      console.error('Project compilation failed:', error)
-
-      const errorMsg = error instanceof Error ? error.message : '未知错误'
-
-      if (errorMsg.includes('network') || errorMsg.includes('Network') || errorMsg.includes('fetch')) {
-        ElMessage.error('网络错误，请检查网络连接后重试')
-      } else {
-        ElMessage.error(`项目编译失败: ${errorMsg}`)
-      }
-    } finally {
-      compiling.value = false
-    }
-  } else {
-    await originalCompileDocument()
-  }
 }
 
 // Expose methods to template
