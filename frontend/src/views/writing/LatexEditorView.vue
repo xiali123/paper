@@ -305,6 +305,12 @@
               <el-icon><Tickets /></el-icon>
               符号
             </el-button>
+            <el-tooltip content="表格生成器" placement="top">
+              <el-button size="small" @click="showTableGenerator = !showTableGenerator" :aria-pressed="showTableGenerator">
+                <el-icon><Grid /></el-icon>
+                表格
+              </el-button>
+            </el-tooltip>
             <el-tooltip content="代码片段 (Ctrl+Space)" placement="top">
               <el-button size="small" @click="showSnippets = !showSnippets" :aria-pressed="showSnippets">
                 <el-icon><Collection /></el-icon>
@@ -571,6 +577,16 @@
       <SymbolPalette @insert="insertSymbol" />
     </el-drawer>
 
+    <!-- 表格生成器面板 -->
+    <el-drawer
+      v-model="showTableGenerator"
+      title="表格生成器"
+      direction="rtl"
+      size="600px"
+    >
+      <TableGenerator @insert="insertTableCode" />
+    </el-drawer>
+
     <!-- 协作面板 -->
     <el-drawer
       v-model="showCollaborationPanel"
@@ -706,7 +722,7 @@ import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
   Tickets, Loading, Warning, InfoFilled, Close,
   ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
-  Search, ArrowUp, ArrowDown, Document, DocumentAdd, Collection,
+  Search, ArrowUp, ArrowDown, Document, DocumentAdd, Collection, Grid,
   FolderOpened, FolderAdd, Clock
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
@@ -715,6 +731,7 @@ import LatexAutocomplete from '@/components/latex/LatexAutocomplete.vue'
 import LatexEditor from '@/components/latex/LatexEditor.vue'
 import DocumentOutline from '@/components/latex/DocumentOutline.vue'
 import SymbolPalette from '@/components/latex/SymbolPalette.vue'
+import TableGenerator from '@/components/latex/TableGenerator.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
@@ -742,6 +759,7 @@ const editorRef = ref<any>(null)
 const showPreview = ref(true)
 const showOutline = ref(false)
 const showSymbolPalette = ref(false)
+const showTableGenerator = ref(false)
 const showSnippets = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
@@ -1766,6 +1784,36 @@ function insertSymbol(symbol: string) {
   })
 
   showSymbolPalette.value = false
+}
+
+function insertTableCode(code: string) {
+  if (!editorRef.value) return
+
+  if (import.meta.env.DEV) {
+    console.log('Insert table code:', code)
+  }
+
+  // Get current textarea
+  const textarea = editorRef.value.$el?.querySelector('textarea')
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const content = editorContent.value
+
+  const newContent = content.substring(0, start) + '\n' + code + '\n' + content.substring(end)
+  editorContent.value = newContent
+
+  // Focus and set cursor position
+  nextTick(() => {
+    textarea.focus()
+    const newCursorPos = start + code.length + 2
+    textarea.selectionStart = newCursorPos
+    textarea.selectionEnd = newCursorPos
+  })
+
+  showTableGenerator.value = false
+  ElMessage.success('表格已插入')
 }
 
 function toggleLeftPanel() {
