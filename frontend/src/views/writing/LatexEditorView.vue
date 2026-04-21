@@ -3735,6 +3735,12 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     width: 100%;
   }
 
+  // 仅预览模式：占满整个空间
+  &.preview-only {
+    flex: 1;
+    width: 100%;
+  }
+
   .preview-header {
     display: flex;
     justify-content: space-between;
