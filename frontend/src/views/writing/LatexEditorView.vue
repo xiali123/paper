@@ -865,11 +865,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useLatexEditorStore } from '@/architecture/stores/latexEditor'
+import { useAuthStore } from '@/stores'
 import { useAutoSave } from '@/composables/useAutoSave'
 import { useKeyboardShortcuts, getLatexShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useScrollSync } from '@/composables/useScrollSync'
 import { useUndoRedo } from '@/composables/useUndoRedo'
 import { useLatexAutocomplete } from '@/composables/useLatexAutocomplete'
+import { saveLatexVersion } from '@/api/adapters/latexAdapter'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
@@ -918,6 +920,9 @@ const props = defineProps<Props>()
 
 // Router and store
 const latexStore = useLatexEditorStore()
+
+// Auth store for user info
+const authStore = useAuthStore()
 
 // Refs
 const previewRef = ref<InstanceType<typeof LatexPreview> | null>(null)
@@ -1650,8 +1655,41 @@ function handleSnippetInsert(snippet: Snippet) {
 }
 
 // 自动保存设置
-const AUTO_SAVE_INTERVAL = 30000 // 30秒
+const AUTO_SAVE_INTERVAL = 60000 // 1分钟
 const autoSaveEnabled = ref(true)
+
+// 创建历史版本
+const createVersionSnapshot = async (content: string, isAuto: boolean = true) => {
+  try {
+    if (!authStore.user?.id) {
+      console.warn('[Version] No user logged in, skipping version creation')
+      return
+    }
+
+    const fileId = currentFileId.value
+    const projectId = currentProjectId.value
+
+    if (!fileId || !projectId) {
+      console.warn('[Version] Missing file or project ID', { fileId, projectId })
+      return
+    }
+
+    await saveLatexVersion({
+      fileId,
+      projectId,
+      userId: authStore.user.id,
+      content,
+      summary: isAuto ? '自动保存' : '手动保存',
+      isAutoSave: isAuto
+    })
+
+    if (import.meta.env.DEV) {
+      console.log(`[Version] ${isAuto ? 'Auto' : 'Manual'} version created`)
+    }
+  } catch (error) {
+    console.error('[Version] Failed to create version:', error)
+  }
+}
 
 // 设置自动保存 - 现在 editorContent 已经定义
 const autoSave = useAutoSave(
@@ -1661,8 +1699,10 @@ const autoSave = useAutoSave(
     interval: AUTO_SAVE_INTERVAL,
     debounceDelay: 2000,
     enableLocalStorage: true,
-    onSave: async (_content) => {
+    onSave: async (content) => {
       await latexStore.saveDocument()
+      // 创建历史版本
+      await createVersionSnapshot(content, true)
     },
     onSuccess: () => {
       if (import.meta.env.DEV) {
@@ -1839,6 +1879,10 @@ async function saveDocument() {
       await latexStore.saveDocument(currentSaveController.signal)
     }
     isModified.value = false
+
+    // 创建历史版本（手动保存）
+    await createVersionSnapshot(editorContent.value, false)
+
     if (import.meta.env.DEV) {
       console.log('Document saved successfully')
     }
