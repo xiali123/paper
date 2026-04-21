@@ -3745,27 +3745,32 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 18px;
+    gap: 8px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--el-border-color-lighter);
     background: linear-gradient(
       to bottom,
       var(--el-bg-color-page) 0%,
       rgba(0, 0, 0, 0.02) 100%
     );
+    flex-wrap: nowrap;
+    min-width: 0;
 
     h3 {
       margin: 0;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--el-text-color-primary);
       display: flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
 
       &::before {
         content: '';
-        width: 4px;
-        height: 16px;
+        width: 3px;
+        height: 14px;
         background: var(--el-color-primary);
         border-radius: 2px;
       }
@@ -3773,16 +3778,17 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 
     .preview-controls {
       display: flex;
-      gap: 6px;
+      gap: 4px;
+      flex-shrink: 0;
 
       :deep(.el-button) {
-        min-width: 32px;
-        height: 32px;
-        padding: 0 8px;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 6px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 500;
       }
     }
@@ -3790,10 +3796,25 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     .preview-mode-toggle {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-left: 12px;
-      padding-left: 12px;
-      border-left: 1px solid var(--el-border-color-lighter);
+      gap: 4px;
+      margin-left: auto;
+      flex-shrink: 0;
+
+      :deep(.el-radio-group) {
+        display: flex;
+        gap: 2px;
+
+        .el-radio-button {
+          --el-radio-button-checked-bg-color: var(--el-color-primary);
+          --el-radio-button-checked-text-color: #fff;
+
+          .el-radio-button__inner {
+            padding: 6px 10px;
+            font-size: 12px;
+            height: 28px;
+          }
+        }
+      }
     }
   }
 
