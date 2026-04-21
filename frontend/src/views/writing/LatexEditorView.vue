@@ -158,7 +158,15 @@
     </header>
 
     <!-- 主编辑区域 -->
-    <main class="editor-main" :class="{ 'show-preview': showPreview, 'is-mobile': isMobile }" role="main">
+    <main
+      class="editor-main"
+      :class="{
+        'show-preview': showPreview,
+        'is-mobile': isMobile,
+        [layoutMode]: true
+      }"
+      role="main"
+    >
       <!-- 移动端标签栏 -->
       <div class="mobile-tabs" role="tablist" aria-label="编辑器视图切换" v-if="isMobile">
         <div
@@ -3339,13 +3347,50 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 .editor-main {
   flex: 1;
   display: flex;
+  flex-direction: row; // 默认横向布局
   overflow: hidden;
   width: 100%;
   min-width: 0; // 允许flex子项正确收缩
 
+  // 上下分屏模式：切换为纵向布局
+  &.vertical-split {
+    flex-direction: column;
+  }
+
+  // 左右分屏模式（默认）
+  &.side-by-side {
+    flex-direction: row;
+  }
+
+  // 仅编辑器模式
+  &.editor-only {
+    flex-direction: row;
+
+    .preview-panel {
+      display: none;
+    }
+  }
+
+  // 仅预览模式
+  &.preview-only {
+    flex-direction: row;
+
+    .editor-panel {
+      display: none;
+    }
+  }
+
   &.show-preview {
     .editor-panel {
       border-right: 1px solid var(--el-border-color-lighter);
+    }
+  }
+
+  // vertical-split模式下的边框处理
+  &.vertical-split.show-preview {
+    .editor-panel {
+      border-right: none;
+      border-bottom: 1px solid var(--el-border-color-lighter);
     }
   }
 }
@@ -3358,8 +3403,17 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   width: 100%;
   min-width: 0; // 允许flex子项正确收缩
 
-  &.with-preview {
+  // 左右分屏模式：编辑器占60%
+  &.side-by-side.with-preview {
     flex: 0.6;
+    width: 60%;
+  }
+
+  // 上下分屏模式：编辑器占50%高度
+  &.vertical-split.with-preview {
+    flex: 0.5;
+    height: 50%;
+    width: 100%;
   }
 
   &.with-outline {
@@ -3657,47 +3711,6 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 // ==========================================
-// 布局模式样式
-// ==========================================
-
-// 左右分屏模式
-.editor-main {
-  &:not(.is-mobile) {
-    // Side-by-side layout
-    .editor-panel.side-by-side {
-      border-right: 1px solid var(--el-border-color-lighter);
-    }
-
-    .preview-panel.side-by-side {
-      border-left: 1px solid var(--el-border-color-lighter);
-    }
-
-    // 上下分屏模式
-    .editor-panel.vertical-split,
-    .preview-panel.vertical-split {
-      flex: 1;
-      border-right: none;
-      border-left: none;
-    }
-
-    .editor-panel.vertical-split {
-      border-bottom: 1px solid var(--el-border-color-lighter);
-    }
-
-    // 仅编辑器模式
-    .editor-panel.editor-only {
-      flex: 1;
-      border-right: none;
-    }
-
-    // 仅预览模式
-    .preview-panel.preview-only {
-      flex: 1;
-    }
-  }
-}
-
-// ==========================================
 // 4. 预览面板优化
 // ==========================================
 
@@ -3708,6 +3721,19 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   background: var(--el-bg-color);
   width: 100%;
   min-width: 0; // 允许flex子项正确收缩
+
+  // 左右分屏模式：预览占40%
+  &.side-by-side {
+    flex: 0.4;
+    width: 40%;
+  }
+
+  // 上下分屏模式：预览占50%高度
+  &.vertical-split {
+    flex: 0.5;
+    height: 50%;
+    width: 100%;
+  }
 
   .preview-header {
     display: flex;
@@ -4076,6 +4102,29 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 
 @media (max-width: 768px) {
   .latex-editor-view {
+    // 移动端强制垂直布局
+    .editor-main {
+      flex-direction: column !important;
+
+      &.vertical-split,
+      &.side-by-side {
+        flex-direction: column !important;
+      }
+    }
+
+    // 编辑器和预览面板在移动端始终全宽
+    .editor-panel,
+    .preview-panel {
+      width: 100% !important;
+      flex: 1 !important;
+
+      &.side-by-side,
+      &.vertical-split {
+        width: 100% !important;
+        height: auto !important;
+      }
+    }
+
     .editor-header {
       flex-direction: column;
       gap: 8px;
