@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, watch, onUnmounted, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   ArrowLeft,
@@ -78,7 +78,7 @@ import {
   RefreshRight,
   CircleCheck
 } from '@element-plus/icons-vue'
-import { pdfStorage, formatFileSize } from '@/utils/pdfStorage'
+import { pdfStorage } from '@/utils/pdfStorage'
 
 interface Props {
   pdfUrl?: string
@@ -125,6 +125,7 @@ async function getPdfJs() {
     pdfjsLibCache = pdfjsModule.default || pdfjsModule
 
     // Import worker locally (Vite will handle it)
+    // @ts-ignore - Worker file has no type definitions
     await import('pdfjs-dist/build/pdf.worker.min.js')
 
     // Set worker entry point (using the module that was just loaded)
@@ -233,8 +234,11 @@ async function loadPdf(url: string) {
     return
   }
 
-  try {
-    const pdfjs = await getPdfJs()
+  // 使用PDF存储服务获取URL（优先从本地缓存）
+  const pdfId = getPdfId.value
+  currentPdfId.value = pdfId
+
+  let pdfUrl: string = url  // 初始化为原始URL，确保在try块外可访问
 
   try {
     const pdfjs = await getPdfJs()
@@ -243,11 +247,6 @@ async function loadPdf(url: string) {
       console.log('[PdfViewer] getPdfJs returned:', typeof pdfjs, 'has getDocument:', typeof pdfjs.getDocument)
     }
 
-    // 使用PDF存储服务获取URL（优先从本地缓存）
-    const pdfId = getPdfId.value
-    currentPdfId.value = pdfId
-
-    let pdfUrl: string
     try {
       // 尝试从本地缓存获取
       pdfUrl = await pdfStorage.getPdfUrl(
@@ -447,12 +446,14 @@ async function refreshPdf() {
   }
 
   // 重新加载
-  await loadPdf(props.pdfUrl)
+  if (props.pdfUrl) {
+    await loadPdf(props.pdfUrl)
+  }
 }
 
 // 监听 PDF URL 变化
 watch(() => props.pdfUrl, (newUrl, oldUrl) => {
-  if (newUrl !== oldUrl) {
+  if (newUrl !== oldUrl && newUrl) {
     loadPdf(newUrl)
   }
 }, { immediate: true })
@@ -472,7 +473,7 @@ watch(canvasRef, (newCanvas) => {
 defineExpose({
   refresh: () => {
     if (props.pdfUrl) {
-      loadPdf(props.pdfUrl)
+      loadPdf(props.pdfUrl as string)
     }
   }
 })

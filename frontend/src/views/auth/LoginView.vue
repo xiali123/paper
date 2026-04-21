@@ -184,8 +184,17 @@ const errors = reactive({
   password: ''
 })
 
-// Focus email input on mount
+// Focus email input on mount and restore saved email
 onMounted(() => {
+  // Check if user previously checked "Remember Me"
+  const rememberMe = localStorage.getItem('remember_me')
+  const rememberedEmail = localStorage.getItem('remembered_email')
+
+  if (rememberMe === 'true' && rememberedEmail) {
+    form.email = rememberedEmail
+    form.rememberMe = true
+  }
+
   emailInput.value?.focus()
 })
 
@@ -252,15 +261,23 @@ const handleLogin = async () => {
   try {
     const result = await authStore.login({
       email: form.email,
-      password: form.password
+      password: form.password,
+      rememberMe: form.rememberMe
     })
 
     if (result.success) {
       ElMessage.success(t('auth.loginSuccess'))
 
-      // 登录成功后，让路由守卫的 guestOnly 逻辑自动处理重定向
-      // 不要手动导航，避免双重重定向或页面刷新
-      // 路由守卫会检测到已登录用户在 guestOnly 页面，自动重定向到 /dashboard
+      // 检查是否有重定向URL
+      const redirect = route.query.redirect as string
+
+      // 重定向优先级: query参数 > dashboard > writing
+      if (redirect) {
+        router.push(redirect)
+      } else {
+        // 默认跳转到写作页面
+        router.push('/writing')
+      }
     } else {
       apiError.value = result.error || t('auth.loginFailed')
     }

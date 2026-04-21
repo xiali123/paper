@@ -11,13 +11,6 @@
       class="main-layout__content"
       :class="{ 'main-layout__content--collapsed': isSidebarCollapsed }"
     >
-      <!-- Breadcrumb Bar -->
-      <div class="main-layout__breadcrumb">
-        <el-container>
-          <BreadcrumbBar />
-        </el-container>
-      </div>
-
       <!-- Page Content -->
       <main class="main-layout__main" role="main">
         <el-container>
@@ -52,7 +45,6 @@ import { useRoute } from 'vue-router'
 import { useUIStore } from '@/stores'
 import TopNavigation from './TopNavigation.vue'
 import SidebarNavigation from './SidebarNavigation.vue'
-import BreadcrumbBar from './BreadcrumbBar.vue'
 import Footer from './Footer.vue'
 
 const route = useRoute()
@@ -143,22 +135,6 @@ onUnmounted(() => {
 
   @media (max-width: 1023px) {
     margin-left: 0;
-  }
-}
-
-// 面包屑导航区域
-.main-layout__breadcrumb {
-  background: $bg-color;
-  border-bottom: 1px solid $border-light;
-  padding: $spacing-3 $spacing-6;
-
-  .dark & {
-    background: $gray-800;
-    border-bottom-color: $gray-700;
-  }
-
-  @media (max-width: 768px) {
-    padding: $spacing-2 $spacing-4;
   }
 }
 
@@ -325,7 +301,6 @@ onUnmounted(() => {
 
 // 打印样式
 @media print {
-  .main-layout__breadcrumb,
   .main-layout__footer {
     display: none;
   }

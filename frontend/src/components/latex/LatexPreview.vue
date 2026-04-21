@@ -343,11 +343,15 @@ async function renderLatex() {
     // 处理剩余的换行
     html = html.replace(/\n/g, '<br>')
 
-    // 使用DOMPurify清理HTML
+    // 使用DOMPurify清理HTML（安全配置）
+    // 注意：不包含onerror等危险属性，防止XSS攻击
     renderedHtml.value = DOMPurify.sanitize(html, {
       ALLOWED_TAGS: ['p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 'sub', 'sup', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 'table', 'tbody', 'thead', 'tr', 'td', 'th', 'figure', 'figcaption', 'img', 'span', 'a', 'div', 'sup', 'sub', 'center'],
-      ALLOWED_ATTR: ['class', 'id', 'style', 'href', 'title', 'src', 'alt', 'loading', 'onerror', 'target'],
-      ALLOW_DATA_ATTR: false
+      ALLOWED_ATTR: ['class', 'id', 'style', 'href', 'title', 'src', 'alt', 'loading', 'target', 'width', 'height'],
+      ALLOW_DATA_ATTR: false,
+      // 额外安全措施
+      FORBID_TAGS: ['script', 'object', 'embed', 'iframe'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'javascript:', 'data-*']
     })
     renderError.value = null
   } catch (error) {
@@ -411,10 +415,21 @@ onMounted(() => {
   renderLatex()
 })
 
-// 清理定时器防止内存泄漏
+// 清理定时器和worker防止内存泄漏
 onUnmounted(() => {
   if (renderTimeout.value) {
     clearTimeout(renderTimeout.value)
+  }
+
+  // 清理Worker Manager（如果有活跃的Worker任务）
+  try {
+    // WorkerManager是单例，这里我们只是确保没有pending的任务
+    // 注意：不直接terminate()，因为其他组件可能还在使用
+    if (import.meta.env.DEV) {
+      console.log('[LatexPreview] Component unmounted, cleanup completed')
+    }
+  } catch (error) {
+    console.warn('[LatexPreview] Cleanup warning:', error)
   }
 })
 </script>

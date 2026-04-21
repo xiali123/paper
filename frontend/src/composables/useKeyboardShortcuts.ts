@@ -194,6 +194,10 @@ export function getLatexShortcuts(handlers: {
   onTogglePreview?: () => void
   onToggleOutline?: () => void
   onToggleSnippets?: () => void
+  onShowWelcome?: () => void
+  onShowRecent?: () => void
+  onShowSettings?: () => void
+  onShowStats?: () => void
 }): KeyboardShortcut[] {
   const shortcuts: KeyboardShortcut[] = []
 
@@ -298,6 +302,38 @@ export function getLatexShortcuts(handlers: {
       key: 'Ctrl+Space',
       handler: handlers.onToggleSnippets,
       description: '切换代码片段'
+    })
+  }
+
+  if (handlers.onShowWelcome) {
+    shortcuts.push({
+      key: 'F1',
+      handler: handlers.onShowWelcome,
+      description: '欢迎引导'
+    })
+  }
+
+  if (handlers.onShowRecent) {
+    shortcuts.push({
+      key: 'Ctrl+R',
+      handler: handlers.onShowRecent,
+      description: '最近文档'
+    })
+  }
+
+  if (handlers.onShowSettings) {
+    shortcuts.push({
+      key: 'Ctrl+Alt+S',
+      handler: handlers.onShowSettings,
+      description: '编辑器设置'
+    })
+  }
+
+  if (handlers.onShowStats) {
+    shortcuts.push({
+      key: 'Ctrl+Alt+D',
+      handler: handlers.onShowStats,
+      description: '文档统计'
     })
   }
 

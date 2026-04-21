@@ -110,15 +110,18 @@ export const useAuthStore = defineStore(
 
     /**
      * Login user
+     * @param credentials Login credentials including email, password, and optional rememberMe
      */
     async function login(credentials: LoginRequest) {
-      console.log('🔵 [AuthStore] login() called with:', { email: credentials.email, passwordLength: credentials.password.length })
+      console.log('🔵 [AuthStore] login() called with:', { email: credentials.email, passwordLength: credentials.password.length, rememberMe: credentials.rememberMe })
       console.log('🔵 [AuthStore] loading before:', loading.value)
 
       loading.value = true
       error.value = null
 
       console.log('🔵 [AuthStore] Set loading to true')
+
+      const rememberMe = credentials.rememberMe ?? false
 
       // ✅ Mock模式检查：如果启用了Mock模式，直接返回模拟数据
       const isMockMode = import.meta.env.VITE_APP_ENABLE_MOCK === 'true'
@@ -149,7 +152,16 @@ export const useAuthStore = defineStore(
         // 存储模拟数据
         user.value = mockUser
         tokens.value = mockTokens
-        persistTokens(mockTokens)
+        persistTokens(mockTokens, rememberMe)
+
+        // 保存记住我选项和邮箱
+        if (rememberMe) {
+          localStorage.setItem('remember_me', 'true')
+          localStorage.setItem('remembered_email', credentials.email || credentials.username || '')
+        } else {
+          localStorage.removeItem('remember_me')
+          localStorage.removeItem('remembered_email')
+        }
 
         console.log('✅ [AuthStore] Mock auth successful, user:', mockUser)
         console.log('✅ [AuthStore] Mock tokens:', mockTokens)
@@ -173,9 +185,19 @@ export const useAuthStore = defineStore(
         console.log('🟢 [AuthStore] Stored in state, user:', user.value)
         console.log('🟢 [AuthStore] Tokens:', tokens.value)
 
-        // Store in localStorage
-        persistTokens(response.tokens)
-        console.log('🟢 [AuthStore] Persisted to localStorage')
+        // Store in localStorage/sessionStorage based on rememberMe
+        persistTokens(response.tokens, rememberMe)
+
+        // 保存记住我选项和邮箱
+        if (rememberMe) {
+          localStorage.setItem('remember_me', 'true')
+          localStorage.setItem('remembered_email', credentials.email || credentials.username || '')
+        } else {
+          localStorage.removeItem('remember_me')
+          localStorage.removeItem('remembered_email')
+        }
+
+        console.log('🟢 [AuthStore] Persisted tokens, rememberMe:', rememberMe)
 
         // Setup auto-refresh
         scheduleTokenRefresh(response.tokens.expiresAt)
@@ -480,17 +502,25 @@ export const useAuthStore = defineStore(
     // ========================================================================
 
     /**
-     * Persist tokens to localStorage
+     * Persist tokens to localStorage or sessionStorage
+     * @param tokens Auth tokens to persist
+     * @param rememberMe If true, use localStorage (persistent), else sessionStorage (session only)
      */
-    function persistTokens(tokens: AuthTokens) {
-      localStorage.setItem('auth_tokens', JSON.stringify(tokens))
+    function persistTokens(tokens: AuthTokens, rememberMe: boolean = true) {
+      const storage = rememberMe ? localStorage : sessionStorage
+      storage.setItem('auth_tokens', JSON.stringify(tokens))
+
+      // Clear the other storage to avoid conflicts
+      const otherStorage = rememberMe ? sessionStorage : localStorage
+      otherStorage.removeItem('auth_tokens')
     }
 
     /**
-     * Load stored tokens from localStorage
+     * Load stored tokens from localStorage or sessionStorage
      */
     function loadStoredTokens() {
-      const stored = localStorage.getItem('auth_tokens')
+      // Check localStorage first, then sessionStorage
+      const stored = localStorage.getItem('auth_tokens') || sessionStorage.getItem('auth_tokens')
       if (!stored) return null
 
       try {
@@ -507,6 +537,9 @@ export const useAuthStore = defineStore(
       user.value = null
       tokens.value = null
       localStorage.removeItem('auth_tokens')
+      sessionStorage.removeItem('auth_tokens')
+      localStorage.removeItem('remember_me')
+      localStorage.removeItem('remembered_email')
 
       if (refreshTimer) {
         clearTimeout(refreshTimer)

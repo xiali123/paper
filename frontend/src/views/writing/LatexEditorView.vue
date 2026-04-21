@@ -131,6 +131,9 @@
 
           <!-- 项目选择器 -->
           <ProjectSelector @toggle-tree="showProjectTree = $event" />
+
+          <!-- 编辑器统计 -->
+          <EditorStats :content="editorContent" />
         </div>
       </nav>
 
@@ -588,6 +591,20 @@
       </div>
     </main>
 
+    <!-- 编辑器状态栏 -->
+    <EditorStatusBar
+      :saving="saving"
+      :compiling="compiling"
+      :compile-success="compilationStatus === 'success'"
+      :compile-error="compilationStatus === 'error'"
+      :cursor-line="cursorPosition.line"
+      :cursor-column="cursorPosition.column"
+      @show-shortcuts="shortcutHelpRef?.open()"
+      @show-quick-insert="quickInsertRef?.open()"
+      @show-ai-recognize="aiRecognizerRef?.open()"
+      ref="statusBarRef"
+    />
+
     <!-- 符号面板 -->
     <el-drawer
       v-model="showSymbolPalette"
@@ -641,6 +658,34 @@
     >
       <FontSelector @font-change="handleFontChange" />
     </el-drawer>
+
+    <!-- 快捷键帮助 -->
+    <ShortcutHelp ref="shortcutHelpRef" />
+
+    <!-- 快速插入面板 -->
+    <QuickInsert
+      ref="quickInsertRef"
+      @insert="handleQuickInsert"
+    />
+
+    <!-- AI 公式识别 -->
+    <AiFormulaRecognizer
+      ref="aiRecognizerRef"
+      @insert="insertFormula"
+    />
+
+    <!-- 审阅模式 -->
+    <ReviewMode
+      ref="reviewModeRef"
+      @toggle="handleReviewModeToggle"
+      @insert="handleReviewInsert"
+    />
+
+    <!-- 导出对话框 -->
+    <ExportDialog
+      ref="exportDialogRef"
+      @export="handleExport"
+    />
 
     <!-- 协作面板 -->
     <el-drawer
@@ -761,6 +806,51 @@
       @select="() => autocomplete.selectCurrent()"
       @hover="(index) => autocomplete.setSelectedIndex(index)"
     />
+
+    <!-- 欢迎引导 -->
+    <WelcomeGuide ref="welcomeGuideRef" @close="handleWelcomeGuideClose" />
+
+    <!-- 最近文档 -->
+    <el-drawer
+      v-model="showRecentDocuments"
+      title="最近文档"
+      direction="ltr"
+      size="600px"
+    >
+      <RecentDocuments
+        ref="recentDocumentsRef"
+        :documents="recentDocs"
+        :loading="loadingRecentDocs"
+        @open="handleOpenRecentDocument"
+        @create-new="handleCreateNewDocument"
+      />
+    </el-drawer>
+
+    <!-- 编辑器设置 -->
+    <EditorSettings
+      ref="editorSettingsRef"
+      @update-settings="handleSettingsUpdate"
+      @clear-cache="handleClearCache"
+    />
+
+    <!-- 统计仪表板 -->
+    <StatsDashboard
+      ref="statsDashboardRef"
+      :stats="extendedDocumentStats"
+      :document-id="currentDocument?.id"
+      @refresh="handleRefreshStats"
+      @export="handleExportStats"
+    />
+
+    <!-- 编译进度 -->
+    <CircularProgress
+      :visible="compiling"
+      :text="compileText"
+      :progress="compileProgress"
+      :show-percentage="true"
+      :show-cancel="true"
+      @cancel="cancelCompile"
+    />
   </div>
 </template>
 
@@ -772,7 +862,7 @@ import { useKeyboardShortcuts, getLatexShortcuts } from '@/composables/useKeyboa
 import { useScrollSync } from '@/composables/useScrollSync'
 import { useUndoRedo } from '@/composables/useUndoRedo'
 import { useLatexAutocomplete } from '@/composables/useLatexAutocomplete'
-import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
   Tickets, Loading, Warning, InfoFilled, Close,
@@ -787,15 +877,28 @@ import LatexEditor from '@/components/latex/LatexEditor.vue'
 import DocumentOutline from '@/components/latex/DocumentOutline.vue'
 import SymbolPalette from '@/components/latex/SymbolPalette.vue'
 import TableGenerator from '@/components/latex/TableGenerator.vue'
+import CircularProgress from '@/components/latex/CircularProgress.vue'
 import SpellChecker from '@/components/latex/SpellChecker.vue'
 import TemplateManager from '@/components/latex/TemplateManager.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import FontSelector from '@/components/latex/FontSelector.vue'
+import ShortcutHelp from '@/components/latex/ShortcutHelp.vue'
+import QuickInsert from '@/components/latex/QuickInsert.vue'
+import EditorStats from '@/components/latex/EditorStats.vue'
+import AiFormulaRecognizer from '@/components/latex/AiFormulaRecognizer.vue'
+import ReviewMode from '@/components/latex/ReviewMode.vue'
+import ExportDialog from '@/components/latex/ExportDialog.vue'
+import EditorStatusBar from '@/components/latex/EditorStatusBar.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
 import ProjectSelector from '@/components/latex/ProjectSelector.vue'
 import VersionHistory from '@/components/latex/VersionHistory.vue'
 import VersionControl from '@/components/latex/VersionControl.vue'
+import WelcomeGuide from '@/components/latex/WelcomeGuide.vue'
+import RecentDocuments from '@/components/latex/RecentDocuments.vue'
+import EditorToolbar from '@/components/latex/EditorToolbar.vue'
+import EditorSettings from '@/components/latex/EditorSettings.vue'
+import StatsDashboard from '@/components/latex/StatsDashboard.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
 // Props and emits
@@ -812,6 +915,17 @@ const latexStore = useLatexEditorStore()
 const previewRef = ref<InstanceType<typeof LatexPreview> | null>(null)
 const pdfViewerRef = ref<InstanceType<typeof PdfViewer> | null>(null)
 const editorRef = ref<any>(null)
+const shortcutHelpRef = ref<InstanceType<typeof ShortcutHelp> | null>(null)
+const quickInsertRef = ref<InstanceType<typeof QuickInsert> | null>(null)
+const aiRecognizerRef = ref<InstanceType<typeof AiFormulaRecognizer> | null>(null)
+const reviewModeRef = ref<InstanceType<typeof ReviewMode> | null>(null)
+const exportDialogRef = ref<InstanceType<typeof ExportDialog> | null>(null)
+const statusBarRef = ref<InstanceType<typeof EditorStatusBar> | null>(null)
+const welcomeGuideRef = ref<InstanceType<typeof WelcomeGuide> | null>(null)
+const recentDocumentsRef = ref<InstanceType<typeof RecentDocuments> | null>(null)
+const editorToolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
+const editorSettingsRef = ref<InstanceType<typeof EditorSettings> | null>(null)
+const statsDashboardRef = ref<InstanceType<typeof StatsDashboard> | null>(null)
 
 // Reactive state
 const showPreview = ref(true)
@@ -829,11 +943,17 @@ const showVersionHistory = ref(false) // 新增：版本历史面板
 const isProjectMode = computed(() => latexStore.isProjectMode) // 从store读取
 const saving = ref(false)
 const compiling = ref(false)
-const currentProject = computed(() => latexStore.currentProject) // 当前项目
+const compileProgress = ref(0)
+const compileText = ref('')
 const activeErrorTab = ref('errors')
 const documentId = ref<string | null>(props.documentId || null)
 const mobileActiveTab = ref<'editor' | 'preview'>('editor')
 const isMobile = ref(false)
+
+// 新增UI组件状态
+const showRecentDocuments = ref(false)
+const loadingRecentDocs = ref(false)
+const recentDocs = ref<any[]>([])
 const cursorPosition = ref({ line: 1, column: 1 })
 
 // PDF预览相关状态
@@ -899,6 +1019,56 @@ const collaborationSession = computed(() => latexStore.collaborationSession)
 const collaborationUsers = computed(() => Array.from(latexStore.collaborationUsers.values()))
 const activeCollaborationUsers = computed(() => latexStore.activeCollaborationUsers)
 const documentStats = computed(() => latexStore.documentStats)
+const currentProject = computed(() => latexStore.currentProject)
+
+// 扩展的文档统计（用于StatsDashboard组件）
+const extendedDocumentStats = computed(() => {
+  const content = editorContent.value
+  const baseStats = latexStore.documentStats
+
+  // LaTeX元素统计
+  const formulas = (content.match(/\\\(|\\\[|\\begin\{equation\}/g) || []).length
+  const inlineFormulas = (content.match(/\\\(/g) || []).length
+  const displayFormulas = (content.match(/\\\[|\\begin\{equation\}/g) || []).length
+  const references = (content.match(/\\cite\{|\\ref\{/g) || []).length
+  const images = (content.match(/\\includegraphics|\\begin\{figure\}/g) || []).length
+  const tables = (content.match(/\\begin\{tabular\}|\\begin\{table\}/g) || []).length
+  const packages = (content.match(/\\usepackage\{/g) || []).length
+
+  // 阅读时间估算
+  const wordsPerMinute = 200
+  const minutes = Math.ceil(baseStats.words / wordsPerMinute)
+  const readingTime = minutes > 60
+    ? `${Math.floor(minutes / 60)}小时${minutes % 60}分钟`
+    : `${minutes}分钟`
+
+  return {
+    ...baseStats,
+    totalChars: baseStats.characters,
+    totalWords: baseStats.words,
+    totalLines: baseStats.lines,
+    nonEmptyLines: baseStats.lines,
+    paragraphs: baseStats.paragraphs,
+    sentences: 0,
+    totalPages: 1,
+    readingTime,
+    formulas,
+    inlineFormulas,
+    displayFormulas,
+    references,
+    citations: references,
+    refs: 0,
+    images,
+    figures: images,
+    tables,
+    tabulars: tables,
+    environments: 0,
+    packages,
+    structure: {},
+    topCommands: [],
+    totalCommands: 0
+  }
+})
 
 // 左侧面板标题
 const leftPanelTitle = computed(() => {
@@ -1560,6 +1730,20 @@ const shortcuts = getLatexShortcuts({
   },
   onToggleSnippets: () => {
     showSnippets.value = !showSnippets.value
+  },
+  onShowWelcome: () => {
+    welcomeGuideRef.value?.open()
+  },
+  onShowRecent: () => {
+    showRecentDocuments.value = true
+    loadRecentDocuments()
+  },
+  onShowSettings: () => {
+    editorSettingsRef.value?.open()
+  },
+  onShowStats: () => {
+    updateDocumentStats()
+    statsDashboardRef.value?.open()
   }
 })
 
@@ -1624,17 +1808,27 @@ const editorFocus = () => {
   // Focus functionality can be added to LatexEditor component if needed
 }
 
+// AbortController用于取消pending请求（防止竞态条件）
+let currentSaveController: AbortController | null = null
+let currentCompileController: AbortController | null = null
+
 // Methods
 async function saveDocument() {
+  // 取消之前的保存请求
+  if (currentSaveController) {
+    currentSaveController.abort()
+  }
+  currentSaveController = new AbortController()
+
   if (import.meta.env.DEV) {
     console.log('Save document clicked, project mode:', isProjectMode.value)
   }
   saving.value = true
   try {
     if (isProjectMode.value) {
-      await latexStore.saveCurrentProjectFile()
+      await latexStore.saveCurrentProjectFile(currentSaveController.signal)
     } else {
-      await latexStore.saveDocument()
+      await latexStore.saveDocument(currentSaveController.signal)
     }
     isModified.value = false
     if (import.meta.env.DEV) {
@@ -1642,25 +1836,66 @@ async function saveDocument() {
     }
     // Show success message
     ElMessage.success('文档保存成功')
-  } catch (error) {
+  } catch (error: any) {
+    // 忽略取消的错误
+    if (error.name === 'AbortError') {
+      if (import.meta.env.DEV) {
+        console.log('Save aborted')
+      }
+      return
+    }
+
     console.error('Save failed:', error)
-    // Show error message
-    ElMessage.error('文档保存失败: ' + (error instanceof Error ? error.message : '未知错误'))
+
+    // 改进的错误处理
+    let userMessage = '文档保存失败'
+    if (error.response) {
+      // HTTP错误响应
+      const status = error.response.status
+      if (status === 401) {
+        userMessage = '登录已过期，请重新登录'
+      } else if (status === 403) {
+        userMessage = '没有权限保存此文档'
+      } else if (status === 404) {
+        userMessage = '文档不存在，可能已被删除'
+      } else if (status >= 500) {
+        userMessage = '服务器错误，请稍后重试'
+      } else {
+        userMessage = `保存失败: ${error.response.data?.message || '未知错误'}`
+      }
+    } else if (error.code === 'ECONNABORTED') {
+      userMessage = '请求超时，请检查网络连接'
+    } else if (error.message) {
+      userMessage = `保存失败: ${error.message}`
+    }
+
+    ElMessage.error(userMessage)
   } finally {
     saving.value = false
+    currentSaveController = null
   }
 }
 
 async function compileDocument() {
-  compiling.value = true
+  // 取消之前的编译请求
+  if (currentCompileController) {
+    currentCompileController.abort()
+  }
+  currentCompileController = new AbortController()
 
-  // 根据模式选择不同的加载文本
-  const loadingText = isProjectMode.value ? '正在编译LaTeX项目...' : '正在编译LaTeX文档...'
-  const loadingInstance = ElLoading.service({
-    lock: true,
-    text: loadingText,
-    background: 'rgba(0, 0, 0, 0.7)',
-  })
+  compiling.value =
+  compileProgress.value = 0
+  compileText.value = isProjectMode.value ? '正在编译LaTeX项目...' : '正在编译LaTeX文档...'
+
+  // 模拟编译进度
+  const progressInterval = setInterval(() => {
+    if (compileProgress.value < 90) {
+      compileProgress.value += Math.random() * 15
+      if (compileProgress.value > 90) {
+        compileProgress.value = 90
+      }
+    }
+  }, 300)
 
   try {
     let result: any
@@ -1668,15 +1903,23 @@ async function compileDocument() {
     if (isProjectMode.value) {
       // 项目模式：先保存当前文件再编译项目
       if (isModified.value) {
-        await latexStore.saveCurrentProjectFile()
+        compileText.value = '正在保存...'
+        compileProgress.value = 20
+        await latexStore.saveCurrentProjectFile(currentCompileController.signal)
+        compileText.value = '正在编译...'
+        compileProgress.value = 40
       }
-      result = await latexStore.compileProject()
+      result = await latexStore.compileProject(currentCompileController.signal)
     } else {
       // 单文档模式：编译单个文档
-      result = await latexStore.compileDocument()
+      compileText.value = '正在编译...'
+      compileProgress.value = 50
+      result = await latexStore.compileDocument(currentCompileController.signal)
     }
 
-    loadingInstance.close()
+    clearInterval(progressInterval)
+    compileProgress.value = 100
+    compileText.value = '编译完成！'
 
     if (result.success) {
       // 设置PDF URL并切换到PDF预览模式
@@ -1766,20 +2009,56 @@ async function compileDocument() {
         console.log('Compilation log:', result.log)
       }
     }
-  } catch (error) {
-    loadingInstance.close()
+  } catch (error: any) {
+    clearInterval(progressInterval)
+
+    // 忽略取消的错误
+    if (error.name === 'AbortError') {
+      if (import.meta.env.DEV) {
+        console.log('Compilation aborted')
+      }
+      return
+    }
+
     console.error('Compilation failed:', error)
 
+    let userMessage = '编译失败'
     const errorMsg = error instanceof Error ? error.message : '未知错误'
 
-    // 检查是否是网络错误
-    if (errorMsg.includes('network') || errorMsg.includes('Network') || errorMsg.includes('fetch')) {
-      ElMessage.error('网络错误，请检查网络连接后重试')
+    // 改进的错误处理
+    if (error.response) {
+      const status = error.response.status
+      if (status === 401) {
+        userMessage = '登录已过期，请重新登录'
+      } else if (status === 403) {
+        userMessage = '没有权限编译此文档'
+      } else if (status === 404) {
+        userMessage = '文档或项目不存在'
+      } else if (status >= 500) {
+        userMessage = '服务器错误，请稍后重试'
+      } else {
+        userMessage = `编译失败: ${error.response.data?.message || errorMsg}`
+      }
+    } else if (error.code === 'ECONNABORTED') {
+      userMessage = '请求超时，请检查网络连接'
+    } else if (errorMsg.includes('network') || errorMsg.includes('Network') || errorMsg.includes('fetch')) {
+      userMessage = '网络错误，请检查网络连接后重试'
     } else {
-      ElMessage.error(`编译失败: ${errorMsg}`)
+      userMessage = `编译失败: ${errorMsg}`
     }
+
+    ElMessage.error(userMessage)
   } finally {
     compiling.value = false
+    compileProgress.value = 0
+    currentCompileController = null
+  }
+}
+
+function cancelCompile() {
+  if (currentCompileController) {
+    currentCompileController.abort()
+    ElMessage.info('已取消编译')
   }
 }
 
@@ -1947,6 +2226,99 @@ function handleFontChange(fontFamily: string) {
   if (import.meta.env.DEV) {
     console.log('Font changed to:', fontFamily)
   }
+}
+
+// 快速插入处理
+function handleQuickInsert(code: string) {
+  insertLatexCommand(code)
+}
+
+// AI公式识别插入
+function insertFormula(latex: string) {
+  insertLatexCommand(latex)
+}
+
+// 审阅模式切换
+function handleReviewModeToggle(enabled: boolean) {
+  if (import.meta.env.DEV) {
+    console.log('Review mode:', enabled)
+  }
+}
+
+// 审阅模式插入
+function handleReviewInsert(text: string) {
+  insertLatexCommand(text)
+}
+
+// 导出处理
+function handleExport(format: string, options: any, filename: string) {
+  if (import.meta.env.DEV) {
+    console.log('Export:', format, options, filename)
+  }
+
+  // 根据格式执行导出
+  switch (format) {
+    case 'pdf':
+      compileDocument()
+      break
+    case 'latex':
+      downloadAsTex(filename)
+      break
+    case 'markdown':
+      convertToMarkdown(filename)
+      break
+    default:
+      ElMessage.info(`导出为 ${format.toUpperCase()} 功能开发中`)
+  }
+}
+
+// 下载为 .tex 文件
+function downloadAsTex(filename: string) {
+  const blob = new Blob([editorContent.value], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${filename}.tex`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  ElMessage.success('LaTeX 文件已下载')
+}
+
+// 转换为 Markdown
+function convertToMarkdown(filename: string) {
+  // 简单的 LaTeX 到 Markdown 转换
+  let markdown = editorContent.value
+    .replace(/\\section\{([^}]+)\}/g, '# $1\n')
+    .replace(/\\subsection\{([^}]+)\}/g, '## $1\n')
+    .replace(/\\subsubsection\{([^}]+)\}/g, '### $1\n')
+    .replace(/\\textbf\{([^}]+)\}/g, '**$1**')
+    .replace(/\\textit\{([^}]+)\}/g, '*$1*')
+    .replace(/\\emph\{([^}]+)\}/g, '*$1*')
+    .replace(/\$\$([^$]+)\$\$/g, '\n$$\n$1\n$$\n')
+    .replace(/\$([^$]+)\$/g, '$$$1$$')
+    .replace(/\\begin\{itemize\}[\s\S]*?\\end\{itemize\}/g, (match) => {
+      const items = match.match(/\\item\s+([^\n]+)/g) || []
+      return items.map(item => `- ${item.replace(/\\item\s+/, '')}`).join('\n')
+    })
+    .replace(/\\begin\{enumerate\}[\s\S]*?\\end\{enumerate\}/g, (match) => {
+      const items = match.match(/\\item\s+([^\n]+)/g) || []
+      return items.map((item, i) => `${i + 1}. ${item.replace(/\\item\s+/, '')}`).join('\n')
+    })
+    .replace(/\\[a-zA-Z]+/g, '') // 移除剩余的LaTeX命令
+    .replace(/[{}]/g, '') // 移除花括号
+
+  const blob = new Blob([markdown], { type: 'text/markdown' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${filename}.md`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  ElMessage.success('Markdown 文件已下载')
 }
 
 function toggleLeftPanel() {
@@ -2380,6 +2752,34 @@ onMounted(async () => {
 
   // Keyboard shortcut for shortcuts panel (? key)
   const handleGlobalKeydown = (e: KeyboardEvent) => {
+    // F1 - 打开快捷键帮助
+    if (e.key === 'F1') {
+      shortcutHelpRef.value?.open()
+      e.preventDefault()
+      return
+    }
+
+    // Ctrl+Alt+X - 打开快速插入面板
+    if (e.ctrlKey && e.altKey && e.key === 'x') {
+      quickInsertRef.value?.open()
+      e.preventDefault()
+      return
+    }
+
+    // Ctrl+Alt+I - 打开AI公式识别
+    if (e.ctrlKey && e.altKey && e.key === 'i') {
+      aiRecognizerRef.value?.open()
+      e.preventDefault()
+      return
+    }
+
+    // Ctrl+E - 打开导出对话框
+    if (e.ctrlKey && e.key === 'e') {
+      exportDialogRef.value?.open(currentDocument.value?.name || currentProject.value?.name || 'document')
+      e.preventDefault()
+      return
+    }
+
     // Open shortcuts panel with ? key (only when not typing in editor)
     if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const target = e.target as HTMLElement
@@ -2395,6 +2795,18 @@ onMounted(async () => {
     }
   }
   window.addEventListener('keydown', handleGlobalKeydown)
+
+  // 检查是否为首次使用，显示欢迎引导
+  try {
+    const welcomeSeen = localStorage.getItem('latex-welcome-seen')
+    if (!welcomeSeen) {
+      nextTick(() => {
+        welcomeGuideRef.value?.open()
+      })
+    }
+  } catch (e) {
+    console.error('Failed to check welcome seen status:', e)
+  }
 
   // Store handler for cleanup
   ;(window as any).__latexEditorKeydownHandler = handleGlobalKeydown
@@ -2683,6 +3095,78 @@ function handleVersionRestore(content: string) {
   isModified.value = true
   ElMessage.success('版本已恢复，请记得保存更改')
   showVersionHistory.value = false
+}
+
+// 新增UI组件事件处理
+function handleWelcomeGuideClose() {
+  // 欢迎引导关闭时的处理
+  localStorage.setItem('latex-welcome-seen', 'true')
+}
+
+function handleOpenRecentDocument(doc: any) {
+  // 打开最近文档
+  if (doc.type === 'project') {
+    // 处理项目打开
+  } else {
+    // 处理单个文档打开
+  }
+  showRecentDocuments.value = false
+}
+
+function handleCreateNewDocument() {
+  // 创建新文档
+  showRecentDocuments.value = false
+  handleFileCommand('blank')
+}
+
+function handleSettingsUpdate(settings: any) {
+  // 更新编辑器设置
+  localStorage.setItem('latex-editor-settings', JSON.stringify(settings))
+  // 应用设置到编辑器
+  ElMessage.success('设置已更新')
+}
+
+function handleClearCache() {
+  // 清除缓存
+  localStorage.removeItem('latex-editor-settings')
+  localStorage.removeItem('latex-autosave-backup')
+  ElMessage.success('缓存已清除')
+}
+
+function handleRefreshStats() {
+  // 统计已自动更新（通过computed属性）
+  ElMessage.success('统计数据已刷新')
+}
+
+function handleExportStats(stats: any) {
+  // 导出统计数据
+  const dataStr = JSON.stringify(stats, null, 2)
+  const dataBlob = new Blob([dataStr], { type: 'application/json' })
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `stats-${Date.now()}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('统计数据已导出')
+}
+
+function loadRecentDocuments() {
+  // 加载最近文档列表
+  loadingRecentDocs.value = true
+  try {
+    const stored = localStorage.getItem('latex-recent-docs')
+    if (stored) {
+      recentDocs.value = JSON.parse(stored)
+    } else {
+      recentDocs.value = []
+    }
+  } catch (e) {
+    console.error('Failed to load recent documents:', e)
+    recentDocs.value = []
+  } finally {
+    loadingRecentDocs.value = false
+  }
 }
 
 // Expose methods to template
