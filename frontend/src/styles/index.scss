@@ -9,6 +9,15 @@
 @import './page-container.scss';
 @import './transition.scss';
 
+// 设计系统 Design System
+@import './design-tokens.scss';
+
+// 响应式布局 Responsive Layout
+@import './responsive.scss';
+
+// LaTeX编辑器视觉优化 LaTeX Editor Visual
+@import './latex-editor-visual.scss';
+
 // 1. 全局基础样式 (Global Base Styles)
 // ----------------------------------------------------------
 
