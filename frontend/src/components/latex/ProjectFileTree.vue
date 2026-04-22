@@ -1268,82 +1268,77 @@ defineExpose({
     background: var(--el-bg-color);
     color: var(--el-text-color-primary);
   }
+}
 
-  .form-tip {
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    line-height: 1.5;
-  }
+// 表单提示
+.form-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+}
 
-  // 上传和导入相关样式
-  .selected-files {
-    padding: 8px 12px;
-    background: var(--el-fill-color-light);
-    border-radius: 4px;
-    font-size: 13px;
-    color: var(--el-text-color-primary);
-  }
+// 上传和导入相关样式
+.selected-files {
+  padding: 8px 12px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+}
 
-  .file-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 8px;
-    max-height: 300px;
-    overflow-y: auto;
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 4px;
+
+  .el-checkbox {
+    margin: 0;
     padding: 8px;
-    background: var(--el-fill-color-lighter);
+    background: var(--el-bg-color);
     border-radius: 4px;
+    border: 1px solid var(--el-border-color-lighter);
+    transition: all 0.2s;
 
-    .el-checkbox {
-      margin: 0;
-      padding: 8px;
-      background: var(--el-bg-color);
-      border-radius: 4px;
-      border: 1px solid var(--el-border-color-lighter);
-      transition: all 0.2s;
-
-      &:hover {
-        border-color: var(--el-color-primary);
-        background: var(--el-fill-color-light);
-      }
-
-      :deep(.el-checkbox__label) {
-        flex: 1;
-        width: 100%;
-      }
+    &:hover {
+      border-color: var(--el-color-primary);
+      background: var(--el-fill-color-light);
     }
 
-    .file-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    :deep(.el-checkbox__label) {
+      flex: 1;
       width: 100%;
-
-      .file-icon {
-        font-size: 16px;
-        flex-shrink: 0;
-      }
-
-      .file-name {
-        font-weight: 500;
-        color: var(--el-text-color-primary);
-        flex-shrink: 0;
-      }
-
-      .file-path {
-        font-size: 12px;
-        color: var(--el-text-color-secondary);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
     }
   }
 
-    &:focus {
-      border-color: var(--el-color-primary);
-      box-shadow: 0 0 0 2px var(--el-color-primary-light-7);
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+
+    .file-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .file-name {
+      font-weight: 500;
+      color: var(--el-text-color-primary);
+      flex-shrink: 0;
+    }
+
+    .file-path {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 }
