@@ -16,7 +16,12 @@
               <el-dropdown-item command="tex">LaTeX 文件 (.tex)</el-dropdown-item>
               <el-dropdown-item command="bib">参考文献 (.bib)</el-dropdown-item>
               <el-dropdown-item command="sty">样式文件 (.sty)</el-dropdown-item>
-              <el-dropdown-item command="folder">新建文件夹</el-dropdown-item>
+              <el-dropdown-item command="cls">文档类 (.cls)</el-dropdown-item>
+              <el-dropdown-item command="pdf">PDF 文件 (.pdf)</el-dropdown-item>
+              <el-dropdown-item command="png">图片 (.png)</el-dropdown-item>
+              <el-dropdown-item command="jpg">图片 (.jpg)</el-dropdown-item>
+              <el-dropdown-item command="custom" divided>自定义文件...</el-dropdown-item>
+              <el-dropdown-item command="folder" divided>新建文件夹</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -128,15 +133,31 @@
       @close="handleDialogClose"
     >
       <el-form :model="newFileForm" label-width="100px">
-        <el-form-item label="文件名">
-          <el-input
-            v-model="newFileForm.name"
-            :placeholder="filePlaceholder"
-            @keyup.enter="handleConfirmNewFile"
-          >
-            <template #append>.{{ fileExtension }}</template>
-          </el-input>
-        </el-form-item>
+        <!-- 自定义文件类型：直接输入完整文件名 -->
+        <template v-if="currentFileType === 'custom'">
+          <el-form-item label="文件名">
+            <el-input
+              v-model="newFileForm.customName"
+              placeholder="如: myfile.txt, data.json, image.svg"
+              @keyup.enter="handleConfirmNewFile"
+            >
+              <template #prepend>文件名</template>
+            </el-input>
+            <div class="form-tip">支持任意文件类型，请输入完整的文件名（包含扩展名）</div>
+          </el-form-item>
+        </template>
+        <!-- 预设文件类型 -->
+        <template v-else>
+          <el-form-item label="文件名">
+            <el-input
+              v-model="newFileForm.name"
+              :placeholder="filePlaceholder"
+              @keyup.enter="handleConfirmNewFile"
+            >
+              <template #append>.{{ fileExtension }}</template>
+            </el-input>
+          </el-form-item>
+        </template>
         <el-form-item label="保存路径" v-if="showPathInput">
           <el-input
             v-model="newFileForm.path"
@@ -146,7 +167,11 @@
       </el-form>
       <template #footer>
         <el-button @click="showNewFileDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirmNewFile" :disabled="!newFileForm.name">
+        <el-button
+          type="primary"
+          @click="handleConfirmNewFile"
+          :disabled="currentFileType === 'custom' ? !newFileForm.customName : !newFileForm.name"
+        >
           创建
         </el-button>
       </template>
@@ -263,13 +288,14 @@ const editInputRef = ref<HTMLInputElement>()
 const selectedId = ref<number | string | null>(null)
 const showNewFileDialog = ref(false)
 const showRenameDialog = ref(false)
-const currentFileType = ref<'tex' | 'bib' | 'sty' | 'folder'>('tex')
+const currentFileType = ref<'tex' | 'bib' | 'sty' | 'cls' | 'pdf' | 'png' | 'jpg' | 'custom' | 'folder'>('tex')
 const currentNode = ref<ProjectFile | null>(null)
 const editingNode = ref<TreeNode | null>(null) // 当前正在编辑的节点
 const editingValue = ref('') // 编辑中的值
 
 const newFileForm = ref({
   name: '',
+  customName: '',
   path: ''
 })
 
@@ -337,30 +363,45 @@ const treeProps = {
 
 // 对话框相关
 const dialogTitle = computed(() => {
-  const titles = {
+  const titles: Record<string, string> = {
     tex: '新建 LaTeX 文件',
     bib: '新建参考文献文件',
     sty: '新建样式文件',
+    cls: '新建文档类文件',
+    pdf: '新建 PDF 文件',
+    png: '新建 PNG 图片',
+    jpg: '新建 JPG 图片',
+    custom: '新建自定义文件',
     folder: '新建文件夹'
   }
   return titles[currentFileType.value]
 })
 
 const filePlaceholder = computed(() => {
-  const placeholders = {
+  const placeholders: Record<string, string> = {
     tex: '如: chapter1',
     bib: '如: references',
     sty: '如: mystyle',
+    cls: '如: myclass',
+    pdf: '如: document',
+    png: '如: figure',
+    jpg: '如: image',
+    custom: '',
     folder: '如: chapters'
   }
   return placeholders[currentFileType.value]
 })
 
 const fileExtension = computed(() => {
-  const extensions = {
+  const extensions: Record<string, string> = {
     tex: 'tex',
     bib: 'bib',
     sty: 'sty',
+    cls: 'cls',
+    pdf: 'pdf',
+    png: 'png',
+    jpg: 'jpg',
+    custom: '',
     folder: ''
   }
   return extensions[currentFileType.value]
@@ -407,11 +448,40 @@ function handleNodeClick(data: TreeNode) {
 
 function handleAddFile(command: string) {
   currentFileType.value = command as any
-  newFileForm.value = { name: '', path: '' }
+  newFileForm.value = { name: '', customName: '', path: '' }
   showNewFileDialog.value = true
 }
 
 function handleConfirmNewFile() {
+  // 自定义文件类型处理
+  if (currentFileType.value === 'custom') {
+    const customName = newFileForm.value.customName.trim()
+    if (!customName) {
+      ElMessage.warning('请输入文件名')
+      return
+    }
+
+    // 验证文件名格式
+    if (!customName.includes('.')) {
+      ElMessage.warning('请输入包含扩展名的完整文件名（如: myfile.txt）')
+      return
+    }
+
+    const path = newFileForm.value.path.trim()
+    const fullPath = path ? `${path}/${customName}` : customName
+
+    emit('file-create', {
+      name: customName,
+      path: fullPath,
+      type: 'other'
+    })
+
+    showNewFileDialog.value = false
+    ElMessage.success('文件创建请求已发送')
+    return
+  }
+
+  // 预设文件类型处理
   const name = newFileForm.value.name.trim()
   if (!name) {
     ElMessage.warning('请输入文件名')
@@ -821,6 +891,14 @@ defineExpose({
     outline: none;
     background: var(--el-bg-color);
     color: var(--el-text-color-primary);
+  }
+
+  .form-tip {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    line-height: 1.5;
+  }
 
     &:focus {
       border-color: var(--el-color-primary);
