@@ -2848,18 +2848,6 @@ onMounted(async () => {
   }
   window.addEventListener('keydown', handleGlobalKeydown)
 
-  // 检查是否为首次使用，显示欢迎引导
-  try {
-    const welcomeSeen = localStorage.getItem('latex-welcome-seen')
-    if (!welcomeSeen) {
-      nextTick(() => {
-        welcomeGuideRef.value?.open()
-      })
-    }
-  } catch (e) {
-    console.error('Failed to check welcome seen status:', e)
-  }
-
   // Store handler for cleanup
   ;(window as any).__latexEditorKeydownHandler = handleGlobalKeydown
 
