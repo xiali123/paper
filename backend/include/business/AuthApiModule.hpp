@@ -31,13 +31,16 @@ struct User {
 
     std::string toJSON() const {
         std::ostringstream json;
-        json << "{\n";
-        json << "  \"id\": " << id << ",\n";
-        json << "  \"username\": \"" << username << "\",\n";
-        json << "  \"email\": \"" << email << "\",\n";
-        json << "  \"full_name\": \"" << fullName << "\",\n";
-        json << "  \"role\": \"" << role << "\",\n";
-        json << "  \"active\": " << (active ? "true" : "false") << "\n";
+        json << "{";
+        json << "\"id\":" << id << ",";
+        json << "\"username\":\"" << username << "\",";
+        json << "\"email\":\"" << email << "\",";
+        json << "\"fullName\":\"" << fullName << "\",";
+        json << "\"role\":\"" << role << "\",";
+        json << "\"isActive\":" << (active ? "true" : "false") << ",";
+        json << "\"isVerified\":true,";
+        json << "\"lastLoginAt\":" << std::chrono::system_clock::to_time_t(lastLoginAt) << ",";
+        json << "\"createdAt\":" << std::chrono::system_clock::to_time_t(createdAt);
         json << "}";
         return json.str();
     }
