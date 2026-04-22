@@ -21,6 +21,15 @@
               <el-dropdown-item command="png">图片 (.png)</el-dropdown-item>
               <el-dropdown-item command="jpg">图片 (.jpg)</el-dropdown-item>
               <el-dropdown-item command="custom" divided>自定义文件...</el-dropdown-item>
+              <el-dropdown-item command="upload" divided>
+                <el-icon><Upload /></el-icon> 上传文件
+              </el-dropdown-item>
+              <el-dropdown-item command="batchUpload">
+                <el-icon><Upload /></el-icon> 批量上传
+              </el-dropdown-item>
+              <el-dropdown-item command="import">
+                <el-icon><Download /></el-icon> 从其他项目导入
+              </el-dropdown-item>
               <el-dropdown-item command="folder" divided>新建文件夹</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -173,6 +182,152 @@
           :disabled="currentFileType === 'custom' ? !newFileForm.customName : !newFileForm.name"
         >
           创建
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 文件上传对话框 -->
+    <el-dialog
+      v-model="showUploadDialog"
+      title="上传文件"
+      width="500px"
+      @close="handleUploadDialogClose"
+    >
+      <el-form :model="uploadForm" label-width="100px">
+        <el-form-item label="选择文件">
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            :on-change="handleFileSelect"
+            :show-file-list="true"
+            :limit="1"
+            accept="*/*"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持任意文件类型</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="保存路径">
+          <el-input
+            v-model="uploadForm.path"
+            placeholder="如: chapters/ (留空为根目录)"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUploadDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmUpload" :loading="uploading">
+          上传
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量上传对话框 -->
+    <el-dialog
+      v-model="showBatchUploadDialog"
+      title="批量上传文件"
+      width="600px"
+      @close="handleBatchUploadDialogClose"
+    >
+      <el-form :model="batchUploadForm" label-width="100px">
+        <el-form-item label="选择文件">
+          <el-upload
+            ref="batchUploadRef"
+            :auto-upload="false"
+            :on-change="handleBatchFileSelect"
+            :on-remove="handleBatchFileRemove"
+            :show-file-list="true"
+            :limit="50"
+            multiple
+            accept="*/*"
+          >
+            <el-button type="primary">选择多个文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持任意文件类型，最多50个文件</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="保存路径">
+          <el-input
+            v-model="batchUploadForm.path"
+            placeholder="如: assets/ (留空为根目录)"
+          />
+        </el-form-item>
+        <el-form-item label="已选文件">
+          <div class="selected-files">{{ selectedFiles.length }} 个文件</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showBatchUploadDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmBatchUpload" :loading="batchUploading">
+          批量上传 ({{ selectedFiles.length }})
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 从其他项目导入对话框 -->
+    <el-dialog
+      v-model="showImportDialog"
+      title="从其他项目导入文件"
+      width="700px"
+      @close="handleImportDialogClose"
+    >
+      <el-form :model="importForm" label-width="100px">
+        <el-form-item label="选择项目">
+          <el-select
+            v-model="importForm.sourceProjectId"
+            placeholder="请选择项目"
+            style="width: 100%"
+            @change="handleSourceProjectChange"
+            :loading="loadingProjects"
+          >
+            <el-option
+              v-for="project in availableProjects"
+              :key="project.id"
+              :label="project.name"
+              :value="project.id"
+              :disabled="project.id === props.projectId"
+            >
+              <span>{{ project.name }}</span>
+              <span v-if="project.id === props.projectId" style="color: var(--el-text-color-secondary); margin-left: 8px;">(当前项目)</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="选择文件" v-if="sourceProjectFiles.length > 0">
+          <el-checkbox-group v-model="importForm.selectedFileIds">
+            <div class="file-grid">
+              <el-checkbox
+                v-for="file in sourceProjectFiles"
+                :key="file.id"
+                :label="file.id"
+              >
+                <div class="file-item">
+                  <span class="file-icon">{{ getFileIcon(file.name) }}</span>
+                  <span class="file-name" :title="file.path">{{ file.name }}</span>
+                  <span class="file-path" :title="file.path">{{ file.path }}</span>
+                </div>
+              </el-checkbox>
+            </div>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="目标路径">
+          <el-input
+            v-model="importForm.targetPath"
+            placeholder="如: imported/ (留空为根目录)"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showImportDialog = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="handleConfirmImport"
+          :loading="importing"
+          :disabled="importForm.selectedFileIds.length === 0"
+        >
+          导入 ({{ importForm.selectedFileIds.length }} 个文件)
         </el-button>
       </template>
     </el-dialog>
