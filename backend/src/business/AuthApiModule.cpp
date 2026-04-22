@@ -72,6 +72,9 @@ public:
             securityModule_->start();
             spdlog::info("[Auth] SecurityModule initialized for password hashing");
         }
+
+        // 确保默认superadmin用户存在
+        ensureDefaultSuperAdmin();
     }
 
     std::string generateAccessToken(int userId) {
@@ -577,6 +580,60 @@ public:
         } catch (const std::exception& e) {
             spdlog::error("[Auth] Exception initializing database tables: {}", e.what());
             return false;
+        }
+    }
+
+    // 确保默认superadmin用户存在
+    void ensureDefaultSuperAdmin() {
+        try {
+            // 检查admin用户是否已存在
+            auto existingAdmin = getUserByUsername("admin");
+            if (existingAdmin) {
+                spdlog::info("[Auth] Default admin user already exists");
+                return;
+            }
+
+            // 创建默认superadmin用户
+            spdlog::info("[Auth] Creating default superadmin user: admin");
+
+            // 使用SecurityModule生成密码哈希
+            std::string defaultPassword = "admin123";
+            std::string passwordHash;
+
+            if (securityModule_) {
+                auto hashResult = securityModule_->hashPassword(defaultPassword);
+                if (hashResult.success) {
+                    passwordHash = hashResult.hash;
+                } else {
+                    spdlog::error("[Auth] Failed to hash password: {}", hashResult.errorMessage);
+                    passwordHash = "$2a$12$" + std::to_string(std::hash<std::string>{}(defaultPassword));
+                }
+            } else {
+                // 降级方案
+                passwordHash = "$2a$12$" + std::to_string(std::hash<std::string>{}(defaultPassword));
+            }
+
+            // 插入用户到数据库
+            std::shared_ptr<IDatabase> db = nullptr;
+            std::string sql;
+
+            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
+                sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active) VALUES "
+                      "('admin', 'admin@papercrawler.com', 'Super Administrator', '" +
+                      passwordHash + "', 'superadmin', 1)";
+                mysqlDatabase_->execute(sql);
+                spdlog::info("[Auth] Default superadmin created in MySQL database");
+            } else if (database_) {
+                sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active) VALUES "
+                      "('admin', 'admin@papercrawler.com', 'Super Administrator', '" +
+                      passwordHash + "', 'superadmin', 1)";
+                database_->execute(sql);
+                spdlog::info("[Auth] Default superadmin created using database_ interface");
+            } else {
+                spdlog::warn("[Auth] No database connection available, cannot create default superadmin");
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[Auth] Failed to ensure default superadmin: {}", e.what());
         }
     }
 };
