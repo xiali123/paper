@@ -1215,13 +1215,17 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     loginResponse.expiresIn = impl_->config_.accessTokenExpiry;
     loginResponse.user = user;
 
-    // 转换为JSON响应
-    return buildJsonResponse({
-        {"success", "true"},
-        {"message", loginResponse.message},
-        {"access_token", loginResponse.accessToken},
-        {"refresh_token", loginResponse.refreshToken}
-    });
+    // 转换为JSON响应 - 包含user和expires_in
+    std::ostringstream json;
+    json << "{\n";
+    json << "  \"success\": true,\n";
+    json << "  \"message\": \"" << loginResponse.message << "\",\n";
+    json << "  \"access_token\": \"" << loginResponse.accessToken << "\",\n";
+    json << "  \"refresh_token\": \"" << loginResponse.refreshToken << "\",\n";
+    json << "  \"expires_in\": " << loginResponse.expiresIn.count() << ",\n";
+    json << "  \"user\": " << user.toJSON() << "\n";
+    json << "}";
+    return json.str();
 }
 
 bool AuthApiModule::logout(const std::string& accessToken) {
