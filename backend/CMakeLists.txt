@@ -980,6 +980,12 @@ elseif(UNIX)
     # 如果需要自定义路径，可以在这里添加
 endif()
 
+# 阶段12：AdminApiModule动态化（NEW - 2026-04-22）
+add_dynamic_module_with_system(AdminApiModule
+    src/business/AdminApiModule.cpp
+)
+target_include_directories(AdminApiModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）
 # ============================================================================
 # libxml2 支持 - 分布式爬虫XPath解析

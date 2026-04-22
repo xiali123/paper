@@ -295,6 +295,12 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: '/admin',
+        name: 'Admin',
+        component: () => import('@/views/admin/AdminDashboard.vue'),
+        meta: { requiresAuth: true, title: 'route.admin', icon: 'Setting', requiresAdmin: true }
+      },
+      {
         path: '/profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),
@@ -333,6 +339,7 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const guestOnly = to.matched.some((record) => record.meta.guestOnly)
+  const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
 
   // Initialize auth store if not already initialized
   if (!authStore.isAuthenticated && localStorage.getItem('auth_tokens')) {
@@ -355,6 +362,10 @@ router.beforeEach(async (to, from, next) => {
     })
   } else if (guestOnly && authStore.isAuthenticated) {
     // Redirect to dashboard if trying to access guest-only route while authenticated
+    next({ name: 'Dashboard' })
+  } else if (requiresAdmin && !authStore.isAdminOrSuper) {
+    // Redirect to dashboard if trying to access admin-only route without admin privileges
+    ElMessage.warning('您需要管理员权限才能访问此页面')
     next({ name: 'Dashboard' })
   } else {
     // Proceed to route

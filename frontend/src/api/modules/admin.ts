@@ -59,6 +59,27 @@ export interface AuditLogFilters extends PaginationParams {
   userId?: string
 }
 
+/**
+ * Module information
+ */
+export interface ModuleInfo {
+  name: string
+  version: string
+  description: string
+  enabled: boolean
+  type: string
+  lastLoaded: string
+  loadOrder: number
+}
+
+/**
+ * Module management request
+ */
+export interface ModuleToggleRequest {
+  moduleName: string
+  reason?: string
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -328,6 +349,69 @@ export function formatAuditAction(action: string, locale: string = 'en'): string
   return actions[action]?.[locale] || actions[action]?.en || action
 }
 
+/**
+ * Get all modules (superadmin only)
+ *
+ * @returns List of all modules
+ */
+export async function getModules(): Promise<ModuleInfo[]> {
+  const response = await request<{
+    success: boolean
+    data: ModuleInfo[]
+  }>({
+    url: '/admin/modules',
+    method: 'GET'
+  })
+
+  return response.data
+}
+
+/**
+ * Enable a module (superadmin only)
+ *
+ * @param request - Module toggle request
+ * @returns Success message
+ */
+export async function enableModule(
+  request: ModuleToggleRequest
+): Promise<{ message: string }> {
+  const response = await request<{
+    success: boolean
+    message: string
+  }>({
+    url: `/admin/modules/${request.moduleName}/enable`,
+    method: 'POST',
+    data: {
+      reason: request.reason || ''
+    }
+  })
+
+  return { message: response.message }
+}
+
+/**
+ * Disable a module (superadmin only)
+ *
+ * @param request - Module toggle request
+ * @returns Success message
+ */
+export async function disableModule(
+  request: ModuleToggleRequest
+): Promise<{ message: string }> {
+  const response = await request<{
+    success: boolean
+    message: string
+  }>({
+    url: `/admin/modules/${request.moduleName}/disable`,
+    method: 'POST',
+    data: {
+      reason: request.reason || ''
+    }
+  })
+
+  return { message: response.message }
+}
+
 // ============================================================================
 // Export API Object
 // ============================================================================
@@ -343,6 +427,11 @@ const adminApi = {
   deleteUser: deleteAdminUser,
   activateUser,
   deactivateUser,
+
+  // Module management
+  getModules,
+  enableModule,
+  disableModule,
 
   // Audit logs
   getAuditLogs,
