@@ -189,7 +189,8 @@ const splitFullName = (fullName: string): { firstName: string; lastName: string 
 const normalizeRole = (role: string | undefined): User['role'] => {
   if (!role) return 'user' // 如果 role 为空，默认为 user
   const normalized = role.toLowerCase()
-  if (normalized === 'admin' || normalized === 'superadmin') return 'admin'
+  if (normalized === 'superadmin') return 'superadmin'  // 优先匹配superadmin
+  if (normalized === 'admin') return 'admin'
   if (normalized === 'premium') return 'premium'
   return 'user' // 默认为user
 }
