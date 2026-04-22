@@ -617,6 +617,12 @@ private:
     std::string handleDeleteProjectFile(const std::map<std::string, std::string>& params);
     std::string handleGetProjectFile(const std::map<std::string, std::string>& params);
 
+    // File upload HTTP request handlers
+    std::string handleListProjectFiles(const std::map<std::string, std::string>& params);
+    std::string handleUploadProjectFile(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleBatchUploadProjectFiles(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleImportFilesFromProject(const std::map<std::string, std::string>& params, const std::string& body);
+
     // 用户配额HTTP请求处理器
     std::string handleGetUserQuota(const std::map<std::string, std::string>& params);
     std::string handleSetUserQuota(const std::string& body);

@@ -153,7 +153,11 @@ public:
             for (const auto& entry : std::filesystem::directory_iterator(cacheDirectory_)) {
                 if (entry.is_regular_file()) {
                     auto lastWrite = std::filesystem::last_write_time(entry.path());
-                    auto age = now - lastWrite;
+                    // Convert file_clock to system_clock
+                    auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                        lastWrite - std::filesystem::file_time_type::clock::now() + now
+                    );
+                    auto age = now - sctp;
 
                     if (age > maxAge) {
                         std::filesystem::remove(entry.path());
@@ -343,6 +347,44 @@ void LatexApiModule::registerRoutes() {
         std::string body = handleGetProjectFile(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    // Project files list route
+    router.get(prefix + "/projects/:id/files", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleListProjectFiles(req.pathParams);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    // File upload routes
+    router.post(prefix + "/projects/:id/upload", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleUploadProjectFile(req.pathParams, req.body);
+        HttpResponse response;
+        response.statusCode = 201;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.post(prefix + "/projects/:id/batch-upload", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleBatchUploadProjectFiles(req.pathParams, req.body);
+        HttpResponse response;
+        response.statusCode = 201;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.post(prefix + "/projects/:id/import", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleImportFilesFromProject(req.pathParams, req.body);
+        HttpResponse response;
+        response.statusCode = 201;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -1496,6 +1538,268 @@ std::string LatexApiModule::handleGetProjectFile(const std::map<std::string, std
 }
 
 // ============================================================================
+// HTTP request handlers - File Upload, Batch Upload, Import
+// ============================================================================
+
+std::string LatexApiModule::handleListProjectFiles(const std::map<std::string, std::string>& params) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing project ID");
+    }
+
+    try {
+        int projectId = std::stoi(idIt->second);
+        auto project = getProject(projectId);
+
+        if (!project) {
+            return impl_->buildJsonResponse(404, false, "Project not found");
+        }
+
+        nlohmann::json result;
+        result["items"] = nlohmann::json::array();
+        for (const auto& file : project->files) {
+            nlohmann::json fileObj;
+            fileObj["id"] = file.id;
+            fileObj["name"] = file.name;
+            fileObj["path"] = file.path;
+            fileObj["type"] = file.type;
+            fileObj["size"] = file.content.length();
+            fileObj["created_at"] = std::chrono::system_clock::to_time_t(file.createdAt);
+            fileObj["updated_at"] = std::chrono::system_clock::to_time_t(file.updatedAt);
+            result["items"].push_back(fileObj);
+        }
+        result["total"] = project->files.size();
+
+        return impl_->buildJsonResponse(200, true, "Project files retrieved", result.dump());
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleUploadProjectFile(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing project ID");
+    }
+
+    try {
+        int projectId = std::stoi(idIt->second);
+        auto projectIt = impl_->projects_.find(projectId);
+        if (projectIt == impl_->projects_.end()) {
+            return impl_->buildJsonResponse(404, false, "Project not found");
+        }
+
+        // Parse request body (JSON format with base64 content)
+        // Note: True multipart/form-data requires HTTP server support
+        // This implementation accepts JSON with base64-encoded file content
+        auto jsonBody = nlohmann::json::parse(body);
+
+        std::string filename = jsonBody.value("filename", "");
+        std::string path = jsonBody.value("path", "");
+        std::string contentBase64 = jsonBody.value("content", "");
+        std::string fileType = jsonBody.value("type", "other");
+
+        if (filename.empty()) {
+            return impl_->buildJsonResponse(400, false, "Missing filename");
+        }
+
+        // Decode base64 content (simplified - in production use proper base64 decoder)
+        std::string content = contentBase64;
+
+        // Create project file
+        LatexProjectFile file;
+        file.id = projectIt->second.files.size() + 1;
+        file.projectId = projectId;
+        file.name = filename;
+        file.path = path.empty() ? filename : path;
+        file.content = content;
+        file.type = fileType;
+        file.createdAt = std::chrono::system_clock::now();
+        file.updatedAt = std::chrono::system_clock::now();
+
+        projectIt->second.files.push_back(file);
+
+        nlohmann::json result;
+        result["id"] = file.id;
+        result["name"] = file.name;
+        result["path"] = file.path;
+        result["project_id"] = projectId;
+        result["size"] = content.length();
+
+        spdlog::info("[LatexApi] File uploaded: {} to project {}", filename, projectId);
+
+        return impl_->buildJsonResponse(201, true, "File uploaded successfully", result.dump());
+    } catch (const nlohmann::json::exception& e) {
+        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleBatchUploadProjectFiles(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing project ID");
+    }
+
+    try {
+        int projectId = std::stoi(idIt->second);
+        auto projectIt = impl_->projects_.find(projectId);
+        if (projectIt == impl_->projects_.end()) {
+            return impl_->buildJsonResponse(404, false, "Project not found");
+        }
+
+        auto jsonBody = nlohmann::json::parse(body);
+        std::string targetPath = jsonBody.value("path", "");
+
+        if (!jsonBody.contains("files") || !jsonBody["files"].is_array()) {
+            return impl_->buildJsonResponse(400, false, "Missing files array");
+        }
+
+        nlohmann::json result;
+        result["uploaded"] = nlohmann::json::array();
+        result["failed"] = nlohmann::json::array();
+
+        for (const auto& fileData : jsonBody["files"]) {
+            try {
+                std::string filename = fileData.value("filename", "");
+                std::string contentBase64 = fileData.value("content", "");
+                std::string fileType = fileData.value("type", "other");
+
+                if (filename.empty()) {
+                    result["failed"].push_back({{"filename", filename}, {"error", "Missing filename"}});
+                    continue;
+                }
+
+                // Create project file
+                LatexProjectFile file;
+                file.id = projectIt->second.files.size() + 1;
+                file.projectId = projectId;
+                file.name = filename;
+                file.path = targetPath.empty() ? filename : targetPath + "/" + filename;
+                file.content = contentBase64;
+                file.type = fileType;
+                file.createdAt = std::chrono::system_clock::now();
+                file.updatedAt = std::chrono::system_clock::now();
+
+                projectIt->second.files.push_back(file);
+
+                nlohmann::json uploadedFile;
+                uploadedFile["id"] = file.id;
+                uploadedFile["name"] = file.name;
+                uploadedFile["path"] = file.path;
+                uploadedFile["size"] = contentBase64.length();
+                result["uploaded"].push_back(uploadedFile);
+
+                spdlog::info("[LatexApi] Batch upload: {} to project {}", filename, projectId);
+            } catch (const std::exception& e) {
+                result["failed"].push_back({{"error", e.what()}});
+            }
+        }
+
+        result["total_uploaded"] = result["uploaded"].size();
+        result["total_failed"] = result["failed"].size();
+
+        return impl_->buildJsonResponse(201, true, "Batch upload completed", result.dump());
+    } catch (const nlohmann::json::exception& e) {
+        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing target project ID");
+    }
+
+    try {
+        int targetProjectId = std::stoi(idIt->second);
+        auto targetProjectIt = impl_->projects_.find(targetProjectId);
+        if (targetProjectIt == impl_->projects_.end()) {
+            return impl_->buildJsonResponse(404, false, "Target project not found");
+        }
+
+        auto jsonBody = nlohmann::json::parse(body);
+
+        int sourceProjectId = jsonBody.value("source_project_id", 0);
+        std::string targetPath = jsonBody.value("target_path", "");
+
+        if (sourceProjectId == 0) {
+            return impl_->buildJsonResponse(400, false, "Missing source_project_id");
+        }
+
+        auto sourceProjectIt = impl_->projects_.find(sourceProjectId);
+        if (sourceProjectIt == impl_->projects_.end()) {
+            return impl_->buildJsonResponse(404, false, "Source project not found");
+        }
+
+        // Get files to import
+        std::vector<int> fileIds;
+        if (jsonBody.contains("file_ids") && jsonBody["file_ids"].is_array()) {
+            for (const auto& id : jsonBody["file_ids"]) {
+                fileIds.push_back(id.get<int>());
+            }
+        } else {
+            // Import all files if no specific IDs provided
+            for (const auto& file : sourceProjectIt->second.files) {
+                fileIds.push_back(file.id);
+            }
+        }
+
+        nlohmann::json result;
+        result["imported"] = nlohmann::json::array();
+        result["failed"] = nlohmann::json::array();
+
+        for (int fileId : fileIds) {
+            bool found = false;
+            for (const auto& sourceFile : sourceProjectIt->second.files) {
+                if (sourceFile.id == fileId) {
+                    // Create a copy in target project
+                    LatexProjectFile newFile;
+                    newFile.id = targetProjectIt->second.files.size() + 1;
+                    newFile.projectId = targetProjectId;
+                    newFile.name = sourceFile.name;
+                    newFile.path = targetPath.empty() ? sourceFile.path : targetPath + "/" + sourceFile.name;
+                    newFile.content = sourceFile.content;
+                    newFile.type = sourceFile.type;
+                    newFile.createdAt = std::chrono::system_clock::now();
+                    newFile.updatedAt = std::chrono::system_clock::now();
+
+                    targetProjectIt->second.files.push_back(newFile);
+
+                    nlohmann::json importedFile;
+                    importedFile["id"] = newFile.id;
+                    importedFile["name"] = newFile.name;
+                    importedFile["path"] = newFile.path;
+                    importedFile["source_file_id"] = fileId;
+                    result["imported"].push_back(importedFile);
+
+                    spdlog::info("[LatexApi] Imported file {} from project {} to project {}",
+                                 sourceFile.name, sourceProjectId, targetProjectId);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                result["failed"].push_back({{"file_id", fileId}, {"error", "File not found in source project"}});
+            }
+        }
+
+        result["total_imported"] = result["imported"].size();
+        result["total_failed"] = result["failed"].size();
+
+        return impl_->buildJsonResponse(201, true, "Files imported successfully", result.dump());
+    } catch (const nlohmann::json::exception& e) {
+        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+// ============================================================================
 // HTTP request handlers - Templates
 // ============================================================================
 
@@ -1628,7 +1932,6 @@ std::string LatexApiModule::handleClearCache() {
     } catch (const std::exception& e) {
         return impl_->buildJsonResponse(500, false, "Failed to clear cache: " + std::string(e.what()));
     }
-}
 }
 
 // ============================================================================
