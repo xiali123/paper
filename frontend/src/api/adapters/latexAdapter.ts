@@ -745,6 +745,118 @@ export async function deleteProjectFile(fileId: number): Promise<void> {
 }
 
 /**
+ * 上传文件到项目
+ */
+export async function uploadProjectFile(projectId: number, file: File, path?: string): Promise<FrontendLatexProjectFile> {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (path) {
+    formData.append('path', path)
+  }
+  formData.append('project_id', projectId.toString())
+
+  const response = await apiClient.post<BackendLatexProjectFile>(
+    `${API_BASE}/projects/${projectId}/upload`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  )
+
+  return toFrontendProjectFile(response)
+}
+
+/**
+ * 批量上传文件到项目
+ */
+export async function batchUploadProjectFiles(
+  projectId: number,
+  files: File[],
+  path?: string
+): Promise<FrontendLatexProjectFile[]> {
+  const formData = new FormData()
+  files.forEach(file => {
+    formData.append('files', file)
+  })
+  if (path) {
+    formData.append('path', path)
+  }
+  formData.append('project_id', projectId.toString())
+
+  const response = await apiClient.post<{ files: BackendLatexProjectFile[] }>(
+    `${API_BASE}/projects/${projectId}/batch-upload`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  )
+
+  return response.files.map(toFrontendProjectFile)
+}
+
+/**
+ * 从其他项目导入文件到当前项目
+ */
+export interface ImportFileFromProjectRequest {
+  projectId: number
+  sourceProjectId: number
+  sourceFileIds: number[]
+  targetPath?: string
+}
+
+export async function importFilesFromProject(
+  request: ImportFileFromProjectRequest
+): Promise<FrontendLatexProjectFile[]> {
+  const response = await apiClient.post<{ files: BackendLatexProjectFile[] }>(
+    `${API_BASE}/projects/${request.projectId}/import`,
+    {
+      source_project_id: request.sourceProjectId,
+      source_file_ids: request.sourceFileIds,
+      target_path: request.targetPath || ''
+    }
+  )
+
+  return response.files.map(toFrontendProjectFile)
+}
+
+/**
+ * 获取所有项目列表（用于导入）
+ */
+export async function listAllProjects(): Promise<FrontendLatexProject[]> {
+  const response = await apiClient.get<{ items: BackendLatexProject[]; total: number }>(
+    `${API_BASE}/projects?limit=1000`
+  )
+
+  return response.items.map(item => ({
+    id: item.id,
+    name: item.name,
+    ownerId: item.owner_id,
+    mainFile: item.main_file,
+    description: item.description || '',
+    isPublic: item.is_public || false,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+    version: item.version || 1,
+    files: []
+  }))
+}
+
+/**
+ * 获取项目的所有文件（用于导入选择）
+ */
+export async function getProjectFiles(projectId: number): Promise<FrontendLatexProjectFile[]> {
+  const response = await apiClient.get<{ files: BackendLatexProjectFile[] }>(
+    `${API_BASE}/projects/${projectId}/files`
+  )
+
+  return response.files.map(toFrontendProjectFile)
+}
+
+/**
  * 获取项目文件内容
  */
 export async function getProjectFile(fileId: number): Promise<FrontendLatexProjectFile> {

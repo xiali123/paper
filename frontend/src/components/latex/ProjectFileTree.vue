@@ -21,6 +21,15 @@
               <el-dropdown-item command="png">图片 (.png)</el-dropdown-item>
               <el-dropdown-item command="jpg">图片 (.jpg)</el-dropdown-item>
               <el-dropdown-item command="custom" divided>自定义文件...</el-dropdown-item>
+              <el-dropdown-item command="upload" divided>
+                <el-icon><Upload /></el-icon> 上传文件
+              </el-dropdown-item>
+              <el-dropdown-item command="batchUpload">
+                <el-icon><Upload /></el-icon> 批量上传
+              </el-dropdown-item>
+              <el-dropdown-item command="import">
+                <el-icon><Download /></el-icon> 从其他项目导入
+              </el-dropdown-item>
               <el-dropdown-item command="folder" divided>新建文件夹</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -197,11 +206,158 @@
         <el-button type="primary" @click="handleConfirmRename">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 文件上传对话框 -->
+    <el-dialog
+      v-model="showUploadDialog"
+      title="上传文件"
+      width="500px"
+      @close="handleUploadDialogClose"
+    >
+      <el-form :model="uploadForm" label-width="100px">
+        <el-form-item label="选择文件">
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            :on-change="handleFileSelect"
+            :show-file-list="true"
+            :limit="1"
+            accept="*/*"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持任意文件类型</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="保存路径">
+          <el-input
+            v-model="uploadForm.path"
+            placeholder="如: chapters/ (留空为根目录)"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUploadDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmUpload" :loading="uploading">
+          上传
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量上传对话框 -->
+    <el-dialog
+      v-model="showBatchUploadDialog"
+      title="批量上传文件"
+      width="600px"
+      @close="handleBatchUploadDialogClose"
+    >
+      <el-form :model="batchUploadForm" label-width="100px">
+        <el-form-item label="选择文件">
+          <el-upload
+            ref="batchUploadRef"
+            :auto-upload="false"
+            :on-change="handleBatchFileSelect"
+            :on-remove="handleBatchFileRemove"
+            :show-file-list="true"
+            :limit="50"
+            multiple
+            accept="*/*"
+          >
+            <el-button type="primary">选择多个文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持任意文件类型，最多50个文件</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="保存路径">
+          <el-input
+            v-model="batchUploadForm.path"
+            placeholder="如: assets/ (留空为根目录)"
+          />
+        </el-form-item>
+        <el-form-item label="已选文件">
+          <div class="selected-files">{{ selectedFiles.length }} 个文件</div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showBatchUploadDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmBatchUpload" :loading="batchUploading">
+          批量上传 ({{ selectedFiles.length }})
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 从其他项目导入对话框 -->
+    <el-dialog
+      v-model="showImportDialog"
+      title="从其他项目导入文件"
+      width="700px"
+      @close="handleImportDialogClose"
+    >
+      <el-form :model="importForm" label-width="100px">
+        <el-form-item label="选择项目">
+          <el-select
+            v-model="importForm.sourceProjectId"
+            placeholder="请选择项目"
+            style="width: 100%"
+            @change="handleSourceProjectChange"
+            :loading="loadingProjects"
+          >
+            <el-option
+              v-for="project in availableProjects"
+              :key="project.id"
+              :label="project.name"
+              :value="project.id"
+              :disabled="project.id === props.projectId"
+            >
+              <span>{{ project.name }}</span>
+              <span v-if="project.id === props.projectId" style="color: var(--el-text-color-secondary); margin-left: 8px;">(当前项目)</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="选择文件" v-if="sourceProjectFiles.length > 0">
+          <el-checkbox-group v-model="importForm.selectedFileIds">
+            <div class="file-grid">
+              <el-checkbox
+                v-for="file in sourceProjectFiles"
+                :key="file.id"
+                :label="file.id"
+              >
+                <div class="file-item">
+                  <span class="file-icon">{{ getFileIcon(file.name) }}</span>
+                  <span class="file-name" :title="file.path">{{ file.name }}</span>
+                  <span class="file-path" :title="file.path">{{ file.path }}</span>
+                </div>
+              </el-checkbox>
+            </div>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="目标路径">
+          <el-input
+            v-model="importForm.targetPath"
+            placeholder="如: imported/ (留空为根目录)"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showImportDialog = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="handleConfirmImport"
+          :loading="importing"
+          :disabled="importForm.selectedFileIds.length === 0"
+        >
+          导入 ({{ importForm.selectedFileIds.length }} 个文件)
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import type { UploadInstance, UploadFile, UploadProps } from 'element-plus'
 import {
   Folder,
   Plus,
@@ -216,9 +372,19 @@ import {
   Delete,
   Star,
   MoreFilled,
-  Sort
+  Sort,
+  Upload,
+  Download
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import {
+  uploadProjectFile,
+  batchUploadProjectFiles,
+  importFilesFromProject,
+  listAllProjects,
+  getProjectFiles
+} from '@/api/adapters/latexAdapter'
+import type { FrontendLatexProject, FrontendLatexProjectFile } from '@/api/adapters/latexAdapter'
 
 // ==========================================
 // 类型定义
@@ -288,10 +454,21 @@ const editInputRef = ref<HTMLInputElement>()
 const selectedId = ref<number | string | null>(null)
 const showNewFileDialog = ref(false)
 const showRenameDialog = ref(false)
-const currentFileType = ref<'tex' | 'bib' | 'sty' | 'cls' | 'pdf' | 'png' | 'jpg' | 'custom' | 'folder'>('tex')
+const showUploadDialog = ref(false)
+const showBatchUploadDialog = ref(false)
+const showImportDialog = ref(false)
+const currentFileType = ref<'tex' | 'bib' | 'sty' | 'cls' | 'pdf' | 'png' | 'jpg' | 'custom' | 'folder' | 'upload' | 'batchUpload' | 'import'>('tex')
 const currentNode = ref<ProjectFile | null>(null)
 const editingNode = ref<TreeNode | null>(null) // 当前正在编辑的节点
 const editingValue = ref('') // 编辑中的值
+
+// Upload related
+const uploadRef = ref<UploadInstance>()
+const batchUploadRef = ref<UploadInstance>()
+const uploading = ref(false)
+const batchUploading = ref(false)
+const importing = ref(false)
+const loadingProjects = ref(false)
 
 const newFileForm = ref({
   name: '',
@@ -302,6 +479,26 @@ const newFileForm = ref({
 const renameForm = ref({
   name: ''
 })
+
+const uploadForm = ref({
+  file: null as File | null,
+  path: ''
+})
+
+const batchUploadForm = ref({
+  path: ''
+})
+
+const selectedFiles = ref<File[]>([])
+
+const importForm = ref({
+  sourceProjectId: null as number | null,
+  selectedFileIds: [] as number[],
+  targetPath: ''
+})
+
+const availableProjects = ref<FrontendLatexProject[]>([])
+const sourceProjectFiles = ref<FrontendLatexProjectFile[]>([])
 
 // 树形数据
 const treeData = computed<TreeNode[]>(() => {
@@ -448,8 +645,27 @@ function handleNodeClick(data: TreeNode) {
 
 function handleAddFile(command: string) {
   currentFileType.value = command as any
-  newFileForm.value = { name: '', customName: '', path: '' }
-  showNewFileDialog.value = true
+
+  if (command === 'upload') {
+    uploadForm.value = { file: null, path: '' }
+    showUploadDialog.value = true
+  } else if (command === 'batchUpload') {
+    batchUploadForm.value = { path: '' }
+    selectedFiles.value = []
+    showBatchUploadDialog.value = true
+  } else if (command === 'import') {
+    importForm.value = {
+      sourceProjectId: null,
+      selectedFileIds: [],
+      targetPath: ''
+    }
+    sourceProjectFiles.value = []
+    loadAvailableProjects()
+    showImportDialog.value = true
+  } else {
+    newFileForm.value = { name: '', customName: '', path: '' }
+    showNewFileDialog.value = true
+  }
 }
 
 function handleConfirmNewFile() {
@@ -512,7 +728,167 @@ function getTypeCommand(type: string): string {
 }
 
 function handleDialogClose() {
-  newFileForm.value = { name: '', path: '' }
+  newFileForm.value = { name: '', customName: '', path: '' }
+}
+
+// 上传文件处理
+function handleFileSelect(file: UploadFile) {
+  uploadForm.value.file = file.raw as File
+}
+
+async function handleConfirmUpload() {
+  if (!uploadForm.value.file) {
+    ElMessage.warning('请选择要上传的文件')
+    return
+  }
+
+  uploading.value = true
+  try {
+    const uploadedFile = await uploadProjectFile(
+      props.projectId,
+      uploadForm.value.file,
+      uploadForm.value.path || undefined
+    )
+    ElMessage.success('文件上传成功')
+    showUploadDialog.value = false
+    emit('refresh')
+  } catch (error: any) {
+    ElMessage.error('文件上传失败: ' + (error.message || '未知错误'))
+  } finally {
+    uploading.value = false
+  }
+}
+
+function handleUploadDialogClose() {
+  uploadForm.value = { file: null, path: '' }
+}
+
+// 批量上传处理
+function handleBatchFileSelect(file: UploadFile, fileList: UploadFile[]) {
+  selectedFiles.value = fileList.map(f => f.raw as File)
+}
+
+function handleBatchFileRemove() {
+  selectedFiles.value = batchUploadRef.value?.uploadFiles.map(f => f.raw as File) || []
+}
+
+async function handleConfirmBatchUpload() {
+  if (selectedFiles.value.length === 0) {
+    ElMessage.warning('请选择要上传的文件')
+    return
+  }
+
+  batchUploading.value = true
+  try {
+    await batchUploadProjectFiles(
+      props.projectId,
+      selectedFiles.value,
+      batchUploadForm.value.path || undefined
+    )
+    ElMessage.success(`成功上传 ${selectedFiles.value.length} 个文件`)
+    showBatchUploadDialog.value = false
+    selectedFiles.value = []
+    emit('refresh')
+  } catch (error: any) {
+    ElMessage.error('批量上传失败: ' + (error.message || '未知错误'))
+  } finally {
+    batchUploading.value = false
+  }
+}
+
+function handleBatchUploadDialogClose() {
+  batchUploadForm.value = { path: '' }
+  selectedFiles.value = []
+}
+
+// 从其他项目导入处理
+async function loadAvailableProjects() {
+  loadingProjects.value = true
+  try {
+    availableProjects.value = await listAllProjects()
+  } catch (error: any) {
+    ElMessage.error('加载项目列表失败: ' + (error.message || '未知错误'))
+  } finally {
+    loadingProjects.value = false
+  }
+}
+
+async function handleSourceProjectChange(projectId: number) {
+  if (!projectId) {
+    sourceProjectFiles.value = []
+    return
+  }
+
+  try {
+    sourceProjectFiles.value = await getProjectFiles(projectId)
+  } catch (error: any) {
+    ElMessage.error('加载项目文件失败: ' + (error.message || '未知错误'))
+    sourceProjectFiles.value = []
+  }
+}
+
+async function handleConfirmImport() {
+  if (importForm.value.selectedFileIds.length === 0) {
+    ElMessage.warning('请选择要导入的文件')
+    return
+  }
+
+  if (!importForm.value.sourceProjectId) {
+    ElMessage.warning('请选择源项目')
+    return
+  }
+
+  importing.value = true
+  try {
+    await importFilesFromProject({
+      projectId: props.projectId,
+      sourceProjectId: importForm.value.sourceProjectId,
+      sourceFileIds: importForm.value.selectedFileIds,
+      targetPath: importForm.value.targetPath || undefined
+    })
+    ElMessage.success(`成功导入 ${importForm.value.selectedFileIds.length} 个文件`)
+    showImportDialog.value = false
+    importForm.value = {
+      sourceProjectId: null,
+      selectedFileIds: [],
+      targetPath: ''
+    }
+    sourceProjectFiles.value = []
+    emit('refresh')
+  } catch (error: any) {
+    ElMessage.error('导入文件失败: ' + (error.message || '未知错误'))
+  } finally {
+    importing.value = false
+  }
+}
+
+function handleImportDialogClose() {
+  importForm.value = {
+    sourceProjectId: null,
+    selectedFileIds: [],
+    targetPath: ''
+  }
+  sourceProjectFiles.value = []
+}
+
+// 获取文件图标
+function getFileIcon(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  const iconMap: Record<string, string> = {
+    tex: '📄',
+    bib: '📚',
+    sty: '📝',
+    cls: '📋',
+    pdf: '📕',
+    png: '🖼️',
+    jpg: '🖼️',
+    jpeg: '🖼️',
+    svg: '🎨',
+    json: '📊',
+    xml: '📊',
+    txt: '📃'
+  }
+  return iconMap[ext || ''] || '📄'
 }
 
 function handleRefresh() {
@@ -898,6 +1274,71 @@ defineExpose({
     font-size: 12px;
     color: var(--el-text-color-secondary);
     line-height: 1.5;
+  }
+
+  // 上传和导入相关样式
+  .selected-files {
+    padding: 8px 12px;
+    background: var(--el-fill-color-light);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--el-text-color-primary);
+  }
+
+  .file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    background: var(--el-fill-color-lighter);
+    border-radius: 4px;
+
+    .el-checkbox {
+      margin: 0;
+      padding: 8px;
+      background: var(--el-bg-color);
+      border-radius: 4px;
+      border: 1px solid var(--el-border-color-lighter);
+      transition: all 0.2s;
+
+      &:hover {
+        border-color: var(--el-color-primary);
+        background: var(--el-fill-color-light);
+      }
+
+      :deep(.el-checkbox__label) {
+        flex: 1;
+        width: 100%;
+      }
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+
+      .file-icon {
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      .file-name {
+        font-weight: 500;
+        color: var(--el-text-color-primary);
+        flex-shrink: 0;
+      }
+
+      .file-path {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
   }
 
     &:focus {
