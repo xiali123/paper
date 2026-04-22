@@ -249,55 +249,9 @@ void AdminApiModule::registerRoutes() {
 // ============================================================================
 
 void AdminApiModule::initializeTestData() {
-    // 创建默认超级管理员（默认密码：admin123）
-    AdminUser superadmin;
-    superadmin.id = impl_->nextUserId_++;
-    superadmin.username = "admin";
-    superadmin.email = "admin@papercrawler.com";
-    superadmin.fullName = "Super Administrator";
-    superadmin.avatar = "/avatars/admin.png";
-    superadmin.role = UserRole::SUPERADMIN;
-    superadmin.active = true;
-    superadmin.passwordHash = impl_->hashPassword("admin123");  // 默认密码
-    superadmin.createdAt = std::chrono::system_clock::now();
-    superadmin.lastLoginAt = std::chrono::system_clock::now();
-    superadmin.lastLoginIp = "127.0.0.1";
-
-    impl_->users_[superadmin.id] = superadmin;
-
-    spdlog::info("[AdminApiModule] Created superadmin user: admin (default password: admin123)");
-
-    // 创建测试用户
-    AdminUser testUser;
-    testUser.id = impl_->nextUserId_++;
-    testUser.username = "testuser";
-    testUser.email = "test@example.com";
-    testUser.fullName = "Test User";
-    testUser.avatar = "";
-    testUser.role = UserRole::USER;
-    testUser.active = true;
-    testUser.createdAt = std::chrono::system_clock::now();
-    testUser.lastLoginAt = std::chrono::system_clock::now() - std::chrono::hours(24);
-    testUser.lastLoginIp = "192.168.1.100";
-
-    impl_->users_[testUser.id] = testUser;
-
-    // 创建管理员用户
-    AdminUser adminUser;
-    adminUser.id = impl_->nextUserId_++;
-    adminUser.username = "moderator";
-    adminUser.email = "moderator@papercrawler.com";
-    adminUser.fullName = "Forum Moderator";
-    adminUser.avatar = "/avatars/mod.png";
-    adminUser.role = UserRole::ADMIN;
-    adminUser.active = true;
-    adminUser.createdAt = std::chrono::system_clock::now();
-    adminUser.lastLoginAt = std::chrono::system_clock::now() - std::chrono::hours(2);
-    adminUser.lastLoginIp = "192.168.1.101";
-
-    impl_->users_[adminUser.id] = adminUser;
-
-    spdlog::info("[AdminApiModule] Initialized test data with {} users", impl_->users_.size());
+    // ⚠️ 已弃用：AdminApiModule现在从数据库读取用户，不再使用内存存储
+    // 默认admin用户由AuthApiModule::ensureDefaultSuperAdmin()创建
+    spdlog::info("[AdminApiModule] initializeTestData() is deprecated - using database for user storage");
 }
 
 void AdminApiModule::initializeModuleInfo() {
@@ -343,47 +297,92 @@ PaginatedResponse<AdminUser> AdminApiModule::listUsers(int page, int limit, cons
     response.page = page;
     response.limit = limit;
 
-    std::vector<AdminUser> allUsers;
-    for (const auto& [id, user] : impl_->users_) {
+    try {
+        // 从数据库查询用户
+        if (!database_) {
+            spdlog::error("[AdminApiModule] No database connection available");
+            return response;
+        }
+
+        // 构建SQL查询
+        std::string sql = "SELECT * FROM users";
+        std::vector<std::string> conditions;
+
         // 搜索过滤
         if (!search.empty()) {
-            std::string searchLower = search;
-            std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
-
-            std::string usernameLower = user.username;
-            std::transform(usernameLower.begin(), usernameLower.end(), usernameLower.begin(), ::tolower);
-
-            std::string emailLower = user.email;
-            std::transform(emailLower.begin(), emailLower.end(), emailLower.begin(), ::tolower);
-
-            if (usernameLower.find(searchLower) == std::string::npos &&
-                emailLower.find(searchLower) == std::string::npos) {
-                continue;
-            }
+            conditions.push_back("(username LIKE '%" + search + "%' OR email LIKE '%" + search + "%')");
         }
 
         // 角色过滤
-        if (roleFilter != UserRole::USER && user.role != roleFilter) {
-            // USER 意味着不过滤角色
-            // 如果指定了特定角色，只返回该角色的用户
-            // 但实际上，我们应该允许查看所有低于或等于当前角色的用户
-            // 这里简化处理
+        if (roleFilter != UserRole::USER) {
+            std::string roleStr;
+            switch (roleFilter) {
+                case UserRole::PREMIUM: roleStr = "premium"; break;
+                case UserRole::ADMIN: roleStr = "admin"; break;
+                case UserRole::SUPERADMIN: roleStr = "superadmin"; break;
+                default: roleStr = "user"; break;
+            }
+            conditions.push_back("role = '" + roleStr + "'");
         }
 
-        allUsers.push_back(user);
-    }
-
-    response.total = allUsers.size();
-    response.totalPages = (response.total + limit - 1) / limit;
-
-    // 分页
-    int start = (page - 1) * limit;
-    int end = std::min(start + limit, (int)allUsers.size());
-
-    if (start < (int)allUsers.size()) {
-        for (int i = start; i < end; i++) {
-            response.items.push_back(allUsers[i]);
+        // 添加WHERE条件
+        if (!conditions.empty()) {
+            sql += " WHERE ";
+            for (size_t i = 0; i < conditions.size(); i++) {
+                if (i > 0) sql += " AND ";
+                sql += conditions[i];
+            }
         }
+
+        // 添加分页
+        sql += " LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string((page - 1) * limit);
+
+        spdlog::info("[AdminApiModule] Executing SQL: {}", sql);
+        auto results = database_->query(sql);
+
+        // 查询总数
+        std::string countSql = "SELECT COUNT(*) as total FROM users";
+        if (!conditions.empty()) {
+            countSql += " WHERE ";
+            for (size_t i = 0; i < conditions.size(); i++) {
+                if (i > 0) countSql += " AND ";
+                countSql += conditions[i];
+            }
+        }
+
+        auto countResults = database_->query(countSql);
+        if (!countResults.empty()) {
+            response.total = std::stoi(countResults[0]["total"]);
+        }
+
+        response.totalPages = (response.total + limit - 1) / limit;
+
+        // 解析用户数据
+        for (const auto& row : results) {
+            AdminUser user;
+            user.id = std::stoi(row.at("id"));
+            user.username = row.at("username");
+            user.email = row.at("email");
+            user.fullName = row.at("full_name");
+            user.avatar = row.count("avatar") > 0 ? row.at("avatar") : "";
+            user.role = AdminUser::fromString(row.at("role"));
+            user.active = (row.at("is_active") == "1" || row.at("is_active") == "TRUE");
+
+            // 时间戳转换
+            if (row.count("created_at") > 0 && !row.at("created_at").empty()) {
+                // 简化处理：直接使用当前时间
+                user.createdAt = std::chrono::system_clock::now();
+            }
+            if (row.count("last_login_at") > 0 && !row.at("last_login_at").empty()) {
+                user.lastLoginAt = std::chrono::system_clock::now();
+            }
+            user.lastLoginIp = row.count("last_login_ip") > 0 ? row.at("last_login_ip") : "";
+
+            response.items.push_back(user);
+        }
+
+    } catch (const std::exception& e) {
+        spdlog::error("[AdminApiModule] Failed to list users: {}", e.what());
     }
 
     return response;
@@ -392,10 +391,36 @@ PaginatedResponse<AdminUser> AdminApiModule::listUsers(int page, int limit, cons
 std::optional<AdminUser> AdminApiModule::getUser(int id) {
     std::lock_guard<std::mutex> lock(usersMutex_);
 
-    auto it = impl_->users_.find(id);
-    if (it != impl_->users_.end()) {
-        return it->second;
+    try {
+        if (!database_) {
+            spdlog::error("[AdminApiModule] No database connection available");
+            return std::nullopt;
+        }
+
+        std::string sql = "SELECT * FROM users WHERE id = " + std::to_string(id);
+        auto results = database_->query(sql);
+
+        if (!results.empty()) {
+            AdminUser user;
+            user.id = std::stoi(results[0].at("id"));
+            user.username = results[0].at("username");
+            user.email = results[0].at("email");
+            user.fullName = results[0].at("full_name");
+            user.avatar = results[0].count("avatar") > 0 ? results[0].at("avatar") : "";
+            user.role = AdminUser::fromString(results[0].at("role"));
+            user.active = (results[0].at("is_active") == "1" || results[0].at("is_active") == "TRUE");
+
+            // 时间戳转换
+            user.createdAt = std::chrono::system_clock::now();
+            user.lastLoginAt = std::chrono::system_clock::now();
+            user.lastLoginIp = results[0].count("last_login_ip") > 0 ? results[0].at("last_login_ip") : "";
+
+            return user;
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[AdminApiModule] Failed to get user: {}", e.what());
     }
+
     return std::nullopt;
 }
 
@@ -458,77 +483,127 @@ bool AdminApiModule::resetUserPassword(int userId, const std::string& newPasswor
 std::optional<AdminUser> AdminApiModule::updateUser(int id, const AdminUser& user) {
     std::lock_guard<std::mutex> lock(usersMutex_);
 
-    auto it = impl_->users_.find(id);
-    if (it == impl_->users_.end()) {
-        return std::nullopt;
+    try {
+        if (!database_) {
+            spdlog::error("[AdminApiModule] No database connection available");
+            return std::nullopt;
+        }
+
+        // 构建角色字符串
+        std::string roleStr;
+        switch (user.role) {
+            case UserRole::PREMIUM: roleStr = "premium"; break;
+            case UserRole::ADMIN: roleStr = "admin"; break;
+            case UserRole::SUPERADMIN: roleStr = "superadmin"; break;
+            default: roleStr = "user"; break;
+        }
+
+        std::string sql = "UPDATE users SET "
+                         "email = '" + user.email + "', "
+                         "full_name = '" + user.fullName + "', "
+                         "avatar = '" + user.avatar + "', "
+                         "role = '" + roleStr + "' "
+                         "WHERE id = " + std::to_string(id);
+
+        if (database_->execute(sql)) {
+            // 记录审计日志
+            addAuditLog("user_updated", "user", id, "system", 0,
+                        "Updated user: " + user.username, "127.0.0.1");
+
+            // 返回更新后的用户
+            return getUser(id);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[AdminApiModule] Failed to update user: {}", e.what());
     }
 
-    // 更新允许的字段
-    it->second.email = user.email;
-    it->second.fullName = user.fullName;
-    it->second.avatar = user.avatar;
-    it->second.role = user.role;
-
-    // 记录审计日志
-    addAuditLog("user_updated", "user", id, "system", 0,
-                "Updated user: " + user.username, "127.0.0.1");
-
-    return it->second;
+    return std::nullopt;
 }
 
 bool AdminApiModule::deleteUser(int id) {
     std::lock_guard<std::mutex> lock(usersMutex_);
 
-    auto it = impl_->users_.find(id);
-    if (it == impl_->users_.end()) {
-        return false;
+    try {
+        if (!database_) {
+            spdlog::error("[AdminApiModule] No database connection available");
+            return false;
+        }
+
+        // 获取用户名用于审计日志
+        auto user = getUser(id);
+        std::string username = user ? user->username : "unknown";
+
+        std::string sql = "DELETE FROM users WHERE id = " + std::to_string(id);
+
+        if (database_->execute(sql)) {
+            // 记录审计日志
+            addAuditLog("user_deleted", "user", id, "system", 0,
+                        "Deleted user: " + username, "127.0.0.1");
+
+            spdlog::info("[AdminApiModule] Deleted user: {}", username);
+            return true;
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[AdminApiModule] Failed to delete user: {}", e.what());
     }
 
-    std::string username = it->second.username;
-    impl_->users_.erase(it);
-
-    // 记录审计日志
-    addAuditLog("user_deleted", "user", id, "system", 0,
-                "Deleted user: " + username, "127.0.0.1");
-
-    spdlog::info("[AdminApiModule] Deleted user: {}", username);
-    return true;
+    return false;
 }
 
 std::optional<AdminUser> AdminApiModule::activateUser(int id) {
     std::lock_guard<std::mutex> lock(usersMutex_);
 
-    auto it = impl_->users_.find(id);
-    if (it == impl_->users_.end()) {
-        return std::nullopt;
+    try {
+        if (!database_) {
+            spdlog::error("[AdminApiModule] No database connection available");
+            return std::nullopt;
+        }
+
+        std::string sql = "UPDATE users SET is_active = 1 WHERE id = " + std::to_string(id);
+
+        if (database_->execute(sql)) {
+            // 获取用户名用于审计日志
+            auto user = getUser(id);
+            if (user) {
+                addAuditLog("user_activated", "user", id, "system", 0,
+                            "Activated user: " + user->username, "127.0.0.1");
+                spdlog::info("[AdminApiModule] Activated user: {}", user->username);
+            }
+            return getUser(id);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[AdminApiModule] Failed to activate user: {}", e.what());
     }
 
-    it->second.active = true;
-
-    // 记录审计日志
-    addAuditLog("user_activated", "user", id, "system", 0,
-                "Activated user: " + it->second.username, "127.0.0.1");
-
-    spdlog::info("[AdminApiModule] Activated user: {}", it->second.username);
-    return it->second;
+    return std::nullopt;
 }
 
 std::optional<AdminUser> AdminApiModule::deactivateUser(int id) {
     std::lock_guard<std::mutex> lock(usersMutex_);
 
-    auto it = impl_->users_.find(id);
-    if (it == impl_->users_.end()) {
-        return std::nullopt;
+    try {
+        if (!database_) {
+            spdlog::error("[AdminApiModule] No database connection available");
+            return std::nullopt;
+        }
+
+        std::string sql = "UPDATE users SET is_active = 0 WHERE id = " + std::to_string(id);
+
+        if (database_->execute(sql)) {
+            // 获取用户名用于审计日志
+            auto user = getUser(id);
+            if (user) {
+                addAuditLog("user_deactivated", "user", id, "system", 0,
+                            "Deactivated user: " + user->username, "127.0.0.1");
+                spdlog::info("[AdminApiModule] Deactivated user: {}", user->username);
+            }
+            return getUser(id);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[AdminApiModule] Failed to deactivate user: {}", e.what());
     }
 
-    it->second.active = false;
-
-    // 记录审计日志
-    addAuditLog("user_deactivated", "user", id, "system", 0,
-                "Deactivated user: " + it->second.username, "127.0.0.1");
-
-    spdlog::info("[AdminApiModule] Deactivated user: {}", it->second.username);
-    return it->second;
+    return std::nullopt;
 }
 
 // ============================================================================
@@ -681,21 +756,47 @@ AdminStats AdminApiModule::getStats() {
     std::lock_guard<std::mutex> lock(usersMutex_);
 
     AdminStats stats;
-    stats.totalUsers = impl_->users_.size();
 
-    for (const auto& [id, user] : impl_->users_) {
-        if (user.active) stats.activeUsers++;
-        if (user.role == UserRole::PREMIUM) stats.premiumUsers++;
-        if (user.role == UserRole::ADMIN || user.role == UserRole::SUPERADMIN) stats.adminUsers++;
-    }
-
-    // 模块统计
-    {
-        std::lock_guard<std::mutex> moduleLock(modulesMutex_);
-        stats.totalModules = impl_->modules_.size();
-        for (const auto& [name, module] : impl_->modules_) {
-            if (module.enabled) stats.enabledModules++;
+    try {
+        if (!database_) {
+            spdlog::error("[AdminApiModule] No database connection available");
+            return stats;
         }
+
+        // 查询总用户数
+        auto totalResults = database_->query("SELECT COUNT(*) as total FROM users");
+        if (!totalResults.empty()) {
+            stats.totalUsers = std::stoi(totalResults[0]["total"]);
+        }
+
+        // 查询活跃用户数
+        auto activeResults = database_->query("SELECT COUNT(*) as total FROM users WHERE is_active = 1");
+        if (!activeResults.empty()) {
+            stats.activeUsers = std::stoi(activeResults[0]["total"]);
+        }
+
+        // 查询premium用户数
+        auto premiumResults = database_->query("SELECT COUNT(*) as total FROM users WHERE role = 'premium'");
+        if (!premiumResults.empty()) {
+            stats.premiumUsers = std::stoi(premiumResults[0]["total"]);
+        }
+
+        // 查询admin和superadmin用户数
+        auto adminResults = database_->query("SELECT COUNT(*) as total FROM users WHERE role IN ('admin', 'superadmin')");
+        if (!adminResults.empty()) {
+            stats.adminUsers = std::stoi(adminResults[0]["total"]);
+        }
+
+        // 模块统计
+        {
+            std::lock_guard<std::mutex> moduleLock(modulesMutex_);
+            stats.totalModules = impl_->modules_.size();
+            for (const auto& [name, module] : impl_->modules_) {
+                if (module.enabled) stats.enabledModules++;
+            }
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[AdminApiModule] Failed to get stats: {}", e.what());
     }
 
     return stats;
@@ -708,7 +809,7 @@ AdminStats AdminApiModule::getStats() {
 std::string AdminApiModule::handleGetStats(const std::map<std::string, std::string>& params) {
     auto stats = getStats();
 
-    return impl_->buildJsonResponse(true, "Statistics retrieved", stats.toJSON());
+    return buildJsonResponse(true, "Statistics retrieved", stats.toJSON());
 }
 
 // ============================================================================
@@ -756,13 +857,13 @@ std::string AdminApiModule::handleListUsers(const std::map<std::string, std::str
     result << "\"totalPages\":" << response.totalPages;
     result << "}}";
 
-    return impl_->buildJsonResponse(true, "Users retrieved", result.str());
+    return buildJsonResponse(true, "Users retrieved", result.str());
 }
 
 std::string AdminApiModule::handleGetUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing user ID");
+        return buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -770,19 +871,19 @@ std::string AdminApiModule::handleGetUser(const std::map<std::string, std::strin
         auto user = getUser(id);
 
         if (!user) {
-            return impl_->buildJsonResponse(404, false, "User not found");
+            return buildJsonResponse(404, false, "User not found");
         }
 
-        return impl_->buildJsonResponse(true, "User retrieved", user->toJSON());
+        return buildJsonResponse(true, "User retrieved", user->toJSON());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminApiModule::handleUpdateUser(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing user ID");
+        return buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -799,40 +900,40 @@ std::string AdminApiModule::handleUpdateUser(const std::map<std::string, std::st
         auto updatedUser = updateUser(id, user);
 
         if (!updatedUser) {
-            return impl_->buildJsonResponse(404, false, "User not found");
+            return buildJsonResponse(404, false, "User not found");
         }
 
-        return impl_->buildJsonResponse(true, "User updated", updatedUser->toJSON());
+        return buildJsonResponse(true, "User updated", updatedUser->toJSON());
     } catch (const nlohmann::json::exception& e) {
-        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminApiModule::handleDeleteUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing user ID");
+        return buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
         int id = std::stoi(idIt->second);
 
         if (deleteUser(id)) {
-            return impl_->buildJsonResponse(true, "User deleted");
+            return buildJsonResponse(true, "User deleted");
         }
 
-        return impl_->buildJsonResponse(404, false, "User not found");
+        return buildJsonResponse(404, false, "User not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminApiModule::handleActivateUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing user ID");
+        return buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -840,19 +941,19 @@ std::string AdminApiModule::handleActivateUser(const std::map<std::string, std::
         auto user = activateUser(id);
 
         if (!user) {
-            return impl_->buildJsonResponse(404, false, "User not found");
+            return buildJsonResponse(404, false, "User not found");
         }
 
-        return impl_->buildJsonResponse(true, "User activated", user->toJSON());
+        return buildJsonResponse(true, "User activated", user->toJSON());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminApiModule::handleDeactivateUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing user ID");
+        return buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -860,12 +961,12 @@ std::string AdminApiModule::handleDeactivateUser(const std::map<std::string, std
         auto user = deactivateUser(id);
 
         if (!user) {
-            return impl_->buildJsonResponse(404, false, "User not found");
+            return buildJsonResponse(404, false, "User not found");
         }
 
-        return impl_->buildJsonResponse(true, "User deactivated", user->toJSON());
+        return buildJsonResponse(true, "User deactivated", user->toJSON());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -876,7 +977,7 @@ std::string AdminApiModule::handleDeactivateUser(const std::map<std::string, std
 std::string AdminApiModule::handleChangePassword(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing user ID");
+        return buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -887,29 +988,29 @@ std::string AdminApiModule::handleChangePassword(const std::map<std::string, std
         std::string newPassword = jsonBody.value("new_password", "");
 
         if (oldPassword.empty() || newPassword.empty()) {
-            return impl_->buildJsonResponse(400, false, "Missing old_password or new_password");
+            return buildJsonResponse(400, false, "Missing old_password or new_password");
         }
 
         if (newPassword.length() < 6) {
-            return impl_->buildJsonResponse(400, false, "New password must be at least 6 characters");
+            return buildJsonResponse(400, false, "New password must be at least 6 characters");
         }
 
         if (changeUserPassword(id, oldPassword, newPassword)) {
-            return impl_->buildJsonResponse(true, "Password changed successfully");
+            return buildJsonResponse(true, "Password changed successfully");
         }
 
-        return impl_->buildJsonResponse(400, false, "Old password is incorrect");
+        return buildJsonResponse(400, false, "Old password is incorrect");
     } catch (const nlohmann::json::exception& e) {
-        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminApiModule::handleResetPassword(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing user ID");
+        return buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -924,7 +1025,7 @@ std::string AdminApiModule::handleResetPassword(const std::map<std::string, std:
         }
 
         if (newPassword.length() < 6) {
-            return impl_->buildJsonResponse(400, false, "Password must be at least 6 characters");
+            return buildJsonResponse(400, false, "Password must be at least 6 characters");
         }
 
         if (resetUserPassword(id, newPassword)) {
@@ -934,14 +1035,14 @@ std::string AdminApiModule::handleResetPassword(const std::map<std::string, std:
             if (jsonBody.value("new_password", "").empty()) {
                 result["generated_password"] = newPassword;
             }
-            return impl_->buildJsonResponse(true, "Password reset successfully", result.dump());
+            return buildJsonResponse(true, "Password reset successfully", result.dump());
         }
 
-        return impl_->buildJsonResponse(404, false, "User not found");
+        return buildJsonResponse(404, false, "User not found");
     } catch (const nlohmann::json::exception& e) {
-        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -960,37 +1061,37 @@ std::string AdminApiModule::handleListModules(const std::map<std::string, std::s
     }
     modulesJson << "]";
 
-    return impl_->buildJsonResponse(true, "Modules retrieved", modulesJson.str());
+    return buildJsonResponse(true, "Modules retrieved", modulesJson.str());
 }
 
 std::string AdminApiModule::handleEnableModule(const std::map<std::string, std::string>& params, const std::string& body) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing module name");
+        return buildJsonResponse(400, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
 
     if (enableModule(moduleName)) {
-        return impl_->buildJsonResponse(true, "Module enabled: " + moduleName);
+        return buildJsonResponse(true, "Module enabled: " + moduleName);
     }
 
-    return impl_->buildJsonResponse(404, false, "Module not found: " + moduleName);
+    return buildJsonResponse(404, false, "Module not found: " + moduleName);
 }
 
 std::string AdminApiModule::handleDisableModule(const std::map<std::string, std::string>& params, const std::string& body) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing module name");
+        return buildJsonResponse(400, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
 
     if (disableModule(moduleName)) {
-        return impl_->buildJsonResponse(true, "Module disabled: " + moduleName);
+        return buildJsonResponse(true, "Module disabled: " + moduleName);
     }
 
-    return impl_->buildJsonResponse(404, false, "Module not found: " + moduleName);
+    return buildJsonResponse(404, false, "Module not found: " + moduleName);
 }
 
 // ============================================================================
@@ -1036,7 +1137,7 @@ std::string AdminApiModule::handleGetAuditLogs(const std::map<std::string, std::
     result << "\"totalPages\":" << response.totalPages;
     result << "}}";
 
-    return impl_->buildJsonResponse(true, "Audit logs retrieved", result.str());
+    return this->buildJsonResponse(true, "Audit logs retrieved", result.str());
 }
 
 // ============================================================================
@@ -1044,15 +1145,55 @@ std::string AdminApiModule::handleGetAuditLogs(const std::map<std::string, std::
 // ============================================================================
 
 std::string AdminApiModule::escapeJson(const std::string& str) {
-    return impl_->escapeJson(str);
+    std::string result;
+    result.reserve(str.length() * 1.2);
+    for (char c : str) {
+        switch (c) {
+            case '"': result += "\\\""; break;
+            case '\\': result += "\\\\"; break;
+            case '\b': result += "\\b"; break;
+            case '\f': result += "\\f"; break;
+            case '\n': result += "\\n"; break;
+            case '\r': result += "\\r"; break;
+            case '\t': result += "\\t"; break;
+            default:
+                if (c < ' ') {
+                    result += "\\u";
+                    char buf[7];
+                    snprintf(buf, sizeof(buf), "\\u%04x", (unsigned int)c);
+                    result += buf;
+                } else {
+                    result += c;
+                }
+                break;
+        }
+    }
+    return result;
 }
 
 std::string AdminApiModule::buildJsonResponse(bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(success, message, data);
+    std::ostringstream json;
+    json << "{";
+    json << "\"success\":" << (success ? "true" : "false") << ",";
+    json << "\"message\":\"" << escapeJson(message) << "\"";
+    if (!data.empty()) {
+        json << ",\"data\":" << data;
+    }
+    json << "}";
+    return json.str();
 }
 
 std::string AdminApiModule::buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(statusCode, success, message, data);
+    std::ostringstream json;
+    json << "{";
+    json << "\"statusCode\":" << statusCode << ",";
+    json << "\"success\":" << (success ? "true" : "false") << ",";
+    json << "\"message\":\"" << escapeJson(message) << "\"";
+    if (!data.empty()) {
+        json << ",\"data\":" << data;
+    }
+    json << "}";
+    return json.str();
 }
 
 // ============================================================================
