@@ -8,6 +8,9 @@
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
+#include <openssl/sha.h>
+#include <openssl/evp.h>
+#include <random>
 
 namespace PaperCrawler {
 
@@ -59,6 +62,32 @@ public:
 
     std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "") {
         return buildJsonResponse(200, success, message, data);
+    }
+
+    // 密码哈希辅助函数（使用SHA256）
+    std::string hashPassword(const std::string& password) {
+        unsigned char hash[SHA256_DIGEST_LENGTH];
+        SHA256(reinterpret_cast<const unsigned char*>(password.c_str()), password.length(), hash);
+
+        std::ostringstream ss;
+        for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+            ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+        }
+        return ss.str();
+    }
+
+    // 生成随机密码
+    std::string generateRandomPassword(int length = 12) {
+        const std::string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, chars.length() - 1);
+
+        std::string password;
+        for (int i = 0; i < length; i++) {
+            password += chars[dis(gen)];
+        }
+        return password;
     }
 };
 
@@ -155,6 +184,25 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
+    // 密码管理
+    router.post(prefix + "/users/:id/change-password", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleChangePassword(req.pathParams, req.body);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
+    router.post(prefix + "/users/:id/reset-password", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleResetPassword(req.pathParams, req.body);
+        HttpResponse response;
+        response.statusCode = 200;
+        response.setHeader("Content-Type", "application/json");
+        response.body = body;
+        return response;
+    });
+
     // 模块管理
     router.get(prefix + "/modules", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleListModules(req.queryParams);
@@ -201,7 +249,7 @@ void AdminApiModule::registerRoutes() {
 // ============================================================================
 
 void AdminApiModule::initializeTestData() {
-    // 创建默认超级管理员
+    // 创建默认超级管理员（默认密码：admin123）
     AdminUser superadmin;
     superadmin.id = impl_->nextUserId_++;
     superadmin.username = "admin";
@@ -210,11 +258,14 @@ void AdminApiModule::initializeTestData() {
     superadmin.avatar = "/avatars/admin.png";
     superadmin.role = UserRole::SUPERADMIN;
     superadmin.active = true;
+    superadmin.passwordHash = impl_->hashPassword("admin123");  // 默认密码
     superadmin.createdAt = std::chrono::system_clock::now();
     superadmin.lastLoginAt = std::chrono::system_clock::now();
     superadmin.lastLoginIp = "127.0.0.1";
 
     impl_->users_[superadmin.id] = superadmin;
+
+    spdlog::info("[AdminApiModule] Created superadmin user: admin (default password: admin123)");
 
     // 创建测试用户
     AdminUser testUser;
@@ -346,6 +397,62 @@ std::optional<AdminUser> AdminApiModule::getUser(int id) {
         return it->second;
     }
     return std::nullopt;
+}
+
+bool AdminApiModule::verifyUserPassword(int userId, const std::string& password) {
+    std::lock_guard<std::mutex> lock(usersMutex_);
+
+    auto it = impl_->users_.find(userId);
+    if (it == impl_->users_.end()) {
+        return false;
+    }
+
+    std::string inputHash = impl_->hashPassword(password);
+    return inputHash == it->second.passwordHash;
+}
+
+bool AdminApiModule::changeUserPassword(int userId, const std::string& oldPassword, const std::string& newPassword) {
+    std::lock_guard<std::mutex> lock(usersMutex_);
+
+    auto it = impl_->users_.find(userId);
+    if (it == impl_->users_.end()) {
+        return false;
+    }
+
+    // 验证旧密码
+    std::string oldHash = impl_->hashPassword(oldPassword);
+    if (oldHash != it->second.passwordHash) {
+        spdlog::warn("[AdminApiModule] Password change failed for user {}: old password mismatch", it->second.username);
+        return false;
+    }
+
+    // 更新为新密码
+    it->second.passwordHash = impl_->hashPassword(newPassword);
+
+    // 记录审计日志
+    addAuditLog("password_changed", "user", userId, it->second.username, userId,
+                "User changed password", "127.0.0.1");
+
+    spdlog::info("[AdminApiModule] Password changed for user: {}", it->second.username);
+    return true;
+}
+
+bool AdminApiModule::resetUserPassword(int userId, const std::string& newPassword) {
+    std::lock_guard<std::mutex> lock(usersMutex_);
+
+    auto it = impl_->users_.find(userId);
+    if (it == impl_->users_.end()) {
+        return false;
+    }
+
+    it->second.passwordHash = impl_->hashPassword(newPassword);
+
+    // 记录审计日志
+    addAuditLog("password_reset", "user", userId, "admin", 0,
+                "Password reset by admin for user: " + it->second.username, "127.0.0.1");
+
+    spdlog::info("[AdminApiModule] Password reset for user: {}", it->second.username);
+    return true;
 }
 
 std::optional<AdminUser> AdminApiModule::updateUser(int id, const AdminUser& user) {
@@ -757,6 +864,82 @@ std::string AdminApiModule::handleDeactivateUser(const std::map<std::string, std
         }
 
         return impl_->buildJsonResponse(true, "User deactivated", user->toJSON());
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+// ============================================================================
+// HTTP请求处理器 - 密码管理
+// ============================================================================
+
+std::string AdminApiModule::handleChangePassword(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing user ID");
+    }
+
+    try {
+        int id = std::stoi(idIt->second);
+        auto jsonBody = nlohmann::json::parse(body);
+
+        std::string oldPassword = jsonBody.value("old_password", "");
+        std::string newPassword = jsonBody.value("new_password", "");
+
+        if (oldPassword.empty() || newPassword.empty()) {
+            return impl_->buildJsonResponse(400, false, "Missing old_password or new_password");
+        }
+
+        if (newPassword.length() < 6) {
+            return impl_->buildJsonResponse(400, false, "New password must be at least 6 characters");
+        }
+
+        if (changeUserPassword(id, oldPassword, newPassword)) {
+            return impl_->buildJsonResponse(true, "Password changed successfully");
+        }
+
+        return impl_->buildJsonResponse(400, false, "Old password is incorrect");
+    } catch (const nlohmann::json::exception& e) {
+        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+    }
+}
+
+std::string AdminApiModule::handleResetPassword(const std::map<std::string, std::string>& params, const std::string& body) {
+    auto idIt = params.find("id");
+    if (idIt == params.end()) {
+        return impl_->buildJsonResponse(400, false, "Missing user ID");
+    }
+
+    try {
+        int id = std::stoi(idIt->second);
+        auto jsonBody = nlohmann::json::parse(body);
+
+        std::string newPassword = jsonBody.value("new_password", "");
+
+        if (newPassword.empty()) {
+            // 如果没有提供密码，自动生成一个
+            newPassword = impl_->generateRandomPassword(12);
+        }
+
+        if (newPassword.length() < 6) {
+            return impl_->buildJsonResponse(400, false, "Password must be at least 6 characters");
+        }
+
+        if (resetUserPassword(id, newPassword)) {
+            nlohmann::json result;
+            result["message"] = "Password reset successfully";
+            // 只有自动生成的密码才返回
+            if (jsonBody.value("new_password", "").empty()) {
+                result["generated_password"] = newPassword;
+            }
+            return impl_->buildJsonResponse(true, "Password reset successfully", result.dump());
+        }
+
+        return impl_->buildJsonResponse(404, false, "User not found");
+    } catch (const nlohmann::json::exception& e) {
+        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
         return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }

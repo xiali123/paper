@@ -38,6 +38,7 @@ struct AdminUser {
     std::string avatar;
     UserRole role;
     bool active;
+    std::string passwordHash;  // 密码哈希（不返回给前端）
     std::chrono::system_clock::time_point createdAt;
     std::chrono::system_clock::time_point lastLoginAt;
     std::string lastLoginIp;
@@ -246,6 +247,21 @@ public:
     std::optional<AdminUser> getUser(int id);
 
     /**
+     * @brief 验证用户密码
+     */
+    bool verifyUserPassword(int userId, const std::string& password);
+
+    /**
+     * @brief 修改用户密码
+     */
+    bool changeUserPassword(int userId, const std::string& oldPassword, const std::string& newPassword);
+
+    /**
+     * @brief 重置用户密码（管理员）
+     */
+    bool resetUserPassword(int userId, const std::string& newPassword);
+
+    /**
      * @brief 更新用户
      */
     std::optional<AdminUser> updateUser(int id, const AdminUser& user);
@@ -336,6 +352,10 @@ private:
     std::string handleListModules(const std::map<std::string, std::string>& params);
     std::string handleEnableModule(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleDisableModule(const std::map<std::string, std::string>& params, const std::string& body);
+
+    // HTTP请求处理器 - 密码管理
+    std::string handleChangePassword(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleResetPassword(const std::map<std::string, std::string>& params, const std::string& body);
 
     // HTTP请求处理器 - 审计日志
     std::string handleGetAuditLogs(const std::map<std::string, std::string>& params);
