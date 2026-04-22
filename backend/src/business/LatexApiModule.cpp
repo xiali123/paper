@@ -1556,19 +1556,20 @@ std::string LatexApiModule::handleListProjectFiles(const std::map<std::string, s
         }
 
         nlohmann::json result;
-        result["items"] = nlohmann::json::array();
+        result["files"] = nlohmann::json::array();
         for (const auto& file : project->files) {
             nlohmann::json fileObj;
             fileObj["id"] = file.id;
             fileObj["name"] = file.name;
             fileObj["path"] = file.path;
+            fileObj["content"] = file.content;
             fileObj["type"] = file.type;
+            fileObj["project_id"] = file.projectId;
             fileObj["size"] = file.content.length();
             fileObj["created_at"] = std::chrono::system_clock::to_time_t(file.createdAt);
             fileObj["updated_at"] = std::chrono::system_clock::to_time_t(file.updatedAt);
-            result["items"].push_back(fileObj);
+            result["files"].push_back(fileObj);
         }
-        result["total"] = project->files.size();
 
         return impl_->buildJsonResponse(200, true, "Project files retrieved", result.dump());
     } catch (const std::exception& e) {
@@ -1657,8 +1658,7 @@ std::string LatexApiModule::handleBatchUploadProjectFiles(const std::map<std::st
         }
 
         nlohmann::json result;
-        result["uploaded"] = nlohmann::json::array();
-        result["failed"] = nlohmann::json::array();
+        result["files"] = nlohmann::json::array();
 
         for (const auto& fileData : jsonBody["files"]) {
             try {
@@ -1667,7 +1667,7 @@ std::string LatexApiModule::handleBatchUploadProjectFiles(const std::map<std::st
                 std::string fileType = fileData.value("type", "other");
 
                 if (filename.empty()) {
-                    result["failed"].push_back({{"filename", filename}, {"error", "Missing filename"}});
+                    spdlog::warn("[LatexApi] Skipping file with empty filename");
                     continue;
                 }
 
@@ -1688,17 +1688,19 @@ std::string LatexApiModule::handleBatchUploadProjectFiles(const std::map<std::st
                 uploadedFile["id"] = file.id;
                 uploadedFile["name"] = file.name;
                 uploadedFile["path"] = file.path;
+                uploadedFile["content"] = file.content;
+                uploadedFile["type"] = file.type;
+                uploadedFile["project_id"] = file.projectId;
                 uploadedFile["size"] = contentBase64.length();
-                result["uploaded"].push_back(uploadedFile);
+                uploadedFile["created_at"] = std::chrono::system_clock::to_time_t(file.createdAt);
+                uploadedFile["updated_at"] = std::chrono::system_clock::to_time_t(file.updatedAt);
+                result["files"].push_back(uploadedFile);
 
                 spdlog::info("[LatexApi] Batch upload: {} to project {}", filename, projectId);
             } catch (const std::exception& e) {
-                result["failed"].push_back({{"error", e.what()}});
+                spdlog::error("[LatexApi] Error uploading file: {}", e.what());
             }
         }
-
-        result["total_uploaded"] = result["uploaded"].size();
-        result["total_failed"] = result["failed"].size();
 
         return impl_->buildJsonResponse(201, true, "Batch upload completed", result.dump());
     } catch (const nlohmann::json::exception& e) {
@@ -1723,8 +1725,9 @@ std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::str
 
         auto jsonBody = nlohmann::json::parse(body);
 
-        int sourceProjectId = jsonBody.value("source_project_id", 0);
-        std::string targetPath = jsonBody.value("target_path", "");
+        // Support both source_project_id and sourceProjectId
+        int sourceProjectId = jsonBody.value("source_project_id", jsonBody.value("sourceProjectId", 0));
+        std::string targetPath = jsonBody.value("target_path", jsonBody.value("targetPath", ""));
 
         if (sourceProjectId == 0) {
             return impl_->buildJsonResponse(400, false, "Missing source_project_id");
@@ -1735,10 +1738,14 @@ std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::str
             return impl_->buildJsonResponse(404, false, "Source project not found");
         }
 
-        // Get files to import
+        // Get files to import - support both file_ids and sourceFileIds
         std::vector<int> fileIds;
         if (jsonBody.contains("file_ids") && jsonBody["file_ids"].is_array()) {
             for (const auto& id : jsonBody["file_ids"]) {
+                fileIds.push_back(id.get<int>());
+            }
+        } else if (jsonBody.contains("sourceFileIds") && jsonBody["sourceFileIds"].is_array()) {
+            for (const auto& id : jsonBody["sourceFileIds"]) {
                 fileIds.push_back(id.get<int>());
             }
         } else {
@@ -1749,8 +1756,7 @@ std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::str
         }
 
         nlohmann::json result;
-        result["imported"] = nlohmann::json::array();
-        result["failed"] = nlohmann::json::array();
+        result["files"] = nlohmann::json::array();
 
         for (int fileId : fileIds) {
             bool found = false;
@@ -1773,8 +1779,13 @@ std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::str
                     importedFile["id"] = newFile.id;
                     importedFile["name"] = newFile.name;
                     importedFile["path"] = newFile.path;
-                    importedFile["source_file_id"] = fileId;
-                    result["imported"].push_back(importedFile);
+                    importedFile["content"] = newFile.content;
+                    importedFile["type"] = newFile.type;
+                    importedFile["project_id"] = newFile.projectId;
+                    importedFile["size"] = newFile.content.length();
+                    importedFile["created_at"] = std::chrono::system_clock::to_time_t(newFile.createdAt);
+                    importedFile["updated_at"] = std::chrono::system_clock::to_time_t(newFile.updatedAt);
+                    result["files"].push_back(importedFile);
 
                     spdlog::info("[LatexApi] Imported file {} from project {} to project {}",
                                  sourceFile.name, sourceProjectId, targetProjectId);
@@ -1784,12 +1795,9 @@ std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::str
             }
 
             if (!found) {
-                result["failed"].push_back({{"file_id", fileId}, {"error", "File not found in source project"}});
+                spdlog::warn("[LatexApi] File ID {} not found in source project {}", fileId, sourceProjectId);
             }
         }
-
-        result["total_imported"] = result["imported"].size();
-        result["total_failed"] = result["failed"].size();
 
         return impl_->buildJsonResponse(201, true, "Files imported successfully", result.dump());
     } catch (const nlohmann::json::exception& e) {
