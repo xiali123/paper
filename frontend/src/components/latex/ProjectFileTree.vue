@@ -357,7 +357,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import type { UploadInstance, UploadFile, UploadProps } from 'element-plus'
+import type { UploadInstance, UploadFile } from 'element-plus'
 import {
   Folder,
   Plus,
