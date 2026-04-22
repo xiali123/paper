@@ -220,12 +220,12 @@ public:
 
     std::optional<int> validateSession(const std::string& accessToken) {
         try {
-            // ✅ 修复：直接使用database_，因为此方法在Impl类内部
-            if (database_) {
+            // 优先使用mysqlDatabase_（与storeSession保持一致）
+            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
                 auto sql = "SELECT user_id FROM user_sessions WHERE "
                          "access_token_hash = SHA2('" + accessToken + "', 256) "
                          "AND expires_at > NOW()";
-                auto results = database_->query(sql);
+                auto results = mysqlDatabase_->query(sql);
 
                 spdlog::info("[Auth] validateSession: Query returned {} rows for token: {}", results.size(), accessToken);
                 if (!results.empty()) {
@@ -246,8 +246,29 @@ public:
                 return std::nullopt;
             }
 
-            // ✅ 已修复：删除重复的database_ fallback分支，现在使用统一的database_连接
+            // Fallback to database_ interface（与storeSession保持一致）
+            if (database_) {
+                auto sql = "SELECT user_id FROM user_sessions WHERE "
+                         "access_token_hash = SHA2('" + accessToken + "', 256) "
+                         "AND expires_at > NOW()";
+                auto results = database_->query(sql);
 
+                spdlog::info("[Auth] validateSession (fallback): Query returned {} rows for token: {}", results.size(), accessToken);
+                if (!results.empty()) {
+                    try {
+                        int userId = std::stoi(results[0]["user_id"]);
+                        spdlog::info("[Auth] validateSession (fallback): Successfully parsed userId: {}", userId);
+                        return userId;
+                    } catch (const std::exception& e) {
+                        spdlog::error("[Auth] validateSession (fallback): Failed to parse userId: {}", e.what());
+                        return std::nullopt;
+                    }
+                }
+                spdlog::warn("[Auth] validateSession (fallback): No results found for token");
+                return std::nullopt;
+            }
+
+            spdlog::warn("[Auth] validateSession: No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
             std::cerr << "[Auth] Failed to validate session: " << e.what() << std::endl;
@@ -767,7 +788,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Username is required\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "Username is required";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -783,7 +807,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Password is required\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "Password is required";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -854,13 +881,19 @@ void AuthApiModule::registerRoutes() {
             HttpResponse response;
             response.statusCode = 400;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            nlohmann::json errJson;
+            errJson["success"] = false;
+            errJson["error"] = "Invalid JSON format";
+            response.body = errJson.dump();
             return response;
         } catch (const std::exception& e) {
             HttpResponse response;
             response.statusCode = 500;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Internal server error\"}";
+            nlohmann::json errJson;
+            errJson["success"] = false;
+            errJson["error"] = "Internal server error";
+            response.body = errJson.dump();
             return response;
         }
     });
@@ -875,7 +908,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Username is required\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "Username is required";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -883,7 +919,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Password is required\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "Password is required";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -897,7 +936,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 401;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"User not found\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "User not found";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -909,7 +951,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 403;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"User account is inactive\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "User account is inactive";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -919,7 +964,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 401;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Invalid username or password\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "Invalid username or password";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -934,7 +982,10 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 500;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Failed to create session\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = "Failed to create session";
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -964,23 +1015,35 @@ void AuthApiModule::registerRoutes() {
             HttpResponse response;
             response.statusCode = 200;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"true\",\"message\":\"Login successful\",\"access_token\":\"" + accessToken +
-                           "\",\"refresh_token\":\"" + refreshToken +
-                           "\",\"expires_in\":" + std::to_string(impl_->config_.accessTokenExpiry.count()) +
-                           ",\"user\":" + userJson.dump() + "}";
+
+            nlohmann::json responseJson;
+            responseJson["success"] = true;
+            responseJson["message"] = "Login successful";
+            responseJson["access_token"] = accessToken;
+            responseJson["refresh_token"] = refreshToken;
+            responseJson["expires_in"] = impl_->config_.accessTokenExpiry.count();
+            responseJson["user"] = userJson;
+            response.body = responseJson.dump();
+
             return response;
 
         } catch (const nlohmann::json::parse_error& e) {
             HttpResponse response;
             response.statusCode = 400;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            nlohmann::json errJson;
+            errJson["success"] = false;
+            errJson["error"] = "Invalid JSON format";
+            response.body = errJson.dump();
             return response;
         } catch (const std::exception& e) {
             HttpResponse response;
             response.statusCode = 500;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Internal server error\"}";
+            nlohmann::json errJson;
+            errJson["success"] = false;
+            errJson["error"] = "Internal server error";
+            response.body = errJson.dump();
             return response;
         }
     });
@@ -1037,7 +1100,10 @@ void AuthApiModule::registerRoutes() {
             HttpResponse response;
             response.statusCode = 400;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            nlohmann::json errJson;
+            errJson["success"] = false;
+            errJson["error"] = "Invalid JSON format";
+            response.body = errJson.dump();
             return response;
         }
     });
@@ -1104,7 +1170,10 @@ void AuthApiModule::registerRoutes() {
             HttpResponse response;
             response.statusCode = 400;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            nlohmann::json errJson;
+            errJson["success"] = false;
+            errJson["error"] = "Invalid JSON format";
+            response.body = errJson.dump();
             return response;
         }
     });
@@ -1143,7 +1212,10 @@ void AuthApiModule::registerRoutes() {
             HttpResponse response;
             response.statusCode = 400;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Invalid JSON format\"}";
+            nlohmann::json errJson;
+            errJson["success"] = false;
+            errJson["error"] = "Invalid JSON format";
+            response.body = errJson.dump();
             return response;
         }
     });

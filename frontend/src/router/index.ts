@@ -342,11 +342,27 @@ router.beforeEach(async (to, from, next) => {
   const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
 
   // Initialize auth store if not already initialized
-  if (!authStore.isAuthenticated && localStorage.getItem('auth_tokens')) {
+  const hasStoredTokens = localStorage.getItem('auth_tokens')
+  console.log('🔄 [Router] Navigation guard:', {
+    to: to.path,
+    isAuthenticated: authStore.isAuthenticated,
+    hasStoredTokens: !!hasStoredTokens,
+    hasUser: !!authStore.user,
+    hasTokens: !!authStore.tokens
+  })
+
+  if (!authStore.isAuthenticated && hasStoredTokens) {
+    console.log('🔄 [Router] Initializing auth from localStorage...')
     try {
-      await authStore.initializeAuth()
+      const result = await authStore.initializeAuth()
+      console.log('📦 [Router] initializeAuth() returned:', result)
+      console.log('📦 [Router] After initializeAuth():', {
+        isAuthenticated: authStore.isAuthenticated,
+        hasUser: !!authStore.user,
+        hasTokens: !!authStore.tokens
+      })
     } catch (error) {
-      console.error('Auth initialization failed:', error)
+      console.error('❌ [Router] Auth initialization failed:', error)
       // Clear invalid tokens
       authStore.clearAuth()
     }

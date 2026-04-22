@@ -175,7 +175,7 @@ const apiError = ref('')
 const form = reactive({
   email: '',
   password: '',
-  rememberMe: false
+  rememberMe: true  // 默认勾选"记住我"，避免刷新后丢失登录状态
 })
 
 // Validation errors

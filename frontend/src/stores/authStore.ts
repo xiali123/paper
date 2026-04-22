@@ -293,7 +293,9 @@ export const useAuthStore = defineStore(
           return user.value
         }
 
-        const userData = await authApi.getCurrentUser()
+        const response = await authApi.getCurrentUser()
+        // 后端返回 {success: true, user: {...}}，需要提取 user 字段
+        const userData = 'user' in response ? (response as any).user : response
         user.value = userData
         return userData
       } catch (err: any) {
@@ -312,11 +314,20 @@ export const useAuthStore = defineStore(
      * Initialize auth from stored tokens
      */
     async function initializeAuth() {
+      console.log('🔄 [AuthStore] initializeAuth() called')
       const stored = loadStoredTokens()
 
       if (!stored) {
+        console.log('❌ [AuthStore] No stored tokens found')
         return false
       }
+
+      console.log('✅ [AuthStore] Stored tokens found:', {
+        hasAccessToken: !!stored.tokens.accessToken,
+        tokenPrefix: stored.tokens.accessToken.substring(0, 20) + '...',
+        expiresAt: new Date(stored.tokens.expiresAt).toISOString(),
+        isExpired: Date.now() > stored.tokens.expiresAt
+      })
 
       tokens.value = stored.tokens
 
@@ -347,20 +358,28 @@ export const useAuthStore = defineStore(
 
       // Check if access token is expired
       if (Date.now() > stored.tokens.expiresAt) {
+        console.log('⚠️ [AuthStore] Token expired, trying to refresh')
         // Try to refresh
         const refreshed = await refreshAccessToken()
         if (!refreshed) {
+          console.log('❌ [AuthStore] Token refresh failed')
           clearAuth()
           return false
         }
+        console.log('✅ [AuthStore] Token refreshed successfully')
       } else {
         // Schedule refresh for before expiry
         scheduleTokenRefresh(stored.tokens.expiresAt)
+        console.log('✅ [AuthStore] Token valid, refresh scheduled')
       }
 
       // Fetch user data
+      console.log('🔄 [AuthStore] Fetching current user from API...')
       const userData = await fetchCurrentUser()
-      return userData !== null
+      console.log('📦 [AuthStore] fetchCurrentUser() returned:', userData)
+      const success = userData !== null
+      console.log(success ? '✅' : '❌', '[AuthStore] initializeAuth() result:', success)
+      return success
     }
 
     /**
