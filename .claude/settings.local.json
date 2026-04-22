@@ -256,7 +256,20 @@
       "Bash(netstat -tlnp)",
       "Bash(./PaperCrawlerServerHotPlug)",
       "Bash(npx vite:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebSearch",
+      "Bash(ip route:*)",
+      "Bash(awk '{print $7}')",
+      "Bash(node:*)",
+      "Bash(awk '/<script setup lang=\"ts\">/,/<\\\\/script>/' /home/xiali/progress/paper/paper/frontend/src/components/latex/PdfViewer.vue)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(find:*)",
+      "Bash(grep -n \"interface.*Props\\\\|defineProps\" /home/xiali/progress/paper/paper/frontend/src/components/latex/*.vue)",
+      "mcp__ide__getDiagnostics",
+      "Bash(pkill -f \"vite\")",
+      "Bash(git restore:*)",
+      "Bash(grep:*)",
+      "Bash(awk '/^<style/,/^<\\\\/style>/' /home/xiali/progress/paper/paper/frontend/src/components/latex/ProjectFileTree.vue)"
     ],
     "additionalDirectories": [
       "E:\\PaperCrawler\\backend\\build",

@@ -1,0 +1,408 @@
+// ==========================================
+// 响应式布局优化
+// Responsive Layout Optimizations
+// ==========================================
+
+@import './design-tokens.scss';
+
+// ==========================================
+// 移动端优先响应式混合宏
+// ==========================================
+
+// 容器查询支持
+@mixin container($min-width) {
+  @container (min-width: #{$min-width}) {
+    @content;
+  }
+}
+
+// 隐藏元素
+@mixin hide {
+  display: none !important;
+}
+
+// 显示元素
+@mixin show($display: block) {
+  display: $display !important;
+}
+
+// 文字省略
+@mixin text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 多行文字省略
+@mixin line-clamp($lines: 3) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ==========================================
+// 1. LaTeX编辑器响应式布局
+// ==========================================
+
+.latex-editor-view {
+  // 移动端优化 (<768px)
+  @include respond-below(md) {
+    .editor-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: $spacing-3;
+      padding: $spacing-3;
+    }
+
+    .document-info {
+      .el-breadcrumb {
+        font-size: $font-size-sm;
+      }
+
+      .document-actions {
+        flex-wrap: wrap;
+        gap: $spacing-2;
+
+        .el-button-group {
+          flex-wrap: wrap;
+        }
+      }
+    }
+
+    // 隐藏次要按钮
+    .hide-mobile {
+      @include hide;
+    }
+
+    // 工具栏改为滚动式
+    .editor-toolbar {
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+
+      // 隐藏滚动条但保持功能
+      scrollbar-width: none;
+      &::-webkit-scrollbar {
+        display: none;
+      }
+
+      .toolbar-group {
+        flex-shrink: 0;
+      }
+    }
+
+    // 编辑器和预览垂直堆叠
+    .editor-main {
+      flex-direction: column;
+
+      .editor-panel,
+      .preview-panel {
+        width: 100% !important;
+        flex: none;
+        height: 50vh;
+      }
+    }
+
+    // 底部导航替代侧边栏
+    .mobile-tabs {
+      display: flex !important;
+    }
+  }
+
+  // 平板端 (768px - 1023px)
+  @include respond-to(md) {
+    @include respond-below(lg) {
+      .editor-toolbar {
+        .toolbar-label {
+          @include hide;
+        }
+      }
+
+      // 折叠大纲和项目树
+      .document-outline,
+      .project-file-tree-panel {
+        position: fixed;
+        z-index: $z-modal;
+        box-shadow: $shadow-xl;
+      }
+    }
+  }
+
+  // 桌面端 (≥1024px)
+  @include respond-to(lg) {
+    // 完整布局
+  }
+}
+
+// ==========================================
+// 2. 主布局响应式优化
+// ==========================================
+
+.main-layout {
+  // 移动端 (<768px)
+  @include respond-below(md) {
+    // 隐藏侧边栏，改用底部导航
+    .sidebar-navigation {
+      @include hide;
+    }
+
+    // 添加移动端底部导航
+    &::after {
+      content: '';
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: $header-height;
+      background: $gray-50;
+      border-top: 1px solid $gray-200;
+      z-index: $z-fixed;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 $spacing-4;
+    }
+
+    // 调整内容区域
+    .main-layout__content {
+      margin-left: 0;
+      margin-bottom: $header-height; // 为底部导航留空间
+    }
+
+    // 精简面包屑
+    .main-layout__breadcrumb {
+      padding: $spacing-2 $spacing-4;
+      font-size: $font-size-sm;
+    }
+
+    // 减少内容区域内边距
+    .main-layout__main {
+      padding: $spacing-4;
+    }
+  }
+
+  // 平板端 (768px - 1023px)
+  @include respond-to(md) {
+    @include respond-below(lg) {
+      // 侧边栏默认折叠
+      .sidebar-navigation {
+        width: $sidebar-width-collapsed;
+
+        // 展开时的过渡
+        &:hover {
+          width: $sidebar-width;
+        }
+      }
+
+      // 调整内容区域
+      .main-layout__content {
+        margin-left: $sidebar-width-collapsed;
+
+        &.main-layout__content--collapsed {
+          margin-left: $sidebar-width-collapsed;
+        }
+      }
+    }
+  }
+
+  // 桌面端 (≥1024px)
+  @include respond-to(lg) {
+    // 完整布局
+  }
+}
+
+// ==========================================
+// 3. 触摸优化
+// ==========================================
+
+// 增大触摸目标尺寸
+@mixin touch-target($min-size: 44px) {
+  min-height: $min-size;
+  min-width: $min-size;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 移动端按钮优化
+@media (hover: none) and (pointer: coarse) {
+  // 触摸设备上的按钮样式
+  .el-button,
+  button,
+  a {
+    @include touch-target();
+  }
+
+  // 移除hover效果
+  .el-button:hover {
+    transform: none;
+  }
+
+  // 添加点击反馈
+  .el-button:active {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+// ==========================================
+// 4. 安全区域适配 (刘海屏/手势条)
+// ==========================================
+
+@supports (padding: max(0px)) {
+  .mobile-bottom-nav {
+    padding-left: max($spacing-4, env(safe-area-inset-left));
+    padding-right: max($spacing-4, env(safe-area-inset-right));
+    padding-bottom: max($spacing-4, env(safe-area-inset-bottom));
+  }
+
+  .latex-editor-view {
+    padding-top: max($spacing-4, env(safe-area-inset-top));
+  }
+}
+
+// ==========================================
+// 5. 容器查询 (现代浏览器)
+// ==========================================
+
+// 编辑器容器查询
+.editor-container {
+  container-type: inline-size;
+  container-name: editor;
+}
+
+// 根据容器宽度调整布局
+@container editor (min-width: 1024px) {
+  .editor-toolbar .toolbar-label {
+    display: inline-block;
+  }
+}
+
+@container editor (max-width: 1023px) {
+  .editor-toolbar .toolbar-label {
+    display: none;
+  }
+
+  .editor-toolbar .el-button {
+    padding: $spacing-2;
+  }
+}
+
+// ==========================================
+// 6. 暗色模式适配
+// ==========================================
+
+@media (prefers-color-scheme: dark) {
+  // 自动适配系统暗色模式
+  :root {
+    color-scheme: dark;
+  }
+}
+
+// 手动切换暗色模式
+.dark {
+  color-scheme: dark;
+
+  // 调整阴影在暗色模式下的显示
+  .el-card,
+  .el-dialog {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  }
+
+  // 调整边框颜色
+  .el-button,
+  .el-input {
+    border-color: $gray-600;
+  }
+}
+
+// ==========================================
+// 7. 动画性能优化
+// ==========================================
+
+// 减少动画（辅助功能）
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// ==========================================
+// 8. 打印样式
+// ==========================================
+
+@media print {
+  // 隐藏导航和工具栏
+  .editor-header,
+  .editor-toolbar,
+  .mobile-tabs,
+  .sidebar-navigation {
+    @include hide;
+  }
+
+  // 只显示编辑器内容
+  .editor-panel {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  // 移除背景色
+  .latex-editor-view {
+    background: white;
+  }
+
+  // 优化文字
+  body {
+    font-size: 12pt;
+    line-height: 1.5;
+    color: black;
+  }
+}
+
+// ==========================================
+// 9. 横屏适配
+// ==========================================
+
+@media (orientation: landscape) and (max-height: 600px) {
+  // 横屏手机优化
+  .latex-editor-view {
+    .editor-header {
+      padding: $spacing-2 $spacing-3;
+    }
+
+    .document-info {
+      .el-breadcrumb {
+        font-size: $font-size-xs;
+      }
+    }
+  }
+
+  // 隐藏部分元素节省空间
+  .hide-landscape {
+    @include hide;
+  }
+}
+
+// ==========================================
+// 10. 高DPI/Retina屏幕优化
+// ==========================================
+
+@media (-webkit-min-device-pixel-ratio: 2),
+       (min-resolution: 192dpi) {
+  // 高质量边框
+  .retina-border {
+    border: 0.5px solid $gray-300;
+  }
+
+  // 优化字体渲染
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

@@ -1,0 +1,43 @@
+
+=== QUICK PERFORMANCE ANALYSIS ===
+Timestamp: 2026-04-10T01:26:26.408Z
+
+📊 CORE METRICS:
+• Page Load Time: 1214ms
+• Total Bundle Size: 3665.00KB (3.58MB)
+• Memory Usage: 7.56MB
+• First Paint: 536.00ms
+• First Contentful Paint: 1200.00ms
+
+📦 BUNDLE BREAKDOWN:
+• vue.js?v=df1c5ba4: 5.87KB (9.90ms)
+• pinia.js?v=df1c5ba4: 46.88KB (10.40ms)
+• element-plus.js?v=df1c5ba4: 19.81KB (11.60ms)
+• index.css: 345.24KB (34.20ms)
+• css-vars.css: 3.71KB (24.30ms)
+• @element-plus_icons-vue.js?v=df1c5ba4: 16.03KB (25.10ms)
+• element-plus_dist_locale_zh-cn__mjs.js?v=df1c5ba4: 5.56KB (25.00ms)
+• chunk-JGWRPSER.js?v=df1c5ba4: 375.72KB (30.20ms)
+• chunk-DC5AMYBS.js?v=df1c5ba4: 2.08KB (27.80ms)
+• chunk-YFT6OQ5R.js?v=df1c5ba4: 4.81KB (28.80ms)
+• chunk-O4TFDQDZ.js?v=df1c5ba4: 2164.41KB (129.50ms)
+• chunk-RLMGB3BR.js?v=df1c5ba4: 233.80KB (59.00ms)
+• element-plus_es.js?v=df1c5ba4: 19.81KB (37.00ms)
+• element-plus_es_components_base_style_css.js?v=df1c5ba4: 0.42KB (36.10ms)
+• App.vue?vue&type=style&index=0&lang.css: 1.06KB (36.30ms)
+• element-plus_es_components_config-provider_style_css.js?v=df1c5ba4: 0.58KB (36.20ms)
+• vue-router.js?v=df1c5ba4: 88.02KB (43.70ms)
+• nprogress.js?v=df1c5ba4: 9.87KB (37.00ms)
+• nprogress.css: 2.29KB (40.00ms)
+• vue-i18n.js?v=df1c5ba4: 180.29KB (57.30ms)
+• zh-CN.json?import: 14.42KB (50.00ms)
+• en-US.json?import: 14.91KB (51.90ms)
+• chunk-CXAKBFS4.js?v=df1c5ba4: 0.45KB (18.50ms)
+• el-config-provider.css: 0.84KB (19.80ms)
+• pinia-plugin-persistedstate.js?v=df1c5ba4: 4.55KB (9.10ms)
+• base.css: 8.50KB (35.00ms)
+• axios.js?v=df1c5ba4: 85.50KB (12.10ms)
+• LoginView.vue?vue&type=style&index=0&scoped=409777eb&lang.css: 9.56KB (2.10ms)
+
+🎯 CRITICAL ISSUES:
+• CRITICAL: Bundle size >3MB - Very slow loading

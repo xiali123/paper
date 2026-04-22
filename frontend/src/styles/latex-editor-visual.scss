@@ -1,0 +1,481 @@
+// ==========================================
+// LaTeX编辑器视觉设计优化
+// Visual Design Improvements for LaTeX Editor
+// ==========================================
+
+@import './design-tokens.scss';
+
+// ==========================================
+// 1. 现代配色方案
+// ==========================================
+
+.latex-editor-view {
+  // 渐变背景
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+
+  // 暗色模式
+  .dark & {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  }
+}
+
+// ==========================================
+// 2. 工具栏视觉优化
+// ==========================================
+
+.editor-header {
+  // 玻璃态效果
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+
+  .dark & {
+    background: rgba(17, 24, 39, 0.8);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  // 渐变边框效果
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      $primary 50%,
+      transparent 100%
+    );
+    opacity: 0.5;
+  }
+}
+
+.document-info {
+  .el-breadcrumb {
+    font-weight: $font-weight-medium;
+
+    :deep(.el-breadcrumb__item) {
+      color: $gray-600;
+
+      &.is-link {
+        color: $primary;
+        transition: color $duration-150 $ease-out;
+
+        &:hover {
+          color: $primary-hover;
+        }
+      }
+
+      &:last-child {
+        color: $gray-900;
+        font-weight: $font-weight-semibold;
+      }
+    }
+  }
+
+  .dark & {
+    .el-breadcrumb {
+      :deep(.el-breadcrumb__item) {
+        color: $gray-400;
+
+        &.is-link {
+          color: $primary-light;
+
+          &:hover {
+            color: $primary-lighter;
+          }
+        }
+
+        &:last-child {
+          color: $gray-100;
+        }
+      }
+    }
+  }
+}
+
+.document-actions {
+  // 按钮组视觉优化
+  .el-button-group {
+    .el-button {
+      // 渐变按钮效果
+      background: linear-gradient(135deg, $primary-lightest 0%, white 100%);
+      border: 1px solid $primary-lighter;
+      color: $primary;
+      font-weight: $font-weight-medium;
+
+      &:hover {
+        background: linear-gradient(135deg, $primary-lighter 0%, $primary-lightest 100%);
+        border-color: $primary-light;
+        transform: translateY(-1px);
+        box-shadow: $shadow-primary;
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      // 主要操作按钮突出显示
+      &.el-button--primary {
+        background: linear-gradient(135deg, $primary 0%, $primary-hover 100%);
+        border-color: transparent;
+        color: white;
+
+        &:hover {
+          background: linear-gradient(135deg, $primary-hover 0%, $primary-active 100%);
+        }
+      }
+    }
+  }
+
+  .dark & {
+    .el-button-group .el-button {
+      background: rgba(55, 65, 81, 0.5);
+      border-color: $gray-600;
+      color: $gray-200;
+
+      &:hover {
+        background: rgba(75, 85, 99, 0.5);
+        border-color: $gray-500;
+      }
+    }
+  }
+}
+
+// ==========================================
+// 3. 编辑器工具栏优化
+// ==========================================
+
+.editor-toolbar {
+  background: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  .dark & {
+    background: rgba(31, 41, 55, 0.5);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  // 工具组样式
+  .toolbar-group {
+    position: relative;
+    padding: 0 $spacing-3;
+
+    // 分组视觉分隔
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 24px;
+      width: 1px;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        $gray-300 50%,
+        transparent 100%
+      );
+    }
+
+    .dark &:not(:last-child)::after {
+      background: linear-gradient(180deg,
+        transparent 0%,
+        $gray-600 50%,
+        transparent 100%
+      );
+    }
+  }
+
+  // 按钮样式
+  .el-button {
+    border-radius: $radius-md;
+    padding: $spacing-2 $spacing-3;
+    font-weight: $font-weight-medium;
+    transition: all $duration-150 $ease-out;
+
+    &:hover {
+      background: $primary-lightest;
+      color: $primary;
+    }
+
+    .dark &:hover {
+      background: rgba(99, 102, 241, 0.1);
+      color: $primary-light;
+    }
+  }
+}
+
+// ==========================================
+// 4. 编辑器面板样式
+// ==========================================
+
+.editor-panel,
+.preview-panel {
+  background: white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  border: 1px solid $gray-200;
+  overflow: hidden;
+
+  .dark & {
+    background: $gray-800;
+    border-color: $gray-700;
+    box-shadow: $shadow-md;
+  }
+
+  // 面板头部
+  .panel-header {
+    background: linear-gradient(180deg,
+      rgba(249, 250, 251, 0.8) 0%,
+      rgba(243, 244, 246, 0.8) 100%
+    );
+    border-bottom: 1px solid $gray-200;
+    padding: $spacing-3 $spacing-4;
+
+    .dark & {
+      background: linear-gradient(180deg,
+        rgba(31, 41, 55, 0.8) 0%,
+        rgba(17, 24, 39, 0.8) 100%
+      );
+      border-bottom-color: $gray-700;
+    }
+
+    h3 {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-semibold;
+      color: $gray-700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+
+      .dark & {
+        color: $gray-300;
+      }
+    }
+  }
+}
+
+// ==========================================
+// 5. 编辑器区域
+// ==========================================
+
+.editor-area {
+  // 网格背景
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: -1px -1px;
+
+  // 聚焦状态
+  &:focus-within {
+    box-shadow: inset 0 0 0 2px $primary-lightest;
+  }
+}
+
+// ==========================================
+// 6. 统计卡片美化
+// ==========================================
+
+.editor-stats {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(249, 250, 251, 0.9) 100%
+  );
+  border: 1px solid $gray-200;
+  border-radius: $radius-lg;
+  padding: $spacing-3 $spacing-4;
+  box-shadow: $shadow-sm;
+
+  .dark & {
+    background: linear-gradient(135deg,
+      rgba(31, 41, 55, 0.9) 0%,
+      rgba(17, 24, 39, 0.9) 100%
+    );
+    border-color: $gray-700;
+  }
+
+  .stat-item {
+    border-radius: $radius-base;
+    padding: $spacing-2 $spacing-3;
+    transition: all $duration-150 $ease-out;
+
+    &:hover {
+      background: $primary-lightest;
+      transform: translateY(-1px);
+
+      .stat-value {
+        color: $primary;
+      }
+    }
+
+    .dark &:hover {
+      background: rgba(99, 102, 241, 0.1);
+    }
+  }
+
+  .stat-value {
+    font-weight: $font-weight-bold;
+    background: linear-gradient(135deg, $primary 0%, $accent-purple 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+// ==========================================
+// 7. 移动端标签优化
+// ==========================================
+
+.mobile-tabs {
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(249, 250, 251, 0.95) 100%
+  );
+  backdrop-filter: blur(10px);
+  border-top: 1px solid $gray-200;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+
+  .dark & {
+    background: linear-gradient(180deg,
+      rgba(17, 24, 39, 0.95) 0%,
+      rgba(31, 41, 55, 0.95) 100%
+    );
+    border-top-color: $gray-700;
+  }
+
+  .mobile-tab {
+    position: relative;
+    color: $gray-500;
+    font-weight: $font-weight-medium;
+    transition: all $duration-150 $ease-out;
+
+    &.active {
+      color: $primary;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 24px;
+        height: 2px;
+        background: $primary;
+        border-radius: $radius-full;
+      }
+    }
+
+    &:hover {
+      color: $primary-hover;
+    }
+  }
+}
+
+// ==========================================
+// 8. 加载状态美化
+// ==========================================
+
+.circular-progress-overlay {
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(8px);
+
+  .circular-progress-container {
+    .progress-ring {
+      .progress-ring-circle {
+        stroke: url(#progress-gradient);
+        filter: drop-shadow(0 0 8px $primary);
+      }
+    }
+  }
+}
+
+// 进度条渐变定义
+SVG {
+  defs {
+    linearGradient {
+      #progress-gradient {
+        stop:first-child {
+          stop-color: $primary;
+        }
+        stop:last-child {
+          stop-color: $accent-purple;
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// 9. 对话框和抽屉美化
+// ==========================================
+
+.el-dialog,
+.el-drawer {
+  border-radius: $radius-xl;
+
+  :deep(.el-dialog__header) {
+    background: linear-gradient(135deg,
+      rgba(99, 102, 241, 0.05) 0%,
+      rgba(139, 92, 246, 0.05) 100%
+    );
+    border-bottom: 1px solid $gray-200;
+    padding: $spacing-5;
+
+    .dark & {
+      background: linear-gradient(135deg,
+        rgba(99, 102, 241, 0.1) 0%,
+        rgba(139, 92, 246, 0.1) 100%
+      );
+      border-bottom-color: $gray-700;
+    }
+  }
+
+  :deep(.el-dialog__body) {
+    padding: $spacing-5;
+  }
+
+  :deep(.el-dialog__footer) {
+    background: $gray-50;
+    border-top: 1px solid $gray-200;
+    padding: $spacing-4 $spacing-5;
+
+    .dark & {
+      background: $gray-800;
+      border-top-color: $gray-700;
+    }
+  }
+}
+
+// ==========================================
+// 10. 滚动条美化
+// ==========================================
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, $gray-300 0%, $gray-400 100%);
+  border-radius: $radius-full;
+
+  &:hover {
+    background: linear-gradient(180deg, $gray-400 0%, $gray-500 100%);
+  }
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, $gray-600 0%, $gray-700 100%);
+
+  &:hover {
+    background: linear-gradient(180deg, $gray-500 0%, $gray-600 100%);
+  }
+}
