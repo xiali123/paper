@@ -21,15 +21,6 @@
               <el-dropdown-item command="png">图片 (.png)</el-dropdown-item>
               <el-dropdown-item command="jpg">图片 (.jpg)</el-dropdown-item>
               <el-dropdown-item command="custom" divided>自定义文件...</el-dropdown-item>
-              <el-dropdown-item command="upload" divided>
-                <el-icon><Upload /></el-icon> 上传文件
-              </el-dropdown-item>
-              <el-dropdown-item command="batchUpload">
-                <el-icon><Upload /></el-icon> 批量上传
-              </el-dropdown-item>
-              <el-dropdown-item command="import">
-                <el-icon><Download /></el-icon> 从其他项目导入
-              </el-dropdown-item>
               <el-dropdown-item command="folder" divided>新建文件夹</el-dropdown-item>
             </el-dropdown-menu>
           </template>
