@@ -268,7 +268,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/stores'
 import { adminApi, type AdminUser, type ModuleInfo, type AuditLog, type UserRole } from '@/api/modules/admin'
 import {
   Setting,
