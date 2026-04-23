@@ -90,15 +90,13 @@ export interface ModuleToggleRequest {
  * @returns Admin statistics including user counts, papers, searches
  */
 export async function getAdminStats(): Promise<AdminStats> {
-  const response = await request<{
-    success: boolean
-    data: any
-  }>({
+  const backendStats = await request<any>({
     url: '/admin/stats',
     method: 'GET'
   })
 
-  return transformAdminStats(response.data)
+  console.log('📦 [adminApi] getAdminStats received:', backendStats)
+  return transformAdminStats(backendStats)
 }
 
 /**

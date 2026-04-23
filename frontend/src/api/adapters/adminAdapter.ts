@@ -87,11 +87,10 @@ export interface FrontendAdminStats {
   activeUsers: number
   adminUsers: number
   premiumUsers: number
-  superadminUsers: number
-  regularUsers: number
   totalPapers: number
   totalSearches: number
-  recentRegistrations: number
+  enabledModules: number
+  totalModules: number
 }
 
 /**
@@ -102,11 +101,10 @@ export interface BackendAdminStats {
   active_users: number
   admin_users: number
   premium_users: number
-  superadmin_users: number
-  regular_users: number
   total_papers: number
   total_searches: number
-  recent_registrations: number
+  enabled_modules: number
+  total_modules: number
 }
 
 /**
@@ -247,15 +245,14 @@ export function transformUpdatePayload(
  */
 export function transformAdminStats(backendStats: BackendAdminStats): FrontendAdminStats {
   return {
-    totalUsers: backendStats.total_users,
-    activeUsers: backendStats.active_users,
-    adminUsers: backendStats.admin_users,
-    premiumUsers: backendStats.premium_users,
-    superadminUsers: backendStats.superadmin_users,
-    regularUsers: backendStats.regular_users,
-    totalPapers: backendStats.total_papers,
-    totalSearches: backendStats.total_searches,
-    recentRegistrations: backendStats.recent_registrations
+    totalUsers: backendStats.total_users ?? 0,
+    activeUsers: backendStats.active_users ?? 0,
+    adminUsers: backendStats.admin_users ?? 0,
+    premiumUsers: backendStats.premium_users ?? 0,
+    totalPapers: backendStats.total_papers ?? 0,
+    totalSearches: backendStats.total_searches ?? 0,
+    enabledModules: backendStats.enabled_modules ?? 0,
+    totalModules: backendStats.total_modules ?? 0
   }
 }
 
