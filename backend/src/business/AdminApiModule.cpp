@@ -809,7 +809,13 @@ AdminStats AdminApiModule::getStats() {
 std::string AdminApiModule::handleGetStats(const std::map<std::string, std::string>& params) {
     auto stats = getStats();
 
-    return buildJsonResponse(true, "Statistics retrieved", stats.toJSON());
+    // 直接构建符合前端期望的响应格式
+    std::ostringstream result;
+    result << "{";
+    result << "\"success\":true,";
+    result << "\"data\":" << stats.toJSON();
+    result << "}";
+    return result.str();
 }
 
 // ============================================================================
@@ -846,18 +852,19 @@ std::string AdminApiModule::handleListUsers(const std::map<std::string, std::str
     }
     usersJson << "]";
 
-    // 构建完整响应
+    // 直接构建符合前端期望的响应格式
     std::ostringstream result;
     result << "{";
+    result << "\"success\":true,";
+    result << "\"data\":{";
     result << "\"users\":" << usersJson.str() << ",";
     result << "\"pagination\":{";
     result << "\"page\":" << response.page << ",";
     result << "\"limit\":" << response.limit << ",";
     result << "\"total\":" << response.total << ",";
     result << "\"totalPages\":" << response.totalPages;
-    result << "}}";
-
-    return buildJsonResponse(true, "Users retrieved", result.str());
+    result << "}}}";
+    return result.str();
 }
 
 std::string AdminApiModule::handleGetUser(const std::map<std::string, std::string>& params) {
