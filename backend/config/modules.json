@@ -375,6 +375,38 @@
       ],
       "dependencies": [],
       "config": {}
+    },
+    {
+      "name": "AdminApiModule",
+      "type": "BUSINESS",
+      "version": "1.0.0",
+      "description": "Admin Management API - User management, module control, audit logs",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/admin",
+      "libraryPath": "modules/libAdminApiModule.so",
+      "loadPriority": 95,
+      "endpoints": [
+        "GET /api/admin/stats",
+        "GET /api/admin/users",
+        "GET /api/admin/users/:id",
+        "PUT /api/admin/users/:id",
+        "POST /api/admin/users/:id/activate",
+        "POST /api/admin/users/:id/deactivate",
+        "DELETE /api/admin/users/:id",
+        "GET /api/admin/modules",
+        "POST /api/admin/modules/enable",
+        "POST /api/admin/modules/disable",
+        "GET /api/admin/audit-logs"
+      ],
+      "dependencies": [
+        {
+          "module": "AuthApiModule",
+          "minVersion": "1.0.0",
+          "optional": false
+        }
+      ],
+      "config": {}
     }
   ]
 }
