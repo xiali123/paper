@@ -394,9 +394,16 @@
         "POST /api/admin/users/:id/activate",
         "POST /api/admin/users/:id/deactivate",
         "DELETE /api/admin/users/:id",
+        "POST /api/admin/users/:id/change-password",
+        "POST /api/admin/users/:id/reset-password",
         "GET /api/admin/modules",
-        "POST /api/admin/modules/enable",
-        "POST /api/admin/modules/disable",
+        "POST /api/admin/modules/:name/enable",
+        "POST /api/admin/modules/:name/disable",
+        "POST /api/admin/modules/upload",
+        "POST /api/admin/modules/install",
+        "DELETE /api/admin/modules/:name/uninstall",
+        "POST /api/admin/modules/:name/reload",
+        "GET /api/admin/modules/scan",
         "GET /api/admin/audit-logs"
       ],
       "dependencies": [

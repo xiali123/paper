@@ -42,6 +42,18 @@ struct AdminUser {
     std::chrono::system_clock::time_point createdAt;
     std::chrono::system_clock::time_point lastLoginAt;
     std::string lastLoginIp;
+    int loginCount{0};
+
+    std::string getActivityStatus() const {
+        if (lastLoginAt == std::chrono::system_clock::from_time_t(0)) {
+            return "inactive";
+        }
+        auto daysSince = std::chrono::duration_cast<std::chrono::hours>(
+            std::chrono::system_clock::now() - lastLoginAt).count() / 24;
+        if (daysSince <= 30) return "active";
+        if (daysSince <= 90) return "idle";
+        return "inactive";
+    }
 
     std::string getRoleString() const {
         switch (role) {
@@ -70,6 +82,8 @@ struct AdminUser {
         json << "\"avatar\":\"" << avatar << "\",";
         json << "\"role\":\"" << getRoleString() << "\",";
         json << "\"active\":" << (active ? "true" : "false") << ",";
+        json << "\"login_count\":" << loginCount << ",";
+        json << "\"activity_status\":\"" << getActivityStatus() << "\",";
         json << "\"created_at\":" << std::chrono::system_clock::to_time_t(createdAt) << ",";
         json << "\"last_login_at\":" << std::chrono::system_clock::to_time_t(lastLoginAt) << ",";
         json << "\"last_login_ip\":\"" << lastLoginIp << "\"";
@@ -146,6 +160,7 @@ struct AdminStats {
     int adminUsers{0};
     int totalPapers{0};
     int totalSearches{0};
+    int recentlyActiveUsers{0};
     int enabledModules{0};
     int totalModules{0};
 
@@ -158,6 +173,7 @@ struct AdminStats {
         json << "\"admin_users\":" << adminUsers << ",";
         json << "\"total_papers\":" << totalPapers << ",";
         json << "\"total_searches\":" << totalSearches << ",";
+        json << "\"recently_active_users\":" << recentlyActiveUsers << ",";
         json << "\"enabled_modules\":" << enabledModules << ",";
         json << "\"total_modules\":" << totalModules;
         json << "}";
@@ -226,6 +242,11 @@ public:
     explicit AdminApiModule(std::shared_ptr<IDatabase> database);
     ~AdminApiModule() override;
 
+    /**
+     * @brief 接收数据库连接注入
+     */
+    void setDatabase(std::shared_ptr<IDatabase> database);
+
     std::string getName() const override { return "AdminApi"; }
     std::string getVersion() const override { return "1.0.0"; }
     std::string getDescription() const override {
@@ -247,6 +268,11 @@ public:
     std::optional<AdminUser> getUser(int id);
 
     /**
+     * @brief 根据用户名获取用户
+     */
+    std::optional<AdminUser> getUserByUsername(const std::string& username);
+
+    /**
      * @brief 验证用户密码
      */
     bool verifyUserPassword(int userId, const std::string& password);
@@ -260,6 +286,11 @@ public:
      * @brief 重置用户密码（管理员）
      */
     bool resetUserPassword(int userId, const std::string& newPassword);
+
+    /**
+     * @brief 创建用户
+     */
+    std::optional<AdminUser> createUser(const AdminUser& user);
 
     /**
      * @brief 更新用户
@@ -299,6 +330,43 @@ public:
      * @brief 禁用模块
      */
     bool disableModule(const std::string& moduleName);
+
+    /**
+     * @brief 上传模块DLL文件
+     * @param fileData 文件二进制数据
+     * @param filename 文件名
+     * @return 保存的文件路径
+     */
+    std::string uploadModule(const std::string& fileData, const std::string& filename);
+
+    /**
+     * @brief 安装/注册模块
+     * @param moduleName 模块名称
+     * @param modulePath 模块DLL路径
+     * @return 是否成功
+     */
+    bool installModule(const std::string& moduleName, const std::string& modulePath);
+
+    /**
+     * @brief 卸载模块
+     * @param moduleName 模块名称
+     * @return 是否成功
+     */
+    bool uninstallModule(const std::string& moduleName);
+
+    /**
+     * @brief 重载模块
+     * @param moduleName 模块名称
+     * @return 是否成功
+     */
+    bool reloadModule(const std::string& moduleName);
+
+    /**
+     * @brief 扫描目录中的模块
+     * @param directory 目录路径
+     * @return 发现的模块列表
+     */
+    std::vector<ModuleInfo> scanModules(const std::string& directory = "modules");
 
     // ========================================================================
     // 审计日志方法
@@ -343,6 +411,7 @@ private:
     std::string handleGetStats(const std::map<std::string, std::string>& params);
     std::string handleListUsers(const std::map<std::string, std::string>& params);
     std::string handleGetUser(const std::map<std::string, std::string>& params);
+    std::string handleCreateUser(const std::string& body);
     std::string handleUpdateUser(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleDeleteUser(const std::map<std::string, std::string>& params);
     std::string handleActivateUser(const std::map<std::string, std::string>& params);
@@ -352,6 +421,11 @@ private:
     std::string handleListModules(const std::map<std::string, std::string>& params);
     std::string handleEnableModule(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleDisableModule(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleUploadModule(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleInstallModule(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleUninstallModule(const std::map<std::string, std::string>& params);
+    std::string handleReloadModule(const std::map<std::string, std::string>& params);
+    std::string handleScanModules(const std::map<std::string, std::string>& params);
 
     // HTTP请求处理器 - 密码管理
     std::string handleChangePassword(const std::map<std::string, std::string>& params, const std::string& body);

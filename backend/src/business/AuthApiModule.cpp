@@ -992,12 +992,22 @@ void AuthApiModule::registerRoutes() {
             // 更新最后登录时间
             user.lastLoginAt = std::chrono::system_clock::now();
 
-            // 更新数据库中的last_login字段（优先使用mysqlDatabase_）
-            std::string updateSql = "UPDATE users SET last_login = NOW() WHERE id = " + std::to_string(user.id);
+            // 更新数据库中的last_login_at和last_login_ip字段
+            // 获取客户端IP地址（从请求头中提取）
+            std::string clientIp = "127.0.0.1";  // 默认本地IP
+            // TODO: 从HttpRequest中提取真实的客户端IP
+
+            std::string updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + clientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
+            bool updateOk = false;
             if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
-                impl_->mysqlDatabase_->execute(updateSql);
+                updateOk = impl_->mysqlDatabase_->execute(updateSql);
             } else if (impl_->database_) {
-                impl_->database_->execute(updateSql);
+                updateOk = impl_->database_->execute(updateSql);
+            }
+            if (!updateOk) {
+                spdlog::error("[Auth] Failed to update last_login_at for user {}", user.id);
+            } else {
+                spdlog::info("[Auth] Updated last_login_at for user {} (id={})", user.username, user.id);
             }
 
             impl_->stats_.successfulLogins++;
@@ -1329,9 +1339,22 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     // 更新最后登录时间
     user.lastLoginAt = std::chrono::system_clock::now();
 
-    // 更新数据库中的last_login字段
-    auto updateSql = "UPDATE users SET last_login = NOW() WHERE id = " + std::to_string(user.id);
-    database_->execute(updateSql);
+    // 更新数据库中的last_login_at和last_login_ip字段
+    std::string clientIp = "127.0.0.1";  // 默认本地IP
+    auto updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + clientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
+    bool updateOk = false;
+    if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+        updateOk = impl_->mysqlDatabase_->execute(updateSql);
+    } else if (impl_->database_) {
+        updateOk = impl_->database_->execute(updateSql);
+    } else if (database_) {
+        updateOk = database_->execute(updateSql);
+    }
+    if (!updateOk) {
+        spdlog::error("[Auth] handleLogin: Failed to update last_login_at for user {}", user.id);
+    } else {
+        spdlog::info("[Auth] handleLogin: Updated last_login_at for user {} (id={})", user.username, user.id);
+    }
 
     impl_->stats_.successfulLogins++;
     impl_->stats_.lastLoginTime = std::chrono::system_clock::now();

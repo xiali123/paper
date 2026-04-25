@@ -32,6 +32,8 @@ export interface FrontendAdminUser {
   lastLoginAt?: string
   avatarUrl?: string
   researchInterests?: string
+  loginCount: number
+  activityStatus: 'active' | 'idle' | 'inactive'
 }
 
 /**
@@ -44,12 +46,16 @@ export interface BackendAdminUser {
   full_name?: string
   affiliation?: string
   role: UserRole
-  is_active: boolean
+  is_active?: boolean
+  active?: boolean  // 后端实际返回的字段
   is_verified?: boolean
-  created_at: string
-  last_login_at?: string
+  created_at: string | number  // 可能是字符串或数字时间戳
+  last_login_at?: string | number
   avatar_url?: string
+  avatar?: string  // 后端实际返回的字段
   research_interests?: string
+  login_count?: number
+  activity_status?: string
 }
 
 /**
@@ -66,6 +72,18 @@ export interface FrontendUpdateUserPayload {
   researchInterests?: string
   isActive?: boolean
   role?: UserRole
+}
+
+/**
+ * Frontend create user payload
+ */
+export interface FrontendCreateUserPayload {
+  username: string
+  email: string
+  fullName?: string
+  avatar?: string
+  role?: UserRole
+  password?: string
 }
 
 /**
@@ -89,6 +107,7 @@ export interface FrontendAdminStats {
   premiumUsers: number
   totalPapers: number
   totalSearches: number
+  recentlyActiveUsers: number
   enabledModules: number
   totalModules: number
 }
@@ -103,6 +122,7 @@ export interface BackendAdminStats {
   premium_users: number
   total_papers: number
   total_searches: number
+  recently_active_users: number
   enabled_modules: number
   total_modules: number
 }
@@ -156,24 +176,64 @@ export interface BackendAuditLog {
  * @param backendUser - User data from backend
  * @returns Frontend-formatted user data
  */
-export function transformAdminUser(backendUser: BackendAdminUser): FrontendAdminUser {
-  const fullName = backendUser.full_name || ''
+export function transformAdminUser(backendUser: any): FrontendAdminUser {
+  // 简化处理，确保不会有运行时错误
+  if (!backendUser) {
+    return {
+      id: 0,
+      username: '',
+      email: '',
+      firstName: '',
+      lastName: '',
+      fullName: '',
+      affiliation: '',
+      role: 'user',
+      isActive: true,
+      isVerified: true,
+      createdAt: '',
+      lastLoginAt: '',
+      avatarUrl: '',
+      researchInterests: '',
+      loginCount: 0,
+      activityStatus: 'inactive'
+    }
+  }
+
+  // 处理状态字段
+  const isActive = backendUser.active !== undefined
+    ? backendUser.active
+    : (backendUser.is_active !== undefined ? backendUser.is_active : true)
+
+  // 处理时间戳
+  let createdAt = ''
+  if (backendUser.created_at) {
+    createdAt = String(backendUser.created_at)
+  }
+
+  // 处理最后登录时间
+  let lastLoginAt = ''
+  if (backendUser.last_login_at && backendUser.last_login_at !== 0) {
+    lastLoginAt = String(backendUser.last_login_at)
+  }
 
   return {
-    id: backendUser.id,
-    username: backendUser.username,
-    email: backendUser.email,
-    firstName: fullName.split(' ')[0] || '',
-    lastName: fullName.split(' ').slice(1).join(' ') || '',
-    fullName: fullName,
-    affiliation: backendUser.affiliation,
-    role: backendUser.role,
-    isActive: backendUser.is_active,
-    isVerified: backendUser.is_verified,
-    createdAt: backendUser.created_at,
-    lastLoginAt: backendUser.last_login_at,
-    avatarUrl: backendUser.avatar_url,
-    researchInterests: backendUser.research_interests
+    id: backendUser.id || 0,
+    username: backendUser.username || '',
+    email: backendUser.email || '',
+    firstName: '',
+    lastName: '',
+    fullName: backendUser.full_name || '',
+    affiliation: backendUser.affiliation || '',
+    role: backendUser.role || 'user',
+    isActive: isActive,
+    isVerified: backendUser.is_verified ?? true,
+    createdAt: createdAt,
+    lastLoginAt: lastLoginAt,
+    avatarUrl: backendUser.avatar_url || backendUser.avatar || '',
+    researchInterests: backendUser.research_interests || '',
+    loginCount: backendUser.login_count ?? 0,
+    activityStatus: (['active', 'idle', 'inactive'].includes(backendUser.activity_status)
+      ? backendUser.activity_status : 'inactive') as 'active' | 'idle' | 'inactive'
   }
 }
 
@@ -251,6 +311,7 @@ export function transformAdminStats(backendStats: BackendAdminStats): FrontendAd
     premiumUsers: backendStats.premium_users ?? 0,
     totalPapers: backendStats.total_papers ?? 0,
     totalSearches: backendStats.total_searches ?? 0,
+    recentlyActiveUsers: backendStats.recently_active_users ?? 0,
     enabledModules: backendStats.enabled_modules ?? 0,
     totalModules: backendStats.total_modules ?? 0
   }

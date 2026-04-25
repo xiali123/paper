@@ -135,8 +135,8 @@ export const useAuthStore = defineStore(
           id: 1,
           username: credentials.email.split('@')[0] || credentials.username || 'demo',
           email: credentials.email,
-          fullName: '开发测试用户',
-          role: 'admin',
+          fullName: '超级管理员',
+          role: 'superadmin',  // 使用superadmin角色以测试模块管理功能
           isActive: true,
           isVerified: true,
           createdAt: Date.now(),
@@ -341,10 +341,10 @@ export const useAuthStore = defineStore(
         // 创建Mock用户
         const mockUser: User = {
           id: 1,
-          username: 'demo',
-          email: 'demo@example.com',
-          fullName: '开发测试用户',
-          role: 'admin',
+          username: 'admin',
+          email: 'admin@papercrawler.com',
+          fullName: '超级管理员',
+          role: 'superadmin',  // 使用superadmin角色以测试模块管理功能
           isActive: true,
           isVerified: true,
           createdAt: Date.now(),

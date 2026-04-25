@@ -21,6 +21,7 @@ import {
   transformAdminQueryParams,
   type FrontendAdminUser as AdminUser,
   type FrontendUpdateUserPayload as UpdateUserPayload,
+  type FrontendCreateUserPayload as CreateUserPayload,
   type FrontendAdminStats as AdminStats,
   type FrontendAuditLog as AuditLog,
   type UserRole
@@ -80,6 +81,22 @@ export interface ModuleToggleRequest {
   reason?: string
 }
 
+/**
+ * Module upload request
+ */
+export interface ModuleUploadRequest {
+  fileData: string
+  filename: string
+}
+
+/**
+ * Module install request
+ */
+export interface ModuleInstallRequest {
+  moduleName: string
+  modulePath: string
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -91,7 +108,7 @@ export interface ModuleToggleRequest {
  */
 export async function getAdminStats(): Promise<AdminStats> {
   const backendStats = await request<any>({
-    url: '/admin/stats',
+    url: '/api/admin/stats',
     method: 'GET'
   })
 
@@ -110,28 +127,26 @@ export async function getAdminUsers(
 ): Promise<PaginatedResponse<AdminUser>> {
   const backendParams = transformAdminQueryParams(params)
   const response = await request<{
-    success: boolean
-    data: {
-      users: any[]
-      pagination: {
-        page: number
-        limit: number
-        total: number
-        totalPages: number
-      }
+    users: any[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
     }
   }>({
-    url: '/admin/users',
+    url: '/api/admin/users',
     method: 'GET',
     params: backendParams
   })
 
+  // request.ts 已经提取了 data 字段，所以 response 直接是 {users, pagination}
   return {
-    items: transformAdminUserList(response.data.users),
-    total: response.data.pagination.total,
-    page: response.data.pagination.page,
-    limit: response.data.pagination.limit,
-    totalPages: response.data.pagination.totalPages
+    items: transformAdminUserList(response.users),
+    total: response.pagination.total,
+    page: response.pagination.page,
+    limit: response.pagination.limit,
+    totalPages: response.pagination.totalPages
   }
 }
 
@@ -142,15 +157,37 @@ export async function getAdminUsers(
  * @returns User details
  */
 export async function getAdminUser(userId: number): Promise<AdminUser> {
-  const response = await request<{
-    success: boolean
-    data: any
-  }>({
-    url: `/admin/users/${userId}`,
+  const response = await request<any>({
+    url: `/api/admin/users/${userId}`,
     method: 'GET'
   })
 
-  return transformAdminUser(response.data)
+  return transformAdminUser(response)
+}
+
+/**
+ * Create a new user (admin/superadmin only)
+ *
+ * @param data - User data to create
+ * @returns Created user
+ */
+export async function createAdminUser(
+  data: CreateUserPayload
+): Promise<AdminUser> {
+  const response = await request<any>({
+    url: '/api/admin/users',
+    method: 'POST',
+    data: {
+      username: data.username,
+      email: data.email,
+      full_name: data.fullName || '',
+      avatar: data.avatar || '',
+      role: data.role || 'user',
+      password: data.password || '123456'  // 默认密码
+    }
+  })
+
+  return transformAdminUser(response)
 }
 
 /**
@@ -165,16 +202,13 @@ export async function updateAdminUser(
   data: UpdateUserPayload
 ): Promise<AdminUser> {
   const backendPayload = transformUpdatePayload(data)
-  const response = await request<{
-    success: boolean
-    data: any
-  }>({
-    url: `/admin/users/${userId}`,
+  const response = await request<any>({
+    url: `/api/admin/users/${userId}`,
     method: 'PUT',
     data: backendPayload
   })
 
-  return transformAdminUser(response.data)
+  return transformAdminUser(response)
 }
 
 /**
@@ -185,10 +219,9 @@ export async function updateAdminUser(
  */
 export async function deleteAdminUser(userId: number): Promise<{ message: string }> {
   const response = await request<{
-    success: boolean
     message: string
   }>({
-    url: `/admin/users/${userId}`,
+    url: `/api/admin/users/${userId}`,
     method: 'DELETE'
   })
 
@@ -202,15 +235,12 @@ export async function deleteAdminUser(userId: number): Promise<{ message: string
  * @returns Updated user
  */
 export async function activateUser(userId: number): Promise<AdminUser> {
-  const response = await request<{
-    success: boolean
-    data: any
-  }>({
-    url: `/admin/users/${userId}/activate`,
+  const response = await request<any>({
+    url: `/api/admin/users/${userId}/activate`,
     method: 'POST'
   })
 
-  return transformAdminUser(response.data)
+  return transformAdminUser(response)
 }
 
 /**
@@ -220,15 +250,12 @@ export async function activateUser(userId: number): Promise<AdminUser> {
  * @returns Updated user
  */
 export async function deactivateUser(userId: number): Promise<AdminUser> {
-  const response = await request<{
-    success: boolean
-    data: any
-  }>({
-    url: `/admin/users/${userId}/deactivate`,
+  const response = await request<any>({
+    url: `/api/admin/users/${userId}/deactivate`,
     method: 'POST'
   })
 
-  return transformAdminUser(response.data)
+  return transformAdminUser(response)
 }
 
 /**
@@ -242,28 +269,26 @@ export async function getAuditLogs(
 ): Promise<PaginatedResponse<AuditLog>> {
   const backendParams = transformAdminQueryParams(filters)
   const response = await request<{
-    success: boolean
-    data: {
-      logs: any[]
-      pagination: {
-        page: number
-        limit: number
-        total: number
-        totalPages: number
-      }
+    logs: any[]
+    pagination: {
+      page: number
+      limit: number
+      total: number
+      totalPages: number
     }
   }>({
-    url: '/admin/audit-logs',
+    url: '/api/admin/audit-logs',
     method: 'GET',
     params: backendParams
   })
 
+  // request.ts 已经提取了 data 字段
   return {
-    items: transformAuditLogList(response.data.logs),
-    total: response.data.pagination.total,
-    page: response.data.pagination.page,
-    limit: response.data.pagination.limit,
-    totalPages: response.data.pagination.totalPages
+    items: transformAuditLogList(response.logs),
+    total: response.pagination.total,
+    page: response.pagination.page,
+    limit: response.pagination.limit,
+    totalPages: response.pagination.totalPages
   }
 }
 
@@ -353,15 +378,11 @@ export function formatAuditAction(action: string, locale: string = 'en'): string
  * @returns List of all modules
  */
 export async function getModules(): Promise<ModuleInfo[]> {
-  const response = await request<{
-    success: boolean
-    data: ModuleInfo[]
-  }>({
-    url: '/admin/modules',
+  // request.ts 已提取 data 字段，直接返回数组
+  return await request<ModuleInfo[]>({
+    url: '/api/admin/modules',
     method: 'GET'
   })
-
-  return response.data
 }
 
 /**
@@ -374,10 +395,9 @@ export async function enableModule(
   request: ModuleToggleRequest
 ): Promise<{ message: string }> {
   const response = await request<{
-    success: boolean
     message: string
   }>({
-    url: `/admin/modules/${request.moduleName}/enable`,
+    url: `/api/admin/modules/${request.moduleName}/enable`,
     method: 'POST',
     data: {
       reason: request.reason || ''
@@ -397,10 +417,9 @@ export async function disableModule(
   request: ModuleToggleRequest
 ): Promise<{ message: string }> {
   const response = await request<{
-    success: boolean
     message: string
   }>({
-    url: `/admin/modules/${request.moduleName}/disable`,
+    url: `/api/admin/modules/${request.moduleName}/disable`,
     method: 'POST',
     data: {
       reason: request.reason || ''
@@ -408,6 +427,101 @@ export async function disableModule(
   })
 
   return { message: response.message }
+}
+
+/**
+ * Upload a module file (superadmin only)
+ *
+ * @param uploadRequest - Upload request with file data and filename
+ * @returns Upload result with file path
+ */
+export async function uploadModule(
+  uploadRequest: ModuleUploadRequest
+): Promise<{ path: string; filename: string }> {
+  // request.ts 已提取 data 字段，直接返回 data 内容
+  return await request<{
+    path: string
+    filename: string
+  }>({
+    url: '/api/admin/modules/upload',
+    method: 'POST',
+    data: {
+      file_data: uploadRequest.fileData,
+      filename: uploadRequest.filename
+    }
+  })
+}
+
+/**
+ * Install a module (superadmin only)
+ *
+ * @param installRequest - Install request with module name and path
+ * @returns Success message
+ */
+export async function installModule(
+  installRequest: ModuleInstallRequest
+): Promise<{ message: string }> {
+  const response = await request<{
+    message: string
+  }>({
+    url: '/api/admin/modules/install',
+    method: 'POST',
+    data: {
+      module_name: installRequest.moduleName,
+      module_path: installRequest.modulePath
+    }
+  })
+
+  return { message: response.message }
+}
+
+/**
+ * Uninstall a module (superadmin only)
+ *
+ * @param moduleName - Module name to uninstall
+ * @returns Success message
+ */
+export async function uninstallModule(moduleName: string): Promise<{ message: string }> {
+  const response = await request<{
+    message: string
+  }>({
+    url: `/api/admin/modules/${moduleName}/uninstall`,
+    method: 'DELETE'
+  })
+
+  return { message: response.message }
+}
+
+/**
+ * Reload a module (superadmin only)
+ *
+ * @param moduleName - Module name to reload
+ * @returns Success message
+ */
+export async function reloadModule(moduleName: string): Promise<{ message: string }> {
+  const response = await request<{
+    message: string
+  }>({
+    url: `/api/admin/modules/${moduleName}/reload`,
+    method: 'POST'
+  })
+
+  return { message: response.message }
+}
+
+/**
+ * Scan directory for available modules (superadmin only)
+ *
+ * @param directory - Directory to scan (default: 'modules')
+ * @returns List of discovered modules
+ */
+export async function scanModules(directory: string = 'modules'): Promise<ModuleInfo[]> {
+  // request.ts 已提取 data 字段
+  return await request<ModuleInfo[]>({
+    url: '/api/admin/modules/scan',
+    method: 'GET',
+    params: { directory }
+  })
 }
 
 // ============================================================================
@@ -421,6 +535,7 @@ const adminApi = {
   // User management
   getUsers: getAdminUsers,
   getUser: getAdminUser,
+  createUser: createAdminUser,
   updateUser: updateAdminUser,
   deleteUser: deleteAdminUser,
   activateUser,
@@ -430,6 +545,11 @@ const adminApi = {
   getModules,
   enableModule,
   disableModule,
+  uploadModule,
+  installModule,
+  uninstallModule,
+  reloadModule,
+  scanModules,
 
   // Audit logs
   getAuditLogs,
