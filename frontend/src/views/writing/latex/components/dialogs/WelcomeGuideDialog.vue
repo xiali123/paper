@@ -325,7 +325,7 @@ import { ref, watch } from 'vue'
 import {
   CircleCheck, EditPen, View, Collection, Grid, MagicStick, QuestionFilled,
   Document, Reading, Notebook, InfoFilled, Operation, Picture, Files,
-  Edit, ChatDotSquare, Message, UserFilled, DocumentCopy, Key, Translation
+  Edit, ChatDotSquare, Message, UserFilled, DocumentCopy, Key, Language
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
