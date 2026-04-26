@@ -298,7 +298,7 @@ const routes: RouteRecordRaw[] = [
         path: '/admin',
         name: 'Admin',
         component: () => import('@/views/admin/AdminDashboard.vue'),
-        meta: { requiresAuth: true, title: 'route.admin', icon: 'Setting', requiresAdmin: true }
+        meta: { requiresAuth: true, title: 'route.admin', icon: 'Setting', requiresSuperAdmin: true }
       },
       {
         path: '/profile',
@@ -340,6 +340,7 @@ router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const guestOnly = to.matched.some((record) => record.meta.guestOnly)
   const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
+  const requiresSuperAdmin = to.matched.some((record) => record.meta.requiresSuperAdmin)
 
   // Initialize auth store if not already initialized
   const hasStoredTokens = localStorage.getItem('auth_tokens')
@@ -378,6 +379,10 @@ router.beforeEach(async (to, from, next) => {
     })
   } else if (guestOnly && authStore.isAuthenticated) {
     // Redirect to dashboard if trying to access guest-only route while authenticated
+    next({ name: 'Dashboard' })
+  } else if (requiresSuperAdmin && !authStore.isSuperAdmin) {
+    // Redirect to dashboard if trying to access superadmin-only route without superadmin privileges
+    ElMessage.warning('您需要超级管理员权限才能访问此页面')
     next({ name: 'Dashboard' })
   } else if (requiresAdmin && !authStore.isAdminOrSuper) {
     // Redirect to dashboard if trying to access admin-only route without admin privileges

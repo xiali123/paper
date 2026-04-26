@@ -121,7 +121,11 @@
               <el-icon><Setting /></el-icon>
               {{ t('nav.settings') }}
             </el-dropdown-item>
-            <el-dropdown-item divided command="logout">
+            <el-dropdown-item v-if="authStore.isSuperAdmin" command="admin" divided>
+              <el-icon><Lock /></el-icon>
+              管理控制台
+            </el-dropdown-item>
+            <el-dropdown-item command="logout">
               <el-icon><SwitchButton /></el-icon>
               {{ t('nav.logout') }}
             </el-dropdown-item>
@@ -213,14 +217,17 @@ import {
   DataAnalysis,
   User,
   Setting,
-  SwitchButton
+  SwitchButton,
+  Lock
 } from '@element-plus/icons-vue'
 import { useUIStore } from '@/stores'
+import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
 const uiStore = useUIStore()
+const authStore = useAuthStore()
 const { t, locale } = useI18n()
 
 // State
@@ -276,6 +283,9 @@ async function handleUserCommand(command: string) {
       break
     case 'settings':
       router.push('/settings')
+      break
+    case 'admin':
+      router.push('/admin')
       break
     case 'logout':
       ElMessage.success('Logged out successfully')

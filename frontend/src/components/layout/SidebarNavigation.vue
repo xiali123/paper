@@ -161,6 +161,12 @@
           <template #title>{{ t('nav.export') }}</template>
         </el-menu-item>
 
+        <!-- Admin Console (Super Admin Only) -->
+        <el-menu-item v-if="authStore.isSuperAdmin" index="/admin">
+          <el-icon><Lock /></el-icon>
+          <template #title>管理控制台</template>
+        </el-menu-item>
+
         <!-- Settings -->
         <el-sub-menu index="settings">
           <template #title>
@@ -246,14 +252,16 @@ import {
   DocumentChecked,
   Reading,
   Notebook,
-  Notebook as NotebookIcon
+  Notebook as NotebookIcon,
+  Lock
 } from '@element-plus/icons-vue'
 import { useUIStore } from '@/stores'
+import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
-const router = useRouter()
 const uiStore = useUIStore()
+const authStore = useAuthStore()
 const { t } = useI18n()
 
 // Version

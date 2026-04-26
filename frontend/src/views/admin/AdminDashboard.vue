@@ -447,7 +447,10 @@
                 </el-col>
                 <el-col :span="6">
                   <el-card shadow="hover">
-                    <el-statistic title="运行时长" :value="formatUptime(systemMetrics.uptime_seconds || 0)" />
+                    <div class="uptime-display">
+                      <div class="uptime-label">运行时长</div>
+                      <div class="uptime-value">{{ formatUptime(systemMetrics.uptime_seconds || 0) }}</div>
+                    </div>
                   </el-card>
                 </el-col>
               </el-row>
@@ -3853,6 +3856,23 @@ onMounted(() => {
 
 .mb-3 {
   margin-bottom: 15px;
+}
+
+.uptime-display {
+  text-align: center;
+  padding: 10px;
+}
+
+.uptime-label {
+  font-size: 14px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+
+.uptime-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .mb-4 {
