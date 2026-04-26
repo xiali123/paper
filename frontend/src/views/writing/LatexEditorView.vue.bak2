@@ -220,37 +220,61 @@
         :style="layoutMode === 'side-by-side' && !isMobile && showPreview ? { flex: `0 0 ${editorPanelWidth}%` } : {}"
       >
         <div class="editor-content" :class="{ 'with-outline': showOutline }">
-          <!-- 左侧面板 -->
-          <LeftPanel
-            v-if="showOutline || showProjectTree"
-            :mode="showOutline ? 'outline' : 'project-tree'"
-            :panel-title="showOutline ? '文档大纲' : '项目文件'"
-            :content="editorContent"
-            :is-project-mode="isProjectMode"
-            :project-files="latexStore.projectFiles"
-            :current-file-id="latexStore.currentProjectFile?.id"
-            :main-file-path="latexStore.currentProject?.mainFile"
-            :project-id="latexStore.currentProject?.id"
-            :project-name="latexStore.currentProject?.name"
-            @close="showOutline ? showOutline = false : showProjectTree = false"
-            @navigate="navigateToSection"
-            @file-select="showOutline ? handleOutlineFileSelect($event) : handleFileSelect($event)"
-            @file-create="handleFileCreate"
-            @file-delete="handleFileDelete"
-            @file-rename="handleFileRename"
-            @file-duplicate="handleFileDuplicate"
-            @file-move="handleFileMove"
-            @folder-create="handleFolderCreate"
-            @folder-delete="handleFolderDelete"
-            @folder-rename="handleFolderRename"
-            @main-file-change="handleMainFileChange"
-            @refresh="handleRefreshProject"
-          />
+          <!-- 文档大纲 -->
+          <aside class="document-outline" role="complementary" aria-label="文档结构大纲" v-if="showOutline">
+            <div class="outline-header">
+              <h3 id="outline-title">文档大纲</h3>
+              <el-button size="small" @click="showOutline = false" aria-label="关闭大纲">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+            <div class="outline-content" role="tree" aria-labelledby="outline-title">
+              <DocumentOutline
+                :content="editorContent"
+                :is-project-mode="isProjectMode"
+                :project-files="latexStore.projectFiles"
+                :current-file-id="latexStore.currentProjectFile?.id"
+                :main-file-path="latexStore.currentProject?.mainFile"
+                @navigate="navigateToSection"
+                @file-select="handleOutlineFileSelect"
+              />
+            </div>
+          </aside>
+
+          <!-- 项目文件树 -->
+          <aside class="project-file-tree-panel" role="complementary" aria-label="项目文件树" v-if="showProjectTree && isProjectMode">
+            <div class="tree-header">
+              <h3 id="tree-title">项目文件</h3>
+              <el-button size="small" @click="showProjectTree = false" aria-label="关闭文件树">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+            <div class="tree-content" role="tree" aria-labelledby="tree-title">
+              <ProjectFileTree
+                v-if="latexStore.currentProject"
+                :project-id="latexStore.currentProject.id"
+                :project-name="latexStore.currentProject.name"
+                :files="latexStore.projectFiles"
+                :main-file-path="latexStore.currentProject.mainFile"
+                @file-select="handleFileSelect"
+                @file-create="handleFileCreate"
+                @file-delete="handleFileDelete"
+                @file-rename="handleFileRename"
+                @file-duplicate="handleFileDuplicate"
+                @file-move="handleFileMove"
+                @folder-create="handleFolderCreate"
+                @folder-delete="handleFolderDelete"
+                @folder-rename="handleFolderRename"
+                @main-file-change="handleMainFileChange"
+                @refresh="handleRefreshProject"
+              />
+            </div>
+          </aside>
 
           <!-- 编辑器区域 -->
           <div class="editor-area" :class="{ 'with-outline': showOutline }">
             <!-- 编辑器工具栏 -->
-            <EditorToolbar
+            <EditorToolbarComponent
               :show-outline="showOutline"
               :show-project-tree="showProjectTree"
               :left-panel-title="leftPanelTitle"
@@ -267,40 +291,183 @@
               @show-keyboard-shortcuts="showKeyboardShortcuts = true"
               @toggle-find-replace="showFindReplace = !showFindReplace"
             />
+            <el-tooltip content="撤销 (Ctrl+Z)" placement="top">
+              <el-button size="small" @click="undoRedo.undo()" :disabled="!undoRedo.canUndo.value">
+                <el-icon><RefreshLeft /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="重做 (Ctrl+Shift+Z)" placement="top">
+              <el-button size="small" @click="undoRedo.redo()" :disabled="!undoRedo.canRedo.value">
+                <el-icon><RefreshRight /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-divider direction="vertical" />
+            <el-button size="small" @click="insertLatexCommand('textbf')">
+              <b>B</b>
+            </el-button>
+            <el-button size="small" @click="insertLatexCommand('textit')">
+              <i>I</i>
+            </el-button>
+            <el-dropdown size="small" @command="insertLatexEnvironment">
+              <el-button size="small">
+                <el-icon><Plus /></el-icon>
+                环境
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="itemize">无序列表</el-dropdown-item>
+                  <el-dropdown-item command="enumerate">有序列表</el-dropdown-item>
+                  <el-dropdown-item command="equation">数学公式</el-dropdown-item>
+                  <el-dropdown-item command="figure">图片环境</el-dropdown-item>
+                  <el-dropdown-item command="table">表格环境</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button size="small" @click="showSymbolPalette = !showSymbolPalette">
+              <el-icon><Tickets /></el-icon>
+              符号
+            </el-button>
+            <el-tooltip content="表格生成器" placement="top">
+              <el-button size="small" @click="showTableGenerator = !showTableGenerator" :aria-pressed="showTableGenerator">
+                <el-icon><Grid /></el-icon>
+                表格
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="拼写检查" placement="top">
+              <el-button size="small" @click="showSpellChecker = !showSpellChecker" :aria-pressed="showSpellChecker">
+                <el-icon><DocumentChecked /></el-icon>
+                拼写
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="文档模板" placement="top">
+              <el-button size="small" @click="showTemplates = !showTemplates" :aria-pressed="showTemplates">
+                <el-icon><Memo /></el-icon>
+                模板
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="代码片段 (Ctrl+Space)" placement="top">
+              <el-button size="small" @click="showSnippets = !showSnippets" :aria-pressed="showSnippets">
+                <el-icon><Collection /></el-icon>
+                片段
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="编辑器字体" placement="top">
+              <el-button size="small" @click="showFontSelector = !showFontSelector" :aria-pressed="showFontSelector">
+                <el-icon><Edit /></el-icon>
+                字体
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="快捷键 (?) " placement="top">
+              <el-button size="small" @click="showKeyboardShortcuts = true">
+                <el-icon><QuestionFilled /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="版本历史" placement="top">
+              <el-button size="small" @click="showVersionHistory = true">
+                <el-icon><Clock /></el-icon>
+                版本
+              </el-button>
+            </el-tooltip>
+            <el-divider direction="vertical" />
+            <el-tooltip content="查找替换 (Ctrl+F)" placement="top">
+              <el-button size="small" @click="showFindReplace = !showFindReplace" :aria-pressed="showFindReplace">
+                <el-icon><Search /></el-icon>
+                查找
+              </el-button>
+            </el-tooltip>
+          </el-button-group>
 
-            <!-- 查找替换面板 -->
-            <FindReplacePanel
-              :show="showFindReplace"
-              :find-query="findQuery"
-              :replace-query="replaceQuery"
-              :current-match-index="currentMatchIndex"
-              :total-matches="totalMatches"
-              :find-options="findOptions"
-              :show-replace="showReplace"
-              @close="showFindReplace = false"
-              @update:find-query="findQuery = $event"
-              @update:replace-query="replaceQuery = $event"
-              @update:find-options="findOptions = { ...findOptions, ...$event }"
-              @find-input="onFindInput"
-              @find-next="findNext"
-              @find-previous="findPrevious"
-              @replace-current="replaceCurrent"
-              @replace-all="replaceAll"
-              @toggle-show-replace="showReplace = !showReplace"
-            />
-
-            <!-- 编译状态指示器 -->
-            <div class="compilation-status">
-              <el-tag
-                v-if="compilationStatus !== 'idle'"
-                :type="compilationStatusType"
-                size="small"
-              >
-                <el-icon v-if="compilationStatus === 'compiling'"><Loading /></el-icon>
-                {{ compilationStatusText }}
-              </el-tag>
+          <!-- 查找替换面板 -->
+          <FindReplacePanel
+            :show="showFindReplace"
+            :find-query="findQuery"
+            :replace-query="replaceQuery"
+            :current-match-index="currentMatchIndex"
+            :total-matches="totalMatches"
+            :find-options="findOptions"
+            :show-replace="showReplace"
+            @close="showFindReplace = false"
+            @update:find-query="findQuery = $event"
+            @update:replace-query="replaceQuery = $event"
+            @update:find-options="findOptions = { ...findOptions, ...$event }"
+            @find-input="onFindInput"
+            @find-next="findNext"
+            @find-previous="findPrevious"
+            @replace-current="replaceCurrent"
+            @replace-all="replaceAll"
+            @toggle-show-replace="showReplace = !showReplace"
+          />
+              <div class="find-replace-row">
+                <el-input
+                  v-model="findQuery"
+                  placeholder="查找..."
+                  size="small"
+                  clearable
+                  @input="onFindInput"
+                  @keydown.enter="findNext"
+                  @keydown.shift.enter="findPrevious"
+                  ref="findInputRef"
+                >
+                  <template #prefix>
+                    <el-icon><Search /></el-icon>
+                  </template>
+                  <template #suffix>
+                    <span class="match-count" v-if="findQuery">{{ currentMatchIndex }}/{{ totalMatches }}</span>
+                  </template>
+                </el-input>
+                <el-button-group size="small">
+                  <el-button @click="findPrevious" :disabled="!findQuery || totalMatches === 0" title="上一个 (Enter)">
+                    <el-icon><ArrowUp /></el-icon>
+                  </el-button>
+                  <el-button @click="findNext" :disabled="!findQuery || totalMatches === 0" title="下一个 (Shift+Enter)">
+                    <el-icon><ArrowDown /></el-icon>
+                  </el-button>
+                </el-button-group>
+              </div>
+              <div class="find-replace-row" v-if="showReplace">
+                <el-input
+                  v-model="replaceQuery"
+                  placeholder="替换为..."
+                  size="small"
+                  clearable
+                  @keydown.enter="replaceCurrent"
+                >
+                  <template #prefix>
+                    <el-icon><RefreshRight /></el-icon>
+                  </template>
+                </el-input>
+                <el-button-group size="small">
+                  <el-button @click="replaceCurrent" :disabled="!findQuery || totalMatches === 0" title="替换当前">
+                    替换
+                  </el-button>
+                  <el-button @click="replaceAll" :disabled="!findQuery || totalMatches === 0" title="全部替换">
+                    全部替换
+                  </el-button>
+                </el-button-group>
+              </div>
+              <div class="find-replace-options">
+                <el-checkbox v-model="findOptions.caseSensitive" size="small">区分大小写</el-checkbox>
+                <el-checkbox v-model="findOptions.wholeWord" size="small">全字匹配</el-checkbox>
+                <el-checkbox v-model="findOptions.useRegex" size="small">正则表达式</el-checkbox>
+                <el-link @click="showReplace = !showReplace" type="primary" style="margin-left: auto">
+                  {{ showReplace ? '隐藏替换' : '显示替换' }}
+                </el-link>
+              </div>
             </div>
+          </transition>
+
+          <!-- 编译状态指示器 -->
+          <div class="compilation-status">
+            <el-tag
+              v-if="compilationStatus !== 'idle'"
+              :type="compilationStatusType"
+              size="small"
+            >
+              <el-icon v-if="compilationStatus === 'compiling'"><Loading /></el-icon>
+              {{ compilationStatusText }}
+            </el-tag>
           </div>
+        </div>
 
         <!-- Use the working LatexEditor component -->
         <div class="editor-wrapper" ref="editorScrollElement">
@@ -345,6 +512,7 @@
           </div>
         </div>
       </div>
+    </div>
     </section>
 
       <!-- 面板调整器 (仅在分屏模式显示) -->
@@ -387,6 +555,87 @@
         @update:active-error-tab="activeErrorTab = $event"
         @navigate-to-error="navigateToError"
       />
+          <h3>实时预览</h3>
+          <div class="preview-controls">
+            <el-button-group size="small">
+              <el-button @click="zoomOut">
+                <el-icon><ZoomOut /></el-icon>
+              </el-button>
+              <el-button @click="zoomIn">
+                <el-icon><ZoomIn /></el-icon>
+              </el-button>
+              <el-button @click="resetZoom">
+                {{ Math.round(previewScale * 100) }}%
+              </el-button>
+            </el-button-group>
+          </div>
+
+          <div class="preview-mode-toggle">
+            <el-radio-group v-model="previewMode" size="small">
+              <el-radio-button value="html">HTML预览</el-radio-button>
+              <el-radio-button value="pdf" :disabled="!pdfUrl">PDF预览</el-radio-button>
+            </el-radio-group>
+          </div>
+        </div>
+
+        <div class="preview-content" ref="previewScrollElement">
+          <LatexPreview
+            v-if="previewMode === 'html'"
+            :content="editorContent"
+            :scale="previewScale"
+            :theme="theme"
+            ref="previewRef"
+          />
+          <PdfViewer
+            v-else-if="previewMode === 'pdf' && pdfUrl"
+            :pdf-url="pdfUrl"
+            :pdf-id="currentPdfId"
+            :document-id="currentDocument?.id"
+            :project-id="currentProject?.id"
+            ref="pdfViewerRef"
+          />
+          <div v-else-if="previewMode === 'pdf' && !pdfUrl" class="pdf-placeholder">
+            <el-empty description="请先编译文档生成PDF">
+              <el-button type="primary" @click="compileDocument">立即编译</el-button>
+            </el-empty>
+          </div>
+        </div>
+
+        <!-- 错误面板 -->
+        <div class="error-panel" v-if="hasErrors || hasWarnings">
+          <div class="error-header">
+            <el-tabs v-model="activeErrorTab">
+              <el-tab-pane name="errors" v-if="hasErrors">
+                <template #label>
+                  <el-badge :value="errors.length" type="danger">
+                    <el-icon><Warning /></el-icon>
+                    错误
+                  </el-badge>
+                </template>
+              </el-tab-pane>
+              <el-tab-pane name="warnings" v-if="hasWarnings">
+                <template #label>
+                  <el-badge :value="warnings.length" type="warning">
+                    <el-icon><InfoFilled /></el-icon>
+                    警告
+                  </el-badge>
+                </template>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+
+          <div class="error-content">
+            <div
+              v-for="error in activeErrors"
+              :key="error.line"
+              class="error-item"
+              @click="navigateToError(error)"
+            >
+              <el-icon :class="error.type"><Warning /></el-icon>
+              <span class="error-line">第 {{ error.line }} 行:</span>
+              <span class="error-message">{{ error.message }}</span>
+            </div>
+          </div>
     </main>
 
     <!-- 编辑器状态栏 -->
@@ -404,44 +653,83 @@
     />
 
     <!-- 符号面板 -->
-    <SymbolPanel v-model:show="showSymbolPalette" @insert="insertSymbol" />
+    <el-drawer
+      v-model="showSymbolPalette"
+      title="LaTeX符号"
+      direction="rtl"
+      size="300px"
+    >
+      <SymbolPalette @insert="insertSymbol" />
+    </el-drawer>
 
     <!-- 表格生成器面板 -->
-    <TablePanel v-model:show="showTableGenerator" @insert="insertTableCode" />
+    <el-drawer
+      v-model="showTableGenerator"
+      title="表格生成器"
+      direction="rtl"
+      size="600px"
+    >
+      <TableGenerator @insert="insertTableCode" />
+    </el-drawer>
 
     <!-- 拼写检查面板 -->
-    <SpellCheckPanel v-model:show="showSpellChecker" :content="editorContent" @replace="handleSpellReplace" @goto="handleSpellGoto" />
+    <el-drawer
+      v-model="showSpellChecker"
+      title="拼写检查"
+      direction="rtl"
+      size="400px"
+    >
+      <SpellChecker
+        :content="editorContent"
+        @replace="handleSpellReplace"
+        @goto="handleSpellGoto"
+      />
+    </el-drawer>
 
     <!-- 模板管理面板 -->
-    <TemplatesPanel v-model:show="showTemplates" @insert="insertTemplateContent" />
+    <el-drawer
+      v-model="showTemplates"
+      title="文档模板"
+      direction="rtl"
+      size="500px"
+    >
+      <TemplateManager @insert="insertTemplateContent" />
+    </el-drawer>
 
     <!-- 字体选择面板 -->
-    <FontPanel v-model:show="showFontSelector" @select="handleFontChange" />
+    <el-drawer
+      v-model="showFontSelector"
+      title="编辑器字体设置"
+      direction="rtl"
+      size="400px"
+    >
+      <FontSelector @font-change="handleFontChange" />
+    </el-drawer>
 
     <!-- 快捷键帮助 -->
-    <ShortcutHelpDialog ref="shortcutHelpRef" />
+    <ShortcutHelp ref="shortcutHelpRef" />
 
     <!-- 快速插入面板 -->
-    <QuickInsertDialog
+    <QuickInsert
       ref="quickInsertRef"
       @insert="handleQuickInsert"
     />
 
     <!-- AI 公式识别 -->
-    <AiRecognizerDialog
+    <AiFormulaRecognizer
       ref="aiRecognizerRef"
       @insert="insertFormula"
     />
 
     <!-- 审阅模式 -->
-    <ReviewModeDialog
+    <ReviewMode
       ref="reviewModeRef"
       @toggle="handleReviewModeToggle"
       @insert="handleReviewInsert"
     />
 
     <!-- 导出对话框 -->
-    <ExportDialogWrapper
+    <ExportDialog
       ref="exportDialogRef"
       @export="handleExport"
     />
@@ -546,8 +834,14 @@
     </el-dialog>
 
     <!-- 代码片段面板 -->
-    <SnippetsPanel v-model:show="showSnippets" @insert="handleSnippetInsert" />
-
+    <el-dialog
+      v-model="showSnippets"
+      title="LaTeX代码片段"
+      width="800px"
+      :close-on-click-modal="true"
+    >
+      <LatexSnippets @insert="handleSnippetInsert" />
+    </el-dialog>
 
     <!-- LaTeX自动补全 -->
     <LatexAutocomplete
@@ -561,7 +855,7 @@
     />
 
     <!-- 欢迎引导 -->
-    <WelcomeGuideDialog ref="welcomeGuideRef" @close="handleWelcomeGuideClose" />
+    <WelcomeGuide ref="welcomeGuideRef" @close="handleWelcomeGuideClose" />
 
     <!-- 最近文档 -->
     <el-drawer
@@ -637,24 +931,24 @@ import SpellChecker from '@/components/latex/SpellChecker.vue'
 import TemplateManager from '@/components/latex/TemplateManager.vue'
 import LatexSnippets from '@/components/latex/LatexSnippets.vue'
 import FontSelector from '@/components/latex/FontSelector.vue'
-import ShortcutHelpDialog from './latex/components/dialogs/ShortcutHelpDialog.vue'
-import QuickInsertDialog from './latex/components/dialogs/QuickInsertDialog.vue'
+import ShortcutHelp from '@/components/latex/ShortcutHelp.vue'
+import QuickInsert from '@/components/latex/QuickInsert.vue'
 import EditorStats from '@/components/latex/EditorStats.vue'
-import AiRecognizerDialog from './latex/components/dialogs/AiRecognizerDialog.vue'
-import ReviewModeDialog from './latex/components/dialogs/ReviewModeDialog.vue'
-import ExportDialogWrapper from './latex/components/dialogs/ExportDialogWrapper.vue'
+import AiFormulaRecognizer from '@/components/latex/AiFormulaRecognizer.vue'
+import ReviewMode from '@/components/latex/ReviewMode.vue'
+import ExportDialog from '@/components/latex/ExportDialog.vue'
 import EditorStatusBar from '@/components/latex/EditorStatusBar.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
 import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
 import ProjectSelector from '@/components/latex/ProjectSelector.vue'
 import VersionHistory from '@/components/latex/VersionHistory.vue'
 import VersionControl from '@/components/latex/VersionControl.vue'
-import WelcomeGuideDialog from './latex/components/dialogs/WelcomeGuideDialog.vue'
+import WelcomeGuide from '@/components/latex/WelcomeGuide.vue'
 import RecentDocuments from '@/components/latex/RecentDocuments.vue'
 import EditorSettings from '@/components/latex/EditorSettings.vue'
 import StatsDashboard from '@/components/latex/StatsDashboard.vue'
 // New extracted components
-import { EditorToolbar } from './latex/components'
+import EditorToolbarComponent from './latex/components/editor/EditorToolbar.vue'
 import FindReplacePanel from './latex/components/editor/FindReplacePanel.vue'
 import PreviewPanel from './latex/components/preview/PreviewPanel.vue'
 import LeftPanel from './latex/components/panels/LeftPanel.vue'
@@ -683,15 +977,15 @@ const authStore = useAuthStore()
 const previewRef = ref<InstanceType<typeof LatexPreview> | null>(null)
 const pdfViewerRef = ref<InstanceType<typeof PdfViewer> | null>(null)
 const editorRef = ref<any>(null)
-const shortcutHelpRef = ref<InstanceType<typeof ShortcutHelpDialog> | null>(null)
-const quickInsertRef = ref<InstanceType<typeof QuickInsertDialog> | null>(null)
-const aiRecognizerRef = ref<InstanceType<typeof AiRecognizerDialog> | null>(null)
-const reviewModeRef = ref<InstanceType<typeof ReviewModeDialog> | null>(null)
-const exportDialogRef = ref<InstanceType<typeof ExportDialogWrapper> | null>(null)
+const shortcutHelpRef = ref<InstanceType<typeof ShortcutHelp> | null>(null)
+const quickInsertRef = ref<InstanceType<typeof QuickInsert> | null>(null)
+const aiRecognizerRef = ref<InstanceType<typeof AiFormulaRecognizer> | null>(null)
+const reviewModeRef = ref<InstanceType<typeof ReviewMode> | null>(null)
+const exportDialogRef = ref<InstanceType<typeof ExportDialog> | null>(null)
 const statusBarRef = ref<InstanceType<typeof EditorStatusBar> | null>(null)
-const welcomeGuideRef = ref<InstanceType<typeof WelcomeGuideDialog> | null>(null)
+const welcomeGuideRef = ref<InstanceType<typeof WelcomeGuide> | null>(null)
 const recentDocumentsRef = ref<InstanceType<typeof RecentDocuments> | null>(null)
-const editorToolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
+const editorToolbarRef = ref<InstanceType<typeof EditorToolbarComponent> | null>(null)
 const editorSettingsRef = ref<InstanceType<typeof EditorSettings> | null>(null)
 const statsDashboardRef = ref<InstanceType<typeof StatsDashboard> | null>(null)
 
