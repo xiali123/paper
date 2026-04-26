@@ -294,7 +294,7 @@
                   查看完整文档
                 </el-button>
                 <el-button text @click="openShortcuts">
-                  <el-icon><Keyboard /></el-icon>
+                  <el-icon><Key /></el-icon>
                   快捷键列表
                 </el-button>
               </div>
@@ -325,7 +325,7 @@ import { ref, watch } from 'vue'
 import {
   CircleCheck, EditPen, View, Collection, Grid, MagicStick, QuestionFilled,
   Document, Reading, Notebook, InfoFilled, Operation, Picture, Files,
-  Edit, ChatDotSquare, Message, UserFilled, DocumentCopy, Keyboard, Translation
+  Edit, ChatDotSquare, Message, UserFilled, DocumentCopy, Key, Translation
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
