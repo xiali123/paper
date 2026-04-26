@@ -167,6 +167,73 @@ export interface BackendAuditLog {
   created_at: string
 }
 
+// Dashboard data
+export interface FrontendDashboardData {
+  stats: FrontendAdminStats
+  userTrend: Array<{ date: string; count: number }>
+  activeTrend: Array<{ date: string; count: number }>
+  systemHealth: {
+    dbConnected: boolean
+    modulesHealthy: number
+    modulesTotal: number
+  }
+}
+
+export interface BackendDashboardData {
+  stats: BackendAdminStats
+  user_trend: Array<{ date: string; count: number }>
+  active_trend: Array<{ date: string; count: number }>
+  system_health: {
+    db_connected: boolean
+    modules_healthy: number
+    modules_total: number
+  }
+}
+
+// Login history
+export interface FrontendLoginHistory {
+  id: number
+  userId: number
+  loginTime: string
+  ipAddress: string
+  userAgent: string
+  success: boolean
+}
+
+export interface BackendLoginHistory {
+  id: number
+  user_id: number
+  login_time: string
+  ip_address: string
+  user_agent: string
+  success: boolean
+}
+
+// Announcement
+export interface FrontendAnnouncement {
+  id: number
+  title: string
+  content: string
+  type: 'info' | 'warning' | 'maintenance'
+  targetRole: string
+  createdBy: number
+  isActive: boolean
+  createdAt: string
+  expiresAt: string
+}
+
+export interface BackendAnnouncement {
+  id: number
+  title: string
+  content: string
+  type: string
+  target_role: string
+  created_by: number
+  is_active: boolean
+  created_at: string
+  expires_at: string
+}
+
 // ============================================================================
 // Transformation Functions
 // ============================================================================
@@ -387,4 +454,281 @@ export function transformAdminQueryParams(
   }
 
   return backendParams
+}
+
+export function transformDashboardData(backend: BackendDashboardData): FrontendDashboardData {
+  return {
+    stats: transformAdminStats(backend.stats),
+    userTrend: backend.user_trend || [],
+    activeTrend: backend.active_trend || [],
+    systemHealth: {
+      dbConnected: backend.system_health?.db_connected ?? false,
+      modulesHealthy: backend.system_health?.modules_healthy ?? 0,
+      modulesTotal: backend.system_health?.modules_total ?? 0
+    }
+  }
+}
+
+export function transformLoginHistory(backend: BackendLoginHistory): FrontendLoginHistory {
+  return {
+    id: backend.id,
+    userId: backend.user_id,
+    loginTime: backend.login_time,
+    ipAddress: backend.ip_address,
+    userAgent: backend.user_agent,
+    success: backend.success
+  }
+}
+
+export function transformAnnouncement(backend: BackendAnnouncement): FrontendAnnouncement {
+  return {
+    id: backend.id,
+    title: backend.title,
+    content: backend.content,
+    type: (backend.type || 'info') as 'info' | 'warning' | 'maintenance',
+    targetRole: backend.target_role || 'all',
+    createdBy: backend.created_by,
+    isActive: backend.is_active,
+    createdAt: backend.created_at,
+    expiresAt: backend.expires_at
+  }
+}
+
+// ============================================================================
+// RBAC Permission Types
+// ============================================================================
+
+export interface FrontendRole {
+  id: number
+  name: string
+  displayName: string
+  description: string
+  level: number
+  isSystem: boolean
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FrontendPermission {
+  id: number
+  resource: string
+  action: string
+  description: string
+}
+
+export interface FrontendPermissionMatrix {
+  roleName: string
+  totalPermissions: number
+  permissionsByResource: Record<string, number>
+}
+
+export interface FrontendRolePermission {
+  roleId: number
+  roleName: string
+  permissionId: number
+  resource: string
+  action: string
+  grantedAt: string
+  grantedByUsername: string
+}
+
+export interface FrontendUserRoleAssignment {
+  id: number
+  userId: number
+  username: string
+  roleId: number
+  roleName: string
+  roleLevel: number
+  assignedAt: string
+  expiresAt: string
+  reason: string
+}
+
+// ============================================================================
+// Notification Types
+// ============================================================================
+
+export interface FrontendNotificationTemplate {
+  id: number
+  name: string
+  titleTemplate: string
+  contentTemplate: string
+  channel: 'email' | 'inapp' | 'sms' | 'push'
+  description: string
+  language: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface FrontendSystemNotification {
+  id: number
+  templateId?: number
+  title: string
+  content: string
+  channel: string
+  targetRole: string
+  totalRecipients: number
+  sentCount: number
+  failedCount: number
+  status: string
+  scheduledAt?: string
+  sentAt?: string
+  createdBy: number
+  createdAt: string
+}
+
+export interface FrontendNotificationDelivery {
+  id: number
+  notificationId: number
+  userId: number
+  username: string
+  status: string
+  sentAt?: string
+  readAt?: string
+  errorMessage?: string
+  createdAt: string
+}
+
+// ============================================================================
+// Data Cleanup Types
+// ============================================================================
+
+export interface FrontendCleanupTask {
+  id: number
+  name: string
+  displayName: string
+  taskType: 'logs' | 'sessions' | 'temp_files' | 'cache' | 'expired_data' | 'custom_sql'
+  description: string
+  cleanupConfig: string
+  scheduleCron: string
+  isEnabled: boolean
+  isSystem: boolean
+  lastRunAt?: string
+  lastRunStatus?: string
+  lastRunMessage?: string
+  createdBy: number
+  createdAt: string
+}
+
+export interface FrontendCleanupExecution {
+  id: number
+  taskId: number
+  taskName: string
+  status: 'running' | 'success' | 'failed' | 'cancelled'
+  startedAt: string
+  completedAt?: string
+  durationSeconds: number
+  itemsProcessed: number
+  spaceFreedMb: number
+  outputMessage?: string
+  errorMessage?: string
+  triggeredBy: number
+  createdAt: string
+}
+
+export interface FrontendStorageStat {
+  id: number
+  tableName: string
+  rowCount: number
+  dataLengthMb: number
+  indexLengthMb: number
+  totalLengthMb: number
+  fragmentRatio: number
+  recordedAt: string
+}
+
+// ============================================================================
+// Content Moderation Types
+// ============================================================================
+
+export interface FrontendPaperModeration {
+  id: number
+  paperId: number
+  status: 'pending' | 'approved' | 'rejected' | 'flagged'
+  moderatorId?: number
+  moderatorUsername?: string
+  reason?: string
+  reviewedAt?: string
+  flags?: string
+  createdAt: string
+}
+
+export interface FrontendUserReport {
+  id: number
+  reporterId: number
+  reporterUsername: string
+  targetType: 'paper' | 'user' | 'comment'
+  targetId: number
+  reason: 'spam' | 'inappropriate' | 'abuse' | 'copyright' | 'other'
+  description: string
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  reviewerId?: number
+  reviewerUsername?: string
+  resolution?: string
+  createdAt: string
+}
+
+export interface FrontendSensitiveWord {
+  id: number
+  word: string
+  category: 'politics' | 'violence' | 'adult' | 'spam' | 'other'
+  severity: 'low' | 'medium' | 'high'
+  isRegex: boolean
+  replacement?: string
+  isActive: boolean
+  matchCount: number
+  createdBy: number
+  createdAt: string
+}
+
+export interface FrontendSensitiveWordMatch {
+  word: string
+  category: string
+  startPosition: number
+  endPosition: number
+  matchedText: string
+}
+
+// ============================================================================
+// API Key Types
+// ============================================================================
+
+export interface FrontendApiKey {
+  id: number
+  userId: number
+  username: string
+  name: string
+  keyPrefix: string
+  scopes: string
+  rateLimitPerHour: number
+  expiresAt?: string
+  lastUsedAt?: string
+  requestCount: number
+  isActive: boolean
+  createdBy: number
+  createdAt: string
+}
+
+export interface FrontendApiUsage {
+  id: number
+  keyId: number
+  keyName: string
+  endpoint: string
+  method: string
+  statusCode?: number
+  responseTimeMs?: number
+  ipAddress?: string
+  userAgent?: string
+  createdAt: string
+}
+
+export interface FrontendApiUsageStats {
+  totalRequests: number
+  successfulRequests: number
+  failedRequests: number
+  avgResponseTime: number
+  requestsByEndpoint: Record<string, number>
+  requestsByDay: Record<string, number>
 }

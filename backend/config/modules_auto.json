@@ -284,6 +284,55 @@
         "GET /api/latex/collaboration/sessions"
       ],
       "dependencies": []
+    },
+    {
+      "name": "AdminApi",
+      "version": "1.0.0",
+      "description": "Admin and superadmin operations for user and module management",
+      "type": "BUSINESS",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/admin",
+      "libraryPath": "./modules/dynamic/Release/libAdminApiModule.so",
+      "loadPriority": 95,
+      "endpoints": [
+        "GET /api/admin/stats",
+        "GET /api/admin/dashboard",
+        "GET /api/admin/users",
+        "GET /api/admin/users/:id",
+        "PUT /api/admin/users/:id",
+        "DELETE /api/admin/users/:id",
+        "POST /api/admin/users/:id/activate",
+        "POST /api/admin/users/:id/deactivate",
+        "POST /api/admin/users/:id/change-password",
+        "POST /api/admin/users/:id/reset-password",
+        "GET /api/admin/users/:id/history",
+        "GET /api/admin/users/:id/sessions",
+        "DELETE /api/admin/users/:id/sessions/:sid",
+        "GET /api/admin/modules",
+        "POST /api/admin/modules/:name/enable",
+        "POST /api/admin/modules/:name/disable",
+        "POST /api/admin/modules/upload",
+        "POST /api/admin/modules/install",
+        "DELETE /api/admin/modules/:name/uninstall",
+        "POST /api/admin/modules/:name/reload",
+        "GET /api/admin/modules/scan",
+        "GET /api/admin/audit-logs",
+        "GET /api/admin/announcements",
+        "POST /api/admin/announcements",
+        "PUT /api/admin/announcements/:id",
+        "DELETE /api/admin/announcements/:id",
+        "POST /api/admin/announcements/:id/toggle",
+        "POST /api/admin/export/users"
+      ],
+      "dependencies": [
+        {
+          "module": "AuthApi",
+          "minVersion": "1.0.0",
+          "optional": false
+        }
+      ],
+      "config": {}
     }
   ]
 }

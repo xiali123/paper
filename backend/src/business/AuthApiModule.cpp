@@ -1008,6 +1008,14 @@ void AuthApiModule::registerRoutes() {
                 spdlog::error("[Auth] Failed to update last_login_at for user {}", user.id);
             } else {
                 spdlog::info("[Auth] Updated last_login_at for user {} (id={})", user.username, user.id);
+                // Record login history
+                std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
+                    + std::to_string(user.id) + ", '" + clientIp + "', 1)";
+                if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+                    impl_->mysqlDatabase_->execute(histSql);
+                } else if (impl_->database_) {
+                    impl_->database_->execute(histSql);
+                }
             }
 
             impl_->stats_.successfulLogins++;
@@ -1354,6 +1362,16 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
         spdlog::error("[Auth] handleLogin: Failed to update last_login_at for user {}", user.id);
     } else {
         spdlog::info("[Auth] handleLogin: Updated last_login_at for user {} (id={})", user.username, user.id);
+        // Record login history
+        std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
+            + std::to_string(user.id) + ", '" + clientIp + "', 1)";
+        if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+            impl_->mysqlDatabase_->execute(histSql);
+        } else if (impl_->database_) {
+            impl_->database_->execute(histSql);
+        } else if (database_) {
+            database_->execute(histSql);
+        }
     }
 
     impl_->stats_.successfulLogins++;
