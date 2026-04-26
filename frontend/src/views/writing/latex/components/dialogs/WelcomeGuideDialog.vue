@@ -1,11 +1,11 @@
 <template>
   <el-dialog
-    v-model="show"
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
     title="欢迎使用 LaTeX 编辑器"
     width="700px"
     :close-on-click-modal="false"
     :show-close="currentStep > 0"
-    @update:show="handleClose"
   >
     <div class="welcome-guide">
       <!-- 进度指示 -->

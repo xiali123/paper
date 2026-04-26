@@ -1,6 +1,7 @@
 <template>
   <el-drawer
-    v-model="show"
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
     title="可视化表格编辑器"
     direction="btt"
     size="80%"

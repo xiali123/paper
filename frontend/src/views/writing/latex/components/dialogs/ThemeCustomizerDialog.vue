@@ -1,6 +1,7 @@
 <template>
   <el-drawer
-    v-model="show"
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
     title="主题定制"
     direction="rtl"
     size="450px"

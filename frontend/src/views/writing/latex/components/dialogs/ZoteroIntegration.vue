@@ -1,6 +1,7 @@
 <template>
   <el-drawer
-    v-model="show"
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
     title="Zotero 引用集成"
     direction="rtl"
     size="500px"

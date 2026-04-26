@@ -1,6 +1,7 @@
 <template>
   <el-drawer
-    v-model="show"
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
     title="Overleaf 项目同步"
     direction="rtl"
     size="500px"
