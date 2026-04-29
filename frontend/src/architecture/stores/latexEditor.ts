@@ -306,24 +306,21 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
     editorContent.value = content;
     markModified();
 
-    if (currentDocument.value) {
-      currentDocument.value.content = content;
-      currentDocument.value.lastModified = Date.now();
-      currentDocument.value.size = new Blob([content]).size;
-    }
+    // 不要直接修改 currentDocument 的属性，避免只读响应式对象问题
+    // 属性会在保存时更新
   }
 
   async function saveDocument() {
     if (!currentDocument.value) return;
 
     try {
-      currentDocument.value.lastModified = Date.now();
-      currentDocument.value.content = editorContent.value;
+      // 不要直接修改 currentDocument，使用 editorContent
+      const content = editorContent.value;
 
       const response = await latexApi.saveDocument({
         id: currentDocument.value.id,
         name: currentDocument.value.name,
-        content: currentDocument.value.content,
+        content: content,
         path: currentDocument.value.path,
         metadata: currentDocument.value.metadata
       });
@@ -331,6 +328,12 @@ export const useLatexEditorStore = defineStore('latexEditor', () => {
       if (response.success) {
         if (import.meta.env.DEV) {
           console.log('Document saved successfully:', currentDocument.value.name);
+        }
+        // 保存成功后，更新 documents Map 中的文档
+        const doc = documents.value.get(currentDocument.value.id);
+        if (doc) {
+          const updatedDoc = { ...doc, content, lastModified: Date.now() };
+          documents.value.set(currentDocument.value.id, updatedDoc);
         }
       } else {
         console.error('Document save failed:', response.error);

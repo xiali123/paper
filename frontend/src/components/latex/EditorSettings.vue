@@ -311,7 +311,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import {
   Edit,
   View,
@@ -376,9 +376,17 @@ const DEFAULT_SETTINGS: Settings = {
 const emit = defineEmits<{
   'update-settings': [settings: Settings]
   'clear-cache': []
+  'update:visible': [value: boolean]
 }>()
 
-const visible = ref(false)
+const props = defineProps<{
+  visible?: boolean
+}>()
+
+const visible = computed({
+  get: () => props.visible ?? false,
+  set: (value: boolean) => emit('update:visible', value)
+})
 const shortcutHelpRef = ref<InstanceType<typeof ShortcutHelp> | null>(null)
 
 const settings = reactive<Settings>({ ...DEFAULT_SETTINGS })

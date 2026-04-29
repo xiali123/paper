@@ -28,12 +28,12 @@
         @file-select="$emit('file-select', $event)"
         @file-create="$emit('file-create', $event)"
         @file-delete="handleFileDelete"
-        @file-rename="$emit('file-rename', $event)"
+        @file-rename="handleFileRename"
         @file-duplicate="handleFileDuplicate"
-        @file-move="$emit('file-move', $event)"
+        @file-move="handleFileMove"
         @folder-create="$emit('folder-create', $event)"
         @folder-delete="$emit('folder-delete', $event)"
-        @folder-rename="$emit('folder-rename', $event)"
+        @folder-rename="handleFolderRename"
         @main-file-change="$emit('main-file-change', $event)"
         @refresh="handleRefresh"
       />
@@ -70,24 +70,36 @@ const emit = defineEmits<{
   'navigate': [position: { line: number; column?: number }]
   'file-select': [file: any]
   'file-create': [data: any]
-  'file-delete': [fileId: string]
-  'file-rename': [data: any]
-  'file-duplicate': [fileId: string]
-  'file-move': [data: any]
+  'file-delete': [fileId: string | number]
+  'file-rename': [fileId: string | number, newName: string]
+  'file-duplicate': [fileId: string | number]
+  'file-move': [fileId: string | number, targetPath: string]
   'folder-create': [data: any]
   'folder-delete': [folderId: string]
-  'folder-rename': [data: any]
+  'folder-rename': [oldPath: string, newName: string]
   'main-file-change': [filePath: string]
   'refresh': []
 }>()
 
 // Type-safe event handlers for template usage
-function handleFileDelete(event: any) {
-  emit('file-delete', event)
+function handleFileDelete(fileId: string | number) {
+  emit('file-delete', fileId)
 }
 
-function handleFileDuplicate(event: any) {
-  emit('file-duplicate', event)
+function handleFileDuplicate(fileId: string | number) {
+  emit('file-duplicate', fileId)
+}
+
+function handleFileRename(fileId: string | number, newName: string) {
+  emit('file-rename', fileId, newName)
+}
+
+function handleFileMove(fileId: string | number, targetPath: string) {
+  emit('file-move', fileId, targetPath)
+}
+
+function handleFolderRename(oldPath: string, newName: string) {
+  emit('folder-rename', oldPath, newName)
 }
 
 function handleRefresh() {
@@ -104,9 +116,11 @@ void emit
   flex-direction: column;
   width: 280px;
   min-width: 280px;
+  height: 100%;
   background: var(--el-bg-color);
   border-right: 1px solid var(--el-border-color);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .panel-header {

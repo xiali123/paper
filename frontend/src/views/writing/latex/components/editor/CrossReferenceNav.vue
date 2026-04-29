@@ -461,7 +461,7 @@ function exportReport() {
 }
 
 // 暴露方法供父组件调用
-function showPanel() {
+function openPanel() {
   showPanel.value = true
 }
 
@@ -473,7 +473,7 @@ function highlightReference(label: string, line: number, column: number) {
 }
 
 defineExpose({
-  showPanel,
+  openPanel,
   highlightReference
 })
 </script>

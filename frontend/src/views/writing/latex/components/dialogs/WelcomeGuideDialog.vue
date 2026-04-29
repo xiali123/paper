@@ -201,7 +201,7 @@
                 </div>
                 <div class="ai-feature-card">
                   <div class="ai-icon" style="background: #f56c6c">
-                    <el-icon><Translation /></el-icon>
+                    <el-icon><ChatDotSquare /></el-icon>
                   </div>
                   <h4>翻译助手</h4>
                   <p>中英互译</p>
@@ -325,7 +325,7 @@ import { ref, watch } from 'vue'
 import {
   CircleCheck, EditPen, View, Collection, Grid, MagicStick, QuestionFilled,
   Document, Reading, Notebook, InfoFilled, Operation, Picture, Files,
-  Edit, ChatDotSquare, Message, UserFilled, DocumentCopy, Key, Language
+  Edit, ChatDotSquare, Message, UserFilled, DocumentCopy, Key
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 

@@ -39,12 +39,12 @@
       <div class="toolbar-group">
         <el-tooltip content="撤销 (Ctrl+Z)">
           <el-button text @click="$emit('undo')" :disabled="!canUndo">
-            <el-icon><BackLeft /></el-icon>
+            <el-icon><RefreshLeft /></el-icon>
           </el-button>
         </el-tooltip>
         <el-tooltip content="重做 (Ctrl+Y)">
           <el-button text @click="$emit('redo')" :disabled="!canRedo">
-            <el-icon><BackRight /></el-icon>
+            <el-icon><RefreshRight /></el-icon>
           </el-button>
         </el-tooltip>
         <el-tooltip content="查找替换 (Ctrl+F)">
@@ -218,8 +218,8 @@ import {
   DocumentAdd,
   DocumentChecked,
   VideoPlay,
-  BackLeft,
-  BackRight,
+  RefreshLeft,
+  RefreshRight,
   Search,
   Plus,
   ArrowDown,
@@ -307,15 +307,15 @@ function toggleFloatingMode() {
 <style scoped lang="scss">
 .editor-toolbar {
   position: relative;
-  height: 100%;
+  height: auto;
 }
 
 .toolbar-main {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
-  height: 100%;
+  padding: 8px 12px;
+  min-height: 44px;
   transition: all 0.3s;
 
   &.is-float {

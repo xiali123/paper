@@ -57,7 +57,7 @@
             <div class="image-preview">
               <img :src="image.url" :alt="image.name" @error="handleImageError" />
               <div class="image-overlay">
-                <el-button size="small" @click.stop="previewImage(image)">
+                <el-button size="small" @click.stop="openPreview(image)">
                   <el-icon><ZoomIn /></el-icon>
                 </el-button>
                 <el-button size="small" @click.stop="insertImage(image)">
@@ -101,7 +101,7 @@
           <el-table-column prop="createdAt" label="上传时间" :formatter="(row) => formatDate(row.createdAt)" />
           <el-table-column label="操作" width="180">
             <template #default="{ row }">
-              <el-button size="small" @click.stop="previewImage(row)">预览</el-button>
+              <el-button size="small" @click.stop="openPreview(row)">预览</el-button>
               <el-button size="small" type="primary" @click.stop="insertImage(row)">插入</el-button>
               <el-button size="small" type="danger" @click.stop="deleteImage(row)">删除</el-button>
             </template>
@@ -163,7 +163,7 @@
 import { ref, computed } from 'vue'
 import { Upload, Search, ZoomIn, Plus, Delete, Picture } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import BaseDialog from './dialogs/BaseDialog.vue'
+import BaseDialog from './BaseDialog.vue'
 
 interface ProjectImage {
   id: number | string
@@ -249,7 +249,7 @@ function selectImage(image: ProjectImage) {
   selectedImageId.value = image.id
 }
 
-function previewImage(image: ProjectImage) {
+function openPreview(image: ProjectImage) {
   previewImage.value = image
   showPreview.value = true
 }

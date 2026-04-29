@@ -1,159 +1,86 @@
 <template>
   <div class="latex-editor-view" role="application" aria-label="LaTeX 编辑器">
-    <!-- 顶部工具栏 -->
-    <header class="editor-header" role="banner">
-      <nav class="document-info" aria-label="文档导航">
-        <el-breadcrumb separator="/" aria-label="面包屑导航">
-          <el-breadcrumb-item :to="{ path: '/writing' }">协作写作</el-breadcrumb-item>
-          <el-breadcrumb-item>LaTeX编辑器</el-breadcrumb-item>
-          <el-breadcrumb-item v-if="currentDocument">{{ currentDocument.name }}</el-breadcrumb-item>
-          <el-breadcrumb-item v-else-if="currentProject">{{ currentProject.name }}</el-breadcrumb-item>
-        </el-breadcrumb>
+    <!-- 顶部导航栏 -->
+    <header class="editor-header">
+      <!-- 左侧：路径 -->
+      <div class="header-left">
+        <div class="doc-path">
+          <span class="path-item">协作写作</span>
+          <el-icon class="separator"><ArrowRight /></el-icon>
+          <span class="path-item">LaTeX编辑器</span>
+          <template v-if="currentDocument || currentProject">
+            <el-icon class="separator"><ArrowRight /></el-icon>
+            <span class="path-item current">{{ (currentDocument || currentProject)?.name }}</span>
+          </template>
+        </div>
+      </div>
 
-        <div class="document-actions" role="toolbar" aria-label="文档操作" v-if="currentDocument || isProjectMode">
-          <el-button-group>
-            <el-button
-              size="small"
-              :type="isModified ? 'primary' : 'default'"
-              @click="saveDocument"
-              :loading="saving"
-              aria-label="保存文档 (Ctrl+S)"
-              :aria-busy="saving"
-            >
-              <el-icon><DocumentChecked /></el-icon>
-              保存
-            </el-button>
-            <el-button
-              size="small"
-              @click="compileDocument"
-              :loading="compiling"
-              aria-label="编译文档 (Ctrl+Enter)"
-              :aria-busy="compiling"
-            >
-              <el-icon><VideoPlay /></el-icon>
-              编译
-            </el-button>
-            <el-button
-              size="small"
-              @click="showPreview = !showPreview"
-              :aria-label="showPreview ? '隐藏预览面板' : '显示预览面板'"
-              :aria-pressed="showPreview"
-            >
-              <el-icon><View /></el-icon>
-              {{ showPreview ? '隐藏预览' : '显示预览' }}
-            </el-button>
-            <el-button
-              size="small"
-              @click="showVersionHistory = true"
-              aria-label="版本历史"
-            >
-              <el-icon><Clock /></el-icon>
-              版本历史
-            </el-button>
-          </el-button-group>
-
-          <!-- 文件操作按钮 -->
-          <el-button-group style="margin-left: 8px;">
-            <el-dropdown size="small" @command="handleFileCommand" trigger="click" aria-label="文件操作">
-              <el-button size="small" aria-label="新建或导入文档">
-                <el-icon><Document /></el-icon>
-                文件
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu aria-label="文件操作选项">
-                  <el-dropdown-item command="new">
-                    <span style="display: flex; align-items: center; gap: 8px;">
-                      <el-icon><DocumentAdd /></el-icon>
-                      <span>从模板新建...</span>
-                    </span>
-                  </el-dropdown-item>
-                  <el-dropdown-item command="blank" divided>
-                    <span style="display: flex; align-items: center; gap: 8px;">
-                      <el-icon><Plus /></el-icon>
-                      <span>空白文档</span>
-                    </span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </el-button-group>
-
-          <!-- 布局预设按钮 -->
-          <el-dropdown size="small" @command="setLayoutMode" trigger="click" aria-label="布局模式">
-            <el-button size="small" aria-label="切换布局模式">
-              <el-icon><Operation /></el-icon>
-              布局
+      <!-- 右侧：操作 -->
+      <div class="header-right">
+        <div class="header-actions">
+          <el-dropdown @command="handleNewCommand" trigger="click">
+            <el-button size="small">
+              <el-icon><DocumentAdd /></el-icon>
+              新建
+              <el-icon><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
-              <el-dropdown-menu aria-label="布局选项">
-                <el-dropdown-item command="side-by-side" :class="{ 'is-active': layoutMode === 'side-by-side' }">
-                  <span class="layout-option">
-                    <span class="layout-icon">⬌</span>
-                    <span>左右分屏</span>
-                  </span>
+              <el-dropdown-menu>
+                <el-dropdown-item command="document">
+                  <el-icon><Document /></el-icon>
+                  新建文档
                 </el-dropdown-item>
-                <el-dropdown-item
-                  command="vertical-split"
-                  :class="{ 'is-active': layoutMode === 'vertical-split' }"
-                  :aria-selected="layoutMode === 'vertical-split'"
-                  role="menuitemradio"
-                >
-                  <span class="layout-option">
-                    <span class="layout-icon" aria-hidden="true">⬍</span>
-                    <span>上下分屏</span>
-                  </span>
-                </el-dropdown-item>
-                <el-dropdown-item
-                  command="editor-only"
-                  :class="{ 'is-active': layoutMode === 'editor-only' }"
-                  :aria-selected="layoutMode === 'editor-only'"
-                  role="menuitemradio"
-                >
-                  <span class="layout-option">
-                    <span class="layout-icon" aria-hidden="true">📝</span>
-                    <span>仅编辑器</span>
-                  </span>
-                </el-dropdown-item>
-                <el-dropdown-item
-                  command="preview-only"
-                  :class="{ 'is-active': layoutMode === 'preview-only' }"
-                  :aria-selected="layoutMode === 'preview-only'"
-                  role="menuitemradio"
-                >
-                  <span class="layout-option">
-                    <span class="layout-icon" aria-hidden="true">👁</span>
-                    <span>仅预览</span>
-                  </span>
+                <el-dropdown-item command="project">
+                  <el-icon><Collection /></el-icon>
+                  新建项目
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
 
-          <!-- 项目选择器 -->
-          <ProjectSelector @toggle-tree="showProjectTree = $event" />
+          <el-button v-if="!autoSave.isSaving.value" size="small" @click="saveDocument" class="save-btn">
+            <el-icon><DocumentChecked /></el-icon>
+            保存
+          </el-button>
+          <el-button v-else size="small" class="save-btn" disabled>
+            <el-icon class="is-loading"><Loading /></el-icon>
+            保存中
+          </el-button>
 
-          <!-- 编辑器统计 -->
-          <EditorStats :content="editorContent" />
+          <el-button size="small" @click="compileDocument" :loading="compiling">
+            <el-icon><VideoPlay /></el-icon>
+            编译
+          </el-button>
+
+          <el-button size="small" @click="showPreview = !showPreview">
+            <el-icon v-if="!showPreview"><View /></el-icon>
+            <el-icon v-else><Close /></el-icon>
+            {{ showPreview ? '隐藏预览' : '预览' }}
+          </el-button>
+
+          <el-dropdown @command="handleHeaderCommand" trigger="click">
+            <el-button size="small" link>
+              更多
+              <el-icon><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="version">
+                  <el-icon><Clock /></el-icon>
+                  版本历史
+                </el-dropdown-item>
+                <el-dropdown-item command="layout">
+                  <el-icon><Operation /></el-icon>
+                  切换布局
+                </el-dropdown-item>
+                <el-dropdown-item command="settings">
+                  <el-icon><Setting /></el-icon>
+                  设置
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
-      </nav>
-
-      <!-- 协作用户列表 -->
-      <div class="collaboration-users" role="region" aria-label="协作用户" v-if="isCollaborating">
-        <el-avatar-group :max="5" aria-label="在线协作者">
-          <el-avatar
-            v-for="user in activeCollaborationUsers"
-            :key="user.id"
-            :size="32"
-            :style="{ backgroundColor: user.color }"
-            :aria-label="`协作者: ${user.name}`"
-          >
-            {{ user.name.charAt(0).toUpperCase() }}
-          </el-avatar>
-        </el-avatar-group>
-        <span class="collaboration-status" role="status" :aria-label="`${activeCollaborationUsers.length}人正在协作`">
-          <el-icon><UserFilled /></el-icon>
-          {{ activeCollaborationUsers.length }} 人在线
-        </span>
       </div>
     </header>
 
@@ -203,8 +130,138 @@
         </div>
       </div>
 
-      <!-- 左侧：编辑器面板 -->
-      <section
+      <!-- 编辑器工具栏 -->
+      <div class="editor-toolbar">
+        <!-- 左侧工具 -->
+        <div class="toolbar-left">
+          <!-- 导航切换 -->
+          <el-button class="toolbar-btn" @click="toggleLeftPanel" :class="{ active: showOutline || showProjectTree }">
+            <el-icon><Menu /></el-icon>
+            <span>{{ showOutline ? '大纲' : showProjectTree ? '文件' : '显示' }}</span>
+          </el-button>
+
+          <el-divider direction="vertical" />
+
+          <!-- 编辑操作 -->
+          <el-tooltip content="撤销 Ctrl+Z">
+            <el-button class="toolbar-btn" size="small" @click="undoRedo.undo()" :disabled="!undoRedo.canUndo.value">
+              <el-icon><RefreshLeft /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="重做 Ctrl+Y">
+            <el-button class="toolbar-btn" size="small" @click="undoRedo.redo()" :disabled="!undoRedo.canRedo.value">
+              <el-icon><RefreshRight /></el-icon>
+            </el-button>
+          </el-tooltip>
+
+          <el-divider direction="vertical" />
+
+          <!-- 格式工具 -->
+          <el-button class="toolbar-btn" @click="insertLatexCommand('textbf')">粗体</el-button>
+          <el-button class="toolbar-btn" @click="insertLatexCommand('textit')">斜体</el-button>
+
+          <el-dropdown trigger="click">
+            <el-button class="toolbar-btn">
+              插入
+              <el-icon><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="insertLatexEnvironment('itemize')">• 无序列表</el-dropdown-item>
+                <el-dropdown-item @click="insertLatexEnvironment('enumerate')">1. 有序列表</el-dropdown-item>
+                <el-dropdown-item @click="insertLatexEnvironment('equation')">∑ 数学公式</el-dropdown-item>
+                <el-dropdown-item @click="insertLatexEnvironment('figure')">🖼️ 图片</el-dropdown-item>
+                <el-dropdown-item @click="insertLatexEnvironment('table')">▦ 表格</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
+          <el-divider direction="vertical" />
+
+          <!-- 辅助工具 -->
+          <el-tooltip content="符号面板">
+            <el-button class="toolbar-btn" @click="showSymbolPalette = !showSymbolPalette" :class="{ active: showSymbolPalette }">
+              <el-icon><Tickets /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="代码片段">
+            <el-button class="toolbar-btn" @click="showSnippets = !showSnippets" :class="{ active: showSnippets }">
+              <el-icon><Collection /></el-icon>
+            </el-button>
+          </el-tooltip>
+        </div>
+
+        <!-- 右侧工具 -->
+        <div class="toolbar-right">
+          <el-dropdown @command="handleToolbarCommand" trigger="click">
+            <el-button class="toolbar-btn" circle>
+              <el-icon><MoreFilled /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="table">表格生成器</el-dropdown-item>
+                <el-dropdown-item command="spell">拼写检查</el-dropdown-item>
+                <el-dropdown-item command="template">文档模板</el-dropdown-item>
+                <el-dropdown-item command="font" divided>编辑器字体</el-dropdown-item>
+                <el-dropdown-item command="shortcut">快捷键帮助</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div>
+
+      <!-- 查找替换面板 -->
+      <FindReplacePanel
+        :show="showFindReplace"
+        :find-query="findQuery"
+        :replace-query="replaceQuery"
+        :current-match-index="currentMatchIndex"
+        :total-matches="totalMatches"
+        :find-options="findOptions"
+        :show-replace="showReplace"
+        @close="showFindReplace = false"
+        @update:find-query="findQuery = $event"
+        @update:replace-query="replaceQuery = $event"
+        @update:find-options="findOptions = { ...findOptions, ...$event }"
+        @find-input="onFindInput"
+        @find-next="findNext"
+        @find-previous="findPrevious"
+        @replace-current="replaceCurrent"
+        @replace-all="replaceAll"
+        @toggle-show-replace="showReplace = !showReplace"
+      />
+
+      <!-- 编辑器和预览容器 -->
+      <div class="editor-preview-container" :class="[layoutMode]">
+        <!-- 左侧面板：大纲/文件树 -->
+        <LeftPanel
+          v-if="showOutline || showProjectTree"
+          :mode="showOutline ? 'outline' : 'project-tree'"
+          :panel-title="showOutline ? '文档大纲' : '项目文件'"
+          :content="editorContent"
+          :is-project-mode="isProjectMode"
+          :project-files="latexStore.projectFiles"
+          :current-file-id="latexStore.currentProjectFile?.id"
+          :main-file-path="latexStore.currentProject?.mainFile"
+          :project-id="latexStore.currentProject?.id"
+          :project-name="latexStore.currentProject?.name"
+          @close="showOutline ? showOutline = false : showProjectTree = false"
+          @navigate="navigateToSection"
+          @file-select="showOutline ? handleOutlineFileSelect($event) : handleFileSelect($event)"
+          @file-create="handleFileCreate"
+          @file-delete="handleFileDelete"
+          @file-rename="handleFileRename"
+          @file-duplicate="handleFileDuplicate"
+          @file-move="handleFileMove"
+          @folder-create="handleFolderCreate"
+          @folder-delete="handleFolderDelete"
+          @folder-rename="handleFolderRename"
+          @main-file-change="handleMainFileChange"
+          @refresh="handleRefreshProject"
+        />
+
+        <!-- 左侧：编辑器面板 -->
+        <section
         id="editor-panel"
         ref="editorPanelRef"
         class="editor-panel"
@@ -219,98 +276,19 @@
         }"
         :style="layoutMode === 'side-by-side' && !isMobile && showPreview ? { flex: `0 0 ${editorPanelWidth}%` } : {}"
       >
-        <div class="editor-content" :class="{ 'with-outline': showOutline }">
-          <!-- 左侧面板 -->
-          <LeftPanel
-            v-if="showOutline || showProjectTree"
-            :mode="showOutline ? 'outline' : 'project-tree'"
-            :panel-title="showOutline ? '文档大纲' : '项目文件'"
-            :content="editorContent"
-            :is-project-mode="isProjectMode"
-            :project-files="latexStore.projectFiles"
-            :current-file-id="latexStore.currentProjectFile?.id"
-            :main-file-path="latexStore.currentProject?.mainFile"
-            :project-id="latexStore.currentProject?.id"
-            :project-name="latexStore.currentProject?.name"
-            @close="showOutline ? showOutline = false : showProjectTree = false"
-            @navigate="navigateToSection"
-            @file-select="showOutline ? handleOutlineFileSelect($event) : handleFileSelect($event)"
-            @file-create="handleFileCreate"
-            @file-delete="handleFileDelete"
-            @file-rename="handleFileRename"
-            @file-duplicate="handleFileDuplicate"
-            @file-move="handleFileMove"
-            @folder-create="handleFolderCreate"
-            @folder-delete="handleFolderDelete"
-            @folder-rename="handleFolderRename"
-            @main-file-change="handleMainFileChange"
-            @refresh="handleRefreshProject"
-          />
-
+        <div class="editor-content">
           <!-- 编辑器区域 -->
-          <div class="editor-area" :class="{ 'with-outline': showOutline }">
-            <!-- 编辑器工具栏 -->
-            <EditorToolbar
-              :show-outline="showOutline"
-              :show-project-tree="showProjectTree"
-              :left-panel-title="leftPanelTitle"
-              :can-undo="undoRedo.canUndo.value"
-              :can-redo="undoRedo.canRedo.value"
-              :compilation-status="compilationStatus"
-              :compilation-status-text="compilationStatusText"
-              @toggle-left-panel="toggleLeftPanel"
-              @undo="undoRedo.undo()"
-              @redo="undoRedo.redo()"
-              @insert-command="insertLatexCommand"
-              @insert-environment="insertLatexEnvironment"
-              @toggle-panel="togglePanel"
-              @show-keyboard-shortcuts="showKeyboardShortcuts = true"
-              @toggle-find-replace="showFindReplace = !showFindReplace"
-            />
-
-            <!-- 查找替换面板 -->
-            <FindReplacePanel
-              :show="showFindReplace"
-              :find-query="findQuery"
-              :replace-query="replaceQuery"
-              :current-match-index="currentMatchIndex"
-              :total-matches="totalMatches"
-              :find-options="findOptions"
-              :show-replace="showReplace"
-              @close="showFindReplace = false"
-              @update:find-query="findQuery = $event"
-              @update:replace-query="replaceQuery = $event"
-              @update:find-options="findOptions = { ...findOptions, ...$event }"
-              @find-input="onFindInput"
-              @find-next="findNext"
-              @find-previous="findPrevious"
-              @replace-current="replaceCurrent"
-              @replace-all="replaceAll"
-              @toggle-show-replace="showReplace = !showReplace"
-            />
-
-            <!-- 编译状态指示器 -->
-            <div class="compilation-status">
-              <el-tag
-                v-if="compilationStatus !== 'idle'"
-                :type="compilationStatusType"
-                size="small"
-              >
-                <el-icon v-if="compilationStatus === 'compiling'"><Loading /></el-icon>
-                {{ compilationStatusText }}
-              </el-tag>
+          <div class="editor-area">
+            <!-- Use the working LatexEditor component -->
+            <div class="editor-wrapper" ref="editorScrollElement">
+              <LatexEditor
+                ref="editorRef"
+                v-model="editorContent"
+                @change="handleEditorChange"
+                @cursor-change="(position) => (latexStore as any).updateCursorPosition(position)"
+              />
             </div>
           </div>
-
-        <!-- Use the working LatexEditor component -->
-        <div class="editor-wrapper" ref="editorScrollElement">
-          <LatexEditor
-            ref="editorRef"
-            v-model="editorContent"
-            @change="() => isModified = true"
-            @cursor-change="(position) => (latexStore as any).updateCursorPosition(position)"
-          />
-        </div>
 
         <!-- 状态栏 -->
         <div class="editor-status-bar">
@@ -387,6 +365,7 @@
         @update:active-error-tab="activeErrorTab = $event"
         @navigate-to-error="navigateToError"
       />
+      </div>
     </main>
 
     <!-- 编辑器状态栏 -->
@@ -561,7 +540,7 @@
     />
 
     <!-- 欢迎引导 -->
-    <WelcomeGuideDialog ref="welcomeGuideRef" @close="handleWelcomeGuideClose" />
+    <WelcomeGuideDialog v-model:show="showWelcomeGuide" @close="handleWelcomeGuideClose" />
 
     <!-- 最近文档 -->
     <el-drawer
@@ -582,13 +561,14 @@
     <!-- 编辑器设置 -->
     <EditorSettings
       ref="editorSettingsRef"
+      v-model:visible="showSettings"
       @update-settings="handleSettingsUpdate"
       @clear-cache="handleClearCache"
     />
 
     <!-- 统计仪表板 -->
     <StatsDashboard
-      ref="statsDashboardRef"
+      v-model:show="showStatsDashboard"
       :stats="extendedDocumentStats"
       :document-id="currentDocument?.id"
       @refresh="handleRefreshStats"
@@ -619,11 +599,10 @@ import { useLatexAutocomplete } from '@/composables/useLatexAutocomplete'
 import { saveLatexVersion } from '@/api/adapters/latexAdapter'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  DocumentChecked, VideoPlay, View, UserFilled, Menu, Plus,
-  Tickets, Loading, Warning, InfoFilled, Close,
-  ZoomIn, ZoomOut, Edit, RefreshLeft, RefreshRight, Operation, QuestionFilled,
-  Search, ArrowUp, ArrowDown, Document, DocumentAdd, Memo, Collection, Grid,
-  Clock
+  DocumentChecked, VideoPlay, View, Menu, Tickets,
+  Loading, Edit, RefreshLeft, RefreshRight, Operation,
+  ArrowDown, Collection, Close, Document, DocumentAdd,
+  Clock, MoreFilled, ArrowRight, Setting
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
 import PdfViewer from '@/components/latex/PdfViewer.vue'
@@ -690,9 +669,11 @@ const reviewModeRef = ref<InstanceType<typeof ReviewModeDialog> | null>(null)
 const exportDialogRef = ref<InstanceType<typeof ExportDialogWrapper> | null>(null)
 const statusBarRef = ref<InstanceType<typeof EditorStatusBar> | null>(null)
 const welcomeGuideRef = ref<InstanceType<typeof WelcomeGuideDialog> | null>(null)
+const showWelcomeGuide = ref(false)
 const recentDocumentsRef = ref<InstanceType<typeof RecentDocuments> | null>(null)
 const editorToolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
 const editorSettingsRef = ref<InstanceType<typeof EditorSettings> | null>(null)
+const showStatsDashboard = ref(false)
 const statsDashboardRef = ref<InstanceType<typeof StatsDashboard> | null>(null)
 
 // Reactive state
@@ -706,6 +687,8 @@ const showSnippets = ref(false)
 const showFontSelector = ref(false)
 const showCollaborationPanel = ref(false)
 const showKeyboardShortcuts = ref(false) // 新增：快捷键面板
+const showSettings = ref(false) // 设置面板
+const isFullscreen = ref(false) // 全屏状态
 const showProjectTree = ref(false) // 新增：项目文件树
 const showVersionHistory = ref(false) // 新增：版本历史面板
 const isProjectMode = computed(() => latexStore.isProjectMode) // 从store读取
@@ -777,10 +760,8 @@ const findOptions = reactive<FindOptions>({
 
 // Store computed properties - 必须先定义这些，因为后面的 hooks 需要使用
 const currentDocument = computed(() => latexStore.currentDocument)
-const editorContent = computed({
-  get: () => latexStore.editorContent,
-  set: (value) => latexStore.updateDocumentContent(value)
-})
+// 使用本地 ref，完全独立于 store
+const editorContent = ref('')
 const compilationStatus = computed(() => latexStore.compilationStatus)
 const isCollaborating = computed(() => latexStore.isCollaborating)
 const collaborationSession = computed(() => latexStore.collaborationSession)
@@ -1341,6 +1322,65 @@ function handleFileCommand(command: string) {
   }
 }
 
+// 处理新建命令
+async function handleNewCommand(command: string) {
+  switch (command) {
+    case 'document':
+      await handleCreateNewDocument()
+      break
+    case 'project':
+      await handleCreateNewProject()
+      break
+  }
+}
+
+// 处理header命令
+function handleHeaderCommand(command: string) {
+  switch (command) {
+    case 'preview':
+      showPreview.value = !showPreview.value
+      break
+    case 'version':
+      showVersionHistory.value = true
+      break
+    case 'layout':
+      // 循环切换布局模式
+      const modes: LayoutMode[] = ['side-by-side', 'vertical-split', 'editor-only']
+      const currentIndex = modes.indexOf(layoutMode.value)
+      const nextMode = modes[(currentIndex + 1) % modes.length]
+      setLayoutMode(nextMode)
+      break
+    case 'file':
+      // 显示文件操作
+      showTemplates.value = true
+      break
+  }
+}
+
+// 处理工具栏命令
+function handleToolbarCommand(command: string) {
+  switch (command) {
+    case 'table':
+      showTableGenerator.value = !showTableGenerator.value
+      break
+    case 'spell':
+      showSpellChecker.value = !showSpellChecker.value
+      break
+    case 'template':
+      showTemplates.value = !showTemplates.value
+      break
+    case 'font':
+      showFontSelector.value = !showFontSelector.value
+      break
+    case 'shortcut':
+      showKeyboardShortcuts.value = true
+      break
+    case 'version':
+      showVersionHistory.value = true
+      break
+  }
+}
+
 // 创建空白文档
 function createBlankDocument() {
   const blankContent = `\\documentclass[12pt,a4paper]{article}
@@ -1430,9 +1470,9 @@ const createVersionSnapshot = async (content: string, isAuto: boolean = true) =>
     }
 
     await saveLatexVersion({
-      fileId,
+      fileId: typeof fileId === 'string' ? parseInt(fileId) : fileId,
       projectId,
-      userId: authStore.user.id,
+      userId: String(authStore.user?.id || ''),
       content,
       summary: isAuto ? '自动保存' : '手动保存',
       isAutoSave: isAuto
@@ -1535,7 +1575,7 @@ const shortcuts = getLatexShortcuts({
     showSnippets.value = !showSnippets.value
   },
   onShowWelcome: () => {
-    welcomeGuideRef.value?.open()
+    showWelcomeGuide.value = true
   },
   onShowRecent: () => {
     showRecentDocuments.value = true
@@ -1545,8 +1585,8 @@ const shortcuts = getLatexShortcuts({
     editorSettingsRef.value?.open()
   },
   onShowStats: () => {
-    updateDocumentStats()
-    statsDashboardRef.value?.open()
+    handleRefreshStats()
+    showStatsDashboard.value = true
   }
 })
 
@@ -1615,6 +1655,12 @@ const editorFocus = () => {
 let currentSaveController: AbortController | null = null
 let currentCompileController: AbortController | null = null
 
+// 编辑器内容变化处理
+function handleEditorChange(value: string) {
+  isModified.value = true
+  latexStore.updateDocumentContent(value)
+}
+
 // Methods
 async function saveDocument() {
   // 取消之前的保存请求
@@ -1629,9 +1675,9 @@ async function saveDocument() {
   saving.value = true
   try {
     if (isProjectMode.value) {
-      await latexStore.saveCurrentProjectFile(currentSaveController.signal)
+      await latexStore.saveCurrentProjectFile()
     } else {
-      await latexStore.saveDocument(currentSaveController.signal)
+      await latexStore.saveDocument()
     }
     isModified.value = false
 
@@ -1690,7 +1736,7 @@ async function compileDocument() {
   }
   currentCompileController = new AbortController()
 
-  compiling.value =
+  compiling.value = true
   compileProgress.value = 0
   compileText.value = isProjectMode.value ? '正在编译LaTeX项目...' : '正在编译LaTeX文档...'
 
@@ -1712,16 +1758,16 @@ async function compileDocument() {
       if (isModified.value) {
         compileText.value = '正在保存...'
         compileProgress.value = 20
-        await latexStore.saveCurrentProjectFile(currentCompileController.signal)
+        await latexStore.saveCurrentProjectFile()
         compileText.value = '正在编译...'
         compileProgress.value = 40
       }
-      result = await latexStore.compileProject(currentCompileController.signal)
+      result = await latexStore.compileProject()
     } else {
       // 单文档模式：编译单个文档
       compileText.value = '正在编译...'
       compileProgress.value = 50
-      result = await latexStore.compileDocument(currentCompileController.signal)
+      result = await latexStore.compileDocument()
     }
 
     clearInterval(progressInterval)
@@ -2005,8 +2051,11 @@ function insertTableCode(code: string) {
   ElMessage.success('表格已插入')
 }
 
-function handleSpellReplace(from: string, to: string) {
+function handleSpellReplace(data: any) {
   if (!editorRef.value) return
+
+  const { from, to } = data || {}
+  if (!from || !to) return
 
   const textarea = editorRef.value.$el?.querySelector('textarea')
   if (!textarea) return
@@ -2016,8 +2065,11 @@ function handleSpellReplace(from: string, to: string) {
   editorContent.value = newContent
 }
 
-function handleSpellGoto(line: number, column: number) {
+function handleSpellGoto(position: any) {
   if (!editorRef.value) return
+
+  const line = typeof position === 'number' ? position : position?.line
+  const column = position?.column || 0
 
   editorRef.value.navigateTo?.({ line, column })
 }
@@ -2058,7 +2110,9 @@ function handleReviewInsert(text: string) {
 }
 
 // 导出处理
-function handleExport(format: string, options: any, filename: string) {
+function handleExport(data: any) {
+  const { format, options, filename } = data || {}
+
   if (import.meta.env.DEV) {
     console.log('Export:', format, options, filename)
   }
@@ -2069,13 +2123,13 @@ function handleExport(format: string, options: any, filename: string) {
       compileDocument()
       break
     case 'latex':
-      downloadAsTex(filename)
+      downloadAsTex(filename || 'document.tex')
       break
     case 'markdown':
-      convertToMarkdown(filename)
+      convertToMarkdown(filename || 'document.md')
       break
     default:
-      ElMessage.info(`导出为 ${format.toUpperCase()} 功能开发中`)
+      ElMessage.info(`导出为 ${format?.toUpperCase()} 功能开发中`)
   }
 }
 
@@ -2685,16 +2739,29 @@ onMounted(async () => {
     }
   }, { immediate: true })
 
+  // 监听文档加载，更新 editorContent
+  watch(() => latexStore.currentDocument, (newDoc) => {
+    if (newDoc && newDoc.content !== editorContent.value) {
+      editorContent.value = newDoc.content
+      if (import.meta.env.DEV) {
+        console.log('[LatexEditorView] Document loaded, content updated')
+      }
+    }
+  }, { immediate: true })
+
   // 监听项目加载，重置修改标志
   watch(() => latexStore.currentProjectFile, (newFile, oldFile) => {
     if (newFile && newFile !== oldFile) {
-      // 文件切换或加载，重置修改标志
+      // 文件切换或加载，更新内容并重置修改标志
+      if (newFile.content !== editorContent.value) {
+        editorContent.value = newFile.content
+      }
       isModified.value = false
       if (import.meta.env.DEV) {
         console.log('[LatexEditorView] File loaded, isModified reset to false')
       }
     }
-  })
+  }, { immediate: true })
 
   // 监听项目模式变化，自动显示文件树
   watch(() => latexStore.isProjectMode, (isProjectMode) => {
@@ -2932,6 +2999,28 @@ function handleCreateNewDocument() {
   handleFileCommand('blank')
 }
 
+async function handleCreateNewProject() {
+  try {
+	const { value: projectName } = await ElMessageBox.prompt('请输入项目名称', '新建LaTeX项目', {
+	  confirmButtonText: '创建',
+	  cancelButtonText: '取消',
+	  inputPattern: /^.{1,50}$/,
+	  inputErrorMessage: '项目名称长度为1-50个字符'
+	})
+
+	if (!projectName) return
+
+	// 调用store创建项目
+	await latexStore.createNewProject(projectName || 'Untitled')
+	ElMessage.success(`项目 "${projectName}" 创建成功`)
+  } catch (error) {
+	if (error !== 'cancel') {
+	 	console.error('Failed to create project:', error)
+	  ElMessage.error('创建项目失败')
+	}
+  }
+}
+
 function handleSettingsUpdate(settings: any) {
   // 更新编辑器设置
   localStorage.setItem('latex-editor-settings', JSON.stringify(settings))
@@ -3022,6 +3111,23 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   overflow: hidden; // 防止内容溢出导致重影
   box-sizing: border-box;
 
+  // 确保EditorToolbar和FindReplacePanel占满宽度
+  > .editor-toolbar {
+    width: 100%;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    background: linear-gradient(
+      to bottom,
+      var(--el-bg-color-page) 0%,
+      rgba(0, 0, 0, 0.02) 100%
+    );
+    flex-shrink: 0;
+  }
+
+  > :deep(.find-replace-panel) {
+    width: 100%;
+    flex-shrink: 0;
+  }
+
   // 确保所有子元素正确渲染
   > * {
     position: relative;
@@ -3030,28 +3136,19 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 // ==========================================
-// 1. 按钮状态优化
+// 1. 按钮状态优化 - 简洁交互
 // ==========================================
 
 :deep(.el-button) {
-  transition: all $transition-base $easing-out;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
   position: relative;
-  overflow: hidden;
 
   &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: $shadow-md;
+    // 移除 transform，只保留颜色变化
   }
 
   &:active:not(:disabled) {
-    transform: translateY(0) scale(0.98);
-    box-shadow: $shadow-sm;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--el-color-primary);
-    outline-offset: 2px;
-    border-radius: var(--el-border-radius-base);
+    // 移除 transform
   }
 
   &.is-loading {
@@ -3063,17 +3160,23 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
       content: '';
       position: absolute;
       inset: 0;
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
       top: 50%;
       left: 50%;
-      margin-left: -8px;
-      margin-top: -8px;
+      margin: -7px 0 0 -7px;
       border: 2px solid currentColor;
       border-right-color: transparent;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
     }
+  }
+
+  // 小尺寸按钮优化
+  &.el-button--small {
+    height: 28px;
+    padding: 4px 10px;
+    font-size: 13px;
   }
 }
 
@@ -3083,64 +3186,65 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 // ==========================================
-// 2. 头部区域优化
+// 2. 头部区域优化 - 紧凑设计
 // ==========================================
 
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  background: linear-gradient(
-    to bottom,
-    var(--el-bg-color-page) 0%,
-    rgba(0, 0, 0, 0.02) 100%
-  );
-  width: 100%;
-  box-sizing: border-box;
-  min-width: 0; // 允许flex子项正确收缩
+  padding: 0 16px;
+  height: 48px;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-light);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 
-  .document-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+  .header-left {
     flex: 1;
-    min-width: 0; // 允许flex子项正确收缩
-
-    .document-actions {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0; // 防止按钮组被压缩
-    }
-  }
-
-  .collaboration-users {
     display: flex;
     align-items: center;
-    gap: 12px;
+    min-width: 0;
 
-    :deep(.el-avatar-group .el-avatar) {
-      border: 2px solid var(--el-bg-color-page);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      transition: all $transition-base $easing-out;
-
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      }
-    }
-
-    .collaboration-status {
+    .doc-path {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      background: var(--el-color-success-light-9);
-      color: var(--el-color-success);
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
+      font-size: 13px;
+
+      .path-item {
+        color: var(--el-text-color-secondary);
+        white-space: nowrap;
+
+        &.current {
+          color: var(--el-text-color-primary);
+          font-weight: 500;
+        }
+      }
+
+      .separator {
+        color: var(--el-border-color);
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .save-btn {
+        min-width: 80px;
+        text-align: center;
+      }
     }
   }
 }
@@ -3152,24 +3256,44 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 .editor-main {
   flex: 1;
   display: flex;
-  flex-direction: row; // 默认横向布局
+  flex-direction: column;
   overflow: hidden;
   width: 100%;
-  min-width: 0; // 允许flex子项正确收缩
+  min-width: 0;
 
-  // 上下分屏模式：切换为纵向布局
+  // 编辑器和预览容器 - 水平布局
+  .editor-preview-container {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    min-height: 0;
+    width: 100%;
+
+    // 左右分屏模式（默认）
+    &.side-by-side {
+      flex-direction: row;
+    }
+
+    // 上下分屏模式：切换为纵向布局
+    &.vertical-split {
+      flex-direction: column;
+    }
+  }
+
+  // 上下分屏模式：整个main容器也垂直
   &.vertical-split {
     flex-direction: column;
   }
 
   // 左右分屏模式（默认）
   &.side-by-side {
-    flex-direction: row;
+    flex-direction: column;
   }
 
   // 仅编辑器模式
   &.editor-only {
-    flex-direction: row;
+    flex-direction: column;
 
     .preview-panel {
       display: none;
@@ -3178,7 +3302,7 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 
   // 仅预览模式
   &.preview-only {
-    flex-direction: row;
+    flex-direction: column;
 
     .editor-panel {
       display: none;
@@ -3221,76 +3345,13 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     width: 100%;
   }
 
-  &.with-outline {
-    display: flex;
-    flex-direction: row;
-  }
-
   .editor-content {
     flex: 1;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     overflow: hidden;
     width: 100%;
     min-width: 0; // 允许flex子项正确收缩
-  }
-
-  .document-outline {
-    width: 250px;
-    border-right: 1px solid var(--el-border-color-lighter);
-    background: var(--el-bg-color-page);
-    flex-shrink: 0;
-
-    .outline-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--el-border-color-lighter);
-
-      h3 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--el-text-color-primary);
-      }
-    }
-
-    .outline-content {
-      padding: 8px 12px;
-      height: calc(100% - 50px);
-      overflow-y: auto;
-    }
-  }
-
-  .project-file-tree-panel {
-    width: 320px;
-    min-width: 280px;
-    border-right: 1px solid var(--el-border-color-lighter);
-    background: var(--el-bg-color-page);
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-
-    .tree-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--el-border-color-lighter);
-
-      h3 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--el-text-color-primary);
-      }
-    }
-
-    .tree-content {
-      flex: 1;
-      overflow-y: auto;
-    }
   }
 
   .editor-area {
@@ -3402,20 +3463,22 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 16px;
+    padding: 4px 12px;
     border-top: 1px solid var(--el-border-color-lighter);
-    background: var(--el-bg-color-overlay);
+    background: var(--el-fill-color-lighter);
     font-size: 12px;
     color: var(--el-text-color-secondary);
+    min-height: 28px;
+    flex-shrink: 0;
 
     .status-left {
       display: flex;
-      gap: 16px;
+      gap: 12px;
     }
 
     .status-right {
       display: flex;
-      gap: 16px;
+      gap: 12px;
       align-items: center;
 
       .text-warning {
@@ -3861,58 +3924,32 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--el-bg-color-page);
-  border-bottom: 1px solid var(--el-border-color);
-  padding: 10px 12px;
-  box-shadow: $shadow-sm;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-light);
+  padding: 8px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 
   .mobile-tab {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 12px;
-    border-radius: 10px;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all $transition-base $easing-out;
+    transition: all 0.2s ease;
     color: var(--el-text-color-secondary);
     font-weight: 500;
     font-size: 14px;
-    min-height: 44px; // 触摸目标最小尺寸
+    min-height: 40px;
     position: relative;
-    overflow: hidden;
-
-    // 涟纹效果
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-      transform: translateX(-100%);
-      transition: transform $transition-slow $easing-out;
-    }
-
-    &:active::before {
-      transform: translateX(100%);
-    }
 
     &.active {
       background: var(--el-color-primary);
       color: white;
-      box-shadow: $shadow-md;
-
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: -2px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 20px;
-        height: 3px;
-        background: white;
-        border-radius: 2px;
-      }
+      box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
     }
 
     .status-badge {
@@ -4518,9 +4555,88 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   }
 }
 
-// 编辑器工具栏需要相对定位来支持查找面板的绝对定位
+// 编辑器工具栏 - 优化紧凑设计
 .editor-toolbar {
-  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--el-fill-color-extra-light);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  min-height: 42px;
+  gap: 8px;
+  flex-shrink: 0;
+
+  .toolbar-left,
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .toolbar-btn {
+    border: none;
+    background: transparent;
+    color: var(--el-text-color-regular);
+    font-size: 13px;
+    padding: 5px 10px;
+    height: 28px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    cursor: pointer;
+
+    .el-icon {
+      font-size: 15px;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--el-fill-color);
+      color: var(--el-color-primary);
+    }
+
+    &.active {
+      background: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
+      font-weight: 500;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    // 图标按钮（仅图标无文字）
+    &:has(> .el-icon:only-child) {
+      padding: 5px;
+      width: 28px;
+      justify-content: center;
+    }
+  }
+
+  .el-divider--vertical {
+    margin: 0 6px;
+    height: 18px;
+    border-color: var(--el-border-color);
+  }
+
+  // 下拉菜单优化
+  :deep(.el-dropdown) {
+    .toolbar-btn {
+      .el-icon {
+        font-size: 12px;
+        margin-left: -2px;
+      }
+    }
+  }
+
+  // 工具提示优化
+  :deep(.el-tooltip__trigger) {
+    display: inline-flex;
+  }
 }
 
 // ==========================================
