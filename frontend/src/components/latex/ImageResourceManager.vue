@@ -1265,7 +1265,7 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
+  padding: 12px 24px 8px;
   background: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-light);
 
@@ -1283,7 +1283,7 @@ defineExpose({
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
 
     .main-search {
       width: 320px;
@@ -1315,7 +1315,7 @@ defineExpose({
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-bottom: 1px solid var(--el-border-color-lighter);
 
     .sidebar-title {
@@ -1327,15 +1327,15 @@ defineExpose({
   .sidebar-tree {
     flex: 1;
     overflow-y: auto;
-    padding: 12px;
+    padding: 10px;
 
     :deep(.el-tree) {
       background: transparent;
     }
 
     :deep(.el-tree-node__content) {
-      border-radius: 10px;
-      padding: 8px 12px;
+      border-radius: 9px;
+      padding: 7px 10px;
       transition: all 0.2s;
 
       &:hover {
@@ -1374,7 +1374,7 @@ defineExpose({
   }
 
   .sidebar-footer {
-    padding: 16px;
+    padding: 14px;
     border-top: 1px solid var(--el-border-color-light);
     background: linear-gradient(180deg, transparent 0%, var(--el-fill-color-light) 100%);
 
@@ -1416,7 +1416,7 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: 8px 24px 10px;
   background: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-light);
 
@@ -1539,29 +1539,27 @@ defineExpose({
 // 图片网格
 .image-container:not(.is-list-view) {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 24px;
-  padding: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 20px;
+  padding: 20px;
 }
 
 .image-card {
   position: relative;
   background: var(--el-bg-color);
-  border-radius: 16px;
-  border: 1px solid var(--el-border-color-light);
+  border-radius: 14px;
+  border: 1px solid var(--el-border-color-lighter);
   overflow: hidden;
   cursor: pointer;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.06),
-    0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    border-color: var(--el-color-primary-light-3);
+    border-color: var(--el-color-primary-light-6);
     box-shadow:
-      0 12px 28px rgba(0, 0, 0, 0.12),
-      0 6px 16px rgba(64, 158, 255, 0.15);
-    transform: translateY(-6px) scale(1.01);
+      0 6px 20px rgba(0, 0, 0, 0.08),
+      0 3px 10px rgba(64, 158, 255, 0.1);
+    transform: translateY(-3px);
   }
 
   &.is-selected {
@@ -1580,8 +1578,8 @@ defineExpose({
   // 收藏按钮
   .card-favorite {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
     z-index: 3;
     width: 32px;
     height: 32px;
@@ -1592,13 +1590,13 @@ defineExpose({
     justify-content: center;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
     backdrop-filter: blur(10px);
 
     &:hover {
       background: white;
-      transform: scale(1.15);
-      box-shadow: 0 4px 12px rgba(230, 162, 60, 0.3);
+      transform: scale(1.12);
+      box-shadow: 0 4px 10px rgba(230, 162, 60, 0.25);
     }
 
     &:active {
@@ -1619,13 +1617,13 @@ defineExpose({
 
   .card-checkbox {
     position: absolute;
-    top: 12px;
-    left: 12px;
+    top: 10px;
+    left: 10px;
     z-index: 2;
     background: rgba(255, 255, 255, 0.98);
     border-radius: 50%;
     padding: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.10);
     backdrop-filter: blur(10px);
     transition: all 0.2s;
 
@@ -1661,10 +1659,10 @@ defineExpose({
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      gap: 10px;
       background: rgba(0, 0, 0, 0.75);
       opacity: 0;
-      transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: opacity 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       backdrop-filter: blur(10px);
 
       .overlay-actions {
@@ -1677,14 +1675,14 @@ defineExpose({
       .el-button {
         background: rgba(255, 255, 255, 0.98);
         border: none;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         backdrop-filter: blur(10px);
 
         &:hover {
           background: white;
-          transform: scale(1.15) translateY(-3px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+          transform: scale(1.12) translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.30);
         }
 
         &:active {
@@ -1700,49 +1698,49 @@ defineExpose({
     // 使用次数标记
     .usage-badge {
       position: absolute;
-      top: 12px;
-      right: 54px;
+      top: 10px;
+      right: 50px;
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 5px 12px;
+      padding: 4px 10px;
       background: linear-gradient(135deg, var(--el-color-success) 0%, var(--el-color-success-light-3) 100%);
       color: white;
       font-size: 11px;
       font-weight: 700;
-      border-radius: 16px;
+      border-radius: 14px;
       z-index: 2;
-      box-shadow: 0 3px 10px rgba(103, 194, 58, 0.35);
+      box-shadow: 0 3px 8px rgba(103, 194, 58, 0.30);
       letter-spacing: 0.3px;
     }
 
     .type-badge {
       position: absolute;
-      bottom: 12px;
-      right: 12px;
-      padding: 5px 12px;
+      bottom: 10px;
+      right: 10px;
+      padding: 4px 10px;
       background: rgba(0, 0, 0, 0.85);
       color: white;
       font-size: 10px;
       font-weight: 700;
-      border-radius: 10px;
+      border-radius: 8px;
       letter-spacing: 0.8px;
       backdrop-filter: blur(6px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
     }
   }
 
   .card-info {
-    padding: 16px 18px;
+    padding: 14px 16px;
     background: linear-gradient(180deg, transparent 0%, var(--el-fill-color-extra-light) 100%);
 
     .image-name {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       color: var(--el-text-color-primary);
       letter-spacing: 0.3px;
       line-height: 1.4;
@@ -1751,25 +1749,25 @@ defineExpose({
     .image-description {
       font-size: 12px;
       color: var(--el-text-color-secondary);
-      margin-bottom: 12px;
-      line-height: 1.6;
+      margin-bottom: 10px;
+      line-height: 1.5;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      min-height: 38px;
+      min-height: 36px;
     }
 
     .image-meta {
       display: flex;
-      gap: 14px;
+      gap: 12px;
       flex-wrap: wrap;
       font-size: 11px;
       color: var(--el-text-color-secondary);
-      margin-bottom: 12px;
-      padding: 8px 12px;
+      margin-bottom: 10px;
+      padding: 7px 10px;
       background: var(--el-fill-color);
-      border-radius: 10px;
+      border-radius: 9px;
 
       .meta-item {
         display: inline-flex;

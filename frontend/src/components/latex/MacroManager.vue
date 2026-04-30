@@ -8,15 +8,10 @@
   <div class="latex-macro-manager">
     <!-- 头部工具栏 -->
     <div class="macro-header">
-      <div class="header-title">
-        <el-icon :size="20" color="var(--el-color-primary)"><Operation /></el-icon>
-        <span>LaTeX 宏管理器</span>
-      </div>
-
       <div class="header-actions">
         <el-input
           v-model="searchQuery"
-          placeholder="搜索..."
+          placeholder="搜索宏..."
           :prefix-icon="Search"
           clearable
           class="search-input"
@@ -76,65 +71,71 @@
             :class="{ 'is-favorite': cmd.isFavorite, 'is-pinned': cmd.isPinned }"
             @click="editMacro(cmd)"
           >
-            <!-- 置顶标记 -->
-            <div v-if="cmd.isPinned" class="pinned-badge">
-              <el-icon><Star /></el-icon>
+            <!-- 卡片头部：图标区域 -->
+            <div class="card-icon-area">
+              <div class="command-icon">
+                <el-icon><EditPen /></el-icon>
+              </div>
+              <div class="card-status">
+                <el-tag v-if="cmd.isPinned" size="small" type="warning" effect="plain">
+                  <el-icon><Star /></el-icon>
+                  置顶
+                </el-tag>
+                <el-tag v-else-if="cmd.isFavorite" size="small" type="success" effect="plain">
+                  <el-icon><CollectionTag /></el-icon>
+                  收藏
+                </el-tag>
+              </div>
             </div>
 
-            <!-- 卡片头部 -->
-            <div class="card-header">
-              <div class="macro-name">
+            <!-- 卡片信息 -->
+            <div class="card-info">
+              <div class="command-name">
                 <code>\{{ cmd.name }}</code>
               </div>
-              <div class="card-actions">
-                <el-button
-                  size="small"
-                  type="primary"
-                  @click.stop="insertMacro(cmd)"
-                >
-                  <el-icon><Plus /></el-icon>
-                  插入
-                </el-button>
-                <el-button
-                  :icon="cmd.isFavorite ? Star : CollectionTag"
-                  size="small"
-                  circle
-                  @click.stop="toggleFavorite(cmd, $event)"
-                  :class="{ 'is-active': cmd.isFavorite }"
-                />
-                <el-button
-                  :icon="Delete"
-                  size="small"
-                  circle
-                  type="danger"
-                  @click.stop="deleteMacro(cmd)"
-                />
-              </div>
-            </div>
-
-            <!-- 卡片主体 -->
-            <div class="card-body">
-              <div v-if="cmd.description" class="card-description">
+              <div v-if="cmd.description" class="command-description">
                 {{ cmd.description }}
               </div>
-
-              <div class="card-meta">
+              <div class="command-meta">
                 <span v-if="cmd.params && cmd.params.length > 0" class="meta-item">
                   <el-icon><Tickets /></el-icon>
                   {{ cmd.params.length }}参数
                 </span>
-                <span v-if="cmd.usageCount" class="meta-item usage">
+                <span v-if="cmd.usageCount" class="meta-item">
                   <el-icon><DataAnalysis /></el-icon>
                   {{ cmd.usageCount }}次
                 </span>
-                <span v-if="cmd.category" class="meta-item">
-                  <el-tag size="small" type="info">{{ cmd.category }}</el-tag>
-                </span>
               </div>
+            </div>
 
-              <div v-if="cmd.usage" class="card-usage">
-                <code>{{ cmd.usage }}</code>
-              </div>
+            <!-- 卡片用法 -->
+            <div v-if="cmd.usage" class="card-usage">
+              <code>{{ cmd.usage }}</code>
+            </div>
+
+            <!-- 卡片操作 -->
+            <div class="card-actions" @click.stop>
+              <el-button
+                size="small"
+                type="primary"
+                @click="insertMacro(cmd)"
+              >
+                <el-icon><Plus /></el-icon>
+              </el-button>
+              <el-button
+                :icon="cmd.isFavorite ? Star : CollectionTag"
+                size="small"
+                circle
+                @click="toggleFavorite(cmd, $event)"
+                :class="{ 'is-active': cmd.isFavorite }"
+              />
+              <el-button
+                :icon="Delete"
+                size="small"
+                circle
+                type="danger"
+                @click="deleteMacro(cmd)"
+              />
             </div>
           </div>
         </div>
@@ -162,39 +163,51 @@
             class="macro-card env-card"
             @click="editEnvironment(env)"
           >
-            <div class="card-badge env-badge">
-              <el-icon><DocumentCopy /></el-icon>
+            <!-- 卡片头部：图标区域 -->
+            <div class="card-icon-area">
+              <div class="command-icon env-icon">
+                <el-icon><DocumentCopy /></el-icon>
+              </div>
+              <div class="card-status">
+                <el-tag size="small" type="success" effect="plain">环境</el-tag>
+              </div>
             </div>
-            <div class="card-header">
-              <div class="macro-name">
+
+            <!-- 卡片信息 -->
+            <div class="card-info">
+              <div class="command-name">
                 <code>\begin{{ env.name }}</code>
               </div>
-              <el-tag size="small" type="success" effect="plain">环境</el-tag>
+              <div v-if="env.description" class="command-description">
+                {{ env.description }}
+              </div>
             </div>
-            <div class="card-body">
+
+            <!-- 卡片用法 -->
+            <div class="card-usage env-usage">
               <div class="env-preview">
                 <div class="env-line begin">\begin{{ env.name }}</div>
                 <div class="env-content">...</div>
                 <div class="env-line end">\end{{ env.name }}</div>
               </div>
-              <div v-if="env.description" class="macro-description">
-                {{ env.description }}
-              </div>
             </div>
-            <div class="card-footer" @click.stop>
-              <el-button-group size="small">
-                <el-tooltip content="插入到编辑器" placement="top">
-                  <el-button @click="insertEnvironment(env)">
-                    <el-icon><Plus /></el-icon>
-                    插入
-                  </el-button>
-                </el-tooltip>
-                <el-tooltip content="删除" placement="top">
-                  <el-button type="danger" @click="deleteEnvironment(env)">
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
-                </el-tooltip>
-              </el-button-group>
+
+            <!-- 卡片操作 -->
+            <div class="card-actions" @click.stop>
+              <el-button
+                size="small"
+                type="primary"
+                @click="insertEnvironment(env)"
+              >
+                <el-icon><Plus /></el-icon>
+              </el-button>
+              <el-button
+                :icon="Delete"
+                size="small"
+                circle
+                type="danger"
+                @click="deleteEnvironment(env)"
+              />
             </div>
           </div>
         </div>
@@ -278,7 +291,6 @@
             <div class="template-actions">
               <el-button size="small" type="primary" @click.stop="useTemplate(tpl)">
                 <el-icon><Plus /></el-icon>
-                使用模板
               </el-button>
             </div>
           </div>
@@ -1383,55 +1395,80 @@ const importMacros = (content: string) => {
 .macro-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
+  justify-content: flex-end;
+  padding: 12px 24px 8px;
   background: var(--el-bg-color);
-  border-bottom: 1px solid var(--el-border-color-light);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 
   .search-input {
-    width: 220px;
+    width: 280px;
+
+    :deep(.el-input__wrapper) {
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+      :deep(.el-input__inner) {
+        font-size: 13px;
+      }
+
+      &.is-focus {
+        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+      }
+    }
+  }
+
+  .el-button {
+    border-radius: 8px;
+    font-size: 13px;
+    padding: 7px 14px;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(64, 158, 255, 0.15);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    .el-icon {
+      font-size: 14px;
+    }
   }
 }
 
 // 标签栏
 .tab-bar-wrapper {
-  padding: 12px 24px 0;
+  padding: 0 24px 12px;
   background: var(--el-bg-color);
 
   .tab-bar {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 
     .tab-btn {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
+      gap: 5px;
+      padding: 7px 14px;
       border: none;
       background: transparent;
       color: var(--el-text-color-secondary);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       cursor: pointer;
       border-radius: 8px;
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       white-space: nowrap;
       flex-shrink: 0;
+      position: relative;
 
       &:hover {
         background: var(--el-fill-color-light);
@@ -1444,7 +1481,18 @@ const importMacros = (content: string) => {
       }
 
       .el-icon {
-        font-size: 16px;
+        font-size: 14px;
+      }
+
+      .el-badge {
+        :deep(.el-badge__content) {
+          font-size: 10px;
+          font-weight: 600;
+          padding: 0 4px;
+          height: 16px;
+          line-height: 16px;
+          border-radius: 8px;
+        }
       }
     }
   }
@@ -1460,20 +1508,27 @@ const importMacros = (content: string) => {
 
 // 分组标签栏
 .group-tabs {
-  padding: 16px 20px;
+  padding: 20px 28px;
   background: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-lighter);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 
   :deep(.el-radio-group) {
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
   }
 
   :deep(.el-radio-button__inner) {
-    border-radius: 18px;
-    padding: 8px 18px;
+    border-radius: 20px;
+    padding: 10px 20px;
     font-size: 14px;
     font-weight: 500;
+    transition: all 0.25s;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
   }
 }
 
@@ -1494,48 +1549,70 @@ const importMacros = (content: string) => {
 
     .template-card {
       background: var(--el-bg-color);
-      border-radius: 12px;
+      border-radius: 14px;
       border: 1px solid var(--el-border-color-lighter);
-      padding: 16px;
+      padding: 0;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
 
       &:hover {
-        border-color: var(--el-color-primary);
-        box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+        border-color: var(--el-color-primary-light-6);
+        box-shadow:
+          0 6px 20px rgba(0, 0, 0, 0.08),
+          0 3px 10px rgba(64, 158, 255, 0.1);
+        transform: translateY(-3px);
       }
 
       .template-preview {
-        height: 80px;
+        height: 90px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--el-fill-color-light);
-        border-radius: 8px;
-        margin-bottom: 12px;
-        padding: 12px;
+        background: linear-gradient(135deg, var(--el-fill-color-light) 0%, var(--el-fill-color) 100%);
+        padding: 14px;
+        border-bottom: 1px solid var(--el-border-color-lighter);
       }
 
       .template-info {
+        padding: 14px 16px 10px;
+
         .template-name {
           code {
             font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 14px;
+            font-size: 15px;
             color: var(--el-color-primary);
-            font-weight: 600;
+            font-weight: 700;
           }
         }
 
         .template-description {
-          font-size: 12px;
+          font-size: 13px;
           color: var(--el-text-color-secondary);
-          margin: 8px 0;
+          margin: 8px 0 0;
+          line-height: 1.5;
         }
       }
 
       .template-actions {
+        padding: 0 16px 14px;
         display: flex;
         justify-content: flex-end;
+
+        .el-button {
+          padding: 6px;
+          border-radius: 8px;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+          .el-icon {
+            font-size: 15px;
+          }
+
+          &:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+          }
+        }
       }
     }
   }
@@ -1545,11 +1622,11 @@ const importMacros = (content: string) => {
 .environments-panel {
   flex: 1;
   overflow-y: auto;
-  background: var(--el-fill-color-extra-light);
+  background: linear-gradient(180deg, var(--el-fill-color-extra-light) 0%, var(--el-fill-color-lighter) 100%);
 
   // 自定义滚动条
   &::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
   }
 
   &::-webkit-scrollbar-track {
@@ -1558,7 +1635,7 @@ const importMacros = (content: string) => {
 
   &::-webkit-scrollbar-thumb {
     background: var(--el-border-color-darker);
-    border-radius: 4px;
+    border-radius: 3px;
 
     &:hover {
       background: var(--el-border-color-dark);
@@ -1568,199 +1645,207 @@ const importMacros = (content: string) => {
 
 .macro-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(700px, 1fr));
-  gap: 28px;
-  padding: 28px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  padding: 18px;
 }
 
 .macro-card {
   position: relative;
   background: var(--el-bg-color);
-  border-radius: 16px;
-  border: 1px solid var(--el-border-color-light);
+  border-radius: 14px;
+  border: 1px solid var(--el-border-color-lighter);
   padding: 0;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 280px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
 
   &:hover {
-    border-color: var(--el-color-primary-light-3);
+    border-color: var(--el-color-primary-light-6);
     box-shadow:
-      0 8px 24px rgba(0, 0, 0, 0.12),
-      0 4px 12px rgba(64, 158, 255, 0.15);
-    transform: translateY(-4px);
+      0 6px 20px rgba(0, 0, 0, 0.08),
+      0 3px 10px rgba(64, 158, 255, 0.1);
+    transform: translateY(-3px);
   }
 
   &.is-pinned {
     border-color: var(--el-color-warning);
-    border-width: 2px;
   }
 
   &.is-favorite {
-    .card-actions .el-button:last-child {
+    .card-actions .el-button:nth-child(2) {
       color: var(--el-color-warning);
       background: var(--el-color-warning-light-9);
+      border-color: var(--el-color-warning-light-5);
     }
   }
 
-  // 置顶标记
-  .pinned-badge {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    padding: 6px 12px;
-    background: var(--el-color-warning);
-    color: white;
-    font-size: 12px;
-    font-weight: 600;
-    border-radius: 16px;
+  // 图标区域（参考宏包卡片）
+  .card-icon-area {
     display: flex;
     align-items: center;
-    gap: 6px;
-    z-index: 2;
-    box-shadow: 0 2px 8px rgba(230, 162, 60, 0.3);
+    justify-content: space-between;
+    padding: 12px 16px 8px;
 
-    .el-icon {
-      font-size: 14px;
+    .command-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--el-color-primary-light-9) 0%, var(--el-color-primary-light-8) 100%);
+      color: var(--el-color-primary);
+      font-size: 18px;
+      box-shadow: 0 2px 6px rgba(64, 158, 255, 0.12);
+
+      .el-icon {
+        font-size: 18px;
+      }
+    }
+
+    .env-icon {
+      background: linear-gradient(135deg, var(--el-color-success-light-9) 0%, var(--el-color-success-light-8) 100%);
+      color: var(--el-color-success);
+      box-shadow: 0 2px 6px rgba(103, 194, 58, 0.12);
+    }
+
+    .card-status {
+      display: flex;
+      gap: 6px;
     }
   }
 
-  // 卡片头部
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 20px;
+  // 卡片信息（参考模板卡片）
+  .card-info {
+    padding: 0 16px 10px;
 
-    .macro-name {
-      flex: 1;
-      min-width: 0;
+    .command-name {
+      margin-bottom: 6px;
 
       code {
         font-family: 'Consolas', 'Monaco', 'JetBrains Mono', monospace;
         font-weight: 700;
-        font-size: 18px;
+        font-size: 14px;
         color: var(--el-color-primary);
-        background: var(--el-color-primary-light-9);
-        padding: 10px 16px;
-        border-radius: 10px;
-        display: inline-block;
         letter-spacing: 0.3px;
       }
     }
 
-    .card-actions {
+    .command-description {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+      line-height: 1.5;
+      margin-bottom: 8px;
+      min-height: 36px;
+    }
+
+    .command-meta {
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
+      gap: 10px;
+      flex-wrap: wrap;
 
-      .el-button {
-        padding: 8px;
-        transition: all 0.2s;
+      .meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: var(--el-text-color-secondary);
+        font-weight: 500;
+        padding: 2px 7px;
+        background: var(--el-fill-color);
+        border-radius: 7px;
 
-        &:hover {
-          transform: translateY(-1px);
-        }
-
-        &.is-active {
-          color: var(--el-color-warning);
-          background: var(--el-color-warning-light-9);
+        .el-icon {
+          font-size: 12px;
         }
       }
     }
   }
 
-  // 卡片主体
-  .card-body {
-    padding: 0 20px 20px;
-  }
-
-  .card-description {
-    font-size: 14px;
-    color: var(--el-text-color-regular);
-    line-height: 1.7;
-    margin-bottom: 16px;
-    min-height: 48px;
-  }
-
-  .card-meta {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-    padding: 12px 16px;
-    background: var(--el-fill-color-light);
-    border-radius: 12px;
-
-    .meta-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      color: var(--el-text-color-secondary);
-      font-weight: 500;
-
-      .el-icon {
-        font-size: 14px;
-      }
-
-      &.usage {
-        color: var(--el-color-success);
-        font-weight: 600;
-      }
-    }
-  }
-
+  // 用法区域（参考模板卡片预览区）
   .card-usage {
+    margin: 0 16px 10px;
+    background: linear-gradient(135deg, var(--el-fill-color) 0%, var(--el-fill-color-lighter) 100%);
+    border-radius: 9px;
+    padding: 8px 12px;
+    border: 1px solid var(--el-border-color-lighter);
+
     code {
       display: block;
-      background: var(--el-fill-color);
-      padding: 12px 16px;
-      border-radius: 10px;
       font-family: 'Consolas', 'Monaco', 'JetBrains Mono', monospace;
-      font-size: 13px;
+      font-size: 11px;
       color: var(--el-text-color-primary);
       overflow-x: auto;
       white-space: nowrap;
-      line-height: 1.6;
+      line-height: 1.4;
+      font-weight: 500;
+    }
+
+    &.env-usage {
+      padding: 8px 12px;
+      background: linear-gradient(135deg, var(--el-fill-color) 0%, var(--el-fill-color-lighter) 100%);
+
+      .env-preview {
+        font-family: 'Consolas', 'Monaco', 'JetBrains Mono', monospace;
+        font-size: 11px;
+        text-align: center;
+
+        .env-line {
+          padding: 2px 0;
+
+          &.begin {
+            color: var(--el-color-success);
+            font-weight: 600;
+          }
+
+          &.end {
+            color: var(--el-color-danger);
+            font-weight: 600;
+          }
+        }
+
+        .env-content {
+          color: var(--el-text-color-secondary);
+          padding: 2px 0;
+          font-style: italic;
+        }
+      }
     }
   }
-}
 
-.env-card {
-  .env-preview {
-    background: linear-gradient(135deg, var(--el-fill-color-light) 0%, var(--el-fill-color) 100%);
-    padding: 14px;
-    border-radius: 10px;
-    margin-bottom: 12px;
-    font-family: 'Consolas', 'Monaco', 'JetBrains Mono', monospace;
-    font-size: 12px;
-    border: 1px solid var(--el-border-color-lighter);
+  // 操作按钮（参考模板卡片）
+  .card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 16px 12px;
+    margin-top: auto;
 
-    .env-line {
-      padding: 4px 0;
+    .el-button {
+      padding: 6px;
+      border-radius: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-      &.begin {
-        color: var(--el-color-success);
-        font-weight: 600;
+      .el-icon {
+        font-size: 15px;
       }
 
-      &.end {
-        color: var(--el-color-danger);
-        font-weight: 600;
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
       }
-    }
 
-    .env-content {
-      color: var(--el-text-color-secondary);
-      padding: 6px 0;
-      text-align: center;
-      font-style: italic;
+      &.is-active {
+        color: var(--el-color-warning);
+        background: var(--el-color-warning-light-9);
+        border-color: var(--el-color-warning-light-5);
+      }
     }
   }
 }
@@ -1775,16 +1860,16 @@ const importMacros = (content: string) => {
 
 .package-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
 .package-card {
   background: var(--el-bg-color);
-  border-radius: 16px;
-  border: 1px solid var(--el-border-color-light);
-  padding: 24px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  padding: 20px;
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.05),
     0 1px 2px rgba(0, 0, 0, 0.08);
@@ -1792,9 +1877,9 @@ const importMacros = (content: string) => {
   &:hover {
     border-color: var(--el-color-primary-light-3);
     box-shadow:
-      0 10px 30px rgba(0, 0, 0, 0.1),
-      0 4px 12px rgba(64, 158, 255, 0.15);
-    transform: translateY(-4px);
+      0 8px 24px rgba(0, 0, 0, 0.08),
+      0 4px 12px rgba(64, 158, 255, 0.12);
+    transform: translateY(-3px);
   }
 
   &.is-enabled {
@@ -1809,27 +1894,27 @@ const importMacros = (content: string) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
 
   .package-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
+    font-size: 30px;
     background: linear-gradient(135deg, var(--el-fill-color-light) 0%, var(--el-fill-color) 100%);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 
     &.enabled {
       background: linear-gradient(135deg, var(--el-color-success) 0%, var(--el-color-success-light-3) 100%);
       color: white;
       box-shadow:
-        0 4px 16px rgba(103, 194, 58, 0.4),
-        0 2px 8px rgba(103, 194, 58, 0.3);
+        0 4px 14px rgba(103, 194, 58, 0.35),
+        0 2px 6px rgba(103, 194, 58, 0.25);
       transform: scale(1.05);
     }
   }
@@ -1837,28 +1922,28 @@ const importMacros = (content: string) => {
   .package-info {
     .package-name {
       font-weight: 700;
-      font-size: 16px;
+      font-size: 15px;
       color: var(--el-text-color-primary);
-      margin-bottom: 6px;
+      margin-bottom: 5px;
       letter-spacing: 0.3px;
     }
 
     .package-version {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--el-text-color-placeholder);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       font-weight: 500;
     }
 
     .package-description {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--el-text-color-secondary);
       line-height: 1.6;
     }
   }
 
   .package-status {
-    margin-top: 16px;
+    margin-top: 14px;
     display: flex;
     justify-content: flex-end;
   }
@@ -1870,45 +1955,57 @@ const importMacros = (content: string) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80px 40px;
+  padding: 100px 60px;
   text-align: center;
-  min-height: 400px;
+  min-height: 500px;
 
   .empty-illustration {
-    margin-bottom: 24px;
-    opacity: 0.5;
-    animation: float 3s ease-in-out infinite;
+    margin-bottom: 32px;
+    opacity: 0.3;
+    animation: float 4s ease-in-out infinite;
+
+    .el-icon {
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+    }
   }
 
   @keyframes float {
     0%, 100% {
-      transform: translateY(0px);
+      transform: translateY(0px) scale(1);
     }
     50% {
-      transform: translateY(-10px);
+      transform: translateY(-12px) scale(1.02);
     }
   }
 
   .empty-title {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
     color: var(--el-text-color-primary);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+    letter-spacing: -0.3px;
   }
 
   .empty-desc {
-    font-size: 14px;
+    font-size: 15px;
     color: var(--el-text-color-secondary);
-    margin-bottom: 28px;
-    max-width: 320px;
-    line-height: 1.6;
+    margin-bottom: 32px;
+    max-width: 380px;
+    line-height: 1.7;
   }
 
   .el-button {
-    padding: 12px 28px;
-    font-size: 14px;
+    padding: 14px 32px;
+    font-size: 15px;
     font-weight: 500;
-    border-radius: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(64, 158, 255, 0.4);
+    }
   }
 }
 
