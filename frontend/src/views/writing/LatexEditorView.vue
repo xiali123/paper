@@ -1,101 +1,62 @@
 <template>
   <div class="latex-editor-view" role="application" aria-label="LaTeX 编辑器">
-    <!-- 顶部导航栏 -->
+    <!-- 顶部导航栏 - 简化版 -->
     <header class="editor-header">
-      <!-- 左侧：路径 -->
+      <!-- 左侧：文档名 -->
       <div class="header-left">
-        <div class="doc-path">
-          <span class="path-item">协作写作</span>
-          <el-icon class="separator"><ArrowRight /></el-icon>
-          <span class="path-item">LaTeX编辑器</span>
-          <template v-if="currentDocument || currentProject">
-            <el-icon class="separator"><ArrowRight /></el-icon>
-            <span class="path-item current">{{ (currentDocument || currentProject)?.name }}</span>
-          </template>
+        <div class="doc-title" v-if="currentDocument || currentProject">
+          <el-icon><Document /></el-icon>
+          <span class="title-text">{{ (currentDocument || currentProject)?.name }}</span>
+          <el-tag v-if="unsavedChanges" type="warning" size="small" effect="plain">未保存</el-tag>
+        </div>
+        <div class="doc-title" v-else>
+          <el-icon><Edit /></el-icon>
+          <span class="title-text">新建文档</span>
         </div>
       </div>
 
-      <!-- 右侧：操作 -->
+      <!-- 右侧：核心操作 -->
       <div class="header-right">
         <div class="header-actions">
-          <el-dropdown @command="handleNewCommand" trigger="click">
-            <el-button size="small">
-              <el-icon><DocumentAdd /></el-icon>
-              新建
-              <el-icon><ArrowDown /></el-icon>
+          <!-- 编译 -->
+          <el-tooltip content="编译 F5">
+            <el-button size="small" :loading="compiling" @click="compileDocument">
+              <el-icon><VideoPlay /></el-icon>
             </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="document">
-                  <el-icon><Document /></el-icon>
-                  新建文档
-                </el-dropdown-item>
-                <el-dropdown-item command="project">
-                  <el-icon><Collection /></el-icon>
-                  新建项目
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          </el-tooltip>
 
-          <el-button v-if="!autoSave.isSaving.value" size="small" @click="saveDocument" class="save-btn">
-            <el-icon><DocumentChecked /></el-icon>
-            保存
-          </el-button>
-          <el-button v-else size="small" class="save-btn" disabled>
-            <el-icon class="is-loading"><Loading /></el-icon>
-            保存中
-          </el-button>
+          <!-- 保存 -->
+          <el-tooltip :content="autoSave.isSaving.value ? '保存中...' : '保存 Ctrl+S'">
+            <el-button size="small" @click="saveDocument" :disabled="autoSave.isSaving.value">
+              <el-icon><DocumentChecked /></el-icon>
+            </el-button>
+          </el-tooltip>
 
-          <el-button size="small" @click="compileDocument" :loading="compiling">
-            <el-icon><VideoPlay /></el-icon>
-            编译
-          </el-button>
+          <!-- 预览切换 -->
+          <el-tooltip :content="showPreview ? '隐藏预览' : '显示预览 Ctrl+P'">
+            <el-button size="small" @click="showPreview = !showPreview" :class="{ active: showPreview }">
+              <el-icon><View /></el-icon>
+            </el-button>
+          </el-tooltip>
 
-          <el-button size="small" @click="showPreview = !showPreview">
-            <el-icon v-if="!showPreview"><View /></el-icon>
-            <el-icon v-else><Close /></el-icon>
-            {{ showPreview ? '隐藏预览' : '预览' }}
-          </el-button>
-
+          <!-- 更多选项 -->
           <el-dropdown @command="handleHeaderCommand" trigger="click">
             <el-button size="small" link>
-              更多
-              <el-icon><ArrowDown /></el-icon>
+              <el-icon><MoreFilled /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="bibtex">
-                  <el-icon><Document /></el-icon>
-                  BibTeX文献
-                </el-dropdown-item>
-                <el-dropdown-item command="macro">
-                  <el-icon><MagicStick /></el-icon>
-                  LaTeX宏
-                </el-dropdown-item>
-                <el-dropdown-item command="images">
-                  <el-icon><Picture /></el-icon>
-                  图片资源
-                </el-dropdown-item>
-                <el-dropdown-item command="git">
-                  <el-icon><Operation /></el-icon>
-                  版本控制
-                </el-dropdown-item>
-                <el-dropdown-item command="navigator">
-                  <el-icon><Menu /></el-icon>
-                  文档大纲
-                </el-dropdown-item>
-                <el-dropdown-item command="version" divided>
-                  <el-icon><Clock /></el-icon>
-                  版本历史
-                </el-dropdown-item>
-                <el-dropdown-item command="layout">
-                  <el-icon><Grid /></el-icon>
-                  切换布局
-                </el-dropdown-item>
                 <el-dropdown-item command="settings">
                   <el-icon><Setting /></el-icon>
                   设置
+                </el-dropdown-item>
+                <el-dropdown-item command="layout" divided>
+                  <el-icon><Grid /></el-icon>
+                  切换布局
+                </el-dropdown-item>
+                <el-dropdown-item command="shortcut">
+                  <el-icon><QuestionFilled /></el-icon>
+                  快捷键
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -150,19 +111,20 @@
         </div>
       </div>
 
-      <!-- 编辑器工具栏 -->
+      <!-- 编辑器工具栏 - 重构版 -->
       <div class="editor-toolbar">
         <!-- 左侧工具 -->
         <div class="toolbar-left">
-          <!-- 导航切换 -->
-          <el-button class="toolbar-btn" @click="toggleLeftPanel" :class="{ active: showOutline || showProjectTree }">
-            <el-icon><Menu /></el-icon>
-            <span>{{ showOutline ? '大纲' : showProjectTree ? '文件' : '显示' }}</span>
-          </el-button>
+          <!-- 侧边栏切换 -->
+          <el-tooltip content="文档大纲 Ctrl+Shift+O">
+            <el-button class="toolbar-btn" size="small" @click="toggleLeftPanel" :class="{ active: showOutline || showProjectTree }">
+              <el-icon><Menu /></el-icon>
+            </el-button>
+          </el-tooltip>
 
           <el-divider direction="vertical" />
 
-          <!-- 编辑操作 -->
+          <!-- 撤销重做 -->
           <el-tooltip content="撤销 Ctrl+Z">
             <el-button class="toolbar-btn" size="small" @click="undoRedo.undo()" :disabled="!undoRedo.canUndo.value">
               <el-icon><RefreshLeft /></el-icon>
@@ -176,61 +138,56 @@
 
           <el-divider direction="vertical" />
 
-          <!-- 格式工具 -->
-          <el-button class="toolbar-btn" @click="insertLatexCommand('textbf')">粗体</el-button>
-          <el-button class="toolbar-btn" @click="insertLatexCommand('textit')">斜体</el-button>
-
-          <el-dropdown trigger="click">
-            <el-button class="toolbar-btn">
-              插入
-              <el-icon><ArrowDown /></el-icon>
+          <!-- 常用格式（移除文字） -->
+          <el-tooltip content="粗体 Ctrl+B">
+            <el-button class="toolbar-btn" size="small" @click="insertLatexCommand('textbf')">
+              <el-icon><NotificationBadge /></el-icon>
             </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="insertLatexEnvironment('itemize')">• 无序列表</el-dropdown-item>
-                <el-dropdown-item @click="insertLatexEnvironment('enumerate')">1. 有序列表</el-dropdown-item>
-                <el-dropdown-item @click="insertLatexEnvironment('equation')">∑ 数学公式</el-dropdown-item>
-                <el-dropdown-item @click="insertLatexEnvironment('figure')">🖼️ 图片</el-dropdown-item>
-                <el-dropdown-item @click="insertLatexEnvironment('table')">▦ 表格</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          </el-tooltip>
+          <el-tooltip content="斜体 Ctrl+I">
+            <el-button class="toolbar-btn" size="small" @click="insertLatexCommand('textit')">
+              <el-icon><CursorItalic /></el-icon>
+            </el-button>
+          </el-tooltip>
 
           <el-divider direction="vertical" />
 
-          <!-- 辅助工具 -->
+          <!-- AI公式识别 -->
+          <el-tooltip content="AI公式识别 Ctrl+Alt+I">
+            <el-button class="toolbar-btn" size="small" @click="aiRecognizerRef?.open()">
+              <el-icon><MagicStick /></el-icon>
+            </el-button>
+          </el-tooltip>
+
+          <!-- 符号面板 -->
           <el-tooltip content="符号面板">
-            <el-button class="toolbar-btn" @click="showSymbolPalette = !showSymbolPalette" :class="{ active: showSymbolPalette }">
+            <el-button class="toolbar-btn" size="small" @click="showSymbolPalette = !showSymbolPalette" :class="{ active: showSymbolPalette }">
               <el-icon><Tickets /></el-icon>
             </el-button>
           </el-tooltip>
+
+          <!-- 代码片段 -->
           <el-tooltip content="代码片段">
-            <el-button class="toolbar-btn" @click="showSnippets = !showSnippets" :class="{ active: showSnippets }">
+            <el-button class="toolbar-btn" size="small" @click="showSnippets = !showSnippets" :class="{ active: showSnippets }">
               <el-icon><Collection /></el-icon>
             </el-button>
           </el-tooltip>
         </div>
 
-        <!-- 右侧工具 -->
+        <!-- 右侧：功能面板标签 -->
         <div class="toolbar-right">
-          <el-dropdown @command="handleToolbarCommand" trigger="click">
-            <el-button class="toolbar-btn" circle>
-              <el-icon><MoreFilled /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="ai">
-                  <el-icon><MagicStick /></el-icon>
-                  AI公式识别
-                </el-dropdown-item>
-                <el-dropdown-item command="table">表格生成器</el-dropdown-item>
-                <el-dropdown-item command="spell">拼写检查</el-dropdown-item>
-                <el-dropdown-item command="template">文档模板</el-dropdown-item>
-                <el-dropdown-item command="font" divided>编辑器字体</el-dropdown-item>
-                <el-dropdown-item command="shortcut">快捷键帮助</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <div class="panel-tabs">
+            <button
+              v-for="panel in functionPanels"
+              :key="panel.key"
+              :class="['panel-tab', { active: activePanel === panel.key }]"
+              @click="activePanel = panel.key"
+            >
+              <el-icon><component :is="panel.icon" /></el-icon>
+              <span>{{ panel.label }}</span>
+              <el-badge v-if="panel.count > 0" :value="panel.count" :max="99" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -683,7 +640,7 @@ import {
   Loading, Edit, RefreshLeft, RefreshRight, Operation,
   ArrowDown, Collection, Close, Document, DocumentAdd,
   Clock, MoreFilled, ArrowRight, Setting, Grid, MagicStick,
-  Picture
+  Picture, NotificationBadge, QuestionFilled, CursorItalic
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
 import PdfViewer from '@/components/latex/PdfViewer.vue'
@@ -913,6 +870,35 @@ const leftPanelTitle = computed(() => {
     return showProjectTree.value ? '文件树' : '大纲'
   }
   return showOutline.value ? '大纲' : '菜单'
+})
+
+// 功能面板标签
+const activePanel = ref('bibtex')
+const unsavedChanges = ref(false)
+
+const functionPanels = computed(() => [
+  { key: 'bibtex', label: '文献', icon: Document, count: 0 },
+  { key: 'macro', label: '宏包', icon: MagicStick, count: 0 },
+  { key: 'images', label: '图片', icon: Picture, count: 0 },
+  { key: 'git', label: '版本', icon: Operation, count: 0 }
+])
+
+// 监听功能面板切换
+watch(activePanel, (newPanel) => {
+  switch (newPanel) {
+    case 'bibtex':
+      showBibTeXManager.value = true
+      break
+    case 'macro':
+      showMacroManager.value = true
+      break
+    case 'images':
+      showImageResourceManager.value = true
+      break
+    case 'git':
+      showGitIntegration.value = true
+      break
+  }
 })
 
 // Sync cursor position with store
@@ -1425,12 +1411,6 @@ async function handleNewCommand(command: string) {
 // 处理header命令
 function handleHeaderCommand(command: string) {
   switch (command) {
-    case 'preview':
-      showPreview.value = !showPreview.value
-      break
-    case 'version':
-      showVersionHistory.value = true
-      break
     case 'layout':
       // 循环切换布局模式
       const modes: LayoutMode[] = ['side-by-side', 'vertical-split', 'editor-only']
@@ -1438,24 +1418,11 @@ function handleHeaderCommand(command: string) {
       const nextMode = modes[(currentIndex + 1) % modes.length]
       setLayoutMode(nextMode)
       break
-    case 'file':
-      // 显示文件操作
-      showTemplates.value = true
+    case 'settings':
+      editorSettingsRef.value?.open()
       break
-    case 'bibtex':
-      showBibTeXManager.value = !showBibTeXManager.value
-      break
-    case 'macro':
-      showMacroManager.value = !showMacroManager.value
-      break
-    case 'images':
-      showImageResourceManager.value = !showImageResourceManager.value
-      break
-    case 'git':
-      showGitIntegration.value = !showGitIntegration.value
-      break
-    case 'navigator':
-      showCodeFoldNavigator.value = !showCodeFoldNavigator.value
+    case 'shortcut':
+      showKeyboardShortcuts.value = true
       break
   }
 }
@@ -3366,18 +3333,17 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 // ==========================================
-// 2. 头部区域优化 - 紧凑设计
+// 2. 头部区域 - 极简设计
 // ==========================================
 
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 16px;
-  height: 48px;
+  padding: 8px 20px;
+  height: 44px;
   background: var(--el-bg-color);
-  border-bottom: 1px solid var(--el-border-color-light);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--el-border-color-lighter);
   flex-shrink: 0;
 
   .header-left {
@@ -3386,26 +3352,24 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
     align-items: center;
     min-width: 0;
 
-    .doc-path {
+    .doc-title {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 13px;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--el-text-color-primary);
 
-      .path-item {
-        color: var(--el-text-color-secondary);
+      .title-text {
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
-
-        &.current {
-          color: var(--el-text-color-primary);
-          font-weight: 500;
-        }
       }
 
-      .separator {
-        color: var(--el-border-color);
-        font-size: 14px;
-        flex-shrink: 0;
+      .el-icon {
+        font-size: 16px;
+        color: var(--el-color-primary);
       }
     }
   }
@@ -3413,7 +3377,7 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
   .header-right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 
     .header-actions {
@@ -3421,9 +3385,23 @@ $shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
       align-items: center;
       gap: 6px;
 
-      .save-btn {
-        min-width: 80px;
-        text-align: center;
+      .el-button {
+        padding: 6px;
+        border-radius: 8px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+        &:hover {
+          transform: translateY(-1px);
+        }
+
+        &.active {
+          color: var(--el-color-primary);
+          background: var(--el-color-primary-light-9);
+        }
+
+        .el-icon {
+          font-size: 15px;
+        }
       }
     }
   }
