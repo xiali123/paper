@@ -198,6 +198,7 @@ export function getLatexShortcuts(handlers: {
   onShowRecent?: () => void
   onShowSettings?: () => void
   onShowStats?: () => void
+  onCommandPalette?: () => void
 }): KeyboardShortcut[] {
   const shortcuts: KeyboardShortcut[] = []
 
@@ -334,6 +335,14 @@ export function getLatexShortcuts(handlers: {
       key: 'Ctrl+Alt+D',
       handler: handlers.onShowStats,
       description: '文档统计'
+    })
+  }
+
+  if (handlers.onCommandPalette) {
+    shortcuts.push({
+      key: 'Ctrl+Shift+P',
+      handler: handlers.onCommandPalette,
+      description: '命令面板'
     })
   }
 

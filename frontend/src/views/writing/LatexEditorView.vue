@@ -65,12 +65,32 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="version">
+                <el-dropdown-item command="bibtex">
+                  <el-icon><Document /></el-icon>
+                  BibTeX文献
+                </el-dropdown-item>
+                <el-dropdown-item command="macro">
+                  <el-icon><MagicStick /></el-icon>
+                  LaTeX宏
+                </el-dropdown-item>
+                <el-dropdown-item command="images">
+                  <el-icon><Picture /></el-icon>
+                  图片资源
+                </el-dropdown-item>
+                <el-dropdown-item command="git">
+                  <el-icon><Operation /></el-icon>
+                  版本控制
+                </el-dropdown-item>
+                <el-dropdown-item command="navigator">
+                  <el-icon><Menu /></el-icon>
+                  文档大纲
+                </el-dropdown-item>
+                <el-dropdown-item command="version" divided>
                   <el-icon><Clock /></el-icon>
                   版本历史
                 </el-dropdown-item>
                 <el-dropdown-item command="layout">
-                  <el-icon><Operation /></el-icon>
+                  <el-icon><Grid /></el-icon>
                   切换布局
                 </el-dropdown-item>
                 <el-dropdown-item command="settings">
@@ -566,6 +586,62 @@
       @clear-cache="handleClearCache"
     />
 
+    <!-- BibTeX文献管理器 -->
+    <el-drawer
+      v-model="showBibTeXManager"
+      title="BibTeX文献管理"
+      direction="rtl"
+      size="500px"
+    >
+      <BibTeXManager @insert-citation="handleInsertCitation" />
+    </el-drawer>
+
+    <!-- LaTeX宏管理器 -->
+    <el-drawer
+      v-model="showMacroManager"
+      title="LaTeX宏管理器"
+      direction="rtl"
+      size="450px"
+    >
+      <MacroManager @insert-macro="handleInsertMacro" />
+    </el-drawer>
+
+    <!-- 图片资源管理器 -->
+    <el-drawer
+      v-model="showImageResourceManager"
+      title="图片资源管理"
+      direction="rtl"
+      size="600px"
+    >
+      <ImageResourceManager @insert-image="handleInsertImage" />
+    </el-drawer>
+
+    <!-- Git集成面板 -->
+    <el-drawer
+      v-model="showGitIntegration"
+      title="版本控制 (Git)"
+      direction="ltr"
+      size="600px"
+    >
+      <GitIntegrationPanel />
+    </el-drawer>
+
+    <!-- 代码折叠导航 -->
+    <el-drawer
+      v-model="showCodeFoldNavigator"
+      title="文档大纲"
+      direction="ltr"
+      size="320px"
+    >
+      <CodeFoldNavigator
+        :content="editorContent"
+        @jump-to-line="handleJumpToLine"
+      />
+    </el-drawer>
+
+    <!-- 命令面板 -->
+    <CommandPalette v-model="showCommandPalette" @command-executed="handleCommandExecuted" />
+
     <!-- 统计仪表板 -->
     <StatsDashboard
       v-model:show="showStatsDashboard"
@@ -602,7 +678,8 @@ import {
   DocumentChecked, VideoPlay, View, Menu, Tickets,
   Loading, Edit, RefreshLeft, RefreshRight, Operation,
   ArrowDown, Collection, Close, Document, DocumentAdd,
-  Clock, MoreFilled, ArrowRight, Setting
+  Clock, MoreFilled, ArrowRight, Setting, Grid, MagicStick,
+  Picture
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
 import PdfViewer from '@/components/latex/PdfViewer.vue'
@@ -643,6 +720,14 @@ import TemplatesPanel from './latex/components/panels/TemplatesPanel.vue'
 import TablePanel from './latex/components/panels/TablePanel.vue'
 import SpellCheckPanel from './latex/components/panels/SpellCheckPanel.vue'
 import FontPanel from './latex/components/panels/FontPanel.vue'
+	// Batch 2 & 3 expansion components
+	import BibTeXManager from '@/components/latex/BibTeXManager.vue'
+	import CodeFoldNavigator from '@/components/latex/CodeFoldNavigator.vue'
+	import MacroManager from '@/components/latex/MacroManager.vue'
+	import ImageResourceManager from '@/components/latex/ImageResourceManager.vue'
+	import InlineCommentSystem from '@/components/latex/InlineCommentSystem.vue'
+	import GitIntegrationPanel from '@/components/latex/GitIntegrationPanel.vue'
+	import CommandPalette from '@/components/latex/CommandPalette.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
 // Props and emits
@@ -691,6 +776,15 @@ const showSettings = ref(false) // 设置面板
 const isFullscreen = ref(false) // 全屏状态
 const showProjectTree = ref(false) // 新增：项目文件树
 const showVersionHistory = ref(false) // 新增：版本历史面板
+	// Batch 2 & 3 expansion states
+	const showBibTeXManager = ref(false)
+	const showCodeFoldNavigator = ref(false)
+	const showMacroManager = ref(false)
+	const showImageResourceManager = ref(false)
+	const showInlineComments = ref(false)
+	const showGitIntegration = ref(false)
+	const showCommandPalette = ref(false)
+	const showMultiWindow = ref(false)
 const isProjectMode = computed(() => latexStore.isProjectMode) // 从store读取
 const saving = ref(false)
 const compiling = ref(false)
@@ -1354,6 +1448,21 @@ function handleHeaderCommand(command: string) {
       // 显示文件操作
       showTemplates.value = true
       break
+    case 'bibtex':
+      showBibTeXManager.value = !showBibTeXManager.value
+      break
+    case 'macro':
+      showMacroManager.value = !showMacroManager.value
+      break
+    case 'images':
+      showImageResourceManager.value = !showImageResourceManager.value
+      break
+    case 'git':
+      showGitIntegration.value = !showGitIntegration.value
+      break
+    case 'navigator':
+      showCodeFoldNavigator.value = !showCodeFoldNavigator.value
+      break
   }
 }
 
@@ -1377,6 +1486,24 @@ function handleToolbarCommand(command: string) {
       break
     case 'version':
       showVersionHistory.value = true
+      break
+    case 'bibtex':
+      showBibTeXManager.value = !showBibTeXManager.value
+      break
+    case 'macro':
+      showMacroManager.value = !showMacroManager.value
+      break
+    case 'images':
+      showImageResourceManager.value = !showImageResourceManager.value
+      break
+    case 'git':
+      showGitIntegration.value = !showGitIntegration.value
+      break
+    case 'comments':
+      showInlineComments.value = !showInlineComments.value
+      break
+    case 'navigator':
+      showCodeFoldNavigator.value = !showCodeFoldNavigator.value
       break
   }
 }
@@ -1580,6 +1707,9 @@ const shortcuts = getLatexShortcuts({
   onShowRecent: () => {
     showRecentDocuments.value = true
     loadRecentDocuments()
+  },
+  onCommandPalette: () => {
+    showCommandPalette.value = true
   },
   onShowSettings: () => {
     editorSettingsRef.value?.open()
@@ -3069,6 +3199,59 @@ function loadRecentDocuments() {
   } finally {
     loadingRecentDocs.value = false
   }
+}
+
+// Batch 2 & 3 component event handlers
+function handleInsertCitation(citationCommand: string) {
+  // 插入BibTeX引用命令
+  const editor = editorRef.value
+  if (editor && editor.insertText) {
+    editor.insertText(citationCommand)
+  } else {
+    editorContent.value += citationCommand
+  }
+  ElMessage.success('引用已插入')
+}
+
+function handleInsertMacro(macroCode: string) {
+  // 插入LaTeX宏
+  const editor = editorRef.value
+  if (editor && editor.insertText) {
+    editor.insertText(macroCode)
+  } else {
+    editorContent.value += macroCode
+  }
+  ElMessage.success('宏已插入')
+}
+
+function handleInsertImage(imageCode: string) {
+  // 插入图片代码
+  const editor = editorRef.value
+  if (editor && editor.insertText) {
+    editor.insertText(imageCode)
+  } else {
+    editorContent.value += imageCode
+  }
+  ElMessage.success('图片已插入')
+}
+
+function handleJumpToLine(lineNumber: number) {
+  // 跳转到指定行
+  const editor = editorRef.value
+  if (editor && editor.gotoLine) {
+    editor.gotoLine(lineNumber)
+  }
+  // 如果使用的是Monaco编辑器
+  if ((window as any).monacoEditor) {
+    (window as any).monacoEditor.revealLineInCenter(lineNumber)
+    (window as any).monacoEditor.setPosition({ lineNumber, column: 1 })
+    (window as any).monacoEditor.focus()
+  }
+}
+
+function handleCommandExecuted(command: any) {
+  console.log('Command executed:', command)
+  // 可以根据命令执行特定操作
 }
 
 // Expose methods to template
