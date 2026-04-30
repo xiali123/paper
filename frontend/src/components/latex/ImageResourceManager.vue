@@ -1,81 +1,60 @@
 /**
- * 图片资源管理器 (深度优化版)
- * 管理LaTeX文档中的图片，支持拖拽上传、自动引用生成
- * 全新UI设计，现代化交互体验
+ * 图片资源管理器 (界面优化版)
+ * 参考LaTeX宏管理器设计，统一UI规范
  */
 
 <template>
   <div class="image-resource-manager">
     <!-- 头部工具栏 -->
     <div class="manager-header">
-      <div class="header-left">
-        <div class="header-title">
-          <el-icon :size="20" color="var(--el-color-primary)"><Picture /></el-icon>
-          <span>图片资源</span>
-          <el-tag v-if="totalImages > 0" type="info" effect="plain" size="small" class="count-tag">
-            {{ totalImages }} 张
-          </el-tag>
-        </div>
-      </div>
       <div class="header-actions">
-        <!-- 搜索框 -->
         <el-input
           v-model="searchQuery"
           placeholder="搜索图片..."
           :prefix-icon="Search"
           clearable
-          class="main-search"
+          class="search-input"
         />
-
-        <!-- 筛选和排序 -->
+        <el-button :icon="Upload" type="primary" @click="triggerUpload">
+          上传
+        </el-button>
         <el-dropdown trigger="click">
-          <el-button>
-            <el-icon><Filter /></el-icon>
-            筛选
+          <el-button :icon="More">
             <el-icon class="el-icon--right"><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item v-for="type in [{label: '全部类型', value: ''}, {label: 'PNG', value: 'png'}, {label: 'JPG', value: 'jpg'}, {label: 'SVG', value: 'svg'}]" :key="type.value" @click="filterType = type.value">
-                {{ type.label }}
+              <el-dropdown-item @click="createFolder">
+                <el-icon><FolderAddIcon /></el-icon>
+                新建文件夹
               </el-dropdown-item>
-              <el-dropdown-item divided v-for="sort in [{label: '按名称', value: 'name'}, {label: '按大小', value: 'size'}, {label: '按日期', value: 'date'}]" :key="sort.value" @click="sortBy = sort.value">
-                {{ sort.label }}
+              <el-dropdown-item @click="refreshFolders">
+                <el-icon><Refresh /></el-icon>
+                刷新
+              </el-dropdown-item>
+              <el-dropdown-item divided v-if="selectedCount > 0" @click="handleBatchAction('edit')">
+                <el-icon><Edit /></el-icon>
+                批量编辑 ({{ selectedCount }})
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+      </div>
+    </div>
 
-        <!-- 操作按钮 -->
-        <el-button-group>
-          <el-tooltip content="上传图片" placement="bottom">
-            <el-button type="primary" :icon="Upload" @click="triggerUpload">
-              上传
-            </el-button>
-          </el-tooltip>
-          <el-dropdown trigger="click">
-            <el-button>
-              更多
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="createFolder">
-                  <el-icon><FolderAddIcon /></el-icon>
-                  新建文件夹
-                </el-dropdown-item>
-                <el-dropdown-item @click="refreshFolders">
-                  <el-icon><Refresh /></el-icon>
-                  刷新
-                </el-dropdown-item>
-                <el-dropdown-item divided v-if="selectedCount > 0" @click="handleBatchAction('edit')">
-                  <el-icon><Edit /></el-icon>
-                  批量编辑 ({{ selectedCount }})
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </el-button-group>
+    <!-- 标签栏 -->
+    <div class="tab-bar-wrapper">
+      <div class="tab-bar">
+        <button
+          v-for="tab in imageTabs"
+          :key="tab.key"
+          :class="['tab-btn', { active: activeTab === tab.key }]"
+          @click="activeTab = tab.key"
+        >
+          <el-icon><component :is="tab.icon" /></el-icon>
+          <span>{{ tab.label }}</span>
+          <el-badge v-if="tab.count > 0" :value="tab.count" :max="99" />
+        </button>
       </div>
     </div>
 
@@ -84,7 +63,7 @@
       <!-- 侧边栏 -->
       <div class="manager-sidebar" :class="{ 'is-collapsed': sidebarCollapsed }">
         <div class="sidebar-header">
-          <span v-if="!sidebarCollapsed" class="sidebar-title">资源文件夹</span>
+          <span v-if="!sidebarCollapsed" class="sidebar-title">文件夹</span>
           <el-button
             :icon="sidebarCollapsed ? ArrowRight : ArrowLeft"
             text
@@ -207,7 +186,7 @@
             <div class="card-checkbox">
               <el-checkbox
                 :model-value="selectedImages.has(image.id)"
-                @change="toggleSelectImage(image, $event)"
+                @change="toggleSelectImage(image, $event as boolean)"
                 @click.stop
               />
             </div>
@@ -606,7 +585,6 @@ import {
   Search,
   Upload,
   UploadFilled,
-  FolderOpened,
   Folder,
   Picture,
   Refresh,
@@ -627,11 +605,10 @@ import {
   ZoomIn,
   ZoomOut,
   RefreshLeft,
-  Sort,
-  PriceTag as Tag,
   Star,
   DataAnalysis,
-  Filter
+  More,
+  Clock
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -673,13 +650,15 @@ interface Props {
   documentId?: string
 }
 
-const props = defineProps<Props>()
+const props = // eslint-disable-next @typescript-eslint/no-unused-vars
+defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'insert-reference', command: string): void
 }>()
 
 // 状态
+const activeTab = ref('all')
 const searchQuery = ref('')
 const filterType = ref('')
 const sortBy = ref('date')
@@ -690,7 +669,6 @@ const isDragging = ref(false)
 const showPreviewDialog = ref(false)
 const showEditDialog = ref(false)
 const showBatchEditDialog = ref(false)
-const showTagDialog = ref(false)
 const optimizing = ref(false)
 const sidebarCollapsed = ref(false)
 const viewMode = ref<'grid' | 'list'>('grid')
@@ -775,10 +753,26 @@ const breadcrumb = computed(() => {
   return result
 })
 
+// 图片标签
+const imageTabs = computed(() => [
+  { key: 'all', label: '全部', icon: Picture, count: totalImages.value },
+  { key: 'favorites', label: '收藏', icon: Star, count: images.value.filter(i => i.isFavorite).length },
+  { key: 'recent', label: '最近', icon: Clock, count: 0 }
+])
+
 // 显示的图片
 const displayedImages = computed(() => {
-  let filtered = images.value.filter(img => img.folder === currentFolder.value)
+  let filtered = images.value
 
+  // 标签过滤
+  if (activeTab.value === 'favorites') {
+    filtered = filtered.filter(i => i.isFavorite)
+  }
+
+  // 文件夹过滤
+  filtered = filtered.filter(img => img.folder === currentFolder.value)
+
+  // 搜索过滤
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(img =>
@@ -786,10 +780,12 @@ const displayedImages = computed(() => {
     )
   }
 
+  // 类型过滤
   if (filterType.value) {
     filtered = filtered.filter(img => img.type === filterType.value)
   }
 
+  // 标签过滤
   if (tagFilter.value) {
     filtered = filtered.filter(img => img.tags?.includes(tagFilter.value))
   }
@@ -1260,33 +1256,109 @@ defineExpose({
   background: var(--el-bg-color-page);
 }
 
-// 头部
+// 头部（参考LaTeX宏管理器）
 .manager-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: flex-end;
   padding: 12px 24px 8px;
   background: var(--el-bg-color);
-  border-bottom: 1px solid var(--el-border-color-light);
+}
 
-  .header-left {
-    .header-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--el-text-color-primary);
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+
+  .search-input {
+    width: 280px;
+
+    :deep(.el-input__wrapper) {
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+      :deep(.el-input__inner) {
+        font-size: 13px;
+      }
+
+      &.is-focus {
+        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+      }
     }
   }
 
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+  .el-button {
+    border-radius: 8px;
+    font-size: 13px;
+    padding: 7px 14px;
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-    .main-search {
-      width: 320px;
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(64, 158, 255, 0.15);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    .el-icon {
+      font-size: 14px;
+    }
+  }
+}
+
+// 标签栏（参考LaTeX宏管理器）
+.tab-bar-wrapper {
+  padding: 0 24px 12px;
+  background: var(--el-bg-color);
+
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+
+    .tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border: none;
+      background: transparent;
+      color: var(--el-text-color-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      white-space: nowrap;
+      flex-shrink: 0;
+      position: relative;
+
+      &:hover {
+        background: var(--el-fill-color-light);
+        color: var(--el-text-color-primary);
+      }
+
+      &.active {
+        background: var(--el-color-primary);
+        color: white;
+      }
+
+      .el-icon {
+        font-size: 14px;
+      }
+
+      .el-badge {
+        :deep(.el-badge__content) {
+          font-size: 10px;
+          font-weight: 600;
+          padding: 0 4px;
+          height: 16px;
+          line-height: 16px;
+          border-radius: 8px;
+        }
+      }
     }
   }
 }
@@ -1298,62 +1370,74 @@ defineExpose({
   overflow: hidden;
 }
 
-// 侧边栏
+// 侧边栏（紧凑设计）
 .manager-sidebar {
-  width: 240px;
+  width: 200px;
   background: var(--el-bg-color);
-  border-right: 1px solid var(--el-border-color-light);
+  border-right: 1px solid var(--el-border-color-lighter);
   display: flex;
   flex-direction: column;
   transition: width 0.3s;
 
   &.is-collapsed {
-    width: 50px;
+    width: 44px;
   }
 
   .sidebar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--el-border-color-lighter);
 
     .sidebar-title {
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .el-button {
+      padding: 4px;
+
+      .el-icon {
+        font-size: 14px;
+      }
     }
   }
 
   .sidebar-tree {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
+    padding: 8px;
 
     :deep(.el-tree) {
       background: transparent;
     }
 
     :deep(.el-tree-node__content) {
-      border-radius: 9px;
-      padding: 7px 10px;
+      border-radius: 8px;
+      padding: 6px 8px;
       transition: all 0.2s;
+      margin-bottom: 2px;
 
       &:hover {
         background: var(--el-fill-color-light);
-        transform: translateX(2px);
       }
     }
 
     :deep(.is-current > .el-tree-node__content) {
-      background: linear-gradient(90deg, var(--el-color-primary-light-9) 0%, transparent 100%);
-      color: var(--el-color-primary);
+      background: var(--el-color-primary);
+      color: white;
       font-weight: 500;
+      box-shadow: 0 2px 6px rgba(64, 158, 255, 0.2);
     }
 
     .tree-node {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       width: 100%;
 
       &.is-collapsed {
@@ -1362,40 +1446,42 @@ defineExpose({
 
       .node-icon {
         flex-shrink: 0;
-        color: var(--el-color-primary);
+        font-size: 16px;
       }
 
       .node-label {
         flex: 1;
         font-size: 13px;
         font-weight: 400;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
   }
 
   .sidebar-footer {
-    padding: 14px;
-    border-top: 1px solid var(--el-border-color-light);
-    background: linear-gradient(180deg, transparent 0%, var(--el-fill-color-light) 100%);
+    padding: 12px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    background: var(--el-fill-color-extra-light);
 
     .storage-info {
       .storage-bar {
-        height: 6px;
+        height: 4px;
         background: var(--el-fill-color);
-        border-radius: 3px;
+        border-radius: 2px;
         overflow: hidden;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
 
         .storage-used {
           height: 100%;
           background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-success));
           transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 0 10px rgba(103, 194, 58, 0.3);
         }
       }
 
       .storage-text {
-        font-size: 12px;
+        font-size: 11px;
         color: var(--el-text-color-secondary);
         text-align: center;
         font-weight: 500;
@@ -1437,7 +1523,7 @@ defineExpose({
 
 .image-container {
   flex: 1;
-  padding: 20px;
+  padding: 18px;
   overflow-y: auto;
   background: linear-gradient(180deg, var(--el-fill-color-extra-light) 0%, var(--el-fill-color-lighter) 100%);
 
@@ -1452,7 +1538,7 @@ defineExpose({
       display: grid;
       grid-template-columns: 60px 1fr auto;
       gap: 12px;
-      padding: 12px 20px;
+      padding: 12px 18px;
       align-items: center;
       height: auto;
       margin-bottom: 8px;
@@ -1539,9 +1625,9 @@ defineExpose({
 // 图片网格
 .image-container:not(.is-list-view) {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 20px;
-  padding: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+  padding: 18px;
 }
 
 .image-card {
