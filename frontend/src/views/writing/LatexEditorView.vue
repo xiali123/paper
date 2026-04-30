@@ -219,6 +219,10 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="ai">
+                  <el-icon><MagicStick /></el-icon>
+                  AI公式识别
+                </el-dropdown-item>
                 <el-dropdown-item command="table">表格生成器</el-dropdown-item>
                 <el-dropdown-item command="spell">拼写检查</el-dropdown-item>
                 <el-dropdown-item command="template">文档模板</el-dropdown-item>
@@ -685,24 +689,14 @@ import LatexPreview from '@/components/latex/LatexPreview.vue'
 import PdfViewer from '@/components/latex/PdfViewer.vue'
 import LatexAutocomplete from '@/components/latex/LatexAutocomplete.vue'
 import LatexEditor from '@/components/latex/LatexEditor.vue'
-import DocumentOutline from '@/components/latex/DocumentOutline.vue'
-import SymbolPalette from '@/components/latex/SymbolPalette.vue'
-import TableGenerator from '@/components/latex/TableGenerator.vue'
 import CircularProgress from '@/components/latex/CircularProgress.vue'
-import SpellChecker from '@/components/latex/SpellChecker.vue'
-import TemplateManager from '@/components/latex/TemplateManager.vue'
-import LatexSnippets from '@/components/latex/LatexSnippets.vue'
-import FontSelector from '@/components/latex/FontSelector.vue'
 import ShortcutHelpDialog from './latex/components/dialogs/ShortcutHelpDialog.vue'
 import QuickInsertDialog from './latex/components/dialogs/QuickInsertDialog.vue'
-import EditorStats from '@/components/latex/EditorStats.vue'
 import AiRecognizerDialog from './latex/components/dialogs/AiRecognizerDialog.vue'
 import ReviewModeDialog from './latex/components/dialogs/ReviewModeDialog.vue'
 import ExportDialogWrapper from './latex/components/dialogs/ExportDialogWrapper.vue'
 import EditorStatusBar from '@/components/latex/EditorStatusBar.vue'
 import CollaborationPanel from '@/components/collaboration/CollaborationPanel.vue'
-import ProjectFileTree from '@/components/latex/ProjectFileTree.vue'
-import ProjectSelector from '@/components/latex/ProjectSelector.vue'
 import VersionHistory from '@/components/latex/VersionHistory.vue'
 import VersionControl from '@/components/latex/VersionControl.vue'
 import WelcomeGuideDialog from './latex/components/dialogs/WelcomeGuideDialog.vue'
@@ -1469,6 +1463,9 @@ function handleHeaderCommand(command: string) {
 // 处理工具栏命令
 function handleToolbarCommand(command: string) {
   switch (command) {
+    case 'ai':
+      aiRecognizerRef.value?.open()
+      break
     case 'table':
       showTableGenerator.value = !showTableGenerator.value
       break
