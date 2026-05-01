@@ -6,73 +6,61 @@
 #include "network/HttpClient.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
+#include "../../core/external/nlohmann/json.hpp"
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <algorithm>
-#include <regex>
 #include <cmath>
-#include <spdlog/spdlog.h>
+#include <chrono>
 
 namespace PaperCrawler {
 
 // ============================================================================
-// 辅助函数：JSON序列化
+// JSON序列化
 // ============================================================================
 
 std::string SearchResultItem::toJson() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"id\": " << id << ",\n";
-    json << "  \"type\": \"" << type << "\",\n";
-    json << "  \"title\": \"" << title << "\",\n";
-    json << "  \"description\": \"" << description << "\",\n";
-    json << "  \"relevance_score\": " << relevanceScore << ",\n";
-    json << "  \"url\": \"" << url << "\"\n";
-    json << "}";
-    return json.str();
+    nlohmann::json j;
+    j["id"] = id;
+    j["type"] = type;
+    j["title"] = title;
+    j["description"] = description;
+    j["relevance_score"] = relevanceScore;
+    j["url"] = url;
+    if (!highlights.empty()) j["highlights"] = highlights;
+    return j.dump();
 }
 
 std::string SearchResult::toJson() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"query\": \"" << query << "\",\n";
-    json << "  \"page\": " << page << ",\n";
-    json << "  \"limit\": " << limit << ",\n";
-    json << "  \"total\": " << total << ",\n";
-    json << "  \"total_pages\": " << totalPages << ",\n";
-    json << "  \"search_time_ms\": " << searchTimeMs << ",\n";
-    json << "  \"items\": [" << "\n";
-
-    for (size_t i = 0; i < items.size(); ++i) {
-        json << "    " << items[i].toJson();
-        if (i < items.size() - 1) {
-            json << ",";
-        }
-        json << "\n";
+    nlohmann::json j;
+    j["query"] = query;
+    j["page"] = page;
+    j["limit"] = limit;
+    j["total"] = total;
+    j["total_pages"] = totalPages;
+    j["search_time_ms"] = searchTimeMs;
+    j["items"] = nlohmann::json::array();
+    for (const auto& item : items) {
+        j["items"].push_back(nlohmann::json::parse(item.toJson()));
     }
-
-    json << "  ]\n";
-    json << "}";
-    return json.str();
+    j["suggestions"] = suggestions;
+    return j.dump();
 }
 
 std::string SearchSuggestion::toJson() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"text\": \"" << text << "\",\n";
-    json << "  \"frequency\": " << frequency << ",\n";
-    json << "  \"type\": \"" << type << "\"\n";
-    json << "}";
-    return json.str();
+    nlohmann::json j;
+    j["text"] = text;
+    j["frequency"] = frequency;
+    j["type"] = type;
+    return j.dump();
 }
 
 std::string TrendingSearch::toJson() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"query\": \"" << query << "\",\n";
-    json << "  \"count\": " << count << ",\n";
-    json << "  \"trend\": " << trend << "\n";
-    json << "}";
-    return json.str();
+    nlohmann::json j;
+    j["query"] = query;
+    j["count"] = count;
+    j["trend"] = trend;
+    return j.dump();
 }
 
 // ============================================================================
@@ -81,69 +69,322 @@ std::string TrendingSearch::toJson() const {
 
 class SearchApiModule::Impl {
 public:
-    // 依赖注入：数据库接口
     std::shared_ptr<IDatabase> database_;
 
-    // 构造函数：接受数据库依赖
-    explicit Impl(std::shared_ptr<IDatabase> database)
-        : database_(database) {
-        // 不再加载Mock数据
-    }
+    explicit Impl(std::shared_ptr<IDatabase> database) : database_(database) {}
 
-    // 从数据库搜索论文（包含SQL注入防护）
+    // 从数据库搜索论文
     std::vector<Paper> searchPapersFromDatabase(const std::string& query, int page, int limit) {
         std::vector<Paper> papers;
+        if (!database_) return papers;
+
         try {
             int offset = (page - 1) * limit;
 
+            // 使用FULLTEXT索引
             PreparedStatement stmt(database_,
-                "SELECT * FROM papers WHERE "
-                "title LIKE ? OR authors LIKE ? OR abstract LIKE ? OR keywords LIKE ? "
-                "ORDER BY citation_count DESC LIMIT ? OFFSET ?");
+                "SELECT *, MATCH(title, abstract, keywords) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance "
+                "FROM papers "
+                "WHERE MATCH(title, abstract, keywords) AGAINST(? IN NATURAL LANGUAGE MODE) "
+                "ORDER BY relevance DESC "
+                "LIMIT ? OFFSET ?");
 
-            std::string likePattern = "%" + query + "%";
-            stmt.bind(0, likePattern).bind(1, likePattern)
-                 .bind(2, likePattern).bind(3, likePattern)
-                 .bind(4, limit).bind(5, offset);
-
+            stmt.bind(0, query).bind(1, query).bind(2, limit).bind(3, offset);
             auto results = stmt.query();
 
             for (const auto& row : results) {
                 Paper paper;
                 paper.id = std::stoi(row.at("id"));
                 paper.title = row.at("title");
-                paper.authors = row.at("authors");
+                paper.authors = row.count("authors") ? row.at("authors") : "";
                 paper.year = row.count("year") ? row.at("year") : "";
                 paper.abstract = row.count("abstract") ? row.at("abstract") : "";
                 paper.publication = row.count("journal") ? row.at("journal") : "";
                 paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                paper.url = row.count("url") ? row.at("url") : "";
                 papers.push_back(paper);
             }
+
+            // 记录搜索到历史
+            recordSearchHistory(query, "basic", papers.size());
+
         } catch (const std::exception& e) {
-            std::cerr << "[SearchAPI] Failed to search papers: " << e.what() << std::endl;
+            spdlog::error("[SearchAPI] Failed to search papers: {}", e.what());
         }
         return papers;
     }
 
-    // 计算总数（参数化查询防SQL注入）
     int getTotalCount(const std::string& query) {
+        if (!database_) return 0;
         try {
             PreparedStatement stmt(database_,
-                "SELECT COUNT(*) as count FROM papers WHERE "
-                "title LIKE ? OR authors LIKE ? OR abstract LIKE ? OR keywords LIKE ?");
-
-            std::string likePattern = "%" + query + "%";
-            stmt.bind(0, likePattern).bind(1, likePattern)
-                 .bind(2, likePattern).bind(3, likePattern);
-
+                "SELECT COUNT(*) as count FROM papers "
+                "WHERE MATCH(title, abstract, keywords) AGAINST(? IN NATURAL LANGUAGE MODE)");
+            stmt.bind(0, query);
             auto results = stmt.query();
             if (!results.empty()) {
                 return std::stoi(results[0]["count"]);
             }
         } catch (const std::exception& e) {
-            std::cerr << "[SearchAPI] Failed to get count: " << e.what() << std::endl;
+            spdlog::error("[SearchAPI] Failed to get count: {}", e.what());
         }
         return 0;
+    }
+
+    // 记录搜索历史
+    void recordSearchHistory(const std::string& query, const std::string& queryType, int resultCount) {
+        if (!database_) return;
+        try {
+            PreparedStatement stmt(database_,
+                "INSERT INTO search_history (user_id, query, query_type, result_count, search_time_ms, ip_address) "
+                "VALUES (?, ?, ?, ?, ?, ?)");
+
+            // 默认user_id=0（未登录用户），search_time_ms=0（简化）
+            stmt.bind(0, 0).bind(1, query).bind(2, queryType)
+                .bind(3, resultCount).bind(4, 0).bind(5, "");
+            stmt.execute();
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to record search history: {}", e.what());
+        }
+    }
+
+    // 获取搜索建议
+    std::vector<SearchSuggestion> getSuggestions(const std::string& query, int limit) {
+        std::vector<SearchSuggestion> suggestions;
+        if (!database_) return suggestions;
+
+        try {
+            PreparedStatement stmt(database_,
+                "SELECT suggestion, suggestion_type, frequency "
+                "FROM search_suggestions "
+                "WHERE is_active = TRUE AND suggestion LIKE ? "
+                "ORDER BY frequency DESC, last_used_at DESC "
+                "LIMIT ?");
+
+            std::string pattern = "%" + query + "%";
+            stmt.bind(0, pattern).bind(1, limit);
+            auto results = stmt.query();
+
+            for (const auto& row : results) {
+                SearchSuggestion sug;
+                sug.text = row.at("suggestion");
+                sug.frequency = std::stoi(row.at("frequency"));
+                sug.type = row.at("suggestion_type");
+                suggestions.push_back(sug);
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to get suggestions: {}", e.what());
+        }
+        return suggestions;
+    }
+
+    // 获取热门搜索
+    std::vector<TrendingSearch> getTrendingSearches(int limit) {
+        std::vector<TrendingSearch> trending;
+        if (!database_) return trending;
+
+        try {
+            PreparedStatement stmt(database_,
+                "SELECT query, search_count, trending_score "
+                "FROM trending_searches "
+                "WHERE is_active = TRUE "
+                "ORDER BY trending_score DESC, search_count DESC "
+                "LIMIT ?");
+
+            stmt.bind(0, limit);
+            auto results = stmt.query();
+
+            for (const auto& row : results) {
+                TrendingSearch t;
+                t.query = row.at("query");
+                t.count = std::stoi(row.at("search_count"));
+                t.trend = std::stod(row.at("trending_score"));
+                trending.push_back(t);
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to get trending searches: {}", e.what());
+        }
+        return trending;
+    }
+
+    // 获取搜索历史
+    std::vector<SearchHistory> getSearchHistory(int userId, int limit) {
+        std::vector<SearchHistory> history;
+        if (!database_) return history;
+
+        try {
+            PreparedStatement stmt(database_,
+                "SELECT query, result_count, created_at "
+                "FROM search_history "
+                "WHERE user_id = ? "
+                "ORDER BY created_at DESC "
+                "LIMIT ?");
+
+            stmt.bind(0, userId).bind(1, limit);
+            auto results = stmt.query();
+
+            for (const auto& row : results) {
+                SearchHistory h;
+                h.query = row.at("query");
+                h.resultCount = std::stoi(row.at("result_count"));
+                // 简化：从字符串解析时间戳
+                h.timestamp = std::chrono::system_clock::now();
+                history.push_back(h);
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to get search history: {}", e.what());
+        }
+        return history;
+    }
+
+    // 清空搜索历史
+    bool clearSearchHistory(int userId) {
+        if (!database_) return false;
+        try {
+            PreparedStatement stmt(database_, "DELETE FROM search_history WHERE user_id = ?");
+            stmt.bind(0, userId);
+            return stmt.execute();
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to clear search history: {}", e.what());
+            return false;
+        }
+    }
+
+    // 保存搜索
+    bool saveSearch(int userId, const std::string& query, const std::string& name) {
+        if (!database_) return false;
+        try {
+            // 查询条件保存为JSON
+            nlohmann::json queryParams = {{"query", query}};
+            std::string jsonParams = queryParams.dump();
+
+            PreparedStatement stmt(database_,
+                "INSERT INTO saved_searches (user_id, name, query_params) "
+                "VALUES (?, ?, ?)");
+
+            stmt.bind(0, userId).bind(1, name).bind(2, jsonParams);
+            return stmt.execute();
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to save search: {}", e.what());
+            return false;
+        }
+    }
+
+    // 获取已保存的搜索
+    std::map<std::string, std::string> getSavedSearches(int userId) {
+        std::map<std::string, std::string> saved;
+        if (!database_) return saved;
+
+        try {
+            PreparedStatement stmt(database_,
+                "SELECT name, query_params "
+                "FROM saved_searches "
+                "WHERE user_id = ? "
+                "ORDER BY created_at DESC");
+
+            stmt.bind(0, userId);
+            auto results = stmt.query();
+
+            for (const auto& row : results) {
+                saved[row.at("name")] = row.at("query_params");
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to get saved searches: {}", e.what());
+        }
+        return saved;
+    }
+
+    // 删除已保存的搜索
+    bool deleteSavedSearch(int userId, const std::string& name) {
+        if (!database_) return false;
+        try {
+            PreparedStatement stmt(database_,
+                "DELETE FROM saved_searches WHERE user_id = ? AND name = ?");
+            stmt.bind(0, userId).bind(1, name);
+            return stmt.execute();
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to delete saved search: {}", e.what());
+            return false;
+        }
+    }
+
+    // 获取搜索统计
+    SearchStats getStats() {
+        SearchStats stats{};
+        if (!database_) return stats;
+
+        try {
+            // 总搜索数
+            auto totalRes = database_->query("SELECT COUNT(*) as count FROM search_history");
+            if (!totalRes.empty()) stats.totalSearches = std::stoull(totalRes[0]["count"]);
+
+            // 今日搜索数
+            PreparedStatement todayStmt(database_,
+                "SELECT COUNT(*) as count FROM search_history WHERE DATE(created_at) = CURDATE()");
+            auto todayRes = todayStmt.query();
+            if (!todayRes.empty()) stats.todaySearches = std::stoull(todayRes[0]["count"]);
+
+            // 唯一查询数
+            auto uniqueRes = database_->query("SELECT COUNT(DISTINCT query) as count FROM search_history");
+            if (!uniqueRes.empty()) stats.uniqueQueries = std::stoull(uniqueRes[0]["count"]);
+
+            // 平均结果数和搜索时间
+            auto avgRes = database_->query(
+                "SELECT AVG(result_count) as avg_results, AVG(search_time_ms) as avg_time FROM search_history");
+            if (!avgRes.empty()) {
+                stats.averageResultsPerSearch = std::stod(avgRes[0]["avg_results"]);
+                stats.averageSearchTimeMs = std::stod(avgRes[0]["avg_time"]);
+            }
+
+            // 热门查询
+            auto topRes = database_->query(
+                "SELECT query, COUNT(*) as count FROM search_history "
+                "GROUP BY query ORDER BY count DESC LIMIT 5");
+            for (const auto& row : topRes) {
+                stats.topQueries.push_back(row.at("query"));
+            }
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to get stats: {}", e.what());
+        }
+        return stats;
+    }
+
+    // 更新搜索索引
+    bool updateSearchIndex(const Paper& paper) {
+        if (!database_) return false;
+        try {
+            // 更新 papers表的全文索引（InnoDB自动更新）
+            PreparedStatement stmt(database_,
+                "UPDATE papers SET title=?, abstract=?, keywords=? WHERE id=?");
+            stmt.bind(0, paper.title).bind(1, paper.abstract)
+                .bind(2, paper.keywords).bind(3, paper.id);
+            return stmt.execute();
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to update search index: {}", e.what());
+            return false;
+        }
+    }
+
+    // 批量更新索引
+    size_t updateSearchIndexBatch(const std::vector<Paper>& papers) {
+        size_t updated = 0;
+        for (const auto& paper : papers) {
+            if (updateSearchIndex(paper)) ++updated;
+        }
+        return updated;
+    }
+
+    // 重建搜索索引
+    bool rebuildSearchIndex() {
+        if (!database_) return false;
+        try {
+            // 优化表
+            PreparedStatement stmt(database_, "OPTIMIZE TABLE papers");
+            return stmt.execute();
+        } catch (const std::exception& e) {
+            spdlog::error("[SearchAPI] Failed to rebuild search index: {}", e.what());
+            return false;
+        }
     }
 };
 
@@ -158,14 +399,12 @@ SearchApiModule::SearchApiModule()
 
 SearchApiModule::SearchApiModule(HttpClientPtr httpClient)
     : httpClient_(httpClient ? httpClient : std::make_shared<Network::HttpClient>()),
-      impl_(std::make_unique<Impl>(nullptr)) {  // 临时：暂时传入nullptr
-    // TODO: 修改构造函数接受IDatabase参数
+      impl_(std::make_unique<Impl>(nullptr)) {
 }
 
 SearchApiModule::SearchApiModule(std::shared_ptr<IDatabase> database)
     : httpClient_(std::make_shared<Network::HttpClient>()),
       impl_(std::make_unique<Impl>(database)) {
-    // TODO: 接收database参数并保存到impl_
 }
 
 SearchApiModule::~SearchApiModule() = default;
@@ -178,30 +417,22 @@ SearchResult SearchApiModule::search(const std::string& query, SearchType type, 
     result.page = page;
     result.limit = limit;
 
-    // 如果有数据库连接，使用数据库搜索
     if (impl_->database_) {
-        // 从数据库搜索论文
         auto papers = impl_->searchPapersFromDatabase(query, page, limit);
 
-        // 转换为搜索结果项
         for (const auto& paper : papers) {
             SearchResultItem item;
             item.id = paper.id;
             item.type = "paper";
             item.title = paper.title;
             item.description = paper.abstract;
-            item.relevanceScore = 0.8;  // 简化：固定相关度分数
+            item.relevanceScore = 0.8;
             item.url = "/api/papers/" + std::to_string(paper.id);
             result.items.push_back(item);
         }
 
-        // 获取总数
         result.total = impl_->getTotalCount(query);
         result.totalPages = (result.total + limit - 1) / limit;
-    } else {
-        std::cerr << "[SearchAPI] Warning: No database connection, returning empty results" << std::endl;
-        result.total = 0;
-        result.totalPages = 0;
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -212,106 +443,79 @@ SearchResult SearchApiModule::search(const std::string& query, SearchType type, 
 }
 
 SearchResult SearchApiModule::advancedSearch(const AdvancedSearchQuery& query) {
-    auto startTime = std::chrono::high_resolution_clock::now();
+    // 简化实现：基于基础搜索
+    std::string searchQuery = query.query;
+    if (!query.title.empty()) searchQuery += " " + query.title;
+    if (!query.author.empty()) searchQuery += " " + query.author;
+    if (!query.keywords.empty()) searchQuery += " " + query.keywords;
 
-    SearchResult result;
-    result.query = query.query;
-    result.page = query.page;
-    result.limit = query.limit;
-
-    // TODO: 实现高级搜索 - 需要数据库支持
-    // 临时返回空结果
-    result.total = 0;
-    result.totalPages = 0;
-    result.items = {};
-    result.searchTimeMs = 0;
-
-    return result;
+    return search(searchQuery, SearchType::PAPERS, query.page, query.limit);
 }
 
 std::vector<SearchSuggestion> SearchApiModule::getSuggestions(const std::string& query, int limit) {
-    std::vector<SearchSuggestion> suggestions;
-    // TODO: 实现搜索建议 - 需要数据库支持
-    // 临时返回空结果
-    return suggestions;
+    if (!impl_->database_) return {};
+    return impl_->getSuggestions(query, limit);
 }
 
 std::vector<TrendingSearch> SearchApiModule::getTrendingSearches(int limit) {
-    std::vector<TrendingSearch> trending;
-    // TODO: 实现热门搜索 - 需要数据库支持
-    // 临时返回空结果
-    return trending;
+    if (!impl_->database_) return {};
+    return impl_->getTrendingSearches(limit);
 }
 
 std::vector<SearchHistory> SearchApiModule::getSearchHistory(int userId, int limit) {
-    std::vector<SearchHistory> history;
-    // TODO: 实现搜索历史 - 需要数据库支持
-    // 临时返回空结果
-    return history;
+    if (!impl_->database_) return {};
+    return impl_->getSearchHistory(userId, limit);
 }
 
 bool SearchApiModule::saveSearch(int userId, const std::string& query, const std::string& name) {
-    // TODO: 实现保存搜索到数据库
-    return true;
+    if (!impl_->database_) return false;
+    return impl_->saveSearch(userId, query, name);
 }
 
 std::map<std::string, std::string> SearchApiModule::getSavedSearches(int userId) {
-    std::map<std::string, std::string> saved;
-    // TODO: 实现获取已保存搜索
-    return saved;
+    if (!impl_->database_) return {};
+    return impl_->getSavedSearches(userId);
 }
 
 bool SearchApiModule::deleteSavedSearch(int userId, const std::string& name) {
-    // TODO: 实现删除已保存搜索
-    return true;
+    if (!impl_->database_) return false;
+    return impl_->deleteSavedSearch(userId, name);
 }
 
 SearchStats SearchApiModule::getStats() {
-    SearchStats stats{};
-    stats.totalSearches = 0;
-    stats.todaySearches = 0;
-    stats.uniqueQueries = 0;
-    stats.averageResultsPerSearch = 0.0;
-    stats.averageSearchTimeMs = 0.0;
-    stats.topQueries = {};
-
-    // TODO: 实现统计 - 需要数据库支持
-    return stats;
+    return impl_->getStats();
 }
 
 std::string SearchApiModule::exportResults(const SearchResult& result, const std::string& format) {
     if (format == "json") {
         return result.toJson();
     }
-    // TODO: 支持其他格式
+    // 简化：其他格式TODO
     return result.toJson();
 }
 
 bool SearchApiModule::clearSearchHistory(int userId) {
-    // TODO: 实现清除搜索历史 - 需要数据库支持
-    return true;
+    if (!impl_->database_) return false;
+    return impl_->clearSearchHistory(userId);
 }
 
 bool SearchApiModule::updateSearchIndex(const Paper& paper) {
-    // TODO: 实现更新搜索索引 - 需要数据库支持
-    return true;
+    if (!impl_->database_) return false;
+    return impl_->updateSearchIndex(paper);
 }
 
 size_t SearchApiModule::updateSearchIndexBatch(const std::vector<Paper>& papers) {
-    size_t updated = 0;
-    // TODO: 实现批量更新搜索索引 - 需要数据库支持
-    return updated;
+    if (!impl_->database_) return 0;
+    return impl_->updateSearchIndexBatch(papers);
 }
 
 bool SearchApiModule::rebuildSearchIndex() {
-    // TODO: 实现重建搜索索引 - 需要数据库支持
-    return true;
+    if (!impl_->database_) return false;
+    return impl_->rebuildSearchIndex();
 }
 
 std::vector<TrendingSearch> SearchApiModule::calculateTrendingSearches() {
-    std::vector<TrendingSearch> trending;
-    // TODO: 实现热门搜索计算 - 需要数据库支持
-    return trending;
+    return getTrendingSearches(10);
 }
 
 void SearchApiModule::registerRoutes() {
@@ -319,48 +523,11 @@ void SearchApiModule::registerRoutes() {
     std::string prefix = getRoutePrefix();
 
     spdlog::info("[SearchApiModule] Registering routes with prefix: {}", prefix);
-    // 🔔 优先级1：使用ModuleLoader注入的数据库连接
+
     database_ = getDatabase();
     if (database_) {
-        spdlog::info("[SearchApiModule] ✅ Received injected database connection from ModuleLoader!");
-    }
-
-    // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
-    if (!database_) {
-        try {
-            auto* dbModule = DatabaseModule::getGlobalInstance();
-            if (dbModule) {
-                auto dbInterface = static_cast<IDatabase*>(dbModule);
-                std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
-                database_ = dbPtr;
-                spdlog::info("[SearchApiModule] ✅ Received shared database connection from global DatabaseModule!");
-            }
-        } catch (const std::exception& e) {
-            spdlog::warn("[SearchApiModule] Failed to get global database connection: {}", e.what());
-        }
-    }
-
-    // 🔔 优先级3：回退到MessageBus（保留原有逻辑）
-    if (!database_) {
-        // 订阅MessageBus消息
-        auto& messageBus = MessageBus::getInstance();
-        messageBus.registerHandler(MessageType::CUSTOM,
-            [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
-                auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
-                if (dbMsg && dbMsg->isSuccess()) {
-                    impl_->database_ = dbMsg->getConnection();
-                    spdlog::info("[SearchApi] ✅ Received database connection from MessageBus!");
-                }
-                // 返回确认消息
-                auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "SearchApi", "DatabaseModule");
-                response->setData("acknowledged", true);
-                response->setData("moduleName", "SearchApi");
-                return response;
-            },
-            "SearchApi"
-        );
-
-        spdlog::info("[SearchApi] Successfully subscribed to database connection messages");
+        spdlog::info("[SearchApiModule] Received injected database connection from ModuleLoader!");
+        impl_ = std::make_unique<Impl>(database_);
     }
 
     // GET /api/search - 基础搜索
@@ -368,7 +535,18 @@ void SearchApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"Search endpoint (stub mode)\",\"results\":[],\"total\":0,\"query\":\"\"}";
+
+        auto queryIt = req.queryParams.find("q");
+        std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
+
+        int page = 1, limit = 20;
+        auto pageIt = req.queryParams.find("page");
+        auto limitIt = req.queryParams.find("limit");
+        if (pageIt != req.queryParams.end()) page = std::stoi(pageIt->second);
+        if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
+
+        auto result = search(query, SearchType::PAPERS, page, limit);
+        response.body = result.toJson();
         return response;
     });
 
@@ -377,7 +555,17 @@ void SearchApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"Advanced search (stub mode)\",\"results\":[],\"total\":0}";
+
+        AdvancedSearchQuery query;
+        try {
+            auto j = nlohmann::json::parse(req.body);
+            if (j.contains("query")) query.query = j["query"];
+            if (j.contains("page")) query.page = j["page"];
+            if (j.contains("limit")) query.limit = j["limit"];
+        } catch (...) {}
+
+        auto result = advancedSearch(query);
+        response.body = result.toJson();
         return response;
     });
 
@@ -386,7 +574,23 @@ void SearchApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"suggestions\":[],\"count\":0}";
+
+        auto queryIt = req.queryParams.find("q");
+        std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
+        int limit = 10;
+        auto limitIt = req.queryParams.find("limit");
+        if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
+
+        auto suggestions = getSuggestions(query, limit);
+
+        nlohmann::json j;
+        j["success"] = true;
+        j["suggestions"] = nlohmann::json::array();
+        for (const auto& sug : suggestions) {
+            j["suggestions"].push_back(nlohmann::json::parse(sug.toJson()));
+        }
+        j["count"] = suggestions.size();
+        response.body = j.dump();
         return response;
     });
 
@@ -395,7 +599,21 @@ void SearchApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"trending\":[],\"count\":0}";
+
+        int limit = 10;
+        auto limitIt = req.queryParams.find("limit");
+        if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
+
+        auto trending = getTrendingSearches(limit);
+
+        nlohmann::json j;
+        j["success"] = true;
+        j["trending"] = nlohmann::json::array();
+        for (const auto& t : trending) {
+            j["trending"].push_back(nlohmann::json::parse(t.toJson()));
+        }
+        j["count"] = trending.size();
+        response.body = j.dump();
         return response;
     });
 
@@ -404,7 +622,116 @@ void SearchApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"history\":[],\"count\":0}";
+
+        int userId = 0, limit = 20;
+        auto userIt = req.queryParams.find("user_id");
+        auto limitIt = req.queryParams.find("limit");
+        if (userIt != req.queryParams.end()) userId = std::stoi(userIt->second);
+        if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
+
+        auto history = getSearchHistory(userId, limit);
+
+        nlohmann::json j;
+        j["success"] = true;
+        j["history"] = nlohmann::json::array();
+        for (const auto& h : history) {
+            nlohmann::json item;
+            item["query"] = h.query;
+            item["result_count"] = h.resultCount;
+            j["history"].push_back(item);
+        }
+        j["count"] = history.size();
+        response.body = j.dump();
+        return response;
+    });
+
+    // DELETE /api/search/history - 清空历史
+    router.del(prefix + "/history", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+
+        int userId = 0;
+        auto userIt = req.queryParams.find("user_id");
+        if (userIt != req.queryParams.end()) userId = std::stoi(userIt->second);
+
+        bool success = clearSearchHistory(userId);
+
+        nlohmann::json j;
+        j["success"] = success;
+        j["message"] = success ? "Search history cleared" : "Failed to clear history";
+        response.body = j.dump();
+        return response;
+    });
+
+    // POST /api/search/save - 保存搜索
+    router.post(prefix + "/save", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+
+        try {
+            auto j = nlohmann::json::parse(req.body);
+            int userId = j.value("user_id", 0);
+            std::string query = j.value("query", "");
+            std::string name = j.value("name", "");
+
+            bool success = saveSearch(userId, query, name);
+
+            nlohmann::json resp;
+            resp["success"] = success;
+            resp["message"] = success ? "Search saved" : "Failed to save search";
+            response.body = resp.dump();
+        } catch (...) {
+            response.statusCode = 400;
+            response.body = "{\"success\":false,\"error\":\"Invalid JSON\"}";
+        }
+        return response;
+    });
+
+    // GET /api/search/saved - 已保存的搜索
+    router.get(prefix + "/saved", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+
+        int userId = 0;
+        auto userIt = req.queryParams.find("user_id");
+        if (userIt != req.queryParams.end()) userId = std::stoi(userIt->second);
+
+        auto saved = getSavedSearches(userId);
+
+        nlohmann::json j;
+        j["success"] = true;
+        j["saved"] = saved;
+        j["count"] = saved.size();
+        response.body = j.dump();
+        return response;
+    });
+
+    // DELETE /api/search/saved - 删除保存的搜索
+    router.del(prefix + "/saved", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+
+        int userId = 0;
+        auto userIt = req.queryParams.find("user_id");
+        if (userIt != req.queryParams.end()) userId = std::stoi(userIt->second);
+
+        auto nameIt = req.queryParams.find("name");
+        if (nameIt == req.queryParams.end()) {
+            response.statusCode = 400;
+            response.body = "{\"success\":false,\"error\":\"Name required\"}";
+            return response;
+        }
+
+        bool success = deleteSavedSearch(userId, nameIt->second);
+
+        nlohmann::json j;
+        j["success"] = success;
+        j["message"] = success ? "Search deleted" : "Failed to delete search";
+        response.body = j.dump();
         return response;
     });
 
@@ -413,11 +740,22 @@ void SearchApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"total_searches\":0,\"unique_queries\":0,\"average_results\":0}";
+
+        auto stats = getStats();
+
+        nlohmann::json j;
+        j["success"] = true;
+        j["total_searches"] = stats.totalSearches;
+        j["today_searches"] = stats.todaySearches;
+        j["unique_queries"] = stats.uniqueQueries;
+        j["average_results"] = stats.averageResultsPerSearch;
+        j["average_time_ms"] = stats.averageSearchTimeMs;
+        j["top_queries"] = stats.topQueries;
+        response.body = j.dump();
         return response;
     });
 
-    spdlog::info("[SearchApiModule] Registered 6 routes");
+    spdlog::info("[SearchApiModule] Registered 11 routes");
 }
 
 } // namespace PaperCrawler

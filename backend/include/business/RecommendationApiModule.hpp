@@ -3,6 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 #include <map>
@@ -10,6 +11,10 @@
 #include <chrono>
 #include <optional>
 #include <set>
+#include <mutex>
+#include <functional>
+#include <algorithm>
+#include <sstream>
 
 namespace PaperCrawler {
 
@@ -53,9 +58,25 @@ struct RecommendationResult {
     int paperId;
     std::string title;
     std::string authors;
+    std::string publication;
+    std::string year;
     double score{0.0};  // 推荐分数
     std::string reason;  // 推荐理由
     std::string algorithm;  // 使用的算法
+
+    // JSON序列化
+    nlohmann::json toJson() const {
+        return nlohmann::json{
+            {"paper_id", paperId},
+            {"title", title},
+            {"authors", authors},
+            {"publication", publication},
+            {"year", year},
+            {"score", score},
+            {"reason", reason},
+            {"algorithm", algorithm}
+        };
+    }
 };
 
 /**
@@ -216,6 +237,16 @@ private:
      * @brief 从缓存获取推荐
      */
     std::optional<std::vector<RecommendationResult>> getCachedRecommendations(int userId);
+
+    /**
+     * @brief 缓存推荐结果（带自定义key）
+     */
+    void cacheRecommendations(const std::string& cacheKey, const std::vector<RecommendationResult>& results);
+
+    /**
+     * @brief 从缓存获取推荐（带自定义key）
+     */
+    std::optional<std::vector<RecommendationResult>> getCachedRecommendations(const std::string& cacheKey);
 };
 
 } // namespace PaperCrawler
