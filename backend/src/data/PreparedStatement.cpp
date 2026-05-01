@@ -87,7 +87,7 @@ std::string DataPreparedStatement::buildFinalSQL() {
 std::string DataPreparedStatement::escapeValue(const ParameterValue& value) {
     std::ostringstream oss;
 
-    std::visit([&oss](auto&& arg) {
+    std::visit([&oss, this](auto&& arg) {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, int>) {
             oss << arg;
@@ -106,15 +106,24 @@ std::string DataPreparedStatement::escapeValue(const ParameterValue& value) {
 }
 
 std::string DataPreparedStatement::escapeSql(const std::string& str) {
+    // 优先使用数据库驱动的转义（mysql_real_escape_string）
+    if (database_) {
+        try {
+            return database_->escapeString(str);
+        } catch (...) {
+            // fallback to basic escaping below
+        }
+    }
+    // 基础转义 fallback
     std::string escaped;
     for (char c : str) {
-        if (c == '\'') {
-            escaped += "''";
-        } else if (c == '\\') {
-            escaped += "\\\\";
-        } else {
-            escaped += c;
-        }
+        if (c == '\'') escaped += "''";
+        else if (c == '\\') escaped += "\\\\";
+        else if (c == '\0') escaped += "\\0";
+        else if (c == '\n') escaped += "\\n";
+        else if (c == '\r') escaped += "\\r";
+        else if (c == '\x1a') escaped += "\\Z";
+        else escaped += c;
     }
     return escaped;
 }
@@ -266,7 +275,7 @@ bool QueryBuilder::execute() {
 std::string QueryBuilder::escapeValue(const ParameterValue& value) {
     std::ostringstream oss;
 
-    std::visit([&oss](auto&& arg) {
+    std::visit([&oss, this](auto&& arg) {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, int>) {
             oss << arg;
@@ -285,15 +294,20 @@ std::string QueryBuilder::escapeValue(const ParameterValue& value) {
 }
 
 std::string QueryBuilder::escapeSql(const std::string& str) {
+    if (database_) {
+        try {
+            return database_->escapeString(str);
+        } catch (...) {}
+    }
     std::string escaped;
     for (char c : str) {
-        if (c == '\'') {
-            escaped += "''";
-        } else if (c == '\\') {
-            escaped += "\\\\";
-        } else {
-            escaped += c;
-        }
+        if (c == '\'') escaped += "''";
+        else if (c == '\\') escaped += "\\\\";
+        else if (c == '\0') escaped += "\\0";
+        else if (c == '\n') escaped += "\\n";
+        else if (c == '\r') escaped += "\\r";
+        else if (c == '\x1a') escaped += "\\Z";
+        else escaped += c;
     }
     return escaped;
 }

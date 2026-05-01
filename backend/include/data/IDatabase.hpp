@@ -118,6 +118,13 @@ public:
      * @param config 数据库配置
      */
     virtual void setConfig(const DatabaseConfig& config) = 0;
+
+    /**
+     * @brief 转义字符串（防SQL注入）
+     * @param str 原始字符串
+     * @return 转义后的字符串
+     */
+    virtual std::string escapeString(const std::string& str) = 0;
 };
 
 } // namespace PaperCrawler
