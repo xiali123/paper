@@ -60,8 +60,10 @@ class ApiCache {
       return null
     }
 
-    // 更新命中次数
+    // Re-insert to move to end (most recently used) for O(1) LRU
+    this.cache.delete(key)
     entry.hits++
+    this.cache.set(key, entry)
     return entry.data as T
   }
 
@@ -113,27 +115,13 @@ class ApiCache {
   }
 
   /**
-   * LRU淘汰策略
+   * LRU淘汰策略 - O(1) using Map insertion order
+   * Map.keys() returns keys in insertion order; first key = least recently used
    */
   private evictLRU(): void {
-    let minHits = Infinity
-    let oldestKey: string | null = null
-    let oldestTime = Infinity
-
-    for (const [key, entry] of this.cache.entries()) {
-      // 优先淘汰命中次数少的
-      if (entry.hits < minHits) {
-        minHits = entry.hits
-        oldestKey = key
-        oldestTime = entry.timestamp
-      } else if (entry.hits === minHits && entry.timestamp < oldestTime) {
-        oldestKey = key
-        oldestTime = entry.timestamp
-      }
-    }
-
-    if (oldestKey) {
-      this.cache.delete(oldestKey)
+    const firstKey = this.cache.keys().next().value
+    if (firstKey !== undefined) {
+      this.cache.delete(firstKey)
     }
   }
 

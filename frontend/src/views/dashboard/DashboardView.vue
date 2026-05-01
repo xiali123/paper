@@ -147,7 +147,9 @@ import {
   Reading,
   Trophy
 } from '@element-plus/icons-vue'
-import { Chart, type ChartData, type ChartOptions } from 'chart.js/auto'
+import { Chart, type ChartData, type ChartOptions, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js'
+
+Chart.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler)
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner.vue'
 import StatCard from '@/components/dashboard/StatCard.vue'
 import ChartContainer from '@/components/dashboard/ChartContainer.vue'
