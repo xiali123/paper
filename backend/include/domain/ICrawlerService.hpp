@@ -9,6 +9,8 @@
 
 namespace PaperCrawler::Domain {
 
+using PaperCrawler::Paper;
+
 /**
  * @brief 爬取请求
  */

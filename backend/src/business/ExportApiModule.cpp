@@ -88,9 +88,9 @@ public:
                 paper.id = std::stoi(row.at("id"));
                 paper.title = row.at("title");
                 paper.authors = row.at("authors");
-                paper.year = std::stoi(row.at("year"));
+                paper.year = row.count("year") ? row.at("year") : "";
                 paper.abstract = row.count("abstract") ? row.at("abstract") : "";
-                paper.journal = row.count("journal") ? row.at("journal") : "";
+                paper.publication = row.count("journal") ? row.at("journal") : "";
                 paper.volume = row.count("volume") ? row.at("volume") : "";
                 paper.issue = row.count("issue") ? row.at("issue") : "";
                 paper.pages = row.count("pages") ? row.at("pages") : "";
@@ -281,7 +281,7 @@ std::string ExportApiModule::exportToJSON(const std::vector<Paper>& papers, cons
 
     for (size_t i = 0; i < papers.size(); ++i) {
         if (i > 0) json << ",\n";
-        json << "  " << papers[i].toJSON();
+        json << "  " << papers[i].toJson().dump();
     }
 
     json << "\n]";
@@ -320,7 +320,7 @@ std::string ExportApiModule::exportToCSV(const std::vector<Paper>& papers, const
             << escapeCSV(paper.title) << ","
             << escapeCSV(paper.authors) << ","
             << paper.year << ","
-            << escapeCSV(paper.journal) << ","
+            << escapeCSV(paper.publication) << ","
             << paper.citationCount << "\n";
     }
 
@@ -338,7 +338,7 @@ std::string ExportApiModule::exportToXML(const std::vector<Paper>& papers, const
         xml << "    <title>" << escapeXML(paper.title) << "</title>\n";
         xml << "    <authors>" << escapeXML(paper.authors) << "</authors>\n";
         xml << "    <year>" << paper.year << "</year>\n";
-        xml << "    <journal>" << escapeXML(paper.journal) << "</journal>\n";
+        xml << "    <journal>" << escapeXML(paper.publication) << "</journal>\n";
         xml << "    <citationCount>" << paper.citationCount << "</citationCount>\n";
         xml << "  </paper>\n";
     }
@@ -354,7 +354,7 @@ std::string ExportApiModule::exportToMarkdown(const std::vector<Paper>& papers, 
         markdown << "# " << paper.title << "\n\n";
         markdown << "**Authors:** " << paper.authors << "\n\n";
         markdown << "**Year:** " << paper.year << "\n\n";
-        markdown << "**Journal:** " << paper.journal << "\n\n";
+        markdown << "**Journal:** " << paper.publication << "\n\n";
 
         if (options.includeAbstract && !paper.abstract.empty()) {
             markdown << "**Abstract:** " << paper.abstract << "\n\n";
@@ -469,7 +469,7 @@ std::string ExportApiModule::formatBibTeXEntry(const Paper& paper) {
     bibtex << "  title={" << paper.title << "},\n";
     bibtex << "  author={" << paper.authors << "},\n";
     bibtex << "  year={" << paper.year << "},\n";
-    bibtex << "  journal={" << paper.journal << "}";
+    bibtex << "  journal={" << paper.publication << "}";
     if (!paper.doi.empty()) {
         bibtex << ",\n  doi={" << paper.doi << "}";
     }
@@ -482,7 +482,7 @@ std::string ExportApiModule::formatEndNoteEntry(const Paper& paper) {
     endnote << "%0 Journal Article\n";
     endnote << "%T " << paper.title << "\n";
     endnote << "%A " << paper.authors << "\n";
-    endnote << "%J " << paper.journal << "\n";
+    endnote << "%J " << paper.publication << "\n";
     endnote << "%D " << paper.year << "\n";
     if (!paper.doi.empty()) {
         endnote << "%R " << paper.doi << "\n";

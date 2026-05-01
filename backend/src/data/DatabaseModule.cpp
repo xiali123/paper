@@ -3,6 +3,7 @@
 #include "data/MySqlConnection.hpp"
 #include "features/operations/ResponseHandlerModule.hpp"
 #include "core/ConfigManager.hpp"
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <chrono>
 #include <thread>

@@ -2260,7 +2260,7 @@ std::string AdminApiModule::handleCreateUser(const std::string& body) {
         std::string password = jsonBody.value("password", "");
         if (password.empty()) {
             spdlog::warn("[Admin] createUser: password is required");
-            return false;
+            return "{\"success\":false,\"error\":\"Password is required\"}";
         }
         // Hash password using SHA256 (in production should use SecurityModule)
         unsigned char hash[SHA256_DIGEST_LENGTH];

@@ -3,11 +3,11 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
+#include "domain/models/Paper.hpp"
 #include <string>
 #include <vector>
 #include <map>
 #include <optional>
-#include <chrono>
 #include <mutex>
 #include <functional>
 #include <sstream>
@@ -15,141 +15,20 @@
 
 namespace PaperCrawler {
 
-/**
- * @brief 论文信息
- */
-struct Paper {
-    int id;
-    std::string title;
-    std::string authors;
-    int year;
-    std::string abstract;
+struct PaperSearchCriteria {
+    std::string query;
+    std::string author;
+    int yearFrom{0};
+    int yearTo{0};
     std::string journal;
-    std::string volume;
-    std::string issue;
-    std::string pages;
-    std::string doi;
-    std::string url;
-    std::string pdfPath;
-    std::chrono::system_clock::time_point createdAt;
-    std::chrono::system_clock::time_point updatedAt;
-
-    // 元数据
     std::vector<std::string> tags;
-    std::vector<std::string> keywords;
-    int citationCount{0};
     bool isRead{false};
     bool isFavorite{false};
-    std::string notes;
-
-    // 序列化为JSON
-    std::string toJSON() const {
-        std::ostringstream json;
-        json << "{\n";
-        json << "  \"id\": " << id << ",\n";
-        json << "  \"title\": \"" << title << "\",\n";
-        json << "  \"authors\": \"" << authors << "\",\n";
-        json << "  \"year\": " << year << ",\n";
-        json << "  \"abstract\": \"" << abstract << "\",\n";
-        json << "  \"journal\": \"" << journal << "\",\n";
-        json << "  \"volume\": \"" << volume << "\",\n";
-        json << "  \"issue\": \"" << issue << "\",\n";
-        json << "  \"pages\": \"" << pages << "\",\n";
-        json << "  \"doi\": \"" << doi << "\",\n";
-        json << "  \"url\": \"" << url << "\",\n";
-        json << "  \"pdf_path\": \"" << pdfPath << "\",\n";
-        json << "  \"citation_count\": " << citationCount << ",\n";
-        json << "  \"is_read\": " << (isRead ? "true" : "false") << ",\n";
-        json << "  \"is_favorite\": " << (isFavorite ? "true" : "false") << ",\n";
-        json << "  \"notes\": \"" << notes << "\",\n";
-        json << "  \"created_at\": \""
-            << std::chrono::system_clock::to_time_t(createdAt) << "\",\n";
-        json << "  \"updated_at\": \""
-            << std::chrono::system_clock::to_time_t(updatedAt) << "\",\n";
-
-        // Tags array
-        json << "  \"tags\": [";
-        for (size_t i = 0; i < tags.size(); ++i) {
-            if (i > 0) json << ", ";
-            json << "\"" << tags[i] << "\"";
-        }
-        json << "],\n";
-
-        // Keywords array
-        json << "  \"keywords\": [";
-        for (size_t i = 0; i < keywords.size(); ++i) {
-            if (i > 0) json << ", ";
-            json << "\"" << keywords[i] << "\"";
-        }
-        json << "]\n";
-
-        json << "}";
-        return json.str();
-    }
 };
 
-/**
- * @brief 论文搜索条件
- */
-struct PaperSearchCriteria {
-    std::string query;           // 关键词
-    std::string author;          // 作者
-    int yearFrom{0};             // 起始年份
-    int yearTo{0};               // 结束年份
-    std::string journal;         // 期刊
-    std::vector<std::string> tags;  // 标签
-    bool isRead{false};          // 已读
-    bool isFavorite{false};      // 收藏
-};
-
-/**
- * @brief 论文统计信息
- */
-struct PaperStats {
-    uint64_t totalPapers{0};
-    uint64_t readPapers{0};
-    uint64_t unreadPapers{0};
-    uint64_t favoritePapers{0};
-    std::map<int, uint64_t> papersByYear;  // 按年份统计
-    std::map<std::string, uint64_t> papersByJournal;  // 按期刊统计
-    std::map<std::string, uint64_t> papersByAuthor;   // 按作者统计
-    std::map<std::string, uint64_t> papersByTag;      // 按标签统计
-};
-
-/**
- * @brief 论文API模块
- *
- * 功能：
- * 1. 论文CRUD操作
- * 2. 论文搜索
- * 3. 论文统计
- * 4. 批量导入/导出
- * 5. PDF文件管理
- * 6. 引用管理
- *
- * 架构改进：
- * - 继承BusinessModuleBase获得路由和中间件支持
- * - 依赖注入IDatabase接口，松耦合设计
- * - 移除Mock数据，使用真实数据库
- *
- * 端点：
- * - GET    /api/papers           - 列表（分页）
- * - GET    /api/papers/:id       - 详情
- * - POST   /api/papers           - 创建
- * - PUT    /api/papers/:id       - 更新
- * - DELETE /api/papers/:id       - 删除
- * - GET    /api/papers/search    - 搜索
- * - GET    /api/papers/stats     - 统计
- * - POST   /api/papers/import    - 导入
- * - GET    /api/papers/export    - 导出
- * - POST   /api/papers/:id/favorite - 收藏
- */
 class PaperApiModule : public BusinessModuleBase {
 public:
-    // 默认构造函数（用于DLL导出）
     PaperApiModule();
-
-    // 构造函数：注入IDatabase依赖
     explicit PaperApiModule(std::shared_ptr<IDatabase> database);
     ~PaperApiModule() override;
 
@@ -159,104 +38,32 @@ public:
         return "Paper management API";
     }
 
-    /**
-     * @brief 获取论文列表（分页）
-     */
     std::vector<Paper> listPapers(int page = 1, int limit = 20, const std::string& sortBy = "created_at", bool ascending = false);
-
-    /**
-     * @brief 获取论文详情
-     */
     std::optional<Paper> getPaper(int id);
-
-    /**
-     * @brief 创建论文
-     */
     std::optional<Paper> createPaper(const Paper& paper);
-
-    /**
-     * @brief 更新论文
-     */
     bool updatePaper(int id, const Paper& paper);
-
-    /**
-     * @brief 删除论文
-     */
     bool deletePaper(int id);
-
-    /**
-     * @brief 搜索论文
-     */
     std::vector<Paper> searchPapers(const PaperSearchCriteria& criteria, int page = 1, int limit = 20);
-
-    /**
-     * @brief 获取论文统计
-     */
     PaperStats getStats();
-
-    /**
-     * @brief 批量导入论文
-     */
     size_t importPapers(const std::vector<Paper>& papers);
-
-    /**
-     * @brief 导出论文（JSON/BibTeX）
-     */
     std::string exportPapers(const std::vector<int>& ids, const std::string& format = "json");
-
-    /**
-     * @brief 标记为已读/未读
-     */
     bool markAsRead(int id, bool read = true);
-
-    /**
-     * @brief 收藏/取消收藏
-     */
     bool markAsFavorite(int id, bool favorite = true);
-
-    /**
-     * @brief 添加标签
-     */
     bool addTag(int id, const std::string& tag);
-
-    /**
-     * @brief 移除标签
-     */
     bool removeTag(int id, const std::string& tag);
-
-    /**
-     * @brief 上传PDF
-     */
     bool uploadPDF(int id, const std::string& filePath);
-
-    /**
-     * @brief 下载PDF
-     */
     std::string getPDFPath(int id);
-
-    /**
-     * @brief 按作者分组
-     */
     std::map<std::string, std::vector<Paper>> groupByAuthor(const std::vector<Paper>& papers);
-
-    /**
-     * @brief 按年份分组
-     */
-    std::map<int, std::vector<Paper>> groupByYear(const std::vector<Paper>& papers);
-
-    /**
-     * @brief 按标签分组
-     */
+    std::map<std::string, std::vector<Paper>> groupByYear(const std::vector<Paper>& papers);
     std::map<std::string, std::vector<Paper>> groupByTag(const std::vector<Paper>& papers);
 
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 
-    // 依赖注入：数据库接口（允许Mock测试）
     std::shared_ptr<IDatabase> database_;
 
-    void registerRoutes() override;  // BusinessModuleBase要求实现
+    void registerRoutes() override;
     std::string handleListPapers(const std::map<std::string, std::string>& params);
     std::string handleGetPaper(const std::map<std::string, std::string>& params);
     std::string handleCreatePaper(const std::string& body);
