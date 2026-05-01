@@ -6,7 +6,6 @@
  */
 
 #include "AuthManager.hpp"
-#include "ApiManager.hpp"
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -16,15 +15,12 @@
 
 AuthManager::AuthManager(QObject* parent)
     : QObject(parent)
-    , apiManager_(nullptr)
+    , networkManager_(new QNetworkAccessManager(this))
     , authenticated_(false)
     , settings_(new QSettings("PaperCrawler", "DesktopClient", this))
     , refreshTimer_(new QTimer(this))
 {
-    // Setup token refresh timer
     connect(refreshTimer_, &QTimer::timeout, this, &AuthManager::refreshToken);
-
-    // Try to load saved state
     loadSavedState();
 }
 
@@ -43,19 +39,11 @@ void AuthManager::setBaseUrl(const QString& url) {
     baseUrl_ = url;
 }
 
-void AuthManager::setApiManager(ApiManager* apiManager) {
-    apiManager_ = apiManager;
-}
-
 // ============================================================================
 // Authentication Operations
 // ============================================================================
 
 void AuthManager::login(const QString& email, const QString& password) {
-    if (!apiManager_) {
-        emit loginFailed("API manager not initialized");
-        return;
-    }
 
     // Create request
     QNetworkRequest request;
@@ -71,17 +59,13 @@ void AuthManager::login(const QString& email, const QString& password) {
     QByteArray data = doc.toJson();
 
     // Send request
-    loginReply_ = apiManager_->post(request, data);
+    loginReply_ = networkManager_->post(request, data);
 
     connect(loginReply_, &QNetworkReply::finished, this, &AuthManager::onLoginReply);
 }
 
 void AuthManager::registerUser(const QString& username, const QString& email,
                               const QString& password, const QString& fullName) {
-    if (!apiManager_) {
-        emit registerFailed("API manager not initialized");
-        return;
-    }
 
     // Create request
     QNetworkRequest request;
@@ -101,16 +85,12 @@ void AuthManager::registerUser(const QString& username, const QString& email,
     QByteArray data = doc.toJson();
 
     // Send request
-    registerReply_ = apiManager_->post(request, data);
+    registerReply_ = networkManager_->post(request, data);
 
     connect(registerReply_, &QNetworkReply::finished, this, &AuthManager::onRegisterReply);
 }
 
 void AuthManager::logout() {
-    if (!apiManager_) {
-        emit logoutFailed("API manager not initialized");
-        return;
-    }
 
     // Create request
     QNetworkRequest request;
@@ -130,13 +110,13 @@ void AuthManager::logout() {
     QByteArray data = doc.toJson();
 
     // Send request
-    logoutReply_ = apiManager_->post(request, data);
+    logoutReply_ = networkManager_->post(request, data);
 
     connect(logoutReply_, &QNetworkReply::finished, this, &AuthManager::onLogoutReply);
 }
 
 void AuthManager::refreshToken() {
-    if (!apiManager_ || tokens_.refreshToken.isEmpty()) {
+    if (tokens_.refreshToken.isEmpty()) {
         emit tokenRefreshFailed("No refresh token available");
         return;
     }
@@ -154,7 +134,7 @@ void AuthManager::refreshToken() {
     QByteArray data = doc.toJson();
 
     // Send request
-    refreshReply_ = apiManager_->post(request, data);
+    refreshReply_ = networkManager_->post(request, data);
 
     connect(refreshReply_, &QNetworkReply::finished, this, &AuthManager::onRefreshReply);
 }
@@ -164,22 +144,14 @@ void AuthManager::refreshToken() {
 // ============================================================================
 
 void AuthManager::fetchCurrentUser() {
-    if (!apiManager_) {
-        emit userFetchFailed("API manager not initialized");
-        return;
-    }
 
     QNetworkRequest request = createRequest("/api/auth/me");
-    userFetchReply_ = apiManager_->get(request);
+    userFetchReply_ = networkManager_->get(request);
 
     connect(userFetchReply_, &QNetworkReply::finished, this, &AuthManager::onUserFetchReply);
 }
 
 void AuthManager::updateProfile(const QString& fullName, const QString& affiliation) {
-    if (!apiManager_) {
-        emit profileUpdateFailed("API manager not initialized");
-        return;
-    }
 
     QNetworkRequest request = createRequest("/api/auth/profile");
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -191,16 +163,12 @@ void AuthManager::updateProfile(const QString& fullName, const QString& affiliat
     QJsonDocument doc(body);
     QByteArray data = doc.toJson();
 
-    profileUpdateReply_ = apiManager_->put(request, data);
+    profileUpdateReply_ = networkManager_->put(request, data);
 
     connect(profileUpdateReply_, &QNetworkReply::finished, this, &AuthManager::onProfileUpdateReply);
 }
 
 void AuthManager::changePassword(const QString& oldPassword, const QString& newPassword) {
-    if (!apiManager_) {
-        emit passwordChangeFailed("API manager not initialized");
-        return;
-    }
 
     QNetworkRequest request = createRequest("/api/auth/change-password");
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -212,7 +180,7 @@ void AuthManager::changePassword(const QString& oldPassword, const QString& newP
     QJsonDocument doc(body);
     QByteArray data = doc.toJson();
 
-    passwordChangeReply_ = apiManager_->post(request, data);
+    passwordChangeReply_ = networkManager_->post(request, data);
 
     connect(passwordChangeReply_, &QNetworkReply::finished, this, &AuthManager::onPasswordChangeReply);
 }

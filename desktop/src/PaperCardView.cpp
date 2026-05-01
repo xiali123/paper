@@ -1,12 +1,18 @@
 #include "PaperCardView.hpp"
+#include "FavoriteManager.hpp"
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QComboBox>
 #include <QGraphicsDropShadowEffect>
+#include <QToolTip>
 
 PaperCardView::PaperCardView(QWidget* parent) : QWidget(parent) {
     setupUI();
     setupStyles();
+}
+
+void PaperCardView::setFavoriteManager(FavoriteManager* mgr) {
+    favoriteManager_ = mgr;
 }
 
 void PaperCardView::setupUI() {
@@ -295,6 +301,42 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
 
     headerLayout->addWidget(titleLabel);
     headerLayout->addWidget(levelBadge, 0, Qt::AlignTop);
+
+    // Favorite button
+    bool isFav = favoriteManager_ && favoriteManager_->isFavorite(paper.id);
+    auto* favBtn = new QPushButton(isFav ? "\xe2\x98\x85" : "\xe2\x98\x86", card);
+    favBtn->setObjectName("favButton");
+    favBtn->setProperty("paperId", paper.id);
+    favBtn->setFixedSize(32, 32);
+    favBtn->setCursor(Qt::PointingHandCursor);
+    favBtn->setStyleSheet(
+        QString("QPushButton#favButton { background: none; border: none; "
+                "font-size: 18px; color: %1; }"
+                "QPushButton#favButton:hover { color: #f59e0b; }")
+        .arg(isFav ? "#f59e0b" : "#d1d5db")
+    );
+    connect(favBtn, &QPushButton::clicked, this, [this, favBtn](bool) {
+        int pid = favBtn->property("paperId").toInt();
+        if (favoriteManager_) {
+            bool nowFav = !favoriteManager_->isFavorite(pid);
+            // Find paper in list
+            for (const auto& p : papers_) {
+                if (p.id == pid) {
+                    favoriteManager_->toggleFavorite(pid, p.title, p.journal, p.year);
+                    break;
+                }
+            }
+            favBtn->setText(nowFav ? "\xe2\x98\x85" : "\xe2\x98\x86");
+            favBtn->setStyleSheet(
+                QString("QPushButton#favButton { background: none; border: none; "
+                        "font-size: 18px; color: %1; }"
+                        "QPushButton#favButton:hover { color: #f59e0b; }")
+                .arg(nowFav ? "#f59e0b" : "#d1d5db")
+            );
+            emit favoriteToggled(pid, nowFav);
+        }
+    });
+    headerLayout->addWidget(favBtn, 0, Qt::AlignTop);
 
     // Meta info: Journal, Year, Authors
     auto* metaLayout = new QHBoxLayout();

@@ -6,18 +6,11 @@
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QListWidget>
 #include <QGraphicsDropShadowEffect>
 
-/**
- * @brief Modern search input widget with glass morphism
- *
- * Features:
- * - Rounded search bar with shadow
- * - Modern gradient search button
- * - Smooth animations
- * - Placeholder hints
- * - Popular search suggestions
- */
+class SearchHistory;
+
 class SearchWidget : public QWidget {
     Q_OBJECT
 
@@ -26,6 +19,7 @@ public:
     QString getKeyword() const { return keywordEdit_->text(); }
     void setPlaceholder(const QString& text);
     void setFocus();
+    void setSearchHistory(SearchHistory* history);
 
 signals:
     void searchRequested(const QString& keyword);
@@ -33,16 +27,22 @@ signals:
 private slots:
     void onSearchClicked();
     void onSuggestionClicked();
+    void onTextChanged(const QString& text);
+    void onHistoryItemClicked(QListWidgetItem* item);
 
 private:
     void setupUI();
     void setupStyles();
     void setupSuggestions();
+    void showHistoryDropdown();
+    void hideHistoryDropdown();
 
     QLineEdit* keywordEdit_{nullptr};
     QPushButton* searchButton_{nullptr};
     QLabel* statusLabel_{nullptr};
     QLabel* suggestionsLabel_{nullptr};
     QList<QPushButton*> suggestionButtons_;
+    QListWidget* historyDropdown_{nullptr};
     QGraphicsDropShadowEffect* shadowEffect_{nullptr};
+    SearchHistory* searchHistory_{nullptr};
 };

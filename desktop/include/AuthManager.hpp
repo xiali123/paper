@@ -8,9 +8,6 @@
 #include <QTimer>
 #include <memory>
 
-// Forward declarations
-class ApiManager;
-
 /**
  * @brief User information for desktop client
  */
@@ -73,13 +70,11 @@ struct DesktopAuthResult {
  * Usage:
  * @code
  * auto* authManager = new AuthManager(this);
- * authManager->setApiManager(apiManager);
+ * authManager->setBaseUrl("http://localhost:8080");
  *
- * // Connect signals
  * connect(authManager, &AuthManager::loginSuccess,
  *         this, &MainWindow::onLoginSuccess);
  *
- * // Login
  * authManager->login("user@example.com", "password");
  * @endcode
  */
@@ -107,18 +102,6 @@ public:
      * @param url Base URL (e.g., "http://localhost:8080")
      */
     void setBaseUrl(const QString& url);
-
-    /**
-     * @brief Set API manager
-     * @param apiManager Pointer to ApiManager instance
-     */
-    void setApiManager(ApiManager* apiManager);
-
-    /**
-     * @brief Get API manager
-     * @return Pointer to ApiManager instance
-     */
-    ApiManager* apiManager() const { return apiManager_; }
 
     // ========================================================================
     // Authentication Operations
@@ -409,7 +392,7 @@ private:
     // Members
     // ========================================================================
 
-    ApiManager* apiManager_{nullptr};
+    QNetworkAccessManager* networkManager_{nullptr};
     QString baseUrl_;
 
     // Authentication state

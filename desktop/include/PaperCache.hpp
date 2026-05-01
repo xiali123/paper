@@ -7,9 +7,7 @@
 #include <QHash>
 #include <QPair>
 #include <QDateTime>
-
-// Forward declaration
-struct Paper;
+#include "PaperTypes.hpp"
 
 /**
  * @brief 论文数据缓存管理器

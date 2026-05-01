@@ -10,9 +10,9 @@
 #include <QStandardItemModel>
 #include <memory>
 #include <QPointer>
+#include "PaperTypes.hpp"
 #include "PaperCardView.hpp"
 
-// Forward declarations
 class SearchWidget;
 class ResultView;
 class ProgressView;
@@ -24,46 +24,14 @@ class ApiManager;
 class PaperCache;
 class LocalDatabase;
 class ExportManager;
+class AuthManager;
+class LoginWindow;
 class QAction;
 class QMenu;
 class QToolBar;
 class QCloseEvent;
 class QPushButton;
 
-// Forward declarations for API types
-struct SearchResult;
-struct ApiPaper;
-
-// Forward declarations for database types
-struct DbPaper;
-struct DbSearchResult;
-
-// Export format enum
-enum class ExportFormat {
-    CSV,
-    BibTeX,
-    JSON,
-    PDF
-};
-
-// Forward declarations for API types
-struct SearchResult;
-struct ApiPaper;
-
-// Forward declarations for database types
-struct DbPaper;
-struct DbSearchResult;
-
-/**
- * @brief Main application window for PaperCrawler desktop client
- *
- * Modern Qt6 UI with:
- * - Gradient backgrounds
- * - Theme manager (light/dark mode)
- * - Glass morphism effects
- * - Smooth animations
- * - Real API integration
- */
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -89,9 +57,18 @@ private slots:
     void onSearchFailed(const QString& error);
     void onHealthCheckSuccess(bool healthy, const QString& message);
     void onNetworkError(const QString& error);
+    void onPaperDetailsSuccess(const Paper& paper);
 
     // Pagination slot
     void onPageChanged(int offset, int limit);
+
+    // Auth slots
+    void onLoginSuccess(const DesktopUser& user);
+    void onLogoutSuccess();
+    void onAuthenticationChanged(bool authenticated);
+    void showLoginDialog();
+    void handleLogout();
+    void updateAuthUI();
 
     // Database slots
     void onPaperAdded(int paperId);
@@ -105,8 +82,9 @@ private:
     void connectSignals();
     void loadSettings();
     void saveSettings();
+    void initializeAuthentication();
 
-    // UI Components (children of MainWindow, auto-deleted)
+    // UI Components
     HeroWidget* heroWidget_{nullptr};
     FeatureCards* featureCards_{nullptr};
     SearchWidget* searchWidget_{nullptr};
@@ -115,12 +93,20 @@ private:
     ProgressView* progressView_{nullptr};
     FilterPanel* filterPanel_{nullptr};
 
-    // Core managers (explicitly deleted in destructor)
+    // Core managers
     ThemeManager* themeManager_{nullptr};
     ApiManager* apiManager_{nullptr};
     PaperCache* paperCache_{nullptr};
     LocalDatabase* localDb_{nullptr};
     ExportManager* exportManager_{nullptr};
+
+    // Auth
+    AuthManager* authManager_{nullptr};
+    LoginWindow* loginWindow_{nullptr};
+    QAction* loginAction_{nullptr};
+    QAction* logoutAction_{nullptr};
+    QAction* profileAction_{nullptr};
+    QLabel* userLabel_{nullptr};
 
     // Actions
     QAction* searchAction_{nullptr};

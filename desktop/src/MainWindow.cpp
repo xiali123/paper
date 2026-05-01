@@ -10,6 +10,14 @@
 #include "ApiManager.hpp"
 #include "PaperCache.hpp"
 #include "ExportManager.hpp"
+#include "AuthManager.hpp"
+#include "LoginWindow.hpp"
+#include "PaperDetailDialog.hpp"
+#include "StatisticsDialog.hpp"
+#include "SettingsDialog.hpp"
+#include "FavoriteManager.hpp"
+#include "SearchHistory.hpp"
+#include "CrawlerDashboardDialog.hpp"
 // #include "database/LocalDatabase.hpp"  // TODO: Re-enable after type system refactoring
 #include <QTimer>
 #include <QCloseEvent>
@@ -18,6 +26,7 @@
 #include <QScrollArea>
 
 #include <QMenuBar>
+#include <QShortcut>
 #include <QToolBar>
 #include <QStatusBar>
 #include <QMessageBox>
@@ -45,7 +54,11 @@ MainWindow::MainWindow(QWidget* parent)
 
     // Initialize paper cache for pagination optimization
     paperCache_ = new PaperCache(this);
-    paperCache_->setMaxCachePages(20);  // Cache up to 20 pages per search
+    paperCache_->setMaxCachePages(20);
+
+    // Initialize favorite manager and search history
+    auto* favoriteManager = new FavoriteManager(this);
+    auto* searchHistory = new SearchHistory(this);
 
     // Initialize export manager
     exportManager_ = new ExportManager(this);
@@ -78,6 +91,22 @@ MainWindow::MainWindow(QWidget* parent)
     connectSignals();
     loadSettings();
 
+    initializeAuthentication();
+
+    // Keyboard shortcuts
+    auto* searchShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_F), this);
+    connect(searchShortcut, &QShortcut::activated, this, [this]() {
+        searchWidget_->setFocus();
+    });
+    auto* exportShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_E), this);
+    connect(exportShortcut, &QShortcut::activated, this, &MainWindow::onExport);
+    auto* themeShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_T), this);
+    connect(themeShortcut, &QShortcut::activated, this, &MainWindow::onToggleTheme);
+    auto* statsShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_U), this);
+    connect(statsShortcut, &QShortcut::activated, this, &MainWindow::onShowStatistics);
+    auto* settingsShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma), this);
+    connect(settingsShortcut, &QShortcut::activated, this, &MainWindow::onPreferences);
+
     // Check API health on startup
     apiManager_->checkHealth();
 
@@ -86,24 +115,7 @@ MainWindow::MainWindow(QWidget* parent)
 
 MainWindow::~MainWindow() {
     saveSettings();
-
-    // Clean up pointers
-    if (themeManager_) {
-        delete themeManager_;
-        themeManager_ = nullptr;
-    }
-    if (apiManager_) {
-        delete apiManager_;
-        apiManager_ = nullptr;
-    }
-    if (paperCache_) {
-        delete paperCache_;
-        paperCache_ = nullptr;
-    }
-    if (localDb_) {
-        delete localDb_;
-        localDb_ = nullptr;
-    }
+    // Qt parent-child mechanism auto-deletes children
 }
 
 void MainWindow::setupUI() {
@@ -128,10 +140,12 @@ void MainWindow::setupUI() {
 
     // Search Widget
     searchWidget_ = new SearchWidget(this);
+    searchWidget_->setSearchHistory(searchHistory);
     mainLayout->addWidget(searchWidget_);
 
     // Results Section (initially hidden)
     resultView_ = new PaperCardView(this);
+    resultView_->setFavoriteManager(favoriteManager);
     resultView_->setVisible(false);
     mainLayout->addWidget(resultView_);
 
@@ -211,6 +225,22 @@ void MainWindow::createMenus() {
     statsAction->setShortcut(QKeySequence("Ctrl+S"));
     connect(statsAction, &QAction::triggered, this, &MainWindow::onShowStatistics);
 
+    toolsMenu->addSeparator();
+
+    QAction* crawlerAction = toolsMenu->addAction("&Crawler Dashboard");
+    connect(crawlerAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new CrawlerDashboardDialog(this);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    QAction* aiAction = toolsMenu->addAction("&AI Assistant");
+    connect(aiAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new AIDialog(this);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -253,8 +283,32 @@ void MainWindow::createToolBar() {
 
     toolBar->addSeparator();
 
-    QAction* settingsAction = toolBar->addAction("⚙ Settings");
+    QAction* settingsAction = toolBar->addAction("Settings");
     connect(settingsAction, &QAction::triggered, this, &MainWindow::onPreferences);
+
+    toolBar->addSeparator();
+
+    // Auth actions
+    loginAction_ = toolBar->addAction("Login");
+    connect(loginAction_, &QAction::triggered, this, &MainWindow::showLoginDialog);
+
+    logoutAction_ = toolBar->addAction("Logout");
+    logoutAction_->setVisible(false);
+    connect(logoutAction_, &QAction::triggered, this, &MainWindow::handleLogout);
+
+    profileAction_ = toolBar->addAction("Profile");
+    profileAction_->setVisible(false);
+    connect(profileAction_, &QAction::triggered, this, [this]() {
+        if (!authManager_ || !authManager_->isAuthenticated()) return;
+        DesktopUser user = authManager_->getCurrentUser();
+        QString info = QString("Username: %1\nEmail: %2\nRole: %3")
+            .arg(user.username, user.email, user.role);
+        QMessageBox::information(this, "Profile", info);
+    });
+
+    // User label in status bar
+    userLabel_ = new QLabel(this);
+    statusBar()->addPermanentWidget(userLabel_);
 }
 
 void MainWindow::createThemeButton() {
@@ -318,6 +372,8 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onSearchFailed);
     connect(apiManager_, &ApiManager::healthCheckSuccess,
             this, &MainWindow::onHealthCheckSuccess);
+    connect(apiManager_, &ApiManager::paperDetailsSuccess,
+            this, &MainWindow::onPaperDetailsSuccess);
     connect(apiManager_, &ApiManager::networkError,
             this, &MainWindow::onNetworkError);
 }
@@ -418,7 +474,6 @@ void MainWindow::onPaperSelected(int paperId) {
 }
 
 void MainWindow::onSearchSuccess(const SearchResult& result) {
-    // Save total count for pagination
     totalResults_ = result.total;
 
     qDebug() << "=== Backend Search Results ===";
@@ -426,25 +481,32 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
     qDebug() << "Total papers:" << result.total;
     qDebug() << "Offset:" << currentOffset_ << "Limit:" << currentLimit_;
 
-    // Convert ApiPaper to Paper
+    // Convert Paper results for display
     QList<Paper> papers;
-    for (const auto& apiPaper : result.papers) {
+    for (const auto& p : result.papers) {
         Paper paper;
-        paper.id = apiPaper.id;
-        paper.title = apiPaper.title;
-        paper.journal = apiPaper.journalShort.isEmpty()
-                       ? apiPaper.journalFull
-                       : apiPaper.journalShort;
-        paper.year = apiPaper.year;
-        paper.level = apiPaper.level;
-        paper.authors = apiPaper.authors;
-        paper.doiUrl = apiPaper.doiUrl;
+        paper.id = p.id;
+        paper.title = p.title;
+        paper.journal = p.journalShort.isEmpty()
+                       ? p.journalFull
+                       : p.journalShort;
+        paper.year = p.year;
+        paper.level = p.level;
+        paper.authors = p.authors;
+        paper.doiUrl = p.doiUrl;
         papers.append(paper);
     }
 
     // Cache the results for this page
-    qDebug() << "Caching results for" << currentKeyword_ << "offset=" << currentOffset_;
     paperCache_->insert(currentKeyword_, currentOffset_, currentLimit_, papers, totalResults_);
+
+    // Save to search history (first page only)
+    if (currentOffset_ == 0) {
+        auto* searchHistory = findChild<SearchHistory*>();
+        if (searchHistory) {
+            searchHistory->addSearch(currentKeyword_, result.total);
+        }
+    }
 
     // Display results with correct page number
     int pageNum = (currentOffset_ / currentLimit_) + 1;
@@ -495,44 +557,42 @@ void MainWindow::onNetworkError(const QString& error) {
 
 void MainWindow::onExport(ExportFormat format) {
     if (!resultView_ || resultView_->paperCount() == 0) {
-        QMessageBox::warning(this, "导出",
-            "没有可导出的论文。\n请先进行搜索。");
+        QMessageBox::warning(this, "Export",
+            "No papers to export.\nPlease search first.");
         return;
     }
 
-    // Show save dialog
     QString fileName = exportManager_->showSaveDialog(this, format);
+    if (fileName.isEmpty()) return;
 
-    if (fileName.isEmpty()) {
-        return;  // User cancelled
+    statusBar()->showMessage("Exporting to: " + fileName + "...");
+    QList<Paper> papers = resultView_->getPapers();
+
+    bool success = false;
+    switch (format) {
+        case ExportFormat::CSV:
+            success = exportManager_->exportToCSV(fileName, papers);
+            break;
+        case ExportFormat::BibTeX:
+            success = exportManager_->exportToBibTeX(fileName, papers);
+            break;
+        case ExportFormat::JSON:
+            success = exportManager_->exportToJSON(fileName, papers);
+            break;
+        case ExportFormat::PDF:
+            success = exportManager_->exportToPDF(fileName, papers);
+            break;
     }
 
-    statusBar()->showMessage("正在导出到: " + fileName + "...");
-
-    // Get papers from result view
-    // Note: We need to access the papers from PaperCardView
-    // For now, we'll need to add a getter to PaperCardView
-    // This is a placeholder - you'll need to implement getPapers() in PaperCardView
-
-    // TODO: Get actual papers from result view
-    // QList<Paper> papers = resultView_->getPapers();
-
-    // For now, show a message
-    QMessageBox::information(this, "导出",
-        "导出功能已创建！\n\n"
-        "需要在 PaperCardView 中添加 getPapers() 方法\n"
-        "来返回当前显示的论文列表。\n\n"
-        "支持格式：CSV, BibTeX, JSON");
+    if (success) {
+        statusBar()->showMessage(QString("Exported %1 papers to %2").arg(papers.size()).arg(fileName), 5000);
+    }
 }
 
 void MainWindow::onPreferences() {
-    QMessageBox::information(this, "Preferences",
-        "Preferences dialog will be implemented.\n\n"
-        "Settings will include:\n"
-        "- API endpoint configuration\n"
-        "- Theme selection\n"
-        "- Export formats\n"
-        "- Search preferences");
+    auto* dialog = new SettingsDialog(apiManager_, authManager_, this);
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void MainWindow::onToggleTheme() {
@@ -555,13 +615,9 @@ void MainWindow::onToggleTheme() {
 }
 
 void MainWindow::onShowStatistics() {
-    QMessageBox::information(this, "Statistics",
-        "Statistics view will be implemented.\n\n"
-        "Will show:\n"
-        "- Total papers in database\n"
-        "- Papers by year\n"
-        "- Top journals\n"
-        "- Publication trends");
+    auto* dialog = new StatisticsDialog(apiManager_, this);
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void MainWindow::onAbout() {
@@ -599,5 +655,109 @@ void MainWindow::closeEvent(QCloseEvent* event) {
         event->accept();
     } else {
         event->ignore();
+    }
+}
+
+// ============================================================================
+// Paper Details
+// ============================================================================
+
+void MainWindow::onPaperDetailsSuccess(const Paper& paper) {
+    auto* dialog = new PaperDetailDialog(paper, this);
+    dialog->exec();
+    dialog->deleteLater();
+}
+
+// ============================================================================
+// Authentication Integration
+// ============================================================================
+
+void MainWindow::initializeAuthentication() {
+    authManager_ = new AuthManager(this);
+    authManager_->setBaseUrl(apiManager_->baseUrl());
+
+    connect(authManager_, &AuthManager::authenticationChanged,
+            this, &MainWindow::onAuthenticationChanged);
+    connect(authManager_, &AuthManager::loginSuccess,
+            this, &MainWindow::onLoginSuccess);
+    connect(authManager_, &AuthManager::logoutSuccess,
+            this, &MainWindow::onLogoutSuccess);
+
+    if (authManager_->loadSavedState()) {
+        qDebug() << "Restored session for user:" << authManager_->getCurrentUser().username;
+        apiManager_->setAuthToken(authManager_->getAccessToken());
+    }
+}
+
+void MainWindow::showLoginDialog() {
+    if (!authManager_) {
+        initializeAuthentication();
+    }
+
+    loginWindow_ = new LoginWindow(authManager_, this);
+    connect(loginWindow_, &LoginWindow::authenticationSuccessful,
+            this, &MainWindow::onLoginSuccess);
+    loginWindow_->exec();
+    loginWindow_->deleteLater();
+    loginWindow_ = nullptr;
+}
+
+void MainWindow::handleLogout() {
+    if (!authManager_) return;
+
+    auto reply = QMessageBox::question(this, "Logout",
+        "Are you sure you want to logout?",
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        authManager_->logout();
+    }
+}
+
+void MainWindow::onLoginSuccess(const DesktopUser& user) {
+    qDebug() << "Login successful:" << user.username;
+    apiManager_->setAuthToken(authManager_->getAccessToken());
+    updateAuthUI();
+}
+
+void MainWindow::onLogoutSuccess() {
+    qDebug() << "Logout successful";
+    apiManager_->clearAuthToken();
+    updateAuthUI();
+}
+
+void MainWindow::onAuthenticationChanged(bool authenticated) {
+    qDebug() << "Auth state changed:" << authenticated;
+    if (authenticated) {
+        apiManager_->setAuthToken(authManager_->getAccessToken());
+    }
+    updateAuthUI();
+}
+
+void MainWindow::updateAuthUI() {
+    if (!authManager_) return;
+
+    bool authenticated = authManager_->isAuthenticated();
+
+    if (loginAction_) loginAction_->setVisible(!authenticated);
+    if (logoutAction_) logoutAction_->setVisible(authenticated);
+    if (profileAction_) profileAction_->setVisible(authenticated);
+
+    if (userLabel_) {
+        if (authenticated) {
+            DesktopUser user = authManager_->getCurrentUser();
+            userLabel_->setText(QString("%1").arg(user.username));
+            userLabel_->setToolTip(QString("Logged in as %1\n%2")
+                .arg(user.fullName, user.email));
+        } else {
+            userLabel_->setText("");
+        }
+    }
+
+    if (authenticated) {
+        DesktopUser user = authManager_->getCurrentUser();
+        setWindowTitle(QString("PaperCrawler - %1").arg(user.username));
+    } else {
+        setWindowTitle("PaperCrawler");
     }
 }

@@ -1,8 +1,10 @@
 #include "SearchWidget.hpp"
+#include "SearchHistory.hpp"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QDebug>
 #include <QTimer>
+#include <QFrame>
 
 SearchWidget::SearchWidget(QWidget* parent) : QWidget(parent) {
     setupUI();
@@ -74,6 +76,27 @@ void SearchWidget::setupUI() {
             this, &SearchWidget::onSearchClicked);
     connect(keywordEdit_, &QLineEdit::returnPressed,
             this, &SearchWidget::onSearchClicked);
+    connect(keywordEdit_, &QLineEdit::textChanged,
+            this, &SearchWidget::onTextChanged);
+
+    // History dropdown (hidden by default)
+    historyDropdown_ = new QListWidget(this);
+    historyDropdown_->setObjectName("historyDropdown");
+    historyDropdown_->setMaximumHeight(200);
+    historyDropdown_->hide();
+    historyDropdown_->setStyleSheet(
+        "QListWidget#historyDropdown {"
+        "  background: white; border: 1px solid #e2e8f0; border-radius: 8px; "
+        "  padding: 4px; font-size: 11pt; }"
+        "QListWidget#historyDropdown::item {"
+        "  padding: 8px 16px; border-radius: 4px; }"
+        "QListWidget#historyDropdown::item:hover {"
+        "  background: #f1f5f9; }"
+        "QListWidget#historyDropdown::item:selected {"
+        "  background: #e0e7ff; color: #4f46e5; }"
+    );
+    connect(historyDropdown_, &QListWidget::itemClicked,
+            this, &SearchWidget::onHistoryItemClicked);
 }
 
 void SearchWidget::setupStyles() {
@@ -187,5 +210,64 @@ void SearchWidget::onSuggestionClicked() {
         QTimer::singleShot(3000, this, [this]() {
             statusLabel_->setVisible(false);
         });
+    }
+}
+
+void SearchWidget::setSearchHistory(SearchHistory* history) {
+    searchHistory_ = history;
+}
+
+void SearchWidget::onTextChanged(const QString& text) {
+    if (!searchHistory_ || text.trimmed().isEmpty()) {
+        hideHistoryDropdown();
+        return;
+    }
+    showHistoryDropdown();
+}
+
+void SearchWidget::showHistoryDropdown() {
+    if (!searchHistory_) return;
+
+    QString prefix = keywordEdit_->text().trimmed().toLower();
+    QStringList allHistory = searchHistory_->getRecentKeywords(20);
+
+    QStringList filtered;
+    for (const QString& kw : allHistory) {
+        if (kw.toLower().contains(prefix)) {
+            filtered.append(kw);
+        }
+        if (filtered.size() >= 8) break;
+    }
+
+    if (filtered.isEmpty()) {
+        hideHistoryDropdown();
+        return;
+    }
+
+    historyDropdown_->clear();
+    for (const QString& kw : filtered) {
+        historyDropdown_->addItem(kw);
+    }
+
+    QPoint pos = keywordEdit_->mapTo(this, QPoint(0, keywordEdit_->height()));
+    historyDropdown_->setGeometry(
+        pos.x(), pos.y(),
+        keywordEdit_->width(), historyDropdown_->sizeHintForRow(0) * filtered.size() + 8
+    );
+    historyDropdown_->raise();
+    historyDropdown_->show();
+}
+
+void SearchWidget::hideHistoryDropdown() {
+    if (historyDropdown_) {
+        historyDropdown_->hide();
+    }
+}
+
+void SearchWidget::onHistoryItemClicked(QListWidgetItem* item) {
+    if (item) {
+        keywordEdit_->setText(item->text());
+        hideHistoryDropdown();
+        emit searchRequested(item->text());
     }
 }

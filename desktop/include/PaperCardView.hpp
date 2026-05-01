@@ -8,35 +8,16 @@
 #include <QPushButton>
 #include <QComboBox>
 #include <QList>
+#include "PaperTypes.hpp"
 
-/**
- * @brief Paper data structure
- */
-struct Paper {
-    int id;
-    QString title;
-    QString journal;
-    QString year;
-    QString level;
-    QString authors;
-    QString doiUrl;
-};
+class FavoriteManager;
 
-/**
- * @brief Modern card-based paper list view matching web frontend
- *
- * Features:
- * - Card-based layout (not table)
- * - CCF Level badges with colors
- * - Hover effects
- * - Click to select
- * - Pagination with customizable page size
- */
 class PaperCardView : public QWidget {
     Q_OBJECT
 
 public:
     explicit PaperCardView(QWidget* parent = nullptr);
+    void setFavoriteManager(FavoriteManager* mgr);
     void setPapers(const QList<Paper>& papers, int total = -1, int currentPage = 1);
     void addPaper(const Paper& paper);
     void clear();
@@ -50,7 +31,8 @@ protected:
 
 signals:
     void paperSelected(int paperId);
-    void pageChanged(int offset, int limit);  // New signal for pagination
+    void pageChanged(int offset, int limit);
+    void favoriteToggled(int paperId, bool favorite);
 
 private slots:
     void onCardClicked();
@@ -67,7 +49,7 @@ private:
     QString getLevelStyle(const QString& level) const;
     QString formatAuthors(const QString& authors, int maxCount = 2) const;
     void updatePaginationControls();
-    void clearPapersOnly();  // Clear papers without resetting pagination state
+    void clearPapersOnly();
 
     QScrollArea* scrollArea_{nullptr};
     QWidget* scrollContent_{nullptr};
@@ -75,18 +57,18 @@ private:
     QPushButton* loadMoreButton_{nullptr};
     QLabel* emptyStateLabel_{nullptr};
 
-    // Pagination controls
-    class QComboBox* pageSizeCombo_{nullptr};
-    class QLabel* pageInfoLabel_{nullptr};
-    class QPushButton* firstPageBtn_{nullptr};
-    class QPushButton* prevPageBtn_{nullptr};
-    class QPushButton* nextPageBtn_{nullptr};
-    class QPushButton* lastPageBtn_{nullptr};
+    QComboBox* pageSizeCombo_{nullptr};
+    QLabel* pageInfoLabel_{nullptr};
+    QPushButton* firstPageBtn_{nullptr};
+    QPushButton* prevPageBtn_{nullptr};
+    QPushButton* nextPageBtn_{nullptr};
+    QPushButton* lastPageBtn_{nullptr};
     QWidget* paginationBar_{nullptr};
 
+    FavoriteManager* favoriteManager_{nullptr};
     QList<Paper> papers_;
-    int totalCount_{0};           // Total papers from server
-    int currentPage_{1};          // Current page number (1-based)
-    int currentPageSize_{20};     // Current page size
-    int currentOffset_{0};        // Current offset for API
+    int totalCount_{0};
+    int currentPage_{1};
+    int currentPageSize_{20};
+    int currentOffset_{0};
 };
