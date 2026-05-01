@@ -51,8 +51,8 @@
             Note
           </el-button>
           <el-button
-            :type="annotationPanelOpen ? 'primary' : 'default'"
-            @click="annotationPanelOpen = !annotationPanelOpen"
+            :type="annotationMode !== 'off' ? 'primary' : 'default'"
+            @click="annotationMode = annotationMode !== 'off' ? 'off' : 'highlight'"
           >
             Annotations
           </el-button>
@@ -136,7 +136,6 @@ const scale = ref(props.initialScale)
 const isFromCache = ref(false)
 const currentPdfId = ref<string>()
 const annotationMode = ref<'highlight' | 'note' | 'off'>('off')
-const annotationPanelOpen = ref(false)
 const containerRect = ref<DOMRect | undefined>()
 
 // Compute a stable documentId from the PDF URL for annotation persistence
