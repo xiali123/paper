@@ -1554,23 +1554,18 @@ const extendedDocumentStats = computed(() => {
 
   const baseStats = latexStore.documentStats
 
-
-
-  // LaTeX元素统计
-
-  const formulas = (content.match(/\\\(|\\\[|\\begin\{equation\}/g) || []).length
-
-  const inlineFormulas = (content.match(/\\\(/g) || []).length
-
-  const displayFormulas = (content.match(/\\\[|\\begin\{equation\}/g) || []).length
-
-  const references = (content.match(/\\cite\{|\\ref\{/g) || []).length
-
-  const images = (content.match(/\\includegraphics|\\begin\{figure\}/g) || []).length
-
-  const tables = (content.match(/\\begin\{tabular\}|\\begin\{table\}/g) || []).length
-
-  const packages = (content.match(/\\usepackage\{/g) || []).length
+  // Single-pass LaTeX element counting (replaces 7 separate regex scans)
+  let formulas = 0, inlineFormulas = 0, displayFormulas = 0
+  let references = 0, images = 0, tables = 0, packages = 0
+  for (const m of content.matchAll(/\\\(|\\\[|\\begin\{equation\}|\\cite\{|\\ref\{|\\includegraphics|\\begin\{figure\}|\\begin\{tabular\}|\\begin\{table\}|\\usepackage\{/g)) {
+    const t = m[0]
+    if (t === '\\(') { formulas++; inlineFormulas++ }
+    else if (t === '\\[' || t === '\\begin{equation}') { formulas++; displayFormulas++ }
+    else if (t === '\\cite{' || t === '\\ref{') references++
+    else if (t === '\\includegraphics' || t === '\\begin{figure}') images++
+    else if (t === '\\begin{tabular}' || t === '\\begin{table}') tables++
+    else if (t === '\\usepackage{') packages++
+  }
 
 
 
