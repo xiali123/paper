@@ -1,41 +1,26 @@
 #include "core/Router.hpp"
 #include "core/IModule.hpp"
 #include "core/ModuleBase.hpp"
+#include "core/ErrorHandler.hpp"
 #include <spdlog/spdlog.h>
-#include <iostream>
 #include <sstream>
 #include <vector>
 #include <unordered_map>
 
 namespace PaperCrawler {
 
-// 全局Router实例（导出符号）
-ROUTER_API Router g_routerInstance;
-
-// 全局构造函数日志（在DLL加载时执行）
-struct RouterInit {
-    RouterInit() {
-        std::cout << "[ROUTER] Router singleton initialized" << std::endl;
-    }
-};
-static RouterInit routerInit_;
-
 Router& Router::getInstance() {
-    std::cout << "[ROUTER] getInstance() called, address: " << (void*)&g_routerInstance << std::endl;
-    return g_routerInstance;
+    static Router instance;
+    return instance;
 }
 
-// ==============================================================================================
-// 👇👇👇 关键优化：用两个哈希表替代原来的 routes_，完全兼容你现有的 get/post/put/del 调用
-// ==============================================================================================
 void Router::get(const std::string& path, RouteHandler handler) {
-    std::cout << "[Router::get] Registering GET route: [" << path << "]" << std::endl;
     if (path.find(':') == std::string::npos) {
         exactRoutes_["GET"][path] = handler;
     } else {
         paramRoutes_["GET"].emplace_back(path, handler);
     }
-    spdlog::info("Registered GET route: {} (Router instance: {})", path, (void*)this);
+    spdlog::debug("Registered GET route: {}", path);
 }
 
 void Router::post(const std::string& path, RouteHandler handler) {
@@ -121,183 +106,148 @@ bool Router::matchPattern(const std::string& pattern,
     return true;
 }
 
-// ==============================================================================================
-// 👇👇👇 核心优化：route() 方法完全使用哈希表，告别暴力遍历
-// ==============================================================================================
+HttpResponse Router::executeHandler(const RouteHandler& handler, const HttpRequest& request) {
+    try {
+        return handler(request);
+    } catch (const AppException& e) {
+        int status = e.getHttpStatusCode();
+        spdlog::error("[Router] AppException (HTTP {}): {}", status, e.what());
+        HttpResponse err;
+        err.statusCode = status;
+        err.headers["Content-Type"] = "application/json";
+        err.body = R"({"success":false,"error":")" + std::string(e.what()) + R"("})";
+        return err;
+    } catch (const std::exception& e) {
+        spdlog::error("[Router] Unhandled exception: {}", e.what());
+        HttpResponse err;
+        err.statusCode = 500;
+        err.statusText = "Internal Server Error";
+        err.headers["Content-Type"] = "application/json";
+        err.body = R"({"success":false,"error":"Internal server error"})";
+        return err;
+    }
+}
+
+std::string Router::normalizeVersionedPath(const std::string& path) const {
+    // /api/v1/xxx -> /api/xxx (strip version prefix for backward compat)
+    if (path.compare(0, 8, "/api/v1/") == 0) {
+        return "/api/" + path.substr(8);
+    }
+    if (path == "/api/v1") {
+        return "/api";
+    }
+    return path;
+}
+
 HttpResponse Router::route(const HttpRequest& request) {
-    std::cout << "[ROUTER] ===== ROUTING START =====" << std::endl;
-    std::cout << "[ROUTER] Request: " << request.method << " " << request.path << std::endl;
-    std::cout << "[ROUTER] Router instance: " << (void*)this << std::endl;
+    spdlog::debug("[Router] Routing: {} {}", request.method, request.path);
 
-    spdlog::info("Routing: {} {}", request.method, request.path);
+    // Normalize versioned paths: /api/v1/xxx -> /api/xxx
+    std::string normalizedPath = normalizeVersionedPath(request.path);
+    HttpRequest normalizedRequest = request;
+    normalizedRequest.path = normalizedPath;
 
-    // ==========================================
-    // 🔥 1. 精确匹配：O(1) 直接查找
-    // ==========================================
-    auto methodExactIt = exactRoutes_.find(request.method);
+    // 1. Exact match: O(1)
+    auto methodExactIt = exactRoutes_.find(normalizedRequest.method);
     if (methodExactIt != exactRoutes_.end()) {
         const auto& pathMap = methodExactIt->second;
-        auto handlerIt = pathMap.find(request.path);
+        auto handlerIt = pathMap.find(normalizedPath);
 
         if (handlerIt != pathMap.end()) {
-            std::cout << "[ROUTER] ✅ 精确匹配成功: " << request.method << " " << request.path << std::endl;
-            spdlog::info("Exact route matched: {} {}", request.method, request.path);
-            try {
-                return handlerIt->second(request);
-            } catch (const std::exception& e) {
-                spdlog::error("Handler error: {}", e.what());
-                HttpResponse err;
-                err.statusCode = 500;
-                err.statusText = "Internal Server Error";
-                err.headers["Content-Type"] = "application/json";
-                err.body = R"({"error":")" + std::string(e.what()) + R"("})";
-                return err;
-            }
+            spdlog::debug("[Router] Exact match: {} {}", normalizedRequest.method, normalizedPath);
+            return executeHandler(handlerIt->second, normalizedRequest);
         }
     }
 
-    // ==========================================
-    // 🔥 2. 参数路由匹配：只遍历同方法的路由
-    // ==========================================
-    auto methodParamIt = paramRoutes_.find(request.method);
+    // 2. Parameter route match
+    auto methodParamIt = paramRoutes_.find(normalizedRequest.method);
     if (methodParamIt != paramRoutes_.end()) {
         for (const auto& pair : methodParamIt->second) {
             const std::string& pattern = pair.first;
             const RouteHandler& handler = pair.second;
 
             std::map<std::string, std::string> params;
-            if (matchPattern(pattern, request.path, params)) {
-                spdlog::info("Parameter route matched: {} {}", request.method, pattern);
-                HttpRequest req = request;
+            if (matchPattern(pattern, normalizedPath, params)) {
+                spdlog::debug("[Router] Param match: {} {}", normalizedRequest.method, pattern);
+                HttpRequest req = normalizedRequest;
                 req.pathParams = params;
-                try {
-                    return handler(req);
-                } catch (const std::exception& e) {
-                    spdlog::error("Handler error: {}", e.what());
-                    HttpResponse err;
-                    err.statusCode = 500;
-                    err.statusText = "Internal Server Error";
-                    err.headers["Content-Type"] = "application/json";
-                    err.body = R"({"error":")" + std::string(e.what()) + R"("})";
-                    return err;
-                }
+                return executeHandler(handler, req);
             }
         }
     }
 
-    // ==========================================
-    // 🔥 3. 模块路由匹配
-    // ==========================================
-    spdlog::info("Checking module routes, total prefixes: {}", moduleRoutes_.size());
-
-    // 遍历所有模块路由前缀
+    // 3. Module route match
     for (const auto& [prefix, prefixRoutes] : moduleRoutes_) {
-        spdlog::info("Checking prefix: {}, routes: {}", prefix, prefixRoutes.size());
-
-        // 检查请求路径是否以该前缀开头
-        if (request.path.find(prefix) == 0) {
-            spdlog::info("Path {} starts with prefix {}", request.path, prefix);
-
-            // 查找精确匹配
-            auto handlerIt = prefixRoutes.find(request.path);
+        if (normalizedPath.find(prefix) == 0) {
+            // Exact match within prefix
+            auto handlerIt = prefixRoutes.find(normalizedPath);
             if (handlerIt != prefixRoutes.end()) {
-                spdlog::info("Module route matched: {} {}", prefix, request.path);
-                try {
-                    return handlerIt->second(request);
-                } catch (const std::exception& e) {
-                    spdlog::error("Module handler error: {}", e.what());
-                    HttpResponse err;
-                    err.statusCode = 500;
-                    err.statusText = "Internal Server Error";
-                    err.headers["Content-Type"] = "application/json";
-                    err.body = R"({"error":")" + std::string(e.what()) + R"("})";
-                    return err;
-                }
-            } else {
-                spdlog::info("No exact match found for {}", request.path);
+                spdlog::debug("[Router] Module match: {} {}", prefix, normalizedPath);
+                return executeHandler(handlerIt->second, normalizedRequest);
             }
 
-            // 尝试参数匹配
+            // Parameter match within prefix
             for (const auto& [pattern, handler] : prefixRoutes) {
                 std::map<std::string, std::string> params;
-                if (matchPattern(pattern, request.path, params)) {
-                    spdlog::info("Module parameter route matched: {} {}", prefix, pattern);
-                    HttpRequest req = request;
+                if (matchPattern(pattern, normalizedPath, params)) {
+                    spdlog::debug("[Router] Module param match: {} {}", prefix, pattern);
+                    HttpRequest req = normalizedRequest;
                     req.pathParams = params;
-                    try {
-                        return handler(req);
-                    } catch (const std::exception& e) {
-                        spdlog::error("Module handler error: {}", e.what());
-                        HttpResponse err;
-                        err.statusCode = 500;
-                        err.statusText = "Internal Server Error";
-                        err.headers["Content-Type"] = "application/json";
-                        err.body = R"({"error":")" + std::string(e.what()) + R"("})";
-                        return err;
-                    }
+                    return executeHandler(handler, req);
                 }
             }
         }
     }
 
-    // ==========================================
     // 404
-    // ==========================================
-    spdlog::warn("Route not found: {} {}", request.method, request.path);
+    spdlog::debug("[Router] No match: {} {}", normalizedRequest.method, normalizedPath);
     HttpResponse notFound;
     notFound.statusCode = 404;
     notFound.statusText = "Not Found";
     notFound.headers["Content-Type"] = "application/json";
-    notFound.body = R"({"error":"Route not found"})";
+    notFound.body = R"({"success":false,"error":"Route not found"})";
     return notFound;
 }
 
 void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
     if (!module) {
-        spdlog::error("Cannot register routes for null module with prefix: {}", prefix);
+        spdlog::error("[Router] Cannot register routes for null module with prefix: {}", prefix);
         return;
     }
 
     std::string routePrefix = module->getRoutePrefix();
     if (routePrefix.empty()) {
-        spdlog::warn("Module {} has empty route prefix", module->getName());
+        spdlog::warn("[Router] Module {} has empty route prefix", module->getName());
         return;
     }
 
-    // 转换为BusinessModuleBase以访问getRoutes方法
     auto* businessModule = dynamic_cast<BusinessModuleBase*>(module);
     if (!businessModule) {
-        spdlog::error("Module {} is not a BusinessModuleBase", module->getName());
+        spdlog::error("[Router] Module {} is not a BusinessModuleBase", module->getName());
         return;
     }
 
-    // 获取模块的所有路由
     const auto& moduleRoutes = businessModule->getRoutes();
 
-    // 注册每个路由到moduleRoutes_
     for (const auto& [path, handler] : moduleRoutes) {
-        // 路径已经是完整的（包含前缀），直接使用
-        // 存储到模块路由映射中，使用路径的前缀作为键
         moduleRoutes_[routePrefix][path] = handler;
-
-        spdlog::debug("Registered module route: {} -> {}", routePrefix, path);
     }
 
-    spdlog::info("Module {} registered {} routes with prefix: {}",
+    spdlog::info("[Router] Module {} registered {} routes with prefix: {}",
                  module->getName(), moduleRoutes.size(), routePrefix);
 }
 
 void Router::printRoutes() const {
-    std::cout << "\n  Registered exact routes:" << std::endl;
+    spdlog::debug("[Router] Exact routes:");
     for (const auto& m : exactRoutes_) {
         for (const auto& p : m.second) {
-            std::cout << "    " << m.first << "    " << p.first << std::endl;
+            spdlog::debug("  {} {}", m.first, p.first);
         }
     }
-    std::cout << "\n  Registered param routes:" << std::endl;
+    spdlog::debug("[Router] Param routes:");
     for (const auto& m : paramRoutes_) {
         for (const auto& p : m.second) {
-            std::cout << "    " << m.first << "    " << p.first << std::endl;
+            spdlog::debug("  {} {}", m.first, p.first);
         }
     }
 }

@@ -128,6 +128,28 @@ public:
         }
         return password;
     }
+
+    int extractAdminUserIdFromHeaders(const std::map<std::string, std::string>& headers) {
+        auto authIt = headers.find("Authorization");
+        if (authIt == headers.end()) {
+            authIt = headers.find("authorization");
+        }
+        if (authIt == headers.end()) return 0;
+
+        std::string token = authIt->second;
+        if (token.find("Bearer ") == 0) token = token.substr(7);
+        if (token.empty()) return 0;
+
+        SecurityModule sec;
+        auto result = sec.verifyJWT(token);
+        if (!result.valid) return 0;
+
+        auto subIt = result.claims.find("sub");
+        if (subIt == result.claims.end()) return 0;
+
+        try { return std::stoi(subIt->second); }
+        catch (...) { return 0; }
+    }
 };
 
 // ============================================================================
@@ -689,7 +711,7 @@ void AdminApiModule::registerRoutes() {
 
     router.post(prefix + "/security/suspicious/:id/handle", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleHandleSuspiciousLogin(req.pathParams, req.body);
+        std::string body = handleHandleSuspiciousLogin(req.pathParams, req.body, req.headers);
         HttpResponse response;
         response.statusCode = 200;
         response.setHeader("Content-Type", "application/json");
@@ -720,7 +742,7 @@ void AdminApiModule::registerRoutes() {
 
     router.put(prefix + "/config", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleUpdateConfig(req.queryParams, req.body);
+        std::string body = handleUpdateConfig(req.queryParams, req.body, req.headers);
         HttpResponse response;
         response.statusCode = 200;
         response.setHeader("Content-Type", "application/json");
@@ -771,7 +793,7 @@ void AdminApiModule::registerRoutes() {
 
     router.post(prefix + "/backup/jobs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleCreateBackupJob(req.queryParams, req.body);
+        std::string body = handleCreateBackupJob(req.queryParams, req.body, req.headers);
         HttpResponse response;
         response.statusCode = 200;
         response.setHeader("Content-Type", "application/json");
@@ -4259,7 +4281,8 @@ std::string AdminApiModule::handleUnlockUserAccount(const std::map<std::string, 
     }
 }
 
-std::string AdminApiModule::handleHandleSuspiciousLogin(const std::map<std::string, std::string>& params, const std::string& body) {
+std::string AdminApiModule::handleHandleSuspiciousLogin(const std::map<std::string, std::string>& params, const std::string& body,
+                                                       const std::map<std::string, std::string>& headers) {
     if (!impl_) {
         return buildJsonResponse(500, false, "Implementation not initialized");
     }
@@ -4274,7 +4297,7 @@ std::string AdminApiModule::handleHandleSuspiciousLogin(const std::map<std::stri
 
         auto jsonBody = nlohmann::json::parse(body);
         std::string action = jsonBody.value("action", "");  // reviewed, whitelisted, confirmed_threat
-        int reviewedBy = 1;  // TODO: 从session获取当前用户ID
+        int reviewedBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (action.empty()) {
             return buildJsonResponse(400, false, "Action is required");
@@ -4384,7 +4407,8 @@ std::string AdminApiModule::handleGetConfigs(const std::map<std::string, std::st
     }
 }
 
-std::string AdminApiModule::handleUpdateConfig(const std::map<std::string, std::string>& params, const std::string& body) {
+std::string AdminApiModule::handleUpdateConfig(const std::map<std::string, std::string>& params, const std::string& body,
+                                               const std::map<std::string, std::string>& headers) {
     if (!impl_) {
         return buildJsonResponse(500, false, "Implementation not initialized");
     }
@@ -4394,7 +4418,7 @@ std::string AdminApiModule::handleUpdateConfig(const std::map<std::string, std::
         std::string key = jsonBody.value("key", "");
         std::string value = jsonBody.value("value", "");
         std::string reason = jsonBody.value("reason", "Configuration update");
-        int updatedBy = 1;  // TODO: 从session获取
+        int updatedBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (key.empty() || value.empty()) {
             return buildJsonResponse(400, false, "Key and value are required");
@@ -4599,7 +4623,8 @@ std::string AdminApiModule::handleGetBackupJobs(const std::map<std::string, std:
     }
 }
 
-std::string AdminApiModule::handleCreateBackupJob(const std::map<std::string, std::string>& params, const std::string& body) {
+std::string AdminApiModule::handleCreateBackupJob(const std::map<std::string, std::string>& params, const std::string& body,
+                                                   const std::map<std::string, std::string>& headers) {
     if (!impl_) {
         return buildJsonResponse(500, false, "Implementation not initialized");
     }
@@ -4611,7 +4636,7 @@ std::string AdminApiModule::handleCreateBackupJob(const std::map<std::string, st
         std::string scheduleCron = jsonBody.value("schedule_cron", "");
         std::string backupPath = jsonBody.value("backup_path", "/backups");
         int retentionDays = jsonBody.value("retention_days", 30);
-        int createdBy = 1;  // TODO: 从session获取
+        int createdBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (name.empty()) {
             return buildJsonResponse(400, false, "Job name is required");
