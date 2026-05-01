@@ -1,5 +1,7 @@
 # Quick Start Guide - PaperCrawler REST API
 
+> **安全警告**: 当前SecurityModule为mock实现，不适合对外部署。仅用于本地开发测试。
+
 Get the PaperCrawler REST API server up and running in minutes.
 
 ## Prerequisites Check
@@ -10,6 +12,49 @@ Before starting, ensure you have:
 - [ ] CMake 3.15 or higher
 - [ ] MySQL server installed and running
 - [ ] Git (for cloning the repository)
+
+## Installation Steps
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd PaperCrawler/backend
+```
+
+### 2. Configure Database
+
+```bash
+# Copy example configuration
+cp config.example.json config.json
+
+# Edit with your database credentials
+nano config.json
+```
+
+### 3. Build the Server
+
+**Linux:**
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+./PaperCrawlerServer ../../config.json
+```
+
+**Windows:**
+```cmd
+mkdir build && cd build
+cmake .. -G "Visual Studio 17 2022" -A x64
+cmake --build . --config Release
+Release\PaperCrawlerServer.exe ..\..\config.json
+```
+
+### 4. Verify the Server
+
+```bash
+curl http://localhost:8080/health
+```
 
 ## Installation Steps
 
@@ -127,10 +172,10 @@ curl http://localhost:8080/api/stats/overview
 
 ### Issue: Port 8080 Already in Use
 
-**Solution:** Change the port in `src/api_server.cpp` (line ~429):
+**Solution:** Change the port in `config.json`:
 
-```cpp
-serverAddr.sin_port = htons(8081); // Use 8081 instead
+```json
+{ "server": { "port": 8081 } }
 ```
 
 ### Issue: Database Connection Failed
@@ -199,6 +244,7 @@ brew install cmake openssl
 ## API Endpoints Cheat Sheet
 
 ```
+# Core
 GET  /health                          Health check
 GET  /api/search                      Search papers
 GET  /api/papers/{id}                 Get paper details
@@ -208,6 +254,24 @@ GET  /api/stats/overview              Get statistics
 GET  /api/export/csv                  Export CSV
 GET  /api/export/json                 Export JSON
 GET  /api/export/bibtex/{id}          Export BibTeX
+
+# Auth & Users
+POST /api/auth/login                  Login
+POST /api/auth/register               Register
+GET  /api/users                       List users (admin)
+
+# AI & Intelligence
+POST /api/ai/chat                     AI chat
+POST /api/ai/summarize                Summarize paper
+POST /api/latex/compile               Compile LaTeX
+
+# Crawler
+GET  /api/crawler/tasks               List crawler tasks
+POST /api/crawler/tasks               Create crawler task
+
+# Admin
+GET  /api/admin/modules               List loaded modules
+POST /api/admin/modules/{name}/reload Reload module
 ```
 
 ## Support
@@ -219,12 +283,9 @@ GET  /api/export/bibtex/{id}          Export BibTeX
 
 ## What's Next?
 
+- [ ] Fix security issues (SecurityModule mock -> real crypto)
 - [ ] Set up production database
-- [ ] Configure reverse proxy (nginx/Apache)
+- [ ] Configure reverse proxy (nginx)
 - [ ] Enable SSL/TLS
-- [ ] Set up monitoring and logging
+- [ ] Implement WebSocket (currently stub)
 - [ ] Deploy to production environment
-
----
-
-**Need help?** See the full README.md or open an issue on GitHub.

@@ -1,11 +1,40 @@
 # PaperCrawler 后端业务模块完成报告
 
-## 📊 总览
+> **2026-05-01修订**: 原文档记录6个业务模块，实际代码包含14个业务模块。以下补充缺失模块。
 
-**完成日期**: 2026-03-29
+## 总览
+
+**原完成日期**: 2026-03-29
+**修订日期**: 2026-05-01
 **架构版本**: v1.0.0
-**模块总数**: 29个 (100%完成)
-**业务模块数**: 6个
+**源文件数**: 85个
+**业务模块数**: 14个（原文档仅记录6个）
+
+### 新增业务模块（原文档缺失）
+
+| 模块 | 路由前缀 | 源文件 | 状态 |
+|------|----------|--------|------|
+| AdminApiModule | `/api/admin` | src/business/AdminApiModule.cpp | 有代码，无admin鉴权 |
+| AiApiModule | `/api/ai` | src/business/AiApiModule.cpp | 有代码 |
+| AiCoPilotModule | `/api/ai/copilot` | src/business/AiCoPilotModule.cpp | 有代码 |
+| AnalyticsIntelligenceModule | `/api/analytics` | src/business/AnalyticsIntelligenceModule.cpp | 有代码 |
+| CollaborativeWritingModule | `/api/collaboration` | src/business/CollaborativeWritingModule.cpp | 有代码，依赖WS stub |
+| CrawlerApiModule | `/api/crawler` | src/business/CrawlerApiModule.cpp | 有代码 |
+| LatexApiModule | `/api/latex` | src/business/LatexApiModule.cpp | 有代码 |
+| RecommendationApiModule | `/api/recommendations` | src/business/RecommendationApiModule.cpp | 有代码 |
+
+### 支撑服务（非API模块但重要）
+
+| 服务 | 源文件 | 说明 |
+|------|--------|------|
+| AIClients | src/business/AIClients.cpp | AI客户端封装 |
+| AIResponseParser | src/business/AIResponseParser.cpp | AI响应解析 |
+| AiCoPilotService | src/business/AiCoPilotService.cpp | AI副驾驶服务 |
+| ResearchIntelligenceService | src/business/ResearchIntelligenceService.cpp | 研究智能服务 |
+| UnifiedAIWorkflow | src/business/UnifiedAIWorkflow.cpp | 统一AI工作流 |
+| RealTimeCollaborativeService | src/business/RealTimeCollaborativeService.cpp | 实时协作服务 |
+| CollaborativeWebSocketServer | src/business/CollaborativeWebSocketServer.cpp | 协作WS服务器 |
+| CollaborativeWritingEnhanced | src/business/CollaborativeWritingEnhanced.cpp | 增强协作写作 |
 
 ---
 

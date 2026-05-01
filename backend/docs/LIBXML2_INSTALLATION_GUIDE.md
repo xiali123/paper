@@ -95,7 +95,7 @@ cd libxml2-2.12.0
 # 使用MinGW编译
 mkdir build && cd build
 cmake -G "MinGW Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=E:/PaperCrawler/core/external/libxml2 \
+    -DCMAKE_INSTALL_PREFIX=../core/external/libxml2 \
     -DBUILD_SHARED_LIBS=OFF \
     ..
 
@@ -106,8 +106,8 @@ mingw32-make install
 **步骤3**: 验证安装
 ```bash
 # 检查文件
-ls E:/PaperCrawler/core/external/libxml2/include/libxml2/
-ls E:/PaperCrawler/core/external/libxml2/lib/
+ls ../core/external/libxml2/include/libxml2/
+ls ../core/external/libxml2/lib/
 ```
 
 ---
@@ -127,10 +127,10 @@ ls E:/PaperCrawler/core/external/libxml2/lib/
 **步骤2**: 解压到external目录
 ```bash
 # 解压到
-E:\PaperCrawler\core\external\libxml2\
+..\core\external\libxml2\
 
 # 目录结构应该是:
-E:\PaperCrawler\core\external\libxml2\
+..\core\external\libxml2\
     include\
         libxml2\
             libxml.h
@@ -237,7 +237,7 @@ message(STATUS "")
 ### 测试编译
 
 ```bash
-cd E:\PaperCrawler\backend\build
+cd backend\build
 cmake --build . --config Release --target TemplateCrawlerModule
 ```
 
@@ -259,7 +259,7 @@ cmake --build . --config Release --target TemplateCrawlerModule
 export PATH=$PATH:/c/msys64/mingw64/bin
 
 # 或复制DLL到输出目录
-cp C:/msys64/mingw64/bin/libxml2-2.dll E:/PaperCrawler/backend/build/Release/modules/dynamic/
+cp C:/msys64/mingw64/bin/libxml2-2.dll backend/build/Release/modules/dynamic/
 ```
 
 ---

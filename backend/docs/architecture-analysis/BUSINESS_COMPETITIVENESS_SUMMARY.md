@@ -59,6 +59,12 @@
 
 ## 💰 盈利模式
 
+> **2026-05-01修订说明**: 以下ROI计算和盈利预估应考虑以下实际限制：
+> 1. **SecurityModule为mock实现**（bcrypt=XOR, AES=原文, HMAC=空串），安全功能上线前需完整重写
+> 2. **WebSocketModule为stub**，协作编辑等实时功能当前不可用，对应的企业级定价方案暂不可售
+> 3. 实际代码规模为70,570行（45,878 cpp + 24,692 hpp），14个业务模块（非原报告的6个）
+> ROI计算需扣除安全加固和WebSocket实现的人力成本后再评估。
+
 ### Freemium策略
 ```
 免费版：$0
@@ -102,7 +108,7 @@
 已将所有架构分析文档整理到：
 
 ```
-E:\PaperCrawler\backend\docs\architecture-analysis\
+backend\docs\architecture-analysis\
 ├── README.md                           # 索引（导航）
 ├── FINAL_ARCHITECTURE_REPORT.md      # 最终报告（6位专家）
 ├── ARCHITECTURE_VISUALIZATION.md    # 架构图表
@@ -118,7 +124,7 @@ E:\PaperCrawler\backend\docs\architecture-analysis\
 ### 第一步：阅读业务分析报告
 
 所有专家的业务分析结果都已保存在：
-- `E:\PaperCrawler\backend\docs\architecture-analysis\` 目录
+- `backend\docs\architecture-analysis\` 目录
 
 ### 第二步：确定业务优先级
 

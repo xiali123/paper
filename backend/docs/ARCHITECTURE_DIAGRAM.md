@@ -1,5 +1,10 @@
 # PaperCrawler 后端架构图解
 
+> **2026-05-01修订**: 以下架构图反映设计意图。关键实现差异：
+> - Security层标注的JWT Auth/Encryption/RBAC — 实际为mock实现
+> - WebSocket实时通信 — 实际全部为stub
+> - 性能层的MultiLevelCache — 实际基于std::map，非真正多级缓存
+
 ## 1. 系统架构全景图
 
 ```

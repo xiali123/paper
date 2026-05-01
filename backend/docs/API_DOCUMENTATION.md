@@ -1,15 +1,24 @@
 # PaperCrawler REST API Documentation
 
+> **2026-05-01修订**: 原文档仅覆盖9个端点，本次更新补全所有14个业务模块的API端点。安全警告：当前认证/加密为mock实现，所有端点对未认证用户开放。
+
 ## Base URL
 ```
 http://localhost:8080
 ```
 
 ## Overview
-PaperCrawler API provides access to academic paper database with search, filtering, and export capabilities.
+PaperCrawler API provides access to academic paper database with search, filtering, AI-assisted research, collaborative writing, and export capabilities.
 
 ## Authentication
-Currently, the API does not require authentication. (Future versions may include API keys)
+> **WARNING**: 当前SecurityModule.cpp中JWT/bcrypt/AES全部为mock实现。以下端点描述中的认证标注为设计意图，实际未生效。
+
+**设计中的认证方式**: Bearer Token (JWT)
+```
+Authorization: Bearer <token>
+```
+
+**认证端点**: `POST /api/auth/login`
 
 ## Response Format
 All successful responses follow this structure:
@@ -357,12 +366,288 @@ curl -o paper_123.bib http://localhost:8080/api/export/bibtex/123
 Currently, there are no rate limits. (Future versions may implement rate limiting)
 
 ## CORS
-The API supports CORS for all origins. All responses include:
+> **WARNING**: 当前CORS为通配符 `Access-Control-Allow-Origin: *`，生产环境需限制为具体域名。
+
+---
+
+## Auth Module Endpoints
+
+### POST /api/auth/login
+用户登录。
+
+**Request Body:**
+```json
+{ "username": "admin", "password": "password123" }
 ```
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization
+
+**Response:**
+```json
+{ "success": true, "data": { "token": "jwt_token_here", "user": { "id": 1, "username": "admin", "role": "admin" } } }
 ```
+
+### POST /api/auth/register
+用户注册。
+
+### POST /api/auth/refresh
+刷新JWT令牌。
+
+### POST /api/auth/logout
+用户登出。
+
+### POST /api/auth/change-password
+修改密码。
+
+---
+
+## User Module Endpoints
+
+### GET /api/users
+获取用户列表。Requires admin role.
+
+### POST /api/users
+创建用户。Requires admin role.
+
+### GET /api/users/:id
+获取用户详情。
+
+### PUT /api/users/:id
+更新用户信息。
+
+### DELETE /api/users/:id
+删除用户。Requires admin role.
+
+---
+
+## Paper Module Endpoints (Extended)
+
+### GET /api/papers
+论文列表（分页）。
+
+### POST /api/papers
+创建论文。
+
+### GET /api/papers/:id
+论文详情。
+
+### PUT /api/papers/:id
+更新论文。
+
+### DELETE /api/papers/:id
+删除论文。
+
+### GET /api/papers/search
+搜索论文。
+
+### GET /api/papers/recent
+最新论文。
+
+### POST /api/papers/batch
+批量获取论文。
+
+### GET /api/papers/favorites
+获取收藏论文。
+
+### POST /api/papers/:id/favorite
+收藏/取消收藏论文。
+
+---
+
+## Search Module Endpoints
+
+### GET /api/search
+基础搜索。
+
+### POST /api/search/advanced
+高级搜索（多条件组合）。
+
+### GET /api/search/suggest
+搜索建议（自动补全）。
+
+### GET /api/search/history
+搜索历史。
+
+---
+
+## Crawler Module Endpoints
+
+### GET /api/crawler/tasks
+获取爬虫任务列表。
+
+### POST /api/crawler/tasks
+创建爬虫任务。
+
+### GET /api/crawler/tasks/:id
+获取任务详情。
+
+### POST /api/crawler/tasks/:id/start
+启动任务。
+
+### POST /api/crawler/tasks/:id/stop
+停止任务。
+
+### GET /api/crawler/templates
+获取爬虫模板。
+
+### POST /api/crawler/templates
+创建爬虫模板。
+
+### GET /api/crawler/sources
+获取数据源列表。
+
+---
+
+## AI Module Endpoints
+
+### POST /api/ai/chat
+AI对话。
+
+### POST /api/ai/summarize
+论文摘要生成。
+
+### POST /api/ai/translate
+论文翻译。
+
+### POST /api/ai/suggest-related
+推荐相关论文。
+
+### GET /api/ai/copilot/status
+AI副驾驶状态。
+
+### POST /api/ai/copilot/assist
+AI写作辅助。
+
+---
+
+## LaTeX Module Endpoints
+
+### POST /api/latex/compile
+编译LaTeX。
+
+### POST /api/latex/preview
+LaTeX预览。
+
+### GET /api/latex/templates
+LaTeX模板列表。
+
+### POST /api/latex/formula-recognize
+公式识别。
+
+---
+
+## Export Module Endpoints (Extended)
+
+### GET /api/export/csv
+导出CSV。
+
+### GET /api/export/json
+导出JSON。
+
+### GET /api/export/bibtex/:id
+导出BibTeX。
+
+### POST /api/export/pdf
+导出PDF。
+
+### GET /api/export/tasks
+导出任务列表。
+
+### GET /api/export/:taskId/download
+下载导出文件。
+
+---
+
+## Stats Module Endpoints (Extended)
+
+### GET /api/stats/overview
+统计概览。
+
+### GET /api/stats/system
+系统资源监控。
+
+### GET /api/stats/performance
+性能指标。
+
+### GET /api/stats/papers
+论文统计。
+
+### GET /api/stats/users
+用户统计。
+
+### GET /api/stats/crawler
+爬虫统计。
+
+---
+
+## Admin Module Endpoints
+
+### GET /api/admin/modules
+获取模块列表。
+
+### POST /api/admin/modules/:name/reload
+重载模块。
+
+### GET /api/admin/config
+获取系统配置。
+
+### PUT /api/admin/config
+更新系统配置。
+
+### GET /api/admin/logs
+获取系统日志。
+
+### POST /api/admin/backup
+创建备份。
+
+---
+
+## Recommendation Module Endpoints
+
+### GET /api/recommendations
+获取推荐论文。
+
+### GET /api/recommendations/trending
+热门论文。
+
+### GET /api/recommendations/personalized
+个性化推荐。
+
+### POST /api/recommendations/feedback
+推荐反馈。
+
+---
+
+## Analytics Intelligence Endpoints
+
+### GET /api/analytics/dashboard
+分析仪表盘数据。
+
+### GET /api/analytics/trends
+研究趋势分析。
+
+### GET /api/analytics/comparison
+论文对比分析。
+
+### POST /api/analytics/report
+生成分析报告。
+
+---
+
+## Collaborative Writing Endpoints
+
+### GET /api/collaboration/documents
+协作文档列表。
+
+### POST /api/collaboration/documents
+创建协作文档。
+
+### GET /api/collaboration/documents/:id
+获取协作文档。
+
+### POST /api/collaboration/documents/:id/join
+加入协作。
+
+### WebSocket /ws/collaboration/:docId
+实时协作编辑（**当前为stub**）。
 
 ## Logging
 All requests are logged with:

@@ -348,7 +348,7 @@ backend/
 │   └── features/                #    功能模块实现
 │
 ├── 📂 config/                   # 配置文件
-│   ├── modules.json             #    模块配置 (35个模块)
+│   ├── modules.json             #    模块配置 (2026-05-01修订: 实际85源文件/110头文件)
 │   ├── config.json              #    运行时配置
 │   └── config.example.json      #    配置示例
 │

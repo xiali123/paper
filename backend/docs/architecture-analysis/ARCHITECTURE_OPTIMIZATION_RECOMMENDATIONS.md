@@ -870,7 +870,7 @@ bool PaperApiModule::importPapers(const std::vector<Paper>& papers) {
 简化后的层次:
 1. 核心层（Core）       - IModule, Router, MessageBus
 2. 数据层（Data）       - Database, Cache, FileStorage
-3. 业务层（Business）   - 6个业务模块
+3. 业务层（Business）   - 14个业务模块 (2026-05-01修订)
 4. 服务层（Services）   - Security, Metrics, Logging
 5. 网关层（Gateway）    - HttpServer, Filter, Queue
 ```
@@ -1032,7 +1032,7 @@ wrk -t12 -c400 -d30s --latency http://localhost:8080/api/papers
 
 **第一步**: 克隆此报告到项目根目录
 ```bash
-cd E:\PaperCrawler\backend
+cd backend
 git add ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md
 git commit -m "docs: 添加架构优化建议和修复方案"
 ```

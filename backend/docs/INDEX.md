@@ -1,6 +1,6 @@
 # PaperCrawler 后端文档索引
 
-**最后更新**: 2026-04-02
+**最后更新**: 2026-05-01
 
 ---
 
@@ -140,65 +140,84 @@
 
 | 维度 | 评级 | 说明 |
 |-----|------|------|
-| 架构设计 | A+ | 模块化、依赖注入、消息总线 |
-| 性能优化 | A+ | 18,500 QPS, P95<35ms |
-| API设计 | A | 79个端点，RESTful |
-| 可观测性 | A+ | Prometheus+Grafana |
-| 数据层 | A | 双数据库、130索引 |
-| 部署就绪 | A | Docker/K8s就绪 |
-| **安全性** | **D** | **6个关键漏洞** |
+| 架构设计 | A | 模块化设计优秀，但ModuleLoader/PluginManager功能重叠 |
+| 性能优化 | C+ | 多级缓存基于std::map，HTTP为thread-per-connection模型 |
+| API设计 | B | 14个业务模块API，但文档仅覆盖9个端点 |
+| 可观测性 | C | MetricsModule/LoggingModule存在，但未完整集成 |
+| 数据层 | B | MySQL+SQLite双库支持，QueryBuilder存在但SQL注入风险 |
+| 部署就绪 | C+ | 仅Windows部署文档，无Linux/Docker生产部署验证 |
+| **安全性** | **F** | **SecurityModule全为mock实现，SQL注入/路径遍历/XSS漏洞** |
 
-### 项目规模
+### 项目规模（2026-05-01实际代码审计）
 
-- **代码**: 21,954行C++ + 数据访问代码
-- **模块**: 35个（29系统 + 6业务）
-- **API**: 79个端点
+- **源文件**: 85个（.cpp/.h）
+- **业务模块**: 14个（Auth, Paper, User, Crawler, Search, AI, Latex, Export, Stats, Admin, Analytics, Collaborative, Recommendation, AiCoPilot）
+- **核心模块**: 14个（Router, ModuleLoader, PluginManager, MessageBus, EventBus, HotReload等）
+- **功能模块**: 17个（5个infrastructure + 7个operations + 4个performance + 2个resilience + 2个security）
+- **数据模块**: 10个（Database, Cache, Redis, MySQL, FileStorage, QueryBuilder等）
 - **数据库**: 15+表、130索引
-- **文档**: 6份完整报告（50,000+字）
+- **API端点**: 64+（文档仅覆盖9个）
+
+### 安全状态警告
+
+**SecurityModule.cpp中的加密实现全部为mock/占位符**，包括：
+- bcrypt密码哈希 → 实际为简单XOR
+- AES-256-GCM加密 → 实际返回原文
+- HMAC签名 → 实际为空字符串
+- JWT令牌生成 → 未使用真实加密
+
+其他关键安全问题：
+- SQL注入：AuthApiModule、UserApiModule、PaperApiModule存在字符串拼接SQL
+- 路径遍历：FileStorageModule未验证路径
+- XSS：API响应手动拼接JSON，未转义
+- 硬编码凭据：config.json中明文数据库密码和弱JWT密钥
+- CORS通配符：HttpServerModule硬编码`Access-Control-Allow-Origin: *`
 
 ---
 
-## 🚀 立即行动
+## 立即行动
 
-### 第一步：了解战略规划
+### 第一步：修复安全漏洞（最高优先级）
 ```bash
-# 查看最新的7大超级功能套件方案
-cat E:\PaperCrawler\backend\docs\SUPER_FEATURES_PLAN.md
-```
+# 1. 替换SecurityModule中的mock加密为真实实现
+# 关键文件: src/features/security/SecurityModule.cpp
+# 需要集成: openssl/bcrypt库用于真实加密
 
-### 第二步：修复安全漏洞
-```bash
-# 查看详细的修复方案
-cat E:\PaperCrawler\backend\docs\architecture-analysis\ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md
+# 2. 修复SQL注入 — 所有API模块改用参数化查询
+# 关键文件: src/business/AuthApiModule.cpp, UserApiModule.cpp, PaperApiModule.cpp
+
+# 3. 移除config.json中的硬编码凭据
+# 关键文件: config.json
 
 # 创建修复分支
 git checkout -b fix/security-critical-issues
 ```
 
-### 第三步：启动超级套件开发
+### 第二步：补全WebSocket实现
 ```bash
-# 查看实施路线图
-cat E:\PaperCrawler\backend\docs\SUPER_FEATURES_PLAN.md | grep -A 50 "实施路线图"
+# WebSocketModule.cpp当前全部为stub
+# 关键文件: src/network/WebSocketModule.cpp
+# 协作编辑依赖此模块
+```
+
+### 第三步：完善API文档
+```bash
+# 当前仅覆盖9/79+端点
+# 关键文件: docs/API_DOCUMENTATION.md
 ```
 
 ---
 
-## 📞 相关资源
+## 相关资源
 
-- **项目根目录**: `E:\PaperCrawler\backend`
-- **配置文件**: `config/config.json`
+- **项目根目录**: `/home/xiali/progress/paper_backend/paper/backend`
+- **配置文件**: `config.json`
 - **模块配置**: `config/modules.json`
 - **API文档**: `docs/API_DOCUMENTATION.md`
 - **Postman集合**: `postman_collection.json`
 
 ---
 
-**文档生成时间**: 2026-04-02
-**分析专家**: Product Manager, Software Architect, AI Engineer, Innovation Expert, Security Engineer, Backend Architect, API Tester, DevOps Automator, Database Optimizer
-**状态**: ✅ Phase 1-2 全部完成，代码就绪，待编译测试
-
-**新增文档**：
-- [PHASE_COMPLETION_SUMMARY.md](./PHASE_COMPLETION_SUMMARY.md) - Phase 1-2完成总结
-- [WEEK3_4_COMPLETION_REPORT.md](./WEEK3_4_COMPLETION_REPORT.md) - Week 3-4功能完善报告
-- [BUILD_AND_TEST_GUIDE.md](./BUILD_AND_TEST_GUIDE.md) - 编译和测试指南
-- [FINAL_COMPLETION_REPORT.md](./FINAL_COMPLETION_REPORT.md) - 最终完成报告
+**文档生成时间**: 2026-05-01
+**分析专家**: Backend Architect, Security Auditor, Documentation Reviewer
+**状态**: 安全评级F，需紧急修复mock加密和SQL注入后方可用于生产环境
