@@ -70,7 +70,7 @@
 
               <!-- 建议修复 -->
               <div v-if="error.suggestion" class="error-suggestion">
-                <el-icon><Lightbulb /></el-icon>
+                <el-icon><Lightning /></el-icon>
                 <span>建议：{{ error.suggestion }}</span>
               </div>
 
@@ -120,7 +120,7 @@ import {
   InfoFilled,
   ArrowDown,
   Search,
-  Lightbulb,
+  Lightning,
   DocumentCopy,
   Download,
   RefreshRight

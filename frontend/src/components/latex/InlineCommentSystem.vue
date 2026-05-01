@@ -44,7 +44,7 @@
       <div v-if="selectedComment" class="comment-detail">
         <!-- 引用文本 -->
         <div class="quoted-text">
-          <el-icon><Quote /></el-icon>
+          <el-icon><ChatLineSquare /></el-icon>
           <span>{{ selectedComment.quotedText }}</span>
         </div>
 
@@ -151,7 +151,7 @@
     >
       <div v-if="selectedRange" class="new-comment-form">
         <div class="quoted-text-preview">
-          <el-icon><Quote /></el-icon>
+          <el-icon><ChatLineSquare /></el-icon>
           <span>{{ getQuotedTextPreview() }}</span>
         </div>
 
@@ -227,7 +227,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import {
   ChatDotRound,
-  Quote,
+  ChatLineSquare,
   Select,
   RefreshLeft,
   Search

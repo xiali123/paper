@@ -67,10 +67,16 @@ class NotificationManager {
       color: #333;
     `
 
-    notification.innerHTML = `
-      <span style="flex: 1">${options.message}</span>
-      <span style="cursor: pointer; margin-left: 10px; color: #999;">&times;</span>
-    `
+    const msgSpan = document.createElement('span')
+    msgSpan.style.cssText = 'flex: 1'
+    msgSpan.textContent = options.message
+
+    const closeSpan = document.createElement('span')
+    closeSpan.style.cssText = 'cursor: pointer; margin-left: 10px; color: #999;'
+    closeSpan.textContent = '×'
+
+    notification.appendChild(msgSpan)
+    notification.appendChild(closeSpan)
 
     // Add styles for animation
     if (!document.getElementById('notification-styles')) {

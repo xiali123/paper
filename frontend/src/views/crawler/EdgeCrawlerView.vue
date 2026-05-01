@@ -302,7 +302,7 @@ import {
   View,
   TopRight
 } from '@element-plus/icons-vue'
-import { edgeCrawlerApi } from '@/services/crawlerApi'
+import { crawlerApi } from '@/api/modules/crawler'
 
 // Types
 interface CrawlerTask {
@@ -465,7 +465,12 @@ const startCrawling = async (task: CrawlerTask) => {
 
   try {
     // Use edge crawling API
-    const results = await edgeCrawlerApi.crawlUrl(task.url, task.maxPapers)
+    const crawlResult = await crawlerApi.crawl({
+      query: task.url,
+      source: 'arxiv',
+      limit: task.maxPapers
+    })
+    const results = crawlResult.papers || []
 
     task.results = results.map((r: any, index: number) => ({
       id: `${task.id}-${index}`,

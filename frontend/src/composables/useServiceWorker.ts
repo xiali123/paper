@@ -30,7 +30,14 @@ export function useServiceWorker() {
    */
   const registerSW = async () => {
     if (!('serviceWorker' in navigator)) {
-      console.warn('[SW] Service Worker not supported')
+      return
+    }
+
+    // Skip registration if sw.js doesn't exist
+    try {
+      const response = await fetch('/sw.js', { method: 'HEAD' })
+      if (!response.ok) return
+    } catch {
       return
     }
 

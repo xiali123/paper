@@ -141,12 +141,12 @@
           <!-- 常用格式（移除文字） -->
           <el-tooltip content="粗体 Ctrl+B">
             <el-button class="toolbar-btn" size="small" @click="insertLatexCommand('textbf')">
-              <el-icon><NotificationBadge /></el-icon>
+              <el-icon><Notification /></el-icon>
             </el-button>
           </el-tooltip>
           <el-tooltip content="斜体 Ctrl+I">
             <el-button class="toolbar-btn" size="small" @click="insertLatexCommand('textit')">
-              <el-icon><CursorItalic /></el-icon>
+              <el-icon><EditPen /></el-icon>
             </el-button>
           </el-tooltip>
 
@@ -2707,6 +2707,36 @@ const checkMobile = () => {
   }
 }
 
+// Watchers in setup scope for auto-cleanup on unmount
+watch(() => theme.value, () => {
+  // Theme changes handled by LatexEditor component
+})
+
+watch(() => editorContent.value, (newContent, oldContent) => {
+  if (oldContent !== undefined && newContent !== oldContent) {
+    isModified.value = true
+  }
+}, { immediate: true })
+
+watch(() => latexStore.currentDocument, (newDoc) => {
+  if (newDoc && newDoc.content !== editorContent.value) {
+    editorContent.value = newDoc.content
+  }
+}, { immediate: true })
+
+watch(() => latexStore.currentProjectFile, (newFile, oldFile) => {
+  if (newFile && newFile !== oldFile) {
+    if (newFile.content !== editorContent.value) {
+      editorContent.value = newFile.content
+    }
+    isModified.value = false
+  }
+}, { immediate: true })
+
+watch(() => latexStore.isProjectMode, (isProjectMode) => {
+  showProjectTree.value = isProjectMode
+})
+
 // Lifecycle
 onMounted(async () => {
   // 检测是否为移动端
@@ -2812,64 +2842,7 @@ onMounted(async () => {
   // 启动自动保存
   if (autoSaveEnabled.value) {
     autoSave.startAutoSave()
-    if (import.meta.env.DEV) {
-      console.log('Auto-save started with interval:', AUTO_SAVE_INTERVAL)
-    }
   }
-
-  // Watch for theme changes - can be implemented with LatexEditor component
-  watch(() => theme.value, (_newTheme) => {
-    // Update editor theme if needed
-  })
-
-  // Watch for content changes
-  watch(() => editorContent.value, (newContent, oldContent) => {
-    if (import.meta.env.DEV) {
-      console.log('Editor content changed in view:', { newLength: newContent?.length, oldLength: oldContent?.length })
-    }
-    // 标记为已修改
-    if (oldContent !== undefined && newContent !== oldContent) {
-      isModified.value = true
-    }
-  }, { immediate: true })
-
-  // 监听文档加载，更新 editorContent
-  watch(() => latexStore.currentDocument, (newDoc) => {
-    if (newDoc && newDoc.content !== editorContent.value) {
-      editorContent.value = newDoc.content
-      if (import.meta.env.DEV) {
-        console.log('[LatexEditorView] Document loaded, content updated')
-      }
-    }
-  }, { immediate: true })
-
-  // 监听项目加载，重置修改标志
-  watch(() => latexStore.currentProjectFile, (newFile, oldFile) => {
-    if (newFile && newFile !== oldFile) {
-      // 文件切换或加载，更新内容并重置修改标志
-      if (newFile.content !== editorContent.value) {
-        editorContent.value = newFile.content
-      }
-      isModified.value = false
-      if (import.meta.env.DEV) {
-        console.log('[LatexEditorView] File loaded, isModified reset to false')
-      }
-    }
-  }, { immediate: true })
-
-  // 监听项目模式变化，自动显示文件树
-  watch(() => latexStore.isProjectMode, (isProjectMode) => {
-    if (isProjectMode) {
-      // 进入项目模式时自动显示文件树
-      showProjectTree.value = true
-      if (import.meta.env.DEV) {
-        console.log('[LaTeXEditorView] Project mode enabled, showing file tree')
-      }
-    } else {
-      // 退出项目模式时隐藏文件树
-      showProjectTree.value = false
-    }
-  })
 })
 
 onUnmounted(() => {

@@ -22,7 +22,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-icon total">
-              <el-icon><Server /></el-icon>
+              <el-icon><Monitor /></el-icon>
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ nodes.length }}</div>
@@ -392,7 +392,6 @@ import {
   Monitor,
   Plus,
   Refresh,
-  Server,
   CircleCheck,
   Loading,
   TrendCharts,

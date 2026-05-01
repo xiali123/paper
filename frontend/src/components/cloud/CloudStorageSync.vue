@@ -3,7 +3,7 @@
     <!-- 状态头部 -->
     <div class="sync-header">
       <div class="header-title">
-        <el-icon><Cloud /></el-icon>
+        <el-icon><Cloudy /></el-icon>
         <span>云同步</span>
       </div>
       <div class="header-status">
@@ -163,7 +163,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
-  Cloud,
+  Cloudy,
   Check,
   Plus,
   Document,
