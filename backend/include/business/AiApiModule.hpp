@@ -3,6 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 #include <map>
@@ -10,6 +11,8 @@
 #include <optional>
 #include <chrono>
 #include <set>
+#include <functional>
+#include <unordered_map>
 
 namespace PaperCrawler {
 
@@ -234,6 +237,11 @@ private:
      * @brief 缓存AI结果
      */
     void cacheAiResult(const std::string& key, const std::string& result);
+
+    /**
+     * @brief 缓存AI结果（带TTL）
+     */
+    void cacheAiResult(const std::string& key, const std::string& result, int ttlSeconds);
 
     /**
      * @brief 从缓存获取AI结果
