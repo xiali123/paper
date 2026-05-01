@@ -21,7 +21,7 @@
       <el-col :xs="12" :sm="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
-            <div class="stat-label">活跃任务</div>
+            <div class="stat-label">\{\{ \$t('activeTasks') \}\}</div>
             <div class="stat-value active">{{ activeTasks.length }}</div>
           </div>
         </el-card>
@@ -29,7 +29,7 @@
       <el-col :xs="12" :sm="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
-            <div class="stat-label">已完成</div>
+            <div class="stat-label">\{\{ \$t('filterCompleted') \}\}</div>
             <div class="stat-value success">{{ completedTasks.length }}</div>
           </div>
         </el-card>
@@ -37,7 +37,7 @@
       <el-col :xs="12" :sm="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
-            <div class="stat-label">失败</div>
+            <div class="stat-label">\{\{ \$t('filterFailed') \}\}</div>
             <div class="stat-value error">{{ failedTasks.length }}</div>
           </div>
         </el-card>

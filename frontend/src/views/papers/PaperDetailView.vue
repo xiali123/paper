@@ -185,6 +185,21 @@
           <el-empty description="相关论文推荐功能开发中..." :image-size="100" />
         </div>
 
+        <!-- Citation Network -->
+        <div class="citation-network-section">
+          <h3 class="section-title">
+            <el-icon><Connection /></el-icon>
+            引文网络
+          </h3>
+          <CitationNetwork
+            :center-paper="centerPaperForNetwork"
+            :related-papers="mockRelatedPapers"
+            :citations="mockCitations"
+            @navigate-paper="handleNavigatePaper"
+            @import-paper="handleImportPaper"
+          />
+        </div>
+
         <!-- Comments (Placeholder) -->
         <div class="comments-section">
           <h3 class="section-title">
@@ -263,6 +278,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import CitationNetwork from '@/components/citation/CitationNetwork.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePaperStore } from '@/stores/paperStore'
 import { storeToRefs } from 'pinia'
@@ -292,6 +308,47 @@ const { currentPaper: paper, loading, error } = storeToRefs(paperStore)
 
 // Dialog state
 const deleteDialogVisible = ref(false)
+
+// --- Citation Network mock data ---
+const mockRelatedPapers = [
+  { id: 'rp-1', title: 'Attention Is All You Need', authors: 'Vaswani A. et al.', year: 2017, citationCount: 92000 },
+  { id: 'rp-2', title: 'BERT: Pre-training of Deep Bidirectional Transformers', authors: 'Devlin J. et al.', year: 2019, citationCount: 68000 },
+  { id: 'rp-3', title: 'GPT-3: Language Models are Few-Shot Learners', authors: 'Brown T. et al.', year: 2020, citationCount: 45000 },
+  { id: 'rp-4', title: 'Deep Residual Learning for Image Recognition', authors: 'He K. et al.', year: 2016, citationCount: 120000 },
+  { id: 'rp-5', title: 'ImageNet Classification with Deep Convolutional Networks', authors: 'Krizhevsky A. et al.', year: 2012, citationCount: 85000 },
+  { id: 'rp-6', title: 'A Survey on Transfer Learning', authors: 'Pan S. J., Yang Q.', year: 2010, citationCount: 15000 },
+  { id: 'rp-7', title: 'Generative Adversarial Nets', authors: 'Goodfellow I. et al.', year: 2014, citationCount: 55000 },
+]
+
+const mockCitations = [
+  { source: 'rp-1', target: 'rp-5', type: 'cites' as const },
+  { source: 'rp-2', target: 'rp-1', type: 'cites' as const },
+  { source: 'rp-3', target: 'rp-1', type: 'cites' as const },
+  { source: 'rp-3', target: 'rp-2', type: 'cites' as const },
+  { source: 'rp-1', target: 'rp-6', type: 'cites' as const },
+  { source: 'rp-7', target: 'rp-4', type: 'cites' as const },
+  { source: 'rp-4', target: 'rp-5', type: 'cites' as const },
+  { source: 'rp-2', target: 'rp-6', type: 'cites' as const },
+]
+
+const centerPaperForNetwork = computed(() => {
+  if (!paper.value) return { id: '', title: '', authors: '', year: 2024, citationCount: 0 }
+  return {
+    id: String(paper.value.id),
+    title: paper.value.title || '',
+    authors: paper.value.authors || '',
+    year: paper.value.year || 2024,
+    citationCount: paper.value.citations || 0,
+  }
+})
+
+const handleNavigatePaper = (paperId: string) => {
+  ElMessage.info(`导航到论文 ${paperId}（功能开发中）`)
+}
+
+const handleImportPaper = (paperId: string) => {
+  ElMessage.success(`论文 ${paperId} 已成功导入收藏`)
+}
 
 // Source labels
 const sourceLabels: Record<string, string> = {
@@ -561,6 +618,7 @@ onMounted(() => {
 .notes-section,
 .ai-analysis-section,
 .related-section,
+.citation-network-section,
 .comments-section {
   padding: 32px 40px;
   background: white;
