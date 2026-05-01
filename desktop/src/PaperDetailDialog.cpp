@@ -1,17 +1,21 @@
 #include "PaperDetailDialog.hpp"
+#include "FavoriteManager.hpp"
 #include <QDesktopServices>
 #include <QUrl>
+#include <QClipboard>
+#include <QApplication>
 
-PaperDetailDialog::PaperDetailDialog(const Paper& paper, QWidget* parent)
+PaperDetailDialog::PaperDetailDialog(const Paper& paper, FavoriteManager* favMgr, QWidget* parent)
     : QDialog(parent)
     , paper_(paper)
+    , favManager_(favMgr)
 {
     setupUI(paper);
 }
 
 void PaperDetailDialog::setupUI(const Paper& paper) {
     setWindowTitle(paper.title.left(60) + (paper.title.length() > 60 ? "..." : ""));
-    setMinimumSize(600, 500);
+    setMinimumSize(600, 550);
     setModal(true);
 
     auto* mainLayout = new QVBoxLayout(this);
@@ -22,7 +26,7 @@ void PaperDetailDialog::setupUI(const Paper& paper) {
     auto* titleLabel = new QLabel(paper.title);
     titleLabel->setWordWrap(true);
     titleLabel->setStyleSheet(
-        "font-size: 18px; font-weight: bold; color: #1e293b; line-height: 1.4;"
+        "font-size: 18px; font-weight: bold; color: palette(text); line-height: 1.4;"
     );
     mainLayout->addWidget(titleLabel);
 
@@ -48,7 +52,7 @@ void PaperDetailDialog::setupUI(const Paper& paper) {
     // Divider
     auto* divider = new QFrame();
     divider->setFrameShape(QFrame::HLine);
-    divider->setStyleSheet("color: #e2e8f0;");
+    divider->setStyleSheet("color: palette(mid);");
     mainLayout->addWidget(divider);
 
     // Scroll area for details
@@ -75,7 +79,7 @@ void PaperDetailDialog::setupUI(const Paper& paper) {
     if (!paper.doiUrl.isEmpty()) {
         auto* doiRow = new QHBoxLayout();
         auto* doiLabel = new QLabel("DOI:");
-        doiLabel->setStyleSheet("font-weight: bold; color: #64748b; min-width: 80px;");
+        doiLabel->setStyleSheet("font-weight: bold; color: palette(mid); min-width: 80px;");
         auto* doiLink = new QLabel(QString("<a href=\"%1\">%1</a>").arg(paper.doiUrl));
         doiLink->setOpenExternalLinks(true);
         doiLink->setWordWrap(true);
@@ -95,6 +99,38 @@ void PaperDetailDialog::setupUI(const Paper& paper) {
 
     // Buttons
     auto* buttonLayout = new QHBoxLayout();
+
+    // Favorite button
+    if (favManager_) {
+        favBtn_ = new QPushButton();
+        updateFavoriteButton();
+        connect(favBtn_, &QPushButton::clicked, this, [this]() {
+            if (!favManager_) return;
+            bool wasFav = favManager_->isFavorite(paper_.id);
+            if (wasFav) {
+                favManager_->removeFavorite(paper_.id);
+            } else {
+                QString journal = paper_.journalFull.isEmpty() ? paper_.journal : paper_.journalFull;
+                favManager_->addFavorite(paper_.id, paper_.title, journal, paper_.year);
+            }
+            updateFavoriteButton();
+            emit favoriteToggled(paper_.id, !wasFav);
+        });
+        buttonLayout->addWidget(favBtn_);
+    }
+
+    // Copy title button
+    auto* copyBtn = new QPushButton("Copy Title");
+    copyBtn->setStyleSheet(
+        "QPushButton { background: palette(base); color: palette(text); border: 1px solid palette(mid); "
+        "border-radius: 6px; padding: 8px 16px; font-weight: bold; }"
+        "QPushButton:hover { background: palette(alternate-base); }"
+    );
+    connect(copyBtn, &QPushButton::clicked, this, [paper]() {
+        QApplication::clipboard()->setText(paper.title);
+    });
+    buttonLayout->addWidget(copyBtn);
+
     buttonLayout->addStretch();
 
     if (!paper.doiUrl.isEmpty()) {
@@ -112,14 +148,29 @@ void PaperDetailDialog::setupUI(const Paper& paper) {
 
     auto* closeBtn = new QPushButton("Close");
     closeBtn->setStyleSheet(
-        "QPushButton { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; "
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
         "border-radius: 6px; padding: 8px 20px; font-weight: bold; }"
-        "QPushButton:hover { background: #e2e8f0; }"
+        "QPushButton:hover { background: palette(light); }"
     );
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
     buttonLayout->addWidget(closeBtn);
 
     mainLayout->addLayout(buttonLayout);
+}
+
+void PaperDetailDialog::updateFavoriteButton() {
+    if (!favBtn_ || !favManager_) return;
+    bool isFav = favManager_->isFavorite(paper_.id);
+    favBtn_->setText(isFav ? "Remove from Favorites" : "Add to Favorites");
+    favBtn_->setStyleSheet(
+        isFav
+        ? "QPushButton { background: #fbbf24; color: #78350f; border: none; "
+          "border-radius: 6px; padding: 8px 16px; font-weight: bold; }"
+          "QPushButton:hover { background: #f59e0b; }"
+        : "QPushButton { background: palette(base); color: palette(text); border: 1px solid palette(mid); "
+          "border-radius: 6px; padding: 8px 16px; font-weight: bold; }"
+          "QPushButton:hover { background: #fef3c7; }"
+    );
 }
 
 QWidget* PaperDetailDialog::createInfoRow(const QString& label, const QString& value) {
@@ -129,11 +180,12 @@ QWidget* PaperDetailDialog::createInfoRow(const QString& label, const QString& v
     layout->setSpacing(4);
 
     auto* labelWidget = new QLabel(label);
-    labelWidget->setStyleSheet("font-weight: bold; color: #64748b; font-size: 12px;");
+    labelWidget->setStyleSheet("font-weight: bold; color: palette(mid); font-size: 12px;");
 
     auto* valueWidget = new QLabel(value);
     valueWidget->setWordWrap(true);
-    valueWidget->setStyleSheet("color: #1e293b; font-size: 14px; line-height: 1.5;");
+    valueWidget->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    valueWidget->setStyleSheet("color: palette(text); font-size: 14px; line-height: 1.5;");
 
     layout->addWidget(labelWidget);
     layout->addWidget(valueWidget);

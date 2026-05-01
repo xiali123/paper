@@ -81,6 +81,7 @@ void ApiManager::searchPapers(const QString& query, const QString& year,
     QString dedupKey = QString("search:%1:%2:%3:%4:%5").arg(query, year, level).arg(offset).arg(limit);
     if (isDuplicateRequest(dedupKey)) return;
     trackRequest(dedupKey);
+    searchRetryCount_ = 0;
 
     QUrl url(baseUrl_ + "/api/search");
     QUrlQuery urlQuery;
@@ -231,6 +232,23 @@ void ApiManager::onSearchReply() {
 
         emit searchSuccess(result);
     } else {
+        // Auto-retry on network failure
+        if (searchRetryCount_ < maxRetries_) {
+            searchRetryCount_++;
+            qDebug() << "Search failed, retrying (" << searchRetryCount_ << "/" << maxRetries_ << ")";
+            // Extract original params from URL
+            QUrlQuery urlQuery(url.query());
+            QString query = urlQuery.queryItemValue("q");
+            QString year = urlQuery.queryItemValue("year");
+            QString level = urlQuery.queryItemValue("level");
+            int offset = urlQuery.queryItemValue("offset").toInt();
+            int limit = urlQuery.queryItemValue("limit").toInt();
+            QTimer::singleShot(1000 * searchRetryCount_, this, [this, query, year, level, offset, limit]() {
+                retrySearch(query, year, level, offset, limit);
+            });
+            return;
+        }
+        searchRetryCount_ = 0;
         emit searchFailed("Network error: " + reply->errorString());
     }
 }
@@ -448,4 +466,33 @@ void ApiManager::trackRequest(const QString& key) {
 
 void ApiManager::untrackRequest(const QString& key) {
     activeRequests_.remove(key);
+}
+
+void ApiManager::retrySearch(const QString& query, const QString& year,
+                              const QString& level, int offset, int limit) {
+    // Don't reset retry count - it accumulates across retries
+    QString dedupKey = QString("search:%1:%2:%3:%4:%5").arg(query, year, level).arg(offset).arg(limit);
+    trackRequest(dedupKey);
+
+    QUrl url(baseUrl_ + "/api/search");
+    QUrlQuery urlQuery;
+    urlQuery.addQueryItem("q", query);
+    if (!year.isEmpty()) urlQuery.addQueryItem("year", year);
+    if (!level.isEmpty()) urlQuery.addQueryItem("level", level);
+    urlQuery.addQueryItem("offset", QString::number(offset));
+    urlQuery.addQueryItem("limit", QString::number(limit));
+    url.setQuery(urlQuery);
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Accept", "application/json");
+    request.setRawHeader("User-Agent", "PaperCrawlerDesktop/1.0");
+    if (!authToken_.isEmpty()) {
+        request.setRawHeader("Authorization", "Bearer " + authToken_.toUtf8());
+    }
+
+    searchReply_ = networkManager_->get(request);
+    setupRequestTimeout(searchReply_, 60000);
+    connect(searchReply_, &QNetworkReply::finished, this, &ApiManager::onSearchReply);
+    connect(searchReply_, &QNetworkReply::errorOccurred, this, &ApiManager::handleNetworkError);
 }

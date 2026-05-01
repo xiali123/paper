@@ -11,6 +11,7 @@
 #include <QTabWidget>
 #include <memory>
 #include <QPointer>
+#include <QSystemTrayIcon>
 #include "PaperTypes.hpp"
 #include "PaperCardView.hpp"
 
@@ -118,6 +119,7 @@ private:
     QAction* aboutAction_{nullptr};
     QAction* themeAction_{nullptr};
     QPushButton* themeButton_{nullptr};
+    QSystemTrayIcon* trayIcon_{nullptr};
 
     // State
     bool darkMode_{false};

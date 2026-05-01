@@ -116,6 +116,30 @@ MainWindow::MainWindow(QWidget* parent)
     healthTimer->start(30000);
 
     statusBar()->showMessage("Ready - PaperCrawler Desktop v1.0", 3000);
+
+    // System tray icon
+    trayIcon_ = new QSystemTrayIcon(this);
+    trayIcon_->setToolTip("PaperCrawler Desktop");
+    trayIcon_->setIcon(windowIcon());
+
+    auto* trayMenu = new QMenu(this);
+    trayMenu->addAction("Show", this, &MainWindow::showNormal);
+    trayMenu->addAction("Search", this, [this]() {
+        showNormal();
+        searchWidget_->setFocus();
+    });
+    trayMenu->addSeparator();
+    trayMenu->addAction("Quit", QApplication::quit);
+    trayIcon_->setContextMenu(trayMenu);
+
+    connect(trayIcon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::DoubleClick) {
+            showNormal();
+            activateWindow();
+        }
+    });
+
+    trayIcon_->show();
 }
 
 MainWindow::~MainWindow() {
@@ -1023,14 +1047,25 @@ void MainWindow::connectSignals() {
             case 1: // Favorites
                 refreshFavoritesTab();
                 break;
-            case 2: // Crawler
+            case 2: // Crawler - auto-refresh running tasks
                 apiManager_->getCrawlerDashboard();
+                apiManager_->getCrawlerTasks();
                 break;
             case 4: // Statistics
                 apiManager_->getStats("overview");
                 break;
         }
     });
+
+    // Crawler auto-refresh timer (poll every 15s when on crawler tab)
+    auto* crawlerRefreshTimer = new QTimer(this);
+    connect(crawlerRefreshTimer, &QTimer::timeout, this, [this]() {
+        if (tabWidget_->currentIndex() == 2) {
+            apiManager_->getCrawlerDashboard();
+            apiManager_->getCrawlerTasks();
+        }
+    });
+    crawlerRefreshTimer->start(15000);
 }
 
 void MainWindow::loadSettings() {
@@ -1049,8 +1084,7 @@ void MainWindow::saveSettings() {
 
 void MainWindow::onSearch(const QString& keyword) {
     if (keyword.isEmpty()) {
-        QMessageBox::warning(this, "搜索",
-                           "请输入搜索关键词。");
+        QMessageBox::warning(this, "Search", "Please enter a search keyword.");
         return;
     }
 
@@ -1059,10 +1093,27 @@ void MainWindow::onSearch(const QString& keyword) {
     currentOffset_ = 0;
     currentLimit_ = 20;
 
-    statusBar()->showMessage("正在搜索: " + keyword + "...");
+    statusBar()->showMessage("Searching: " + keyword + "...");
     resultView_->setVisible(true);
     resultView_->clear();
     filterPanel_->setVisible(true);
+
+    // Show loading indicator in status bar
+    auto* progressBar = findChild<QProgressBar*>("searchProgress");
+    if (!progressBar) {
+        progressBar = new QProgressBar(this);
+        progressBar->setObjectName("searchProgress");
+        progressBar->setRange(0, 0);  // Indeterminate
+        progressBar->setMaximumWidth(200);
+        progressBar->setMaximumHeight(16);
+        progressBar->setTextVisible(false);
+        progressBar->setStyleSheet(
+            "QProgressBar { border: 1px solid palette(mid); border-radius: 4px; background: palette(base); }"
+            "QProgressBar::chunk { background: #4f46e5; border-radius: 3px; }"
+        );
+        statusBar()->addPermanentWidget(progressBar);
+    }
+    progressBar->setVisible(true);
 
     // Clear cache for this keyword if starting fresh search
     // (Optional: keep cache for faster access if same keyword searched again)
@@ -1130,6 +1181,10 @@ void MainWindow::onPaperSelected(int paperId) {
 }
 
 void MainWindow::onSearchSuccess(const SearchResult& result) {
+    // Hide loading indicator
+    auto* progressBar = findChild<QProgressBar*>("searchProgress");
+    if (progressBar) progressBar->setVisible(false);
+
     totalResults_ = result.total;
 
     qDebug() << "=== Backend Search Results ===";
@@ -1193,6 +1248,10 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
 }
 
 void MainWindow::onSearchFailed(const QString& error) {
+    // Hide loading indicator
+    auto* progressBar = findChild<QProgressBar*>("searchProgress");
+    if (progressBar) progressBar->setVisible(false);
+
     // Try local database fallback
     if (localDb_ && localDb_->isOpen()) {
         DbSearchResult localResult = localDb_->searchPapers(currentKeyword_, currentOffset_, currentLimit_);
@@ -1334,15 +1393,14 @@ void MainWindow::onDatabaseError(const QString& error) {
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
-    QMessageBox::StandardButton reply = QMessageBox::question(
-        this, "Exit", "Are you sure you want to exit?",
-        QMessageBox::Yes | QMessageBox::No);
-
-    if (reply == QMessageBox::Yes) {
+    if (trayIcon_ && trayIcon_->isVisible()) {
+        hide();
+        trayIcon_->showMessage("PaperCrawler", "Running in background. Double-click to restore.",
+                               QSystemTrayIcon::Information, 2000);
+        event->ignore();
+    } else {
         saveSettings();
         event->accept();
-    } else {
-        event->ignore();
     }
 }
 
@@ -1351,7 +1409,11 @@ void MainWindow::closeEvent(QCloseEvent* event) {
 // ============================================================================
 
 void MainWindow::onPaperDetailsSuccess(const Paper& paper) {
-    auto* dialog = new PaperDetailDialog(paper, this);
+    auto* favMgr = findChild<FavoriteManager*>();
+    auto* dialog = new PaperDetailDialog(paper, favMgr, this);
+    connect(dialog, &PaperDetailDialog::favoriteToggled, this, [this](int, bool) {
+        if (tabWidget_->currentIndex() == 1) refreshFavoritesTab();
+    });
     dialog->exec();
     dialog->deleteLater();
 }

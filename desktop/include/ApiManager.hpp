@@ -98,11 +98,14 @@ private:
     bool isDuplicateRequest(const QString& key);
     void trackRequest(const QString& key);
     void untrackRequest(const QString& key);
+    void retrySearch(const QString& query, const QString& year, const QString& level, int offset, int limit);
 
     QNetworkAccessManager* networkManager_;
     QString baseUrl_;
     QString authToken_;
     QSet<QString> activeRequests_;
+    int searchRetryCount_{0};
+    static constexpr int maxRetries_{2};
 
     QNetworkReply* healthReply_{nullptr};
     QNetworkReply* searchReply_{nullptr};
