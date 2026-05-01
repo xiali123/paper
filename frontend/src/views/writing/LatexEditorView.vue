@@ -587,6 +587,26 @@
       <GitIntegrationPanel />
     </el-drawer>
 
+    <!-- 字数统计面板 -->
+    <el-drawer
+      v-model="showWordCount"
+      title="字数统计"
+      direction="rtl"
+      size="380px"
+    >
+      <WordCountPanel :content="editorContent" />
+    </el-drawer>
+
+    <!-- 投稿前检查面板 -->
+    <el-drawer
+      v-model="showSubmissionChecker"
+      title="投稿前检查"
+      direction="rtl"
+      size="480px"
+    >
+      <SubmissionChecker :content="editorContent" @fix="handleCheckerFix" />
+    </el-drawer>
+
     <!-- 代码折叠导航 -->
     <el-drawer
       v-model="showCodeFoldNavigator"
@@ -640,7 +660,8 @@ import {
   Loading, Edit, RefreshLeft, RefreshRight, Operation,
   ArrowDown, Collection, Close, Document, DocumentAdd,
   Clock, MoreFilled, ArrowRight, Setting, Grid, MagicStick,
-  Picture, NotificationBadge, QuestionFilled, CursorItalic
+  Picture, Notification, QuestionFilled, EditPen,
+  DataLine, CircleCheck
 } from '@element-plus/icons-vue'
 import LatexPreview from '@/components/latex/LatexPreview.vue'
 import PdfViewer from '@/components/latex/PdfViewer.vue'
@@ -678,6 +699,8 @@ import FontPanel from './latex/components/panels/FontPanel.vue'
 	import ImageResourceManager from '@/components/latex/ImageResourceManager.vue'
 	import InlineCommentSystem from '@/components/latex/InlineCommentSystem.vue'
 	import GitIntegrationPanel from '@/components/latex/GitIntegrationPanel.vue'
+import WordCountPanel from '@/components/latex/WordCountPanel.vue'
+import SubmissionChecker from '@/components/latex/SubmissionChecker.vue'
 	import CommandPalette from '@/components/latex/CommandPalette.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
@@ -736,6 +759,8 @@ const showVersionHistory = ref(false) // 新增：版本历史面板
 	const showGitIntegration = ref(false)
 	const showCommandPalette = ref(false)
 	const showMultiWindow = ref(false)
+	const showWordCount = ref(false)
+	const showSubmissionChecker = ref(false)
 const isProjectMode = computed(() => latexStore.isProjectMode) // 从store读取
 const saving = ref(false)
 const compiling = ref(false)
@@ -880,6 +905,8 @@ const functionPanels = computed(() => [
   { key: 'bibtex', label: '文献', icon: Document, count: 0 },
   { key: 'macro', label: '宏包', icon: MagicStick, count: 0 },
   { key: 'images', label: '图片', icon: Picture, count: 0 },
+  { key: 'wordcount', label: '字数', icon: DataLine, count: 0 },
+  { key: 'checker', label: '检查', icon: CircleCheck, count: 0 },
   { key: 'git', label: '版本', icon: Operation, count: 0 }
 ])
 
@@ -894,6 +921,12 @@ watch(activePanel, (newPanel) => {
       break
     case 'images':
       showImageResourceManager.value = true
+      break
+    case 'wordcount':
+      showWordCount.value = true
+      break
+    case 'checker':
+      showSubmissionChecker.value = true
       break
     case 'git':
       showGitIntegration.value = true
@@ -3170,6 +3203,13 @@ function handleInsertImage(imageCode: string) {
     editorContent.value += imageCode
   }
   ElMessage.success('图片已插入')
+}
+
+function handleCheckerFix(fix: { type: string; replacement: string }) {
+  if (fix.replacement) {
+    editorContent.value = fix.replacement
+    ElMessage.success('已自动修复')
+  }
 }
 
 function handleJumpToLine(lineNumber: number) {
