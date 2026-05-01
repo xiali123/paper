@@ -292,6 +292,7 @@ public:
         auto storedHashBytes = base64_decode(hashB64);
 
         if (salt.empty() || storedHashBytes.empty()) {
+            spdlog::error("[Security] Failed to decode salt or hash: saltB64='{}' hashB64='{}'", saltB64, hashB64);
             spdlog::error("[Security] Failed to decode salt or hash");
             return false;
         }
@@ -309,6 +310,11 @@ public:
         // Constant-time comparison
         bool match = (derived.size() == storedHashBytes.size()) &&
                      CRYPTO_memcmp(derived.data(), storedHashBytes.data(), derived.size()) == 0;
+
+        if (!match) {
+            spdlog::error("[Security] Hash mismatch for input hash='{}' saltB64='{}' hashB64='{}' iter={} derived_size={} stored_size={}",
+                          storedHash, saltB64, hashB64, iterations, derived.size(), storedHashBytes.size());
+        }
 
         if (match) {
             stats_.totalPasswordsVerified++;
