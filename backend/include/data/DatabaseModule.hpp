@@ -187,6 +187,11 @@ public:
      */
     static std::shared_ptr<IDatabase> getSharedConnection();
 
+    /**
+     * @brief 转义字符串（使用mysql_real_escape_string）
+     */
+    std::string escapeString(const std::string& str) override;
+
     // 模板方法：只需实现具体逻辑，状态管理由基类处理
 protected:
     bool onInitialize() override;

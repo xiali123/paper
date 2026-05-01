@@ -86,9 +86,9 @@ private:
     std::string escapeValue(const ParameterValue& value);
 
     /**
-     * @brief 转义SQL字符串（静态方法）
+     * @brief 转义SQL字符串（使用数据库驱动的转义函数）
      */
-    static std::string escapeSql(const std::string& str);
+    std::string escapeSql(const std::string& str);
 };
 
 // 类型别名：保持向后兼容，允许继续使用PreparedStatement名称
@@ -181,9 +181,9 @@ private:
     std::string escapeValue(const ParameterValue& value);
 
     /**
-     * @brief 转义SQL字符串（静态方法）
+     * @brief 转义SQL字符串
      */
-    static std::string escapeSql(const std::string& str);
+    std::string escapeSql(const std::string& str);
 };
 
 /**

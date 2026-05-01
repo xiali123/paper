@@ -241,11 +241,9 @@ public:
             return str;
         }
 
-        char* escaped = new char[str.length() * 2 + 1];
-        mysql_real_escape_string(&mysql_, escaped, str.c_str(), str.length());
-        std::string result(escaped);
-        delete[] escaped;
-        return result;
+        std::vector<char> escaped(str.length() * 2 + 1);
+        mysql_real_escape_string(&mysql_, escaped.data(), str.c_str(), str.length());
+        return std::string(escaped.data());
     }
 
     /**
