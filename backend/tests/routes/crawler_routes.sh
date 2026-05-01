@@ -1,0 +1,37 @@
+#!/bin/bash
+# Route definitions for CrawlerApi module
+# Add new routes: append to ROUTES array
+# Format: "METHOD|/path|body_json|expected_codes|test_name"
+
+MODULE_NAME="CrawlerApi"
+
+# --- Template Management ---
+ROUTES=(
+    "POST|/api/crawler/templates|{\"name\":\"test\",\"baseUrl\":\"https://example.com\"}|200,201|Create crawler template"
+    "GET|/api/crawler/templates||200|List all crawler templates"
+    "GET|/api/crawler/templates/test_tpl_001||200,404|Get crawler template by ID"
+    "PUT|/api/crawler/templates/test_tpl_001|{\"name\":\"updated\"}|200,404|Update crawler template"
+    "DELETE|/api/crawler/templates/test_tpl_001||200,404|Delete crawler template"
+    "POST|/api/crawler/templates/validate|{\"name\":\"test\",\"baseUrl\":\"https://example.com\"}|200|Validate crawler template"
+    "POST|/api/crawler/templates/test_tpl_001/test|{}|200,404|Test crawler template"
+
+    # --- Task Management ---
+    "POST|/api/crawler/tasks|{\"templateId\":\"test_tpl_001\",\"priority\":\"NORMAL\"}|200,201|Create crawler task"
+    "GET|/api/crawler/tasks||200|List all crawler tasks"
+    "GET|/api/crawler/tasks/task_123||200,404|Get crawler task by ID"
+    "DELETE|/api/crawler/tasks/task_123||200,404|Delete crawler task"
+    "POST|/api/crawler/tasks/task_123/retry|{}|200,404|Retry crawler task"
+    "GET|/api/crawler/statistics||200|Get crawler task statistics"
+
+    # --- Schedule Management ---
+    "POST|/api/crawler/schedules|{\"name\":\"daily\",\"templateId\":\"test_tpl_001\",\"cronExpression\":\"0 2 * * *\"}|200,201|Create crawler schedule"
+    "GET|/api/crawler/schedules||200|List all crawler schedules"
+    "POST|/api/crawler/schedules/schedule_123/trigger|{}|200,404|Trigger crawler schedule"
+
+    # --- Worker Management ---
+    "GET|/api/crawler/workers||200|List all crawler workers"
+    "GET|/api/crawler/workers/worker_001||200,404|Get crawler worker by ID"
+
+    # --- Dashboard ---
+    "GET|/api/crawler/dashboard||200|Get crawler dashboard"
+)

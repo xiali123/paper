@@ -1,0 +1,12 @@
+{
+    "title": "Deep Learning for Natural Language Processing: A Comprehensive Survey",
+    "authors": "Zhang San, Li Si, Wang Wu",
+    "year": 2024,
+    "abstract": "This paper provides a comprehensive survey of deep learning techniques applied to natural language processing tasks.",
+    "journal": "Journal of AI Research",
+    "volume": "45",
+    "issue": "3",
+    "pages": "1-25",
+    "doi": "10.1234/example.2024.survey",
+    "tags": ["deep learning", "NLP", "survey", "transformer"]
+}

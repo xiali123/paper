@@ -1,0 +1,21 @@
+{
+    "name": "Complex Crawler Template",
+    "baseUrl": "https://example.com",
+    "method": "GET",
+    "headers": {
+        "User-Agent": "PaperCrawler/1.0",
+        "Accept": "text/html"
+    },
+    "selectors": {
+        "title": "h1.article-title",
+        "abstract": "div.abstract",
+        "authors": "span.author-name",
+        "year": "span.pub-year"
+    },
+    "pagination": {
+        "type": "offset",
+        "limitParam": "count",
+        "offsetParam": "start",
+        "limit": 20
+    }
+}
