@@ -28,7 +28,7 @@ bool SimpleMySQLDatabase::connect() {
     // 连接到MySQL服务器
     if (!mysql_real_connect(mysql_, host_.c_str(), user_.c_str(),
                              password_.c_str(), database_.c_str(),
-                             port_, nullptr, CLIENT_MULTI_STATEMENTS)) {
+                             port_, nullptr, CLIENT_MULTI_RESULTS)) {
         std::cerr << "[SimpleMySQLDatabase] Connection failed: "
                   << mysql_error(mysql_) << std::endl;
         connected_ = false;

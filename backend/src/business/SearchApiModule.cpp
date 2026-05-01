@@ -1,5 +1,6 @@
 #include <iostream>
 #include "data/DatabaseModule.hpp"
+#include "data/PreparedStatement.hpp"
 #include "business/SearchApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "network/HttpClient.hpp"
@@ -95,29 +96,17 @@ public:
         try {
             int offset = (page - 1) * limit;
 
-            // ✅ 安全：SQL转义防止SQL注入（单引号、反斜杠、LIKE通配符）
-            auto escape = [](const std::string& s) {
-                std::string result;
-                for (char c : s) {
-                    if (c == '\'') result += "''";
-                    else if (c == '\\') result += "\\\\";
-                    else if (c == '%') result += "\\%";  // 转义LIKE通配符
-                    else if (c == '_') result += "\\_";   // 转义LIKE通配符
-                    else result += c;
-                }
-                return result;
-            };
+            PreparedStatement stmt(database_,
+                "SELECT * FROM papers WHERE "
+                "title LIKE ? OR authors LIKE ? OR abstract LIKE ? OR keywords LIKE ? "
+                "ORDER BY citation_count DESC LIMIT ? OFFSET ?");
 
-            std::string escapedQuery = escape(query);
-            std::string sql = "SELECT * FROM papers WHERE "
-                           "title LIKE '%" + escapedQuery + "%' OR "
-                           "authors LIKE '%" + escapedQuery + "%' OR "
-                           "abstract LIKE '%" + escapedQuery + "%' OR "
-                           "keywords LIKE '%" + escapedQuery + "%' "
-                           "ORDER BY citation_count DESC "
-                           "LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
+            std::string likePattern = "%" + query + "%";
+            stmt.bind(0, likePattern).bind(1, likePattern)
+                 .bind(2, likePattern).bind(3, likePattern)
+                 .bind(4, limit).bind(5, offset);
 
-            auto results = database_->query(sql);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 Paper paper;
@@ -136,30 +125,18 @@ public:
         return papers;
     }
 
-    // 计算总数（包含SQL注入防护）
+    // 计算总数（参数化查询防SQL注入）
     int getTotalCount(const std::string& query) {
         try {
-            // ✅ 安全：SQL转义防止SQL注入（与searchPapersFromDatabase使用相同的转义逻辑）
-            auto escape = [](const std::string& s) {
-                std::string result;
-                for (char c : s) {
-                    if (c == '\'') result += "''";
-                    else if (c == '\\') result += "\\\\";
-                    else if (c == '%') result += "\\%";  // 转义LIKE通配符
-                    else if (c == '_') result += "\\_";   // 转义LIKE通配符
-                    else result += c;
-                }
-                return result;
-            };
+            PreparedStatement stmt(database_,
+                "SELECT COUNT(*) as count FROM papers WHERE "
+                "title LIKE ? OR authors LIKE ? OR abstract LIKE ? OR keywords LIKE ?");
 
-            std::string escapedQuery = escape(query);
-            std::string sql = "SELECT COUNT(*) as count FROM papers WHERE "
-                           "title LIKE '%" + escapedQuery + "%' OR "
-                           "authors LIKE '%" + escapedQuery + "%' OR "
-                           "abstract LIKE '%" + escapedQuery + "%' OR "
-                           "keywords LIKE '%" + escapedQuery + "%'";
+            std::string likePattern = "%" + query + "%";
+            stmt.bind(0, likePattern).bind(1, likePattern)
+                 .bind(2, likePattern).bind(3, likePattern);
 
-            auto results = database_->query(sql);
+            auto results = stmt.query();
             if (!results.empty()) {
                 return std::stoi(results[0]["count"]);
             }

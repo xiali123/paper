@@ -1,5 +1,6 @@
 #include "network/HttpServerModule.hpp"
 #include "core/Router.hpp"
+#include "core/ConfigManager.hpp"
 #include <spdlog/spdlog.h>
 #include <iostream>
 #include <sstream>
@@ -268,7 +269,7 @@ public:
                 spdlog::info("Handling OPTIONS preflight request");
                 HttpResponse optionsResponse;
                 optionsResponse.statusCode = 200;
-                optionsResponse.setHeader("Access-Control-Allow-Origin", "*");
+                optionsResponse.setHeader("Access-Control-Allow-Origin", getCorsOrigin());
                 optionsResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
                 optionsResponse.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
                 optionsResponse.setHeader("Access-Control-Max-Age", "86400");
@@ -424,7 +425,7 @@ public:
 
         // Add CORS headers if not already present
         if (response.headers.find("Access-Control-Allow-Origin") == response.headers.end()) {
-            oss << "Access-Control-Allow-Origin: *\r\n";
+            oss << "Access-Control-Allow-Origin: " << getCorsOrigin() << "\r\n";
             oss << "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n";
             oss << "Access-Control-Allow-Headers: Content-Type, Authorization\r\n";
         }
@@ -539,6 +540,14 @@ HttpServerModule::ServerStats HttpServerModule::getStats() const {
 
 void HttpServerModule::resetStats() {
     impl_->stats_ = HttpServerModule::ServerStats{};
+}
+
+std::string HttpServerModule::getCorsOrigin() const {
+    static std::string cached = []{
+        auto& cfg = ConfigManager::getInstance();
+        return cfg.getString("security.cors_origin", "http://localhost:3000");
+    }();
+    return cached;
 }
 
 } // namespace PaperCrawler

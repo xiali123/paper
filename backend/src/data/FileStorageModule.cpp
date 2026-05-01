@@ -149,12 +149,9 @@ public:
      * @brief 加载文件
      */
     std::optional<std::vector<uint8_t>> loadFile(const std::string& path) {
-        std::string fullPath = path;
-
-        // 如果是相对路径，加上基础路径
-        if (!std::filesystem::path(path).is_absolute()) {
-            fullPath = config_.basePath + "/" + path;
-        }
+        auto resolved = resolvePath(path);
+        if (!resolved) return std::nullopt;
+        std::string fullPath = *resolved;
 
         if (!std::filesystem::exists(fullPath)) {
             std::cout << "[FileStorage] File not found: " << fullPath << std::endl;
@@ -193,11 +190,9 @@ public:
      * @brief 删除文件
      */
     bool deleteFile(const std::string& path) {
-        std::string fullPath = path;
-
-        if (!std::filesystem::path(path).is_absolute()) {
-            fullPath = config_.basePath + "/" + path;
-        }
+        auto resolved = resolvePath(path);
+        if (!resolved) return false;
+        std::string fullPath = *resolved;
 
         if (!std::filesystem::exists(fullPath)) {
             return false;
@@ -222,11 +217,9 @@ public:
      * @brief 文件是否存在
      */
     bool fileExists(const std::string& path) {
-        std::string fullPath = path;
-
-        if (!std::filesystem::path(path).is_absolute()) {
-            fullPath = config_.basePath + "/" + path;
-        }
+        auto resolved = resolvePath(path);
+        if (!resolved) return false;
+        std::string fullPath = *resolved;
 
         return std::filesystem::exists(fullPath);
     }
@@ -235,11 +228,9 @@ public:
      * @brief 获取文件信息
      */
     std::optional<FileInfo> getFileInfo(const std::string& path) {
-        std::string fullPath = path;
-
-        if (!std::filesystem::path(path).is_absolute()) {
-            fullPath = config_.basePath + "/" + path;
-        }
+        auto resolved = resolvePath(path);
+        if (!resolved) return std::nullopt;
+        std::string fullPath = *resolved;
 
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -276,13 +267,9 @@ public:
      * @brief 列出目录内容
      */
     std::vector<FileInfo> listDirectory(const std::string& path) {
-        std::string fullPath = path;
-
-        if (path.empty() || path == ".") {
-            fullPath = config_.basePath;
-        } else if (!std::filesystem::path(path).is_absolute()) {
-            fullPath = config_.basePath + "/" + path;
-        }
+        auto resolved = resolvePath(path);
+        if (!resolved) return {};
+        std::string fullPath = *resolved;
 
         std::vector<FileInfo> files;
 
@@ -315,11 +302,9 @@ public:
      * @brief 创建目录
      */
     bool createDirectory(const std::string& path) {
-        std::string fullPath = path;
-
-        if (!std::filesystem::path(path).is_absolute()) {
-            fullPath = config_.basePath + "/" + path;
-        }
+        auto resolved = resolvePath(path);
+        if (!resolved) return false;
+        std::string fullPath = *resolved;
 
         try {
             std::filesystem::create_directories(fullPath);
@@ -335,11 +320,9 @@ public:
      * @brief 删除目录
      */
     bool deleteDirectory(const std::string& path, bool recursive) {
-        std::string fullPath = path;
-
-        if (!std::filesystem::path(path).is_absolute()) {
-            fullPath = config_.basePath + "/" + path;
-        }
+        auto resolved = resolvePath(path);
+        if (!resolved) return false;
+        std::string fullPath = *resolved;
 
         try {
             if (recursive) {
@@ -360,9 +343,12 @@ public:
      * @brief 复制文件
      */
     bool copyFile(const std::string& source, const std::string& destination) {
+        auto srcResolved = resolvePath(source);
+        auto dstResolved = resolvePath(destination);
+        if (!srcResolved || !dstResolved) return false;
         try {
-            std::filesystem::copy_file(source, destination);
-            std::cout << "[FileStorage] Copied: " << source << " -> " << destination << std::endl;
+            std::filesystem::copy_file(*srcResolved, *dstResolved);
+            std::cout << "[FileStorage] Copied: " << *srcResolved << " -> " << *dstResolved << std::endl;
             return true;
         } catch (const std::exception& e) {
             std::cerr << "[FileStorage] Failed to copy file: " << e.what() << std::endl;
@@ -374,9 +360,12 @@ public:
      * @brief 移动文件
      */
     bool moveFile(const std::string& source, const std::string& destination) {
+        auto srcResolved = resolvePath(source);
+        auto dstResolved = resolvePath(destination);
+        if (!srcResolved || !dstResolved) return false;
         try {
-            std::filesystem::rename(source, destination);
-            std::cout << "[FileStorage] Moved: " << source << " -> " << destination << std::endl;
+            std::filesystem::rename(*srcResolved, *dstResolved);
+            std::cout << "[FileStorage] Moved: " << *srcResolved << " -> " << *dstResolved << std::endl;
             return true;
         } catch (const std::exception& e) {
             std::cerr << "[FileStorage] Failed to move file: " << e.what() << std::endl;
@@ -547,6 +536,48 @@ public:
     }
 
 private:
+    /**
+     * @brief Sanitize and validate path to prevent path traversal
+     * Resolves relative paths against basePath and ensures result stays within basePath.
+     * Returns empty optional if path escapes base directory.
+     */
+    std::optional<std::string> resolvePath(const std::string& userPath) {
+        namespace fs = std::filesystem;
+
+        std::string fullPath;
+        if (userPath.empty() || userPath == ".") {
+            fullPath = config_.basePath;
+        } else if (fs::path(userPath).is_absolute()) {
+            // Reject absolute paths — they must be relative to basePath
+            spdlog::warn("[FileStorage] Rejected absolute path: {}", userPath);
+            return std::nullopt;
+        } else {
+            fullPath = config_.basePath + "/" + userPath;
+        }
+
+        // Canonicalize (resolve .., symlinks, etc.)
+        std::error_code ec;
+        fs::path canonicalBase = fs::canonical(config_.basePath, ec);
+        if (ec) canonicalBase = fs::path(config_.basePath).lexically_normal();
+
+        fs::path canonicalFull = fs::canonical(fullPath, ec);
+        if (ec) {
+            // File/dir may not exist yet — use lexically_normal
+            canonicalFull = fs::path(fullPath).lexically_normal();
+        }
+
+        // Ensure canonicalFull starts with canonicalBase
+        std::string baseStr = canonicalBase.string();
+        std::string fullStr = canonicalFull.string();
+
+        if (fullStr.size() < baseStr.size() ||
+            fullStr.substr(0, baseStr.size()) != baseStr) {
+            spdlog::warn("[FileStorage] Path traversal blocked: {} resolves to {}", userPath, fullStr);
+            return std::nullopt;
+        }
+
+        return fullStr;
+    }
     /**
      * @brief 索引现有文件
      */

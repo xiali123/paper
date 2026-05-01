@@ -66,6 +66,8 @@ private:
 
     uint16_t port_;
     bool running_{false};
+
+    std::string getCorsOrigin() const;
 };
 
 } // namespace PaperCrawler

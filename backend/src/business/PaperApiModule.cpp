@@ -1,5 +1,6 @@
 #include <iostream>
 #include "data/DatabaseModule.hpp"
+#include "data/PreparedStatement.hpp"
 #include "business/PaperApiModule.hpp"
 #include "business/JsonHelper.hpp"
 #include "core/Router.hpp"
@@ -136,8 +137,9 @@ public:
     // 从数据库查询单个论文
     std::optional<Paper> getPaperById(int id) {
         try {
-            auto sql = "SELECT * FROM papers WHERE id = " + std::to_string(id);
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, "SELECT * FROM papers WHERE id = ?");
+            stmt.bind(0, id);
+            auto results = stmt.query();
 
             if (!results.empty()) {
                 return paperFromDbRow(results[0]);
@@ -165,10 +167,12 @@ public:
             }
 
             auto sql = "SELECT * FROM papers ORDER BY " + allowedSortBy + " " +
-                      orderDirection + " LIMIT " + std::to_string(limit) +
-                      " OFFSET " + std::to_string(offset);
+                      orderDirection + " LIMIT ? OFFSET ?";
 
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, sql);
+            stmt.bind(0, limit);
+            stmt.bind(1, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 papers.push_back(paperFromDbRow(row));
@@ -183,42 +187,33 @@ public:
     // 在数据库中创建论文
     std::optional<Paper> createPaperInDb(const Paper& paper) {
         try {
-            // 转义字符串（简化版，生产环境应使用prepared statements）
-            auto escape = [](const std::string& s) {
-                std::string result;
-                for (char c : s) {
-                    if (c == '\'') result += "''";
-                    else if (c == '\\') result += "\\\\";
-                    else result += c;
-                }
-                return result;
-            };
-
             auto sql = "INSERT INTO papers (title, authors, year, abstract, journal, volume, issue, "
                       "pages, doi, url, pdf_path, citation_count, is_read, is_favorite, notes, "
-                      "created_at, updated_at) VALUES ('" +
-                      escape(paper.title) + "', '" +
-                      escape(paper.authors) + "', " +
-                      std::to_string(paper.year) + ", '" +
-                      escape(paper.abstract) + "', '" +
-                      escape(paper.journal) + "', '" +
-                      escape(paper.volume) + "', '" +
-                      escape(paper.issue) + "', '" +
-                      escape(paper.pages) + "', '" +
-                      escape(paper.doi) + "', '" +
-                      escape(paper.url) + "', '" +
-                      escape(paper.pdfPath) + "', " +
-                      std::to_string(paper.citationCount) + ", " +
-                      (paper.isRead ? "1" : "0") + ", " +
-                      (paper.isFavorite ? "1" : "0") + ", '" +
-                      escape(paper.notes) + "', NOW(), NOW())";
+                      "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
 
-            if (database_->execute(sql)) {
-                // 查询新插入的论文（通过title和year）
-                auto querySql = "SELECT * FROM papers WHERE title = '" + escape(paper.title) +
-                               "' AND year = " + std::to_string(paper.year) +
-                               " ORDER BY id DESC LIMIT 1";
-                auto results = database_->query(querySql);
+            PreparedStatement stmt(database_, sql);
+            stmt.bind(0, paper.title);
+            stmt.bind(1, paper.authors);
+            stmt.bind(2, paper.year);
+            stmt.bind(3, paper.abstract);
+            stmt.bind(4, paper.journal);
+            stmt.bind(5, paper.volume);
+            stmt.bind(6, paper.issue);
+            stmt.bind(7, paper.pages);
+            stmt.bind(8, paper.doi);
+            stmt.bind(9, paper.url);
+            stmt.bind(10, paper.pdfPath);
+            stmt.bind(11, paper.citationCount);
+            stmt.bind(12, paper.isRead ? 1 : 0);
+            stmt.bind(13, paper.isFavorite ? 1 : 0);
+            stmt.bind(14, paper.notes);
+
+            if (stmt.execute()) {
+                PreparedStatement queryStmt(database_,
+                    "SELECT * FROM papers WHERE title = ? AND year = ? ORDER BY id DESC LIMIT 1");
+                queryStmt.bind(0, paper.title);
+                queryStmt.bind(1, paper.year);
+                auto results = queryStmt.query();
 
                 if (!results.empty()) {
                     return paperFromDbRow(results[0]);
@@ -235,36 +230,32 @@ public:
     // 在数据库中更新论文
     bool updatePaperInDb(int id, const Paper& paper) {
         try {
-            auto escape = [](const std::string& s) {
-                std::string result;
-                for (char c : s) {
-                    if (c == '\'') result += "''";
-                    else if (c == '\\') result += "\\\\";
-                    else result += c;
-                }
-                return result;
-            };
-
             auto sql = "UPDATE papers SET "
-                      "title = '" + escape(paper.title) + "', "
-                      "authors = '" + escape(paper.authors) + "', "
-                      "year = " + std::to_string(paper.year) + ", "
-                      "abstract = '" + escape(paper.abstract) + "', "
-                      "journal = '" + escape(paper.journal) + "', "
-                      "volume = '" + escape(paper.volume) + "', "
-                      "issue = '" + escape(paper.issue) + "', "
-                      "pages = '" + escape(paper.pages) + "', "
-                      "doi = '" + escape(paper.doi) + "', "
-                      "url = '" + escape(paper.url) + "', "
-                      "pdf_path = '" + escape(paper.pdfPath) + "', "
-                      "citation_count = " + std::to_string(paper.citationCount) + ", "
-                      "is_read = " + (paper.isRead ? "1" : "0") + ", "
-                      "is_favorite = " + (paper.isFavorite ? "1" : "0") + ", "
-                      "notes = '" + escape(paper.notes) + "', "
-                      "updated_at = NOW() "
-                      "WHERE id = " + std::to_string(id);
+                      "title = ?, authors = ?, year = ?, abstract = ?, "
+                      "journal = ?, volume = ?, issue = ?, pages = ?, "
+                      "doi = ?, url = ?, pdf_path = ?, citation_count = ?, "
+                      "is_read = ?, is_favorite = ?, notes = ?, "
+                      "updated_at = NOW() WHERE id = ?";
 
-            return database_->execute(sql);
+            PreparedStatement stmt(database_, sql);
+            stmt.bind(0, paper.title);
+            stmt.bind(1, paper.authors);
+            stmt.bind(2, paper.year);
+            stmt.bind(3, paper.abstract);
+            stmt.bind(4, paper.journal);
+            stmt.bind(5, paper.volume);
+            stmt.bind(6, paper.issue);
+            stmt.bind(7, paper.pages);
+            stmt.bind(8, paper.doi);
+            stmt.bind(9, paper.url);
+            stmt.bind(10, paper.pdfPath);
+            stmt.bind(11, paper.citationCount);
+            stmt.bind(12, paper.isRead ? 1 : 0);
+            stmt.bind(13, paper.isFavorite ? 1 : 0);
+            stmt.bind(14, paper.notes);
+            stmt.bind(15, id);
+
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[PaperAPI] Failed to update paper: " << e.what() << std::endl;
             return false;
@@ -274,8 +265,9 @@ public:
     // 从数据库删除论文
     bool deletePaperFromDb(int id) {
         try {
-            auto sql = "DELETE FROM papers WHERE id = " + std::to_string(id);
-            return database_->execute(sql);
+            PreparedStatement stmt(database_, "DELETE FROM papers WHERE id = ?");
+            stmt.bind(0, id);
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[PaperAPI] Failed to delete paper: " << e.what() << std::endl;
             return false;
@@ -288,20 +280,27 @@ public:
         try {
             std::string sql = "SELECT * FROM papers WHERE 1=1";
             int paramCount = 0;
+            std::vector<ParameterValue> params;
 
-            // 构建WHERE条件
             if (!criteria.query.empty()) {
-                sql += " AND (title LIKE '%" + criteria.query + "%' OR "
-                       "authors LIKE '%" + criteria.query + "%' OR "
-                       "abstract LIKE '%" + criteria.query + "%')";
+                sql += " AND (title LIKE ? OR authors LIKE ? OR abstract LIKE ?)";
+                std::string likePattern = "%" + criteria.query + "%";
+                params.push_back(likePattern);
+                params.push_back(likePattern);
+                params.push_back(likePattern);
+                paramCount += 3;
             }
 
             if (criteria.yearFrom > 0) {
-                sql += " AND year >= " + std::to_string(criteria.yearFrom);
+                sql += " AND year >= ?";
+                params.push_back(criteria.yearFrom);
+                paramCount++;
             }
 
             if (criteria.yearTo > 0) {
-                sql += " AND year <= " + std::to_string(criteria.yearTo);
+                sql += " AND year <= ?";
+                params.push_back(criteria.yearTo);
+                paramCount++;
             }
 
             if (criteria.isRead) {
@@ -312,11 +311,18 @@ public:
                 sql += " AND is_favorite = 1";
             }
 
-            // 分页
             int offset = (page - 1) * limit;
-            sql += " LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
+            sql += " LIMIT ? OFFSET ?";
+            params.push_back(limit);
+            params.push_back(offset);
+            paramCount += 2;
 
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, sql);
+            for (int i = 0; i < paramCount; i++) {
+                stmt.bind(i, params[i]);
+            }
+
+            auto results = stmt.query();
             for (const auto& row : results) {
                 papers.push_back(paperFromDbRow(row));
             }
@@ -392,9 +398,10 @@ public:
     // 标记论文为已读/未读
     bool markAsReadInDb(int id, bool read) {
         try {
-            auto sql = "UPDATE papers SET is_read = " + std::string(read ? "1" : "0") +
-                      ", updated_at = NOW() WHERE id = " + std::to_string(id);
-            return database_->execute(sql);
+            PreparedStatement stmt(database_, "UPDATE papers SET is_read = ?, updated_at = NOW() WHERE id = ?");
+            stmt.bind(0, read ? 1 : 0);
+            stmt.bind(1, id);
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[PaperAPI] Failed to mark paper: " << e.what() << std::endl;
             return false;
@@ -404,9 +411,10 @@ public:
     // 标记论文为收藏/取消收藏
     bool markAsFavoriteInDb(int id, bool favorite) {
         try {
-            auto sql = "UPDATE papers SET is_favorite = " + std::string(favorite ? "1" : "0") +
-                      ", updated_at = NOW() WHERE id = " + std::to_string(id);
-            return database_->execute(sql);
+            PreparedStatement stmt(database_, "UPDATE papers SET is_favorite = ?, updated_at = NOW() WHERE id = ?");
+            stmt.bind(0, favorite ? 1 : 0);
+            stmt.bind(1, id);
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[PaperAPI] Failed to mark favorite: " << e.what() << std::endl;
             return false;
@@ -686,9 +694,10 @@ bool PaperApiModule::removeTag(int id, const std::string& tag) {
 
 bool PaperApiModule::uploadPDF(int id, const std::string& filePath) {
     try {
-        // 使用数据库更新PDF路径
-        auto sql = "UPDATE papers SET pdf_path = '" + filePath + "' WHERE id = " + std::to_string(id);
-        impl_->database_->execute(sql);
+        PreparedStatement stmt(impl_->database_, "UPDATE papers SET pdf_path = ? WHERE id = ?");
+        stmt.bind(0, filePath);
+        stmt.bind(1, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         std::cerr << "[PaperAPI] Failed to upload PDF: " << e.what() << std::endl;

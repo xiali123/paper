@@ -14,6 +14,7 @@
 #include <random>
 #include <chrono>
 #include <spdlog/spdlog.h>
+#include "data/PreparedStatement.hpp"
 
 namespace PaperCrawler {
 
@@ -110,8 +111,9 @@ public:
     // 从数据库获取用户
     std::optional<User> getUserFromDatabase(int id) {
         try {
-            auto sql = "SELECT * FROM users WHERE id = " + std::to_string(id);
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, "SELECT * FROM users WHERE id = ?");
+            stmt.bind(0, id);
+            auto results = stmt.query();
             if (!results.empty()) {
                 return userFromDbRow(results[0]);
             }
@@ -125,19 +127,9 @@ public:
     // 从数据库获取用户（通过用户名）
     std::optional<User> getUserByUsernameFromDatabase(const std::string& username) {
         try {
-            // ✅ 安全：SQL转义防止SQL注入（临时方案，生产环境应使用PreparedStatement）
-            auto escape = [](const std::string& s) {
-                std::string result;
-                for (char c : s) {
-                    if (c == '\'') result += "''";
-                    else if (c == '\\') result += "\\\\";
-                    else result += c;
-                }
-                return result;
-            };
-
-            auto sql = "SELECT * FROM users WHERE username = '" + escape(username) + "'";
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, "SELECT * FROM users WHERE username = ?");
+            stmt.bind(0, username);
+            auto results = stmt.query();
             if (!results.empty()) {
                 return userFromDbRow(results[0]);
             }
@@ -151,19 +143,9 @@ public:
     // 从数据库获取用户（通过邮箱）
     std::optional<User> getUserByEmailFromDatabase(const std::string& email) {
         try {
-            // ✅ 安全：SQL转义防止SQL注入（临时方案，生产环境应使用PreparedStatement）
-            auto escape = [](const std::string& s) {
-                std::string result;
-                for (char c : s) {
-                    if (c == '\'') result += "''";
-                    else if (c == '\\') result += "\\\\";
-                    else result += c;
-                }
-                return result;
-            };
-
-            auto sql = "SELECT * FROM users WHERE email = '" + escape(email) + "'";
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, "SELECT * FROM users WHERE email = ?");
+            stmt.bind(0, email);
+            auto results = stmt.query();
             if (!results.empty()) {
                 return userFromDbRow(results[0]);
             }
@@ -179,28 +161,56 @@ public:
         std::vector<User> users;
         try {
             std::string sql = "SELECT * FROM users WHERE 1=1";
-
-            // 应用过滤条件
-            // 注意：不检查默认值，只在查询参数明确指定时才添加过滤
-            // UserRole枚举值: ADMIN=0, USER=1, GUEST=2
-            // 由于ADMIN=0，我们无法通过简单的比较来判断是否设置了过滤器
-            // 因此这里暂时不应用role和status过滤，除非从URL参数中明确指定
+            int paramIndex = 0;
 
             if (!query.search.empty()) {
-                sql += " AND (username LIKE '%" + query.search + "%' OR "
-                       "email LIKE '%" + query.search + "%' OR "
-                       "full_name LIKE '%" + query.search + "%')";
+                sql += " AND (username LIKE ? OR email LIKE ? OR full_name LIKE ?)";
+                paramIndex += 3;
             }
 
-            // 应用排序
-            sql += " ORDER BY " + query.sortBy + " " + query.sortOrder;
+            static const std::vector<std::string> allowedSortColumns = {
+                "id", "username", "email", "full_name", "role", "is_active", "created_at", "updated_at"
+            };
+            static const std::vector<std::string> allowedSortOrders = {"ASC", "DESC"};
 
-            // 应用分页
+            std::string sortBy = query.sortBy;
+            bool sortColValid = false;
+            for (const auto& col : allowedSortColumns) {
+                if (sortBy == col) { sortColValid = true; break; }
+            }
+            if (!sortColValid) sortBy = "id";
+
+            std::string sortOrder = query.sortOrder;
+            bool sortOrderValid = false;
+            for (const auto& ord : allowedSortOrders) {
+                if (sortOrder == ord || sortOrder == ord) {
+                    sortOrder = ord;
+                    sortOrderValid = true;
+                    break;
+                }
+            }
+            if (!sortOrderValid) sortOrder = "ASC";
+
+            sql += " ORDER BY " + sortBy + " " + sortOrder;
+
             int offset = (query.page - 1) * query.limit;
-            sql += " LIMIT " + std::to_string(query.limit) + " OFFSET " + std::to_string(offset);
+            sql += " LIMIT ? OFFSET ?";
 
-            std::cout << "[UserApi] Executing query: " << sql << std::endl;
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, sql);
+            paramIndex = 0;
+
+            if (!query.search.empty()) {
+                std::string searchPattern = "%" + query.search + "%";
+                stmt.bind(paramIndex++, searchPattern);
+                stmt.bind(paramIndex++, searchPattern);
+                stmt.bind(paramIndex++, searchPattern);
+            }
+
+            stmt.bind(paramIndex++, query.limit);
+            stmt.bind(paramIndex++, offset);
+
+            std::cout << "[UserApi] Executing query: " << stmt.getSQL() << std::endl;
+            auto results = stmt.query();
             std::cout << "[UserApi] Query returned " << results.size() << " rows" << std::endl;
             for (const auto& row : results) {
                 users.push_back(userFromDbRow(row));
@@ -214,31 +224,29 @@ public:
     // 在数据库中创建用户
     std::optional<User> createUserInDatabase(const UserCreateRequest& request) {
         try {
-            // 检查用户名是否已存在
             auto existingUser = getUserByUsernameFromDatabase(request.username);
             if (existingUser) {
-                return std::nullopt;  // 用户名已存在
+                return std::nullopt;
             }
 
-            // 检查邮箱是否已存在
             auto existingEmail = getUserByEmailFromDatabase(request.email);
             if (existingEmail) {
-                return std::nullopt;  // 邮箱已存在
+                return std::nullopt;
             }
 
-            // 哈希密码
             std::string passwordHash = hashPassword(request.password);
 
-            // 插入用户
             std::string role = (request.role == UserRole::ADMIN) ? "admin" : "user";
-            auto sql = "INSERT INTO users (username, email, full_name, password_hash, "
-                      "role, is_active, created_at) VALUES ('" +
-                      request.username + "', '" + request.email + "', '" +
-                      request.fullName + "', '" + passwordHash + "', '" +
-                      role + "', 1, NOW())";
+            PreparedStatement stmt(database_,
+                "INSERT INTO users (username, email, full_name, password_hash, "
+                "role, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())");
+            stmt.bind(0, request.username);
+            stmt.bind(1, request.email);
+            stmt.bind(2, request.fullName);
+            stmt.bind(3, passwordHash);
+            stmt.bind(4, role);
 
-            if (database_->execute(sql)) {
-                // 返回新创建的用户
+            if (stmt.execute()) {
                 return getUserByUsernameFromDatabase(request.username);
             }
 
@@ -252,43 +260,66 @@ public:
     // 在数据库中更新用户
     bool updateUserInDatabase(int id, const UserUpdateRequest& request) {
         try {
-            std::vector<std::string> updates;
+            std::vector<std::string> setClauses;
+            int paramIndex = 0;
 
             if (request.email.has_value()) {
-                // 检查邮箱是否被其他用户使用
-                auto emailCheckSql = "SELECT id FROM users WHERE email = '" + request.email.value() + "' AND id != " + std::to_string(id);
-                auto emailResults = database_->query(emailCheckSql);
+                PreparedStatement checkStmt(database_,
+                    "SELECT id FROM users WHERE email = ? AND id != ?");
+                checkStmt.bind(0, request.email.value());
+                checkStmt.bind(1, id);
+                auto emailResults = checkStmt.query();
                 if (!emailResults.empty()) {
-                    return false;  // 邮箱已被其他用户使用
+                    return false;
                 }
-                updates.push_back("email = '" + request.email.value() + "'");
+                setClauses.push_back("email = ?");
+                paramIndex++;
             }
 
             if (request.fullName.has_value()) {
-                updates.push_back("full_name = '" + request.fullName.value() + "'");
+                setClauses.push_back("full_name = ?");
+                paramIndex++;
             }
 
             if (request.bio.has_value()) {
-                updates.push_back("biography = '" + request.bio.value() + "'");
+                setClauses.push_back("biography = ?");
+                paramIndex++;
             }
 
             if (request.avatarUrl.has_value()) {
-                updates.push_back("avatar_url = '" + request.avatarUrl.value() + "'");
+                setClauses.push_back("avatar_url = ?");
+                paramIndex++;
             }
 
-            if (updates.empty()) {
+            if (setClauses.empty()) {
                 return false;
             }
 
-            // 构建 UPDATE 语句
             std::string sql = "UPDATE users SET ";
-            for (size_t i = 0; i < updates.size(); ++i) {
+            for (size_t i = 0; i < setClauses.size(); ++i) {
                 if (i > 0) sql += ", ";
-                sql += updates[i];
+                sql += setClauses[i];
             }
-            sql += ", updated_at = NOW() WHERE id = " + std::to_string(id);
+            sql += ", updated_at = NOW() WHERE id = ?";
 
-            return database_->execute(sql);
+            PreparedStatement stmt(database_, sql);
+            int bindIndex = 0;
+
+            if (request.email.has_value()) {
+                stmt.bind(bindIndex++, request.email.value());
+            }
+            if (request.fullName.has_value()) {
+                stmt.bind(bindIndex++, request.fullName.value());
+            }
+            if (request.bio.has_value()) {
+                stmt.bind(bindIndex++, request.bio.value());
+            }
+            if (request.avatarUrl.has_value()) {
+                stmt.bind(bindIndex++, request.avatarUrl.value());
+            }
+            stmt.bind(bindIndex, id);
+
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[UserApi] Failed to update user: " << e.what() << std::endl;
             return false;
@@ -298,8 +329,9 @@ public:
     // 在数据库中删除用户
     bool deleteUserFromDatabase(int id) {
         try {
-            auto sql = "DELETE FROM users WHERE id = " + std::to_string(id);
-            return database_->execute(sql);
+            PreparedStatement stmt(database_, "DELETE FROM users WHERE id = ?");
+            stmt.bind(0, id);
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[UserApi] Failed to delete user: " << e.what() << std::endl;
             return false;
@@ -315,8 +347,10 @@ public:
     // 激活用户
     bool activateUserInDatabase(int id) {
         try {
-            auto sql = "UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = " + std::to_string(id);
-            return database_->execute(sql);
+            PreparedStatement stmt(database_,
+                "UPDATE users SET is_active = 1, updated_at = NOW() WHERE id = ?");
+            stmt.bind(0, id);
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[UserApi] Failed to activate user: " << e.what() << std::endl;
             return false;
@@ -326,8 +360,10 @@ public:
     // 暂停用户
     bool suspendUserInDatabase(int id) {
         try {
-            auto sql = "UPDATE users SET is_active = 0, updated_at = NOW() WHERE id = " + std::to_string(id);
-            return database_->execute(sql);
+            PreparedStatement stmt(database_,
+                "UPDATE users SET is_active = 0, updated_at = NOW() WHERE id = ?");
+            stmt.bind(0, id);
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[UserApi] Failed to suspend user: " << e.what() << std::endl;
             return false;
@@ -338,8 +374,11 @@ public:
     bool changePasswordInDatabase(int id, const std::string& newPassword) {
         try {
             std::string passwordHash = hashPassword(newPassword);
-            auto sql = "UPDATE users SET password_hash = '" + passwordHash + "', updated_at = NOW() WHERE id = " + std::to_string(id);
-            return database_->execute(sql);
+            PreparedStatement stmt(database_,
+                "UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?");
+            stmt.bind(0, passwordHash);
+            stmt.bind(1, id);
+            return stmt.execute();
         } catch (const std::exception& e) {
             std::cerr << "[UserApi] Failed to change password: " << e.what() << std::endl;
             return false;
@@ -556,8 +595,10 @@ bool UserApiModule::verifyPassword(int id, const std::string& password) {
 
 bool UserApiModule::updateLastLogin(int id) {
     try {
-        auto sql = "UPDATE users SET last_login = NOW() WHERE id = " + std::to_string(id);
-        database_->execute(sql);
+        PreparedStatement stmt(database_,
+            "UPDATE users SET last_login = NOW() WHERE id = ?");
+        stmt.bind(0, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         std::cerr << "[UserApi] Failed to update last login: " << e.what() << std::endl;

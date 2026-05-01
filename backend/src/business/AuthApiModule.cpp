@@ -4,7 +4,9 @@
 #include "features/security/SecurityModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/SimpleMySQLDatabase.hpp"
+#include "data/PreparedStatement.hpp"
 #include "core/MessageBus.hpp"
+#include "core/ConfigManager.hpp"
 // 移除SharedBroadcastQueue，改用DatabaseModule::getConnection()
 #include "../../core/external/nlohmann/json.hpp"
 #include <spdlog/spdlog.h>
@@ -12,6 +14,7 @@
 #include <map>
 #include <chrono>
 #include <iomanip>
+#include <cstdlib>
 
 namespace PaperCrawler {
 
@@ -94,8 +97,9 @@ public:
         // ✅ 安全修复：使用SecurityModule进行真实的密码验证
         try {
             // 从数据库查询密码哈希
-            auto sql = "SELECT password_hash FROM users WHERE username = '" + username + "'";
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, "SELECT password_hash FROM users WHERE username = ?");
+            stmt.bind(0, username);
+            auto results = stmt.query();
 
             if (!results.empty()) {
                 std::string storedHash = results[0]["password_hash"];
@@ -188,26 +192,33 @@ public:
 
             // Fallback to old database_ interface
             if (database_) {
-                auto checkSql = "SELECT id FROM user_sessions WHERE user_id = " + std::to_string(userId);
-                auto existingResults = database_->query(checkSql);
+                PreparedStatement checkStmt(database_, "SELECT id FROM user_sessions WHERE user_id = ?");
+                checkStmt.bind(0, userId);
+                auto existingResults = checkStmt.query();
 
                 if (!existingResults.empty()) {
-                    auto updateSql = "UPDATE user_sessions SET "
-                                   "access_token_hash = SHA2('" + accessToken + "', 256), "
-                                   "refresh_token = '" + refreshToken + "', "
-                                   "expires_at = DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn.count()) + " SECOND), "
+                    PreparedStatement updateStmt(database_, "UPDATE user_sessions SET "
+                                   "access_token_hash = SHA2(?, 256), "
+                                   "refresh_token = ?, "
+                                   "expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND), "
                                    "updated_at = NOW() "
-                                   "WHERE user_id = " + std::to_string(userId);
-                    return database_->execute(updateSql);
+                                   "WHERE user_id = ?");
+                    updateStmt.bind(0, accessToken);
+                    updateStmt.bind(1, refreshToken);
+                    updateStmt.bind(2, static_cast<int>(expiresIn.count()));
+                    updateStmt.bind(3, userId);
+                    return updateStmt.execute();
                 } else {
-                    auto insertSql = "INSERT INTO user_sessions (user_id, access_token_hash, "
-                                   "refresh_token, expires_at, created_at) VALUES (" +
-                                   std::to_string(userId) + ", "
-                                   "SHA2('" + accessToken + "', 256), "
-                                   "'" + refreshToken + "', "
-                                   "DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn.count()) + " SECOND), "
-                                   "NOW())";
-                    return database_->execute(insertSql);
+                    PreparedStatement insertStmt(database_, "INSERT INTO user_sessions (user_id, access_token_hash, "
+                                   "refresh_token, expires_at, created_at) VALUES (?, "
+                                   "SHA2(?, 256), ?, "
+                                   "DATE_ADD(NOW(), INTERVAL ? SECOND), "
+                                   "NOW())");
+                    insertStmt.bind(0, userId);
+                    insertStmt.bind(1, accessToken);
+                    insertStmt.bind(2, refreshToken);
+                    insertStmt.bind(3, static_cast<int>(expiresIn.count()));
+                    return insertStmt.execute();
                 }
             }
 
@@ -222,8 +233,9 @@ public:
         try {
             // 优先使用mysqlDatabase_（与storeSession保持一致）
             if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
+                auto escapedAccessToken = mysqlDatabase_->escape(accessToken);
                 auto sql = "SELECT user_id FROM user_sessions WHERE "
-                         "access_token_hash = SHA2('" + accessToken + "', 256) "
+                         "access_token_hash = SHA2('" + escapedAccessToken + "', 256) "
                          "AND expires_at > NOW()";
                 auto results = mysqlDatabase_->query(sql);
 
@@ -248,10 +260,11 @@ public:
 
             // Fallback to database_ interface（与storeSession保持一致）
             if (database_) {
-                auto sql = "SELECT user_id FROM user_sessions WHERE "
-                         "access_token_hash = SHA2('" + accessToken + "', 256) "
-                         "AND expires_at > NOW()";
-                auto results = database_->query(sql);
+                PreparedStatement stmt(database_, "SELECT user_id FROM user_sessions WHERE "
+                         "access_token_hash = SHA2(?, 256) "
+                         "AND expires_at > NOW()");
+                stmt.bind(0, accessToken);
+                auto results = stmt.query();
 
                 spdlog::info("[Auth] validateSession (fallback): Query returned {} rows for token: {}", results.size(), accessToken);
                 if (!results.empty()) {
@@ -280,16 +293,18 @@ public:
         try {
             // 优先使用MySQL数据库
             if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
+                auto escapedAccessToken = mysqlDatabase_->escape(accessToken);
                 auto sql = "DELETE FROM user_sessions WHERE "
-                         "access_token_hash = SHA2('" + accessToken + "', 256)";
+                         "access_token_hash = SHA2('" + escapedAccessToken + "', 256)";
                 return mysqlDatabase_->execute(sql);
             }
 
             // Fallback to old database_ interface
             if (database_) {
-                auto sql = "DELETE FROM user_sessions WHERE "
-                         "access_token_hash = SHA2('" + accessToken + "', 256)";
-                return database_->execute(sql);
+                PreparedStatement stmt(database_, "DELETE FROM user_sessions WHERE "
+                         "access_token_hash = SHA2(?, 256)");
+                stmt.bind(0, accessToken);
+                return stmt.execute();
             }
 
             return false;
@@ -303,9 +318,10 @@ public:
         try {
             // 优先使用MySQL数据库
             if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
+                auto escapedRefreshToken = mysqlDatabase_->escape(refreshToken);
                 auto sql = "SELECT u.username FROM user_sessions s "
                          "JOIN users u ON s.user_id = u.id "
-                         "WHERE s.refresh_token = '" + refreshToken + "' "
+                         "WHERE s.refresh_token = '" + escapedRefreshToken + "' "
                          "AND s.expires_at > NOW()";
                 auto results = mysqlDatabase_->query(sql);
 
@@ -317,11 +333,12 @@ public:
 
             // Fallback to old database_ interface
             if (database_) {
-                auto sql = "SELECT u.username FROM user_sessions s "
+                PreparedStatement stmt(database_, "SELECT u.username FROM user_sessions s "
                          "JOIN users u ON s.user_id = u.id "
-                         "WHERE s.refresh_token = '" + refreshToken + "' "
-                         "AND s.expires_at > NOW()";
-                auto results = database_->query(sql);
+                         "WHERE s.refresh_token = ? "
+                         "AND s.expires_at > NOW()");
+                stmt.bind(0, refreshToken);
+                auto results = stmt.query();
 
                 if (!results.empty()) {
                     return results[0]["username"];
@@ -341,7 +358,8 @@ public:
         try {
             // 优先使用mysqlDatabase_
             if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                auto sql = "SELECT * FROM users WHERE username = '" + username + "'";
+                auto escapedUsername = mysqlDatabase_->escape(username);
+                auto sql = "SELECT * FROM users WHERE username = '" + escapedUsername + "'";
                 auto results = mysqlDatabase_->query(sql);
 
                 if (!results.empty()) {
@@ -359,8 +377,9 @@ public:
 
             // 其次使用database_（如果通过MessageBus连接）
             if (database_) {
-                auto sql = "SELECT * FROM users WHERE username = '" + username + "'";
-                auto results = database_->query(sql);
+                PreparedStatement stmt(database_, "SELECT * FROM users WHERE username = ?");
+                stmt.bind(0, username);
+                auto results = stmt.query();
 
                 if (!results.empty()) {
                     User user;
@@ -391,7 +410,8 @@ public:
             // 优先使用mysqlDatabase_
             if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
                 // ✅ 支持用户名或邮箱登录
-                auto sql = "SELECT * FROM users WHERE username = '" + usernameOrEmail + "' OR email = '" + usernameOrEmail + "'";
+                auto escapedUsernameOrEmail = mysqlDatabase_->escape(usernameOrEmail);
+                auto sql = "SELECT * FROM users WHERE username = '" + escapedUsernameOrEmail + "' OR email = '" + escapedUsernameOrEmail + "'";
                 spdlog::info("[Auth] Executing SQL: {}", sql);
                 auto results = mysqlDatabase_->query(sql);
 
@@ -425,9 +445,11 @@ public:
             // 其次使用database_（如果通过MessageBus连接）
             if (database_) {
                 // ✅ 支持用户名或邮箱登录
-                auto sql = "SELECT * FROM users WHERE username = '" + usernameOrEmail + "' OR email = '" + usernameOrEmail + "'";
-                spdlog::info("[Auth] Executing SQL (fallback): {}", sql);
-                auto results = database_->query(sql);
+                PreparedStatement stmt(database_, "SELECT * FROM users WHERE username = ? OR email = ?");
+                stmt.bind(0, usernameOrEmail);
+                stmt.bind(1, usernameOrEmail);
+                spdlog::info("[Auth] Executing SQL (fallback): {}", stmt.getSQL());
+                auto results = stmt.query();
 
                 spdlog::info("[Auth] Query returned {} results", results.size());
 
@@ -482,9 +504,13 @@ public:
                 }
 
                 // 插入新用户 (修复：移除salt和is_verified字段，与UserApiModule保持一致)
+                auto escapedUsername = mysqlDatabase_->escape(username);
+                auto escapedEmail = mysqlDatabase_->escape(email);
+                auto escapedFullName = mysqlDatabase_->escape(fullName);
+                auto escapedPasswordHash = mysqlDatabase_->escape(passwordHash);
                 auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active, created_at) "
-                          "VALUES ('" + username + "', '" + email + "', '" + fullName + "', "
-                          "'" + passwordHash + "', 'user', 1, NOW())";
+                          "VALUES ('" + escapedUsername + "', '" + escapedEmail + "', '" + escapedFullName + "', "
+                          "'" + escapedPasswordHash + "', 'user', 1, NOW())";
 
                 if (mysqlDatabase_->execute(sql)) {
                     // 返回新创建的用户
@@ -502,11 +528,14 @@ public:
                 }
 
                 // 插入新用户 (修复：移除salt和is_verified字段，与UserApiModule保持一致)
-                auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active, created_at) "
-                          "VALUES ('" + username + "', '" + email + "', '" + fullName + "', "
-                          "'" + passwordHash + "', 'user', 1, NOW())";
+                PreparedStatement stmt(database_, "INSERT INTO users (username, email, full_name, password_hash, role, is_active, created_at) "
+                          "VALUES (?, ?, ?, ?, 'user', 1, NOW())");
+                stmt.bind(0, username);
+                stmt.bind(1, email);
+                stmt.bind(2, fullName);
+                stmt.bind(3, passwordHash);
 
-                if (database_->execute(sql)) {
+                if (stmt.execute()) {
                     // 返回新创建的用户
                     return getUserByUsername(username);
                 }
@@ -617,8 +646,13 @@ public:
             // 创建默认superadmin用户
             spdlog::info("[Auth] Creating default superadmin user: admin");
 
-            // 使用SecurityModule生成密码哈希
-            std::string defaultPassword = "admin123";
+            // 从环境变量读取初始密码，未设置则拒绝创建
+            const char* envPassword = std::getenv("ADMIN_INITIAL_PASSWORD");
+            if (!envPassword || std::string(envPassword).empty()) {
+                spdlog::warn("[Auth] ADMIN_INITIAL_PASSWORD env var not set, skipping default admin creation");
+                return;
+            }
+            std::string defaultPassword(envPassword);
             std::string passwordHash;
 
             if (securityModule_) {
@@ -627,11 +661,11 @@ public:
                     passwordHash = hashResult.hash;
                 } else {
                     spdlog::error("[Auth] Failed to hash password: {}", hashResult.errorMessage);
-                    passwordHash = "$2a$12$" + std::to_string(std::hash<std::string>{}(defaultPassword));
+                    return;
                 }
             } else {
-                // 降级方案
-                passwordHash = "$2a$12$" + std::to_string(std::hash<std::string>{}(defaultPassword));
+                spdlog::error("[Auth] SecurityModule not available, cannot create admin safely");
+                return;
             }
 
             // 插入用户到数据库
@@ -639,16 +673,17 @@ public:
             std::string sql;
 
             if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
+                auto escapedPasswordHash = mysqlDatabase_->escape(passwordHash);
                 sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active) VALUES "
                       "('admin', 'admin@papercrawler.com', 'Super Administrator', '" +
-                      passwordHash + "', 'superadmin', 1)";
+                      escapedPasswordHash + "', 'superadmin', 1)";
                 mysqlDatabase_->execute(sql);
                 spdlog::info("[Auth] Default superadmin created in MySQL database");
             } else if (database_) {
-                sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active) VALUES "
-                      "('admin', 'admin@papercrawler.com', 'Super Administrator', '" +
-                      passwordHash + "', 'superadmin', 1)";
-                database_->execute(sql);
+                PreparedStatement stmt(database_, "INSERT INTO users (username, email, full_name, password_hash, role, is_active) VALUES "
+                      "('admin', 'admin@papercrawler.com', 'Super Administrator', ?, 'superadmin', 1)");
+                stmt.bind(0, passwordHash);
+                stmt.execute();
                 spdlog::info("[Auth] Default superadmin created using database_ interface");
             } else {
                 spdlog::warn("[Auth] No database connection available, cannot create default superadmin");
@@ -736,25 +771,31 @@ void AuthApiModule::registerRoutes() {
         try {
             spdlog::info("[AuthApi] 🔔 Creating direct MySQL connection as fallback...");
 
-            // 读取数据库配置（从config.json）
-            std::string dbHost = "localhost";
-            int dbPort = 3306;
-            std::string dbName = "papercrawler";
-            std::string dbUser = "root";
-            std::string dbPass = "123456";
+            // 从ConfigManager读取数据库配置（支持环境变量）
+            auto& cfg = ConfigManager::getInstance();
+            cfg.loadFromEnvironment();
+            std::string dbHost = cfg.getString("database.host", "localhost");
+            int dbPort = cfg.getInt("database.port", 3306);
+            std::string dbName = cfg.getString("database.name", "papercrawler");
+            std::string dbUser = cfg.getString("database.user", "");
+            std::string dbPass = cfg.getString("database.password", "");
 
-            // 创建MySQL连接（保存到单独的成员变量）
-            impl_->mysqlDatabase_ = std::make_shared<SimpleMySQLDatabase>(
-                dbHost, dbPort, dbUser, dbPass, dbName
-            );
-
-            if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
-                spdlog::info("[AuthApi] ✅ MySQL database connected successfully (fallback mode)!");
-
-                // 初始化数据库表
-                impl_->initializeDatabaseTables();
+            if (dbUser.empty() || dbPass.empty()) {
+                spdlog::warn("[AuthApi] DB credentials not configured. Set DB_USER/DB_PASSWORD env vars.");
             } else {
-                spdlog::warn("[AuthApi] ⚠️ Failed to connect to MySQL, will use stub mode");
+                // 创建MySQL连接（保存到单独的成员变量）
+                impl_->mysqlDatabase_ = std::make_shared<SimpleMySQLDatabase>(
+                    dbHost, dbPort, dbUser, dbPass, dbName
+                );
+
+                if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+                    spdlog::info("[AuthApi] ✅ MySQL database connected successfully (fallback mode)!");
+
+                    // 初始化数据库表
+                    impl_->initializeDatabaseTables();
+                } else {
+                    spdlog::warn("[AuthApi] ⚠️ Failed to connect to MySQL, will use stub mode");
+                }
             }
         } catch (const std::exception& e) {
             spdlog::error("[AuthApi] ❌ Exception connecting to database: {}", e.what());
@@ -997,24 +1038,31 @@ void AuthApiModule::registerRoutes() {
             std::string clientIp = "127.0.0.1";  // 默认本地IP
             // TODO: 从HttpRequest中提取真实的客户端IP
 
-            std::string updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + clientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
             bool updateOk = false;
             if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+                auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
+                std::string updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + escapedClientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
                 updateOk = impl_->mysqlDatabase_->execute(updateSql);
             } else if (impl_->database_) {
-                updateOk = impl_->database_->execute(updateSql);
+                PreparedStatement updateStmt(impl_->database_, "UPDATE users SET last_login_at = NOW(), last_login_ip = ?, login_count = login_count + 1 WHERE id = ?");
+                updateStmt.bind(0, clientIp);
+                updateStmt.bind(1, user.id);
+                updateOk = updateStmt.execute();
             }
             if (!updateOk) {
                 spdlog::error("[Auth] Failed to update last_login_at for user {}", user.id);
             } else {
                 spdlog::info("[Auth] Updated last_login_at for user {} (id={})", user.username, user.id);
-                // Record login history
-                std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
-                    + std::to_string(user.id) + ", '" + clientIp + "', 1)";
                 if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+                    auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
+                    std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
+                        + std::to_string(user.id) + ", '" + escapedClientIp + "', 1)";
                     impl_->mysqlDatabase_->execute(histSql);
                 } else if (impl_->database_) {
-                    impl_->database_->execute(histSql);
+                    PreparedStatement histStmt(impl_->database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
+                    histStmt.bind(0, user.id);
+                    histStmt.bind(1, clientIp);
+                    histStmt.execute();
                 }
             }
 
@@ -1348,29 +1396,42 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     user.lastLoginAt = std::chrono::system_clock::now();
 
     // 更新数据库中的last_login_at和last_login_ip字段
-    std::string clientIp = "127.0.0.1";  // 默认本地IP
-    auto updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + clientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
+    std::string clientIp = "127.0.0.1";
     bool updateOk = false;
     if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+        auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
+        auto updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + escapedClientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
         updateOk = impl_->mysqlDatabase_->execute(updateSql);
     } else if (impl_->database_) {
-        updateOk = impl_->database_->execute(updateSql);
+        PreparedStatement updateStmt(impl_->database_, "UPDATE users SET last_login_at = NOW(), last_login_ip = ?, login_count = login_count + 1 WHERE id = ?");
+        updateStmt.bind(0, clientIp);
+        updateStmt.bind(1, user.id);
+        updateOk = updateStmt.execute();
     } else if (database_) {
-        updateOk = database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE users SET last_login_at = NOW(), last_login_ip = ?, login_count = login_count + 1 WHERE id = ?");
+        updateStmt.bind(0, clientIp);
+        updateStmt.bind(1, user.id);
+        updateOk = updateStmt.execute();
     }
     if (!updateOk) {
         spdlog::error("[Auth] handleLogin: Failed to update last_login_at for user {}", user.id);
     } else {
         spdlog::info("[Auth] handleLogin: Updated last_login_at for user {} (id={})", user.username, user.id);
-        // Record login history
-        std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
-            + std::to_string(user.id) + ", '" + clientIp + "', 1)";
         if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
+            auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
+            std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
+                + std::to_string(user.id) + ", '" + escapedClientIp + "', 1)";
             impl_->mysqlDatabase_->execute(histSql);
         } else if (impl_->database_) {
-            impl_->database_->execute(histSql);
+            PreparedStatement histStmt(impl_->database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
+            histStmt.bind(0, user.id);
+            histStmt.bind(1, clientIp);
+            histStmt.execute();
         } else if (database_) {
-            database_->execute(histSql);
+            PreparedStatement histStmt(database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
+            histStmt.bind(0, user.id);
+            histStmt.bind(1, clientIp);
+            histStmt.execute();
         }
     }
 
@@ -1459,9 +1520,10 @@ std::optional<User> AuthApiModule::getCurrentUser(const std::string& accessToken
 
         // ✅ 修复：使用impl_->database_而不是直接访问database_
         if (impl_->database_) {
-            auto sql = "SELECT * FROM users WHERE id = " + std::to_string(userId);
-            spdlog::info("[Auth] Executing SQL: {}", sql);
-            results = impl_->database_->query(sql);
+            PreparedStatement stmt(impl_->database_, "SELECT * FROM users WHERE id = ?");
+            stmt.bind(0, userId);
+            spdlog::info("[Auth] Executing SQL: {}", stmt.getSQL());
+            results = stmt.query();
             spdlog::info("[Auth] Query returned {} rows", results.size());
         } else {
             spdlog::warn("[Auth] No database connection available!");
@@ -1526,8 +1588,9 @@ std::optional<User> AuthApiModule::registerUser(const RegisterRequest& request) 
 bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& request) {
     // 从数据库查询用户（替代mockUsers_查找）
     try {
-        auto sql = "SELECT * FROM users WHERE id = " + std::to_string(userId);
-        auto results = database_->query(sql);
+        PreparedStatement selectStmt(database_, "SELECT * FROM users WHERE id = ?");
+        selectStmt.bind(0, userId);
+        auto results = selectStmt.query();
 
         if (results.empty()) {
             return false;
@@ -1542,10 +1605,12 @@ bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& requ
 
         // 更新密码到数据库
         std::string passwordHash = impl_->hashPassword(request.newPassword);
-        auto updateSql = "UPDATE users SET password_hash = '" + passwordHash + "' "
-                        "WHERE id = " + std::to_string(userId);
+        PreparedStatement updateStmt(database_, "UPDATE users SET password_hash = ? "
+                        "WHERE id = ?");
+        updateStmt.bind(0, passwordHash);
+        updateStmt.bind(1, userId);
 
-        return database_->execute(updateSql);
+        return updateStmt.execute();
     } catch (const std::exception& e) {
         std::cerr << "[Auth] Failed to change password: " << e.what() << std::endl;
         return false;
@@ -1555,8 +1620,9 @@ bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& requ
 bool AuthApiModule::initiatePasswordReset(const std::string& email) {
     // 从数据库查询用户（替代mockUsers_查找）
     try {
-        auto sql = "SELECT * FROM users WHERE email = '" + email + "'";
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM users WHERE email = ?");
+        stmt.bind(0, email);
+        auto results = stmt.query();
 
         if (!results.empty()) {
             // TODO: 发送密码重置邮件
@@ -1599,8 +1665,9 @@ std::string AuthApiModule::generateRefreshToken(int userId) {
 bool AuthApiModule::revokeToken(const std::string& token) {
     // 从数据库删除会话
     try {
-        auto sql = "DELETE FROM user_sessions WHERE refresh_token = '" + token + "'";
-        return database_->execute(sql);
+        PreparedStatement stmt(database_, "DELETE FROM user_sessions WHERE refresh_token = ?");
+        stmt.bind(0, token);
+        return stmt.execute();
     } catch (const std::exception& e) {
         std::cerr << "[Auth] Failed to revoke token: " << e.what() << std::endl;
         return false;
@@ -1608,10 +1675,10 @@ bool AuthApiModule::revokeToken(const std::string& token) {
 }
 
 bool AuthApiModule::revokeAllUserTokens(int userId) {
-    // 从数据库删除用户的所有会话
     try {
-        auto sql = "DELETE FROM user_sessions WHERE user_id = " + std::to_string(userId);
-        return database_->execute(sql);
+        PreparedStatement stmt(database_, "DELETE FROM user_sessions WHERE user_id = ?");
+        stmt.bind(0, userId);
+        return stmt.execute();
     } catch (const std::exception& e) {
         std::cerr << "[Auth] Failed to revoke all user tokens: " << e.what() << std::endl;
         return false;

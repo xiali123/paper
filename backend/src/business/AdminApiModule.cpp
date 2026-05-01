@@ -3,6 +3,7 @@
 #include "core/HttpTypes.hpp"
 #include "core/ModuleLoader.hpp"
 #include "core/ModuleMetadata.hpp"
+#include "features/security/SecurityModule.hpp"
 #include "../../core/external/nlohmann/json.hpp"
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -181,8 +182,39 @@ void AdminApiModule::registerRoutes() {
         spdlog::warn("[AdminApiModule] ⚠️ No injected database connection available");
     }
 
+    // Admin authentication middleware
+    auto requireAdminAuth = [](const HttpRequest& req) -> bool {
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) return false;
+
+        const std::string& authHeader = authIt->second;
+        if (authHeader.substr(0, 7) != "Bearer ") return false;
+
+        std::string token = authHeader.substr(7);
+        if (token.empty()) return false;
+
+        SecurityModule sec;
+        auto result = sec.verifyJWT(token);
+        if (!result.valid) return false;
+
+        auto roleIt = result.claims.find("role");
+        if (roleIt == result.claims.end()) return false;
+        if (roleIt->second != "admin" && roleIt->second != "superadmin") return false;
+
+        return true;
+    };
+
+    auto unauthorizedResp = []() -> HttpResponse {
+        HttpResponse resp;
+        resp.statusCode = 401;
+        resp.setHeader("Content-Type", "application/json");
+        resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
+        return resp;
+    };
+
     // 统计
-    router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -192,7 +224,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 用户管理
-    router.get(prefix + "/users", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/users", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleListUsers(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -201,7 +234,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/users/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/users/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUser(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -210,7 +244,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/users", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/users", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateUser(req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -219,7 +254,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/users/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/users/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateUser(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -228,7 +264,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/users/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/users/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteUser(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -237,7 +274,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/users/:id/activate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/users/:id/activate", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleActivateUser(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -246,7 +284,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/users/:id/deactivate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/users/:id/deactivate", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeactivateUser(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -256,7 +295,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 密码管理
-    router.post(prefix + "/users/:id/change-password", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/users/:id/change-password", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleChangePassword(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -265,7 +305,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/users/:id/reset-password", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/users/:id/reset-password", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleResetPassword(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -275,7 +316,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 模块管理
-    router.get(prefix + "/modules", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/modules", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleListModules(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -284,7 +326,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/modules/:name/enable", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/modules/:name/enable", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleEnableModule(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -293,7 +336,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/modules/:name/disable", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/modules/:name/disable", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDisableModule(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -303,7 +347,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 模块上传、安装、卸载、重载
-    router.post(prefix + "/modules/upload", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/modules/upload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUploadModule(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -312,7 +357,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/modules/install", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/modules/install", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleInstallModule(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -321,7 +367,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/modules/:name/uninstall", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/modules/:name/uninstall", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUninstallModule(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -330,7 +377,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/modules/:name/reload", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/modules/:name/reload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleReloadModule(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -339,7 +387,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/modules/scan", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/modules/scan", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleScanModules(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -349,7 +398,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 审计日志
-    router.get(prefix + "/audit-logs", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/audit-logs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetAuditLogs(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -359,7 +409,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 仪表盘
-    router.get(prefix + "/dashboard", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/dashboard", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetDashboard(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -369,7 +420,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 用户详情 - 登录历史
-    router.get(prefix + "/users/:id/history", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/users/:id/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUserHistory(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -379,7 +431,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 用户详情 - 在线会话
-    router.get(prefix + "/users/:id/sessions", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/users/:id/sessions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUserSessions(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -389,7 +442,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 用户详情 - 踢出会话
-    router.del(prefix + "/users/:id/sessions/:sid", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/users/:id/sessions/:sid", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleKickUserSession(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -399,7 +453,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 公告管理
-    router.get(prefix + "/announcements", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/announcements", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleListAnnouncements(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -408,7 +463,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/announcements", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/announcements", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateAnnouncement(req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -417,7 +473,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/announcements/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/announcements/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateAnnouncement(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -426,7 +483,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/announcements/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/announcements/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteAnnouncement(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -435,7 +493,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/announcements/:id/toggle", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/announcements/:id/toggle", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleToggleAnnouncement(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -445,7 +504,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 数据导出
-    router.post(prefix + "/export/users", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/export/users", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string csv = handleExportUsers(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -456,7 +516,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 系统监控
-    router.get(prefix + "/monitor/system", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/monitor/system", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSystemMetrics(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -465,7 +526,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/monitor/services", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/monitor/services", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetServiceHealth(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -474,7 +536,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/monitor/logs", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/monitor/logs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSystemLogs(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -483,7 +546,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/monitor/logs/stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/monitor/logs/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetLogStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -492,7 +556,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/monitor/logs/before/:date", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/monitor/logs/before/:date", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCleanLogs(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -501,7 +566,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/performance/metrics", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/performance/metrics", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetPerformanceMetrics(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -510,7 +576,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/performance/slow-queries", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/performance/slow-queries", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSlowQueries(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -519,7 +586,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/performance/bottlenecks", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/performance/bottlenecks", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetPerformanceBottlenecks(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -529,7 +597,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 登录安全
-    router.get(prefix + "/security/login-history", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/security/login-history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetLoginHistory(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -538,7 +607,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/security/login-stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/security/login-stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetLoginStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -547,7 +617,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/security/suspicious", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/security/suspicious", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSuspiciousLogins(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -556,7 +627,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/security/ip-blacklist", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/security/ip-blacklist", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetIpBlacklist(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -565,7 +637,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/security/ip-blacklist", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/security/ip-blacklist", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleAddIpBlacklist(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -574,7 +647,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/security/ip-blacklist/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/security/ip-blacklist/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleRemoveIpBlacklist(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -583,7 +657,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/security/account-lockouts", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/security/account-lockouts", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetAccountLockouts(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -592,7 +667,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/security/lock-user", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/security/lock-user", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleLockUserAccount(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -601,7 +677,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/security/unlock-user", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/security/unlock-user", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUnlockUserAccount(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -610,7 +687,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/security/suspicious/:id/handle", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/security/suspicious/:id/handle", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleHandleSuspiciousLogin(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -620,7 +698,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 全局配置
-    router.get(prefix + "/config/categories", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/config/categories", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetConfigCategories(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -629,7 +708,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/config", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/config", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetConfigs(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -638,7 +718,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/config", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/config", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateConfig(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -647,7 +728,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/config/history", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/config/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetConfigHistory(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -656,7 +738,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/config/summary", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/config/summary", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetConfigSummary(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -665,7 +748,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/config/reload", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/config/reload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleReloadConfigs(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -675,7 +759,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 数据备份
-    router.get(prefix + "/backup/jobs", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/backup/jobs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetBackupJobs(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -684,7 +769,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/backup/jobs", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/backup/jobs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateBackupJob(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -693,7 +779,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/backup/jobs/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/backup/jobs/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateBackupJob(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -702,7 +789,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/backup/jobs/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/backup/jobs/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteBackupJob(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -711,7 +799,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/backup/jobs/:id/trigger", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/backup/jobs/:id/trigger", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleTriggerBackup(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -720,7 +809,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/backup/records", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/backup/records", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetBackupRecords(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -729,7 +819,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/backup/records/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/backup/records/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteBackupFile(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -738,7 +829,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/backup/stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/backup/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetBackupStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -748,7 +840,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // RBAC权限管理
-    router.get(prefix + "/roles", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetRoles(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -757,7 +850,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/roles", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateRole(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -766,7 +860,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/roles/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/roles/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateRole(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -775,7 +870,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/roles/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/roles/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteRole(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -784,7 +880,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/permissions", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetPermissions(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -793,7 +890,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/permission-matrix", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/permission-matrix", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetPermissionMatrix(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -802,7 +900,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/roles/:id/permissions", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/roles/:id/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetRolePermissions(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -811,7 +910,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/roles/:id/permissions", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/roles/:id/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateRolePermissions(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -820,7 +920,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/users/:id/roles", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/users/:id/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUserRoles(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -829,7 +930,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/users/:id/roles", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/users/:id/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleAssignUserRole(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -838,7 +940,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/users/:id/roles/:roleid", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/users/:id/roles/:roleid", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleRemoveUserRole(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -847,7 +950,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/permissions/check", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/permissions/check", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCheckPermission(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -857,7 +961,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 通知管理
-    router.get(prefix + "/notifications/templates", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/notifications/templates", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetNotificationTemplates(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -866,7 +971,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/notifications/templates", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/notifications/templates", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateNotificationTemplate(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -875,7 +981,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/notifications/templates/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/notifications/templates/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateNotificationTemplate(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -884,7 +991,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/notifications/templates/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/notifications/templates/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteNotificationTemplate(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -893,7 +1001,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/notifications", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/notifications", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSystemNotifications(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -902,7 +1011,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/notifications/send", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/notifications/send", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleSendNotification(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -911,7 +1021,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/notifications/history", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/notifications/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetNotificationHistory(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -920,7 +1031,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/notifications/stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/notifications/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetNotificationStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -930,7 +1042,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 数据清理
-    router.get(prefix + "/cleanup/tasks", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/cleanup/tasks", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetCleanupTasks(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -939,7 +1052,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/cleanup/tasks", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/cleanup/tasks", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateCleanupTask(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -948,7 +1062,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.put(prefix + "/cleanup/tasks/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/cleanup/tasks/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateCleanupTask(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -957,7 +1072,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/cleanup/tasks/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/cleanup/tasks/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteCleanupTask(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -966,7 +1082,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/cleanup/tasks/:id/trigger", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/cleanup/tasks/:id/trigger", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleTriggerCleanup(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -975,7 +1092,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/cleanup/history", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/cleanup/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetCleanupHistory(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -984,7 +1102,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/cleanup/storage-stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/cleanup/storage-stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetStorageStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -994,7 +1113,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // 内容审核
-    router.get(prefix + "/content/pending", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/content/pending", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetPendingPapers(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1003,7 +1123,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/content/pending/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/content/pending/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetPaperModeration(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1012,7 +1133,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/content/pending/:id/approve", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/content/pending/:id/approve", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleApprovePaper(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -1021,7 +1143,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/content/pending/:id/reject", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/content/pending/:id/reject", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleRejectPaper(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -1030,7 +1153,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/content/reports", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/content/reports", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUserReports(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1039,7 +1163,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/content/reports/:id/resolve", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/content/reports/:id/resolve", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleResolveReport(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -1048,7 +1173,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/content/sensitive-words", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/content/sensitive-words", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSensitiveWords(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1057,7 +1183,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/content/sensitive-words", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/content/sensitive-words", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateSensitiveWord(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -1066,7 +1193,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/content/sensitive-words/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/content/sensitive-words/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteSensitiveWord(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1075,7 +1203,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/content/sensitive-words/check", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/content/sensitive-words/check", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCheckSensitiveWords(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -1084,7 +1213,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/content/sensitive-words/stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/content/sensitive-words/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSensitiveWordStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1094,7 +1224,8 @@ void AdminApiModule::registerRoutes() {
     });
 
     // API密钥管理
-    router.get(prefix + "/api-keys", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/api-keys", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetApiKeys(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1103,7 +1234,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/api-keys", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/api-keys", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateApiKey(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -1112,7 +1244,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.del(prefix + "/api-keys/:id", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/api-keys/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteApiKey(req.pathParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1121,7 +1254,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.post(prefix + "/api-keys/:id/regenerate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/api-keys/:id/regenerate", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleRegenerateApiKey(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = 200;
@@ -1130,7 +1264,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/api-keys/usage", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/api-keys/usage", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetApiKeyUsage(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1139,7 +1274,8 @@ void AdminApiModule::registerRoutes() {
         return response;
     });
 
-    router.get(prefix + "/api-keys/stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/api-keys/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetApiKeyStats(req.queryParams);
         HttpResponse response;
         response.statusCode = 200;
@@ -1217,7 +1353,7 @@ PaginatedResponse<AdminUser> AdminApiModule::listUsers(int page, int limit, cons
 
         // 搜索过滤
         if (!search.empty()) {
-            conditions.push_back("(username LIKE '%" + search + "%' OR email LIKE '%" + search + "%')");
+            conditions.push_back("(username LIKE '%" + escapeSql(search) + "%' OR email LIKE '%" + escapeSql(search) + "%')");
         }
 
         // 角色过滤
@@ -1355,7 +1491,7 @@ std::optional<AdminUser> AdminApiModule::getUserByUsername(const std::string& us
             return std::nullopt;
         }
 
-        std::string sql = "SELECT * FROM users WHERE username = '" + username + "'";
+        std::string sql = "SELECT * FROM users WHERE username = '" + escapeSql(username) + "'";
         auto results = database_->query(sql);
 
         if (!results.empty()) {
@@ -1466,9 +1602,9 @@ std::optional<AdminUser> AdminApiModule::updateUser(int id, const AdminUser& use
         }
 
         std::string sql = "UPDATE users SET "
-                         "email = '" + user.email + "', "
-                         "full_name = '" + user.fullName + "', "
-                         "avatar = '" + user.avatar + "', "
+                         "email = '" + escapeSql(user.email) + "', "
+                         "full_name = '" + escapeSql(user.fullName) + "', "
+                         "avatar = '" + escapeSql(user.avatar) + "', "
                          "role = '" + roleStr + "' "
                          "WHERE id = " + std::to_string(id);
 
@@ -1582,7 +1718,7 @@ std::optional<AdminUser> AdminApiModule::createUser(const AdminUser& user) {
 
         // 检查用户名是否已存在（不持有mutex，使用直接查询）
         auto usernameResults = database_->query(
-            "SELECT id FROM users WHERE username = '" + user.username + "'"
+            "SELECT id FROM users WHERE username = '" + escapeSql(user.username) + "'"
         );
         if (!usernameResults.empty()) {
             spdlog::warn("[AdminApiModule] Username already exists: {}", user.username);
@@ -1591,7 +1727,7 @@ std::optional<AdminUser> AdminApiModule::createUser(const AdminUser& user) {
 
         // 检查邮箱是否已存在
         auto emailResults = database_->query(
-            "SELECT id FROM users WHERE email = '" + user.email + "'"
+            "SELECT id FROM users WHERE email = '" + escapeSql(user.email) + "'"
         );
         if (!emailResults.empty()) {
             spdlog::warn("[AdminApiModule] Email already exists: {}", user.email);
@@ -1622,10 +1758,10 @@ std::optional<AdminUser> AdminApiModule::createUser(const AdminUser& user) {
 
         // 插入新用户
         std::string sql = "INSERT INTO users (username, email, password_hash, full_name, role, is_active, created_at, is_verified) VALUES (";
-        sql += "'" + user.username + "', ";
-        sql += "'" + user.email + "', ";
+        sql += "'" + escapeSql(user.username) + "', ";
+        sql += "'" + escapeSql(user.email) + "', ";
         sql += "'" + passwordHash + "', ";
-        sql += "'" + user.fullName + "', ";
+        sql += "'" + escapeSql(user.fullName) + "', ";
         sql += "'" + roleStr + "', ";
         sql += "1, ";  // 默认激活
         sql += "'" + datetimeStr + "', ";  // 使用datetime格式
@@ -1634,7 +1770,7 @@ std::optional<AdminUser> AdminApiModule::createUser(const AdminUser& user) {
         if (database_->execute(sql)) {
             // 获取新创建的用户完整信息
             auto newResults = database_->query(
-                "SELECT * FROM users WHERE username = '" + user.username + "'"
+                "SELECT * FROM users WHERE username = '" + escapeSql(user.username) + "'"
             );
 
             if (!newResults.empty()) {
@@ -2120,8 +2256,20 @@ std::string AdminApiModule::handleCreateUser(const std::string& body) {
         newUser.avatar = jsonBody.value("avatar", "");
         newUser.role = AdminUser::fromString(jsonBody.value("role", "user"));
 
-        // 设置默认密码哈希（密码123456的哈希）
-        newUser.passwordHash = jsonBody.value("password", "123456");
+        // 密码必须由管理员在请求中提供，无默认值
+        std::string password = jsonBody.value("password", "");
+        if (password.empty()) {
+            spdlog::warn("[Admin] createUser: password is required");
+            return false;
+        }
+        // Hash password using SHA256 (in production should use SecurityModule)
+        unsigned char hash[SHA256_DIGEST_LENGTH];
+        SHA256(reinterpret_cast<const unsigned char*>(password.c_str()), password.size(), hash);
+        std::ostringstream hashHex;
+        for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+            hashHex << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+        }
+        newUser.passwordHash = hashHex.str();
 
         newUser.active = true;
         newUser.createdAt = std::chrono::system_clock::now();
@@ -2837,7 +2985,7 @@ std::string AdminApiModule::handleListAnnouncements(const std::map<std::string, 
         // Build query with optional search filter
         std::string sql = "SELECT * FROM announcements";
         if (!search.empty()) {
-            sql += " WHERE title LIKE '%" + search + "%' OR content LIKE '%" + search + "%'";
+            sql += " WHERE title LIKE '%" + escapeSql(search) + "%' OR content LIKE '%" + escapeSql(search) + "%'";
         }
         sql += " ORDER BY created_at DESC LIMIT " + std::to_string(limit)
              + " OFFSET " + std::to_string(offset);
@@ -2847,7 +2995,7 @@ std::string AdminApiModule::handleListAnnouncements(const std::map<std::string, 
         // Count total
         std::string countSql = "SELECT COUNT(*) as total FROM announcements";
         if (!search.empty()) {
-            countSql += " WHERE title LIKE '%" + search + "%' OR content LIKE '%" + search + "%'";
+            countSql += " WHERE title LIKE '%" + escapeSql(search) + "%' OR content LIKE '%" + escapeSql(search) + "%'";
         }
         auto countResults = database_->query(countSql);
         int total = 0;
@@ -2912,16 +3060,16 @@ std::string AdminApiModule::handleCreateAnnouncement(const std::string& body) {
 
         // Build INSERT statement
         std::string sql = "INSERT INTO announcements (title, content, type, target_role, created_by, is_active, expires_at) VALUES (";
-        sql += "'" + title + "', ";
-        sql += "'" + content + "', ";
-        sql += "'" + type + "', ";
-        sql += "'" + targetRole + "', ";
+        sql += "'" + escapeSql(title) + "', ";
+        sql += "'" + escapeSql(content) + "', ";
+        sql += "'" + escapeSql(type) + "', ";
+        sql += "'" + escapeSql(targetRole) + "', ";
         sql += std::to_string(createdBy) + ", ";
         sql += "1, ";  // is_active defaults to true
         if (expiresAt.empty()) {
             sql += "NULL)";
         } else {
-            sql += "'" + expiresAt + "')";
+            sql += "'" + escapeSql(expiresAt) + "')";
         }
 
         if (database_->execute(sql)) {
@@ -2976,23 +3124,23 @@ std::string AdminApiModule::handleUpdateAnnouncement(const std::map<std::string,
         // Build UPDATE with provided fields
         std::vector<std::string> updates;
         if (jsonBody.contains("title")) {
-            updates.push_back("title = '" + jsonBody["title"].get<std::string>() + "'");
+            updates.push_back("title = '" + escapeSql(jsonBody["title"].get<std::string>()) + "'");
         }
         if (jsonBody.contains("content")) {
-            updates.push_back("content = '" + jsonBody["content"].get<std::string>() + "'");
+            updates.push_back("content = '" + escapeSql(jsonBody["content"].get<std::string>()) + "'");
         }
         if (jsonBody.contains("type")) {
-            updates.push_back("type = '" + jsonBody["type"].get<std::string>() + "'");
+            updates.push_back("type = '" + escapeSql(jsonBody["type"].get<std::string>()) + "'");
         }
         if (jsonBody.contains("target_role")) {
-            updates.push_back("target_role = '" + jsonBody["target_role"].get<std::string>() + "'");
+            updates.push_back("target_role = '" + escapeSql(jsonBody["target_role"].get<std::string>()) + "'");
         }
         if (jsonBody.contains("expires_at")) {
             std::string expiresAt = jsonBody["expires_at"].get<std::string>();
             if (expiresAt.empty()) {
                 updates.push_back("expires_at = NULL");
             } else {
-                updates.push_back("expires_at = '" + expiresAt + "'");
+                updates.push_back("expires_at = '" + escapeSql(expiresAt) + "'");
             }
         }
 
@@ -3104,7 +3252,7 @@ std::string AdminApiModule::handleExportUsers(const std::map<std::string, std::s
         // Build query with optional search filter
         std::string sql = "SELECT * FROM users";
         if (!search.empty()) {
-            sql += " WHERE (username LIKE '%" + search + "%' OR email LIKE '%" + search + "%')";
+            sql += " WHERE (username LIKE '%" + escapeSql(search) + "%' OR email LIKE '%" + escapeSql(search) + "%')";
         }
         sql += " ORDER BY id ASC";
 
@@ -3293,11 +3441,11 @@ std::string AdminApiModule::handleGetSystemLogs(const std::map<std::string, std:
             // 构建WHERE条件
             std::string whereClause;
             if (!levelFilter.empty() && !moduleFilter.empty()) {
-                whereClause = " WHERE level = '" + levelFilter + "' AND module = '" + moduleFilter + "'";
+                whereClause = " WHERE level = '" + escapeSql(levelFilter) + "' AND module = '" + escapeSql(moduleFilter) + "'";
             } else if (!levelFilter.empty()) {
-                whereClause = " WHERE level = '" + levelFilter + "'";
+                whereClause = " WHERE level = '" + escapeSql(levelFilter) + "'";
             } else if (!moduleFilter.empty()) {
-                whereClause = " WHERE module = '" + moduleFilter + "'";
+                whereClause = " WHERE module = '" + escapeSql(moduleFilter) + "'";
             }
 
             // 获取总数
@@ -3413,7 +3561,7 @@ std::string AdminApiModule::handleCleanLogs(const std::map<std::string, std::str
         std::string date = dateIt->second;
 
         if (database_) {
-            std::string sql = "DELETE FROM system_logs WHERE created_at < '" + date + "'";
+            std::string sql = "DELETE FROM system_logs WHERE created_at < '" + escapeSql(date) + "'";
             database_->execute(sql);
 
             addAuditLog("logs_cleaned", "system_logs", 0, "superadmin", 0,
@@ -3656,7 +3804,7 @@ std::string AdminApiModule::handleGetLoginHistory(const std::map<std::string, st
             // 构建WHERE条件
             std::string whereClause;
             if (!usernameFilter.empty()) {
-                whereClause = " WHERE username = '" + usernameFilter + "'";
+                whereClause = " WHERE username = '" + escapeSql(usernameFilter) + "'";
             }
 
             // 获取总数
@@ -3771,7 +3919,7 @@ std::string AdminApiModule::handleGetSuspiciousLogins(const std::map<std::string
             // 构建WHERE条件
             std::string whereClause;
             if (!statusFilter.empty()) {
-                whereClause = " WHERE status = '" + statusFilter + "'";
+                whereClause = " WHERE status = '" + escapeSql(statusFilter) + "'";
             }
 
             // 获取总数
@@ -3902,20 +4050,20 @@ std::string AdminApiModule::handleAddIpBlacklist(const std::map<std::string, std
 
         if (database_) {
             // 检查是否已存在
-            std::string checkSql = "SELECT id FROM ip_blacklist WHERE ip_address = '" + ipAddress + "'";
+            std::string checkSql = "SELECT id FROM ip_blacklist WHERE ip_address = '" + escapeSql(ipAddress) + "'";
             auto checkResults = database_->query(checkSql);
             if (!checkResults.empty()) {
                 // 更新现有记录
-                std::string updateSql = "UPDATE ip_blacklist SET is_active = 1, reason = '" + reason + "', "
-                                       "threat_level = '" + threatLevel + "', expires_at = " +
-                                       (expiresAt.empty() ? "NULL" : "'" + expiresAt + "'") +
-                                       " WHERE ip_address = '" + ipAddress + "'";
+                std::string updateSql = "UPDATE ip_blacklist SET is_active = 1, reason = '" + escapeSql(reason) + "', "
+                                       "threat_level = '" + escapeSql(threatLevel) + "', expires_at = " +
+                                       (expiresAt.empty() ? "NULL" : "'" + escapeSql(expiresAt) + "'") +
+                                       " WHERE ip_address = '" + escapeSql(ipAddress) + "'";
                 database_->execute(updateSql);
             } else {
                 // 插入新记录
                 std::string insertSql = "INSERT INTO ip_blacklist (ip_address, reason, threat_level, created_by, expires_at) "
-                                       "VALUES ('" + ipAddress + "', '" + reason + "', '" + threatLevel + "', 1, " +
-                                       (expiresAt.empty() ? "NULL" : "'" + expiresAt + "'") + ")";
+                                       "VALUES ('" + escapeSql(ipAddress) + "', '" + escapeSql(reason) + "', '" + escapeSql(threatLevel) + "', 1, " +
+                                       (expiresAt.empty() ? "NULL" : "'" + escapeSql(expiresAt) + "'") + ")";
                 database_->execute(insertSql);
             }
 
@@ -4059,11 +4207,11 @@ std::string AdminApiModule::handleLockUserAccount(const std::map<std::string, st
 
             // 插入或更新锁定记录
             std::string sql = "INSERT INTO account_lockouts (user_id, locked_until, lockout_reason, ip_address) "
-                             "VALUES (" + std::to_string(userId) + ", " + lockUntilSql + ", '" + reason + "', '" + ipAddress + "') "
+                             "VALUES (" + std::to_string(userId) + ", " + lockUntilSql + ", '" + escapeSql(reason) + "', '" + escapeSql(ipAddress) + "') "
                              "ON DUPLICATE KEY UPDATE "
                              "locked_until = " + lockUntilSql + ", "
-                             "lockout_reason = '" + reason + "', "
-                             "ip_address = '" + ipAddress + "'";
+                             "lockout_reason = '" + escapeSql(reason) + "', "
+                             "ip_address = '" + escapeSql(ipAddress) + "'";
 
             database_->execute(sql);
 
@@ -4134,7 +4282,7 @@ std::string AdminApiModule::handleHandleSuspiciousLogin(const std::map<std::stri
 
         if (database_) {
             // 更新可疑登录记录状态
-            std::string sql = "UPDATE suspicious_logins SET status = '" + action + "', "
+            std::string sql = "UPDATE suspicious_logins SET status = '" + escapeSql(action) + "', "
                              "reviewed_by = " + std::to_string(reviewedBy) + ", "
                              "reviewed_at = NOW() "
                              "WHERE id = " + std::to_string(id);
@@ -4203,7 +4351,7 @@ std::string AdminApiModule::handleGetConfigs(const std::map<std::string, std::st
                              "LEFT JOIN users u ON c.updated_by = u.id";
 
             if (!category.empty()) {
-                sql += " WHERE c.category = '" + category + "'";
+                sql += " WHERE c.category = '" + escapeSql(category) + "'";
             }
 
             sql += " ORDER BY c.category, c.`key`";
@@ -4254,7 +4402,7 @@ std::string AdminApiModule::handleUpdateConfig(const std::map<std::string, std::
 
         if (database_) {
             // 获取当前值
-            std::string selectSql = "SELECT * FROM system_configs WHERE `key` = '" + key + "'";
+            std::string selectSql = "SELECT * FROM system_configs WHERE `key` = '" + escapeSql(key) + "'";
             auto selectResults = database_->query(selectSql);
 
             if (!selectResults.empty()) {
@@ -4262,15 +4410,15 @@ std::string AdminApiModule::handleUpdateConfig(const std::map<std::string, std::
                 int configId = std::stoi(cleanDbString(selectResults[0].at("id")));
 
                 // 更新配置
-                std::string updateSql = "UPDATE system_configs SET value = '" + value + "', "
+                std::string updateSql = "UPDATE system_configs SET value = '" + escapeSql(value) + "', "
                                        "updated_by = " + std::to_string(updatedBy) + " "
-                                       "WHERE `key` = '" + key + "'";
+                                       "WHERE `key` = '" + escapeSql(key) + "'";
                 database_->execute(updateSql);
 
                 // 记录历史
                 std::string historySql = "INSERT INTO config_history (config_id, config_key, old_value, new_value, changed_by, change_reason, change_type) "
-                                       "VALUES (" + std::to_string(configId) + ", '" + key + "', '" + oldValue + "', '" + value + "', "
-                                       + std::to_string(updatedBy) + ", '" + reason + "', 'update')";
+                                       "VALUES (" + std::to_string(configId) + ", '" + escapeSql(key) + "', '" + escapeSql(oldValue) + "', '" + escapeSql(value) + "', "
+                                       + std::to_string(updatedBy) + ", '" + escapeSql(reason) + "', 'update')";
                 database_->execute(historySql);
 
                 addAuditLog("config_updated", "system_configs", configId, "superadmin", updatedBy,
@@ -4323,7 +4471,7 @@ std::string AdminApiModule::handleGetConfigHistory(const std::map<std::string, s
             // 构建WHERE条件
             std::string whereClause;
             if (!configKeyFilter.empty()) {
-                whereClause = " WHERE h.config_key = '" + configKeyFilter + "'";
+                whereClause = " WHERE h.config_key = '" + escapeSql(configKeyFilter) + "'";
             }
 
             // 获取总数
@@ -4471,7 +4619,7 @@ std::string AdminApiModule::handleCreateBackupJob(const std::map<std::string, st
 
         if (database_) {
             std::string sql = "INSERT INTO backup_jobs (name, job_type, schedule_cron, backup_path, retention_days, created_by) "
-                             "VALUES ('" + name + "', '" + jobType + "', '" + scheduleCron + "', '" + backupPath + "', "
+                             "VALUES ('" + escapeSql(name) + "', '" + escapeSql(jobType) + "', '" + escapeSql(scheduleCron) + "', '" + escapeSql(backupPath) + "', "
                              + std::to_string(retentionDays) + ", " + std::to_string(createdBy) + ")";
             database_->execute(sql);
 
@@ -4507,7 +4655,7 @@ std::string AdminApiModule::handleUpdateBackupJob(const std::map<std::string, st
         bool isEnabled = jsonBody.value("is_enabled", true);
 
         if (database_) {
-            std::string sql = "UPDATE backup_jobs SET schedule_cron = '" + scheduleCron + "', "
+            std::string sql = "UPDATE backup_jobs SET schedule_cron = '" + escapeSql(scheduleCron) + "', "
                              "retention_days = " + std::to_string(retentionDays) + ", "
                              "is_enabled = " + (isEnabled ? "1" : "0") + " "
                              "WHERE id = " + std::to_string(id);
@@ -4595,7 +4743,7 @@ std::string AdminApiModule::handleTriggerBackup(const std::map<std::string, std:
 
             // 创建备份记录
             std::string insertRecordSql = "INSERT INTO backup_records (job_id, filename, file_path, backup_type, status, created_by) "
-                                        "VALUES (" + std::to_string(jobId) + ", '" + filename + "', '" + fullPath + "', '" + jobType + "', 'in_progress', "
+                                        "VALUES (" + std::to_string(jobId) + ", '" + escapeSql(filename) + "', '" + escapeSql(fullPath) + "', '" + escapeSql(jobType) + "', 'in_progress', "
                                         + std::to_string(createdBy) + ")";
             database_->execute(insertRecordSql);
 
@@ -6426,7 +6574,7 @@ bool AdminApiModule::assignUserRole(int userId, int roleId, const std::string& r
         sql += ") VALUES (" + std::to_string(userId) + ", " + std::to_string(roleId) + ", '"
                + escapeSql(reason) + "', " + std::to_string(assignedBy);
         if (!expiresAt.empty()) {
-            sql += ", '" + expiresAt + "'";
+            sql += ", '" + escapeSql(expiresAt) + "'";
         }
         sql += ")";
 
@@ -6523,7 +6671,7 @@ int AdminApiModule::createNotificationTemplate(const std::string& name, const st
     try {
         std::string sql = "INSERT INTO notification_templates (name, title_template, content_template, channel, description, language, created_by) "
                         "VALUES ('" + escapeSql(name) + "', '" + escapeSql(titleTemplate) + "', '" + escapeSql(contentTemplate) + "', "
-                        "'" + channel + "', '" + escapeSql(description) + "', '" + language + "', " + std::to_string(createdBy) + ")";
+                        "'" + escapeSql(channel) + "', '" + escapeSql(description) + "', '" + escapeSql(language) + "', " + std::to_string(createdBy) + ")";
         database_->execute(sql);
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
@@ -6584,7 +6732,7 @@ PaginatedResponse<SystemNotification> AdminApiModule::getSystemNotifications(int
         // Get total count
         std::string countSql = "SELECT COUNT(*) as total FROM system_notifications";
         if (!status.empty()) {
-            countSql += " WHERE status = '" + status + "'";
+            countSql += " WHERE status = '" + escapeSql(status) + "'";
         }
         auto countResults = database_->query(countSql);
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
@@ -6594,7 +6742,7 @@ PaginatedResponse<SystemNotification> AdminApiModule::getSystemNotifications(int
         std::string sql = "SELECT sn.*, u.username as created_by_username FROM system_notifications sn "
                          "LEFT JOIN users u ON sn.created_by = u.id";
         if (!status.empty()) {
-            sql += " WHERE sn.status = '" + status + "'";
+            sql += " WHERE sn.status = '" + escapeSql(status) + "'";
         }
         sql += " ORDER BY sn.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
 
@@ -6642,7 +6790,7 @@ int64_t AdminApiModule::sendNotification(int templateId, const std::string& titl
         } else {
             std::string countSql = "SELECT COUNT(*) as total FROM user_roles ur "
                                   "JOIN roles r ON ur.role_id = r.id "
-                                  "WHERE r.name = '" + targetRole + "'";
+                                  "WHERE r.name = '" + escapeSql(targetRole) + "'";
             auto countResults = database_->query(countSql);
             totalRecipients = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
         }
@@ -6652,10 +6800,10 @@ int64_t AdminApiModule::sendNotification(int templateId, const std::string& titl
             sql += ", scheduled_at";
         }
         sql += ") VALUES (" + (templateId > 0 ? std::to_string(templateId) : std::string("NULL")) + ", '"
-               + escapeSql(title) + "', '" + escapeSql(content) + "', '" + channel + "', '"
-               + targetRole + "', '" + targetUsers + "', " + std::to_string(totalRecipients) + ", " + std::to_string(createdBy);
+               + escapeSql(title) + "', '" + escapeSql(content) + "', '" + escapeSql(channel) + "', '"
+               + escapeSql(targetRole) + "', '" + escapeSql(targetUsers) + "', " + std::to_string(totalRecipients) + ", " + std::to_string(createdBy);
         if (!scheduledAt.empty()) {
-            sql += ", '" + scheduledAt + "'";
+            sql += ", '" + escapeSql(scheduledAt) + "'";
         }
         sql += ")";
 
@@ -6820,8 +6968,8 @@ int AdminApiModule::createCleanupTask(const std::string& name, const std::string
 
     try {
         std::string sql = "INSERT INTO cleanup_tasks (name, display_name, task_type, description, cleanup_config, schedule_cron, is_enabled, is_system, created_by) "
-                        "VALUES ('" + escapeSql(name) + "', '" + escapeSql(displayName) + "', '" + taskType + "', '"
-                        + escapeSql(description) + "', '" + cleanupConfig + "', '" + scheduleCron + "', 1, "
+                        "VALUES ('" + escapeSql(name) + "', '" + escapeSql(displayName) + "', '" + escapeSql(taskType) + "', '"
+                        + escapeSql(description) + "', '" + escapeSql(cleanupConfig) + "', '" + escapeSql(scheduleCron) + "', 1, "
                         + (isSystem ? "1" : "0") + ", " + std::to_string(createdBy) + ")";
         database_->execute(sql);
 
@@ -6845,8 +6993,8 @@ bool AdminApiModule::updateCleanupTask(int id, const std::string& displayName, c
     try {
         std::string sql = "UPDATE cleanup_tasks SET display_name = '" + escapeSql(displayName) + "', "
                         "description = '" + escapeSql(description) + "', "
-                        "cleanup_config = '" + cleanupConfig + "', "
-                        "schedule_cron = '" + scheduleCron + "', "
+                        "cleanup_config = '" + escapeSql(cleanupConfig) + "', "
+                        "schedule_cron = '" + escapeSql(scheduleCron) + "', "
                         "is_enabled = " + (isEnabled ? "1" : "0") + " "
                         "WHERE id = " + std::to_string(id);
         database_->execute(sql);
@@ -7153,7 +7301,7 @@ PaginatedResponse<UserReport> AdminApiModule::getUserReports(int page, int limit
         // Get total count
         std::string countSql = "SELECT COUNT(*) as total FROM user_reports";
         if (!status.empty()) {
-            countSql += " WHERE status = '" + status + "'";
+            countSql += " WHERE status = '" + escapeSql(status) + "'";
         }
         auto countResults = database_->query(countSql);
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
@@ -7165,7 +7313,7 @@ PaginatedResponse<UserReport> AdminApiModule::getUserReports(int page, int limit
                          "LEFT JOIN users reporter ON ur.reporter_id = reporter.id "
                          "LEFT JOIN users reviewer ON ur.reviewer_id = reviewer.id";
         if (!status.empty()) {
-            sql += " WHERE ur.status = '" + status + "'";
+            sql += " WHERE ur.status = '" + escapeSql(status) + "'";
         }
         sql += " ORDER BY ur.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
 
@@ -7202,7 +7350,7 @@ bool AdminApiModule::resolveReport(int64_t reportId, int reviewerId, const std::
     }
 
     try {
-        std::string sql = "UPDATE user_reports SET status = '" + status + "', reviewer_id = "
+        std::string sql = "UPDATE user_reports SET status = '" + escapeSql(status) + "', reviewer_id = "
                         + std::to_string(reviewerId) + ", resolution = '" + escapeSql(resolution) + "' "
                         "WHERE id = " + std::to_string(reportId);
         database_->execute(sql);
@@ -7254,7 +7402,7 @@ int AdminApiModule::createSensitiveWord(const std::string& word, const std::stri
 
     try {
         std::string sql = "INSERT INTO sensitive_words (word, category, severity, is_regex, replacement, created_by) "
-                        "VALUES ('" + escapeSql(word) + "', '" + category + "', '" + severity + "', "
+                        "VALUES ('" + escapeSql(word) + "', '" + escapeSql(category) + "', '" + escapeSql(severity) + "', "
                         + (isRegex ? "1" : "0") + ", '" + escapeSql(replacement) + "', " + std::to_string(createdBy) + ")";
         database_->execute(sql);
 
@@ -7481,8 +7629,8 @@ std::pair<int, std::string> AdminApiModule::createApiKey(int userId, const std::
 
         std::string sql = "INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, rate_limit_per_hour, expires_at, created_by) "
                         "VALUES (" + std::to_string(userId) + ", '" + escapeSql(name) + "', '" + keyHash + "', '"
-                        + keyPrefix + "', '" + scopes + "', " + std::to_string(rateLimitPerHour) + ", "
-                        + (expiresAt.empty() ? "NULL" : "'" + expiresAt + "'") + ", " + std::to_string(createdBy) + ")";
+                        + keyPrefix + "', '" + escapeSql(scopes) + "', " + std::to_string(rateLimitPerHour) + ", "
+                        + (expiresAt.empty() ? "NULL" : "'" + escapeSql(expiresAt) + "'") + ", " + std::to_string(createdBy) + ")";
         database_->execute(sql);
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
