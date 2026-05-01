@@ -9,6 +9,9 @@
 
 namespace PaperCrawler {
 
+// Forward declaration -- avoids pulling the full WS header into every caller.
+class WebSocketModule;
+
 /**
  * @brief HTTP服务器模块
  *
@@ -19,6 +22,7 @@ namespace PaperCrawler {
  * 4. 连接管理
  * 5. CORS支持
  * 6. 与Router集成
+ * 7. WebSocket upgrade detection (RFC 6455)
  */
 class HttpServerModule : public IModule {
 public:
@@ -45,6 +49,12 @@ public:
      * @param handler 路由处理器（通常是Router::route）
      */
     void setRouteHandler(HttpHandler handler);
+
+    /**
+     * @brief Set the WebSocketModule that will receive upgraded connections.
+     *        Must be called before start() for WebSocket support.
+     */
+    void setWebSocketModule(WebSocketModule* wsModule);
 
     /**
      * @brief 获取服务器统计

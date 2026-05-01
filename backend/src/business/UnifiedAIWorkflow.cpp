@@ -1,6 +1,8 @@
 #include "business/UnifiedAIWorkflow.hpp"
 // #include "core/EventDrivenIntegration.hpp"  // TODO: EventDrivenIntegration has missing dependencies
 // #include "modules/LoggingModule.hpp"  // TODO: LoggingModule not implemented yet
+#include "features/ai/VectorStore.hpp"
+#include "features/ai/EmbeddingGenerator.hpp"
 #include <sstream>
 #include <regex>
 #include <iomanip>
@@ -217,17 +219,123 @@ std::map<std::string, std::string> UnifiedAIWorkflow::getCacheStats() {
 RAGContext UnifiedAIWorkflow::buildRAGContext(const std::string& query, int userId) {
     RAGContext context;
 
-    // 1. 从知识图谱查询相关实体
-    // TODO: SELECT * FROM knowledge_entities WHERE name LIKE query
+    try {
+        // 1. 生成查询嵌入向量
+        EmbeddingGenerator embeddingGen;
+        std::vector<float> queryVector = embeddingGen.generate(query);
 
-    // 2. 向量搜索相关论文
-    // TODO: SELECT * FROM papers WHERE vector_similarity(embedding, query_embedding) > 0.8
+        // 2. 向量搜索相关论文
+        VectorStore vectorStore;
+        if (impl_->database_) {
+            vectorStore.setDatabase(impl_->database_);
+            vectorStore.initializeTable();
 
-    // 3. 获取用户上下文
-    // TODO: SELECT * FROM user_research_interests WHERE user_id = userId
+            // 首次使用时自动索引论文（仅当嵌入表为空时）
+            auto existingRows = impl_->database_->query(
+                "SELECT COUNT(*) as cnt FROM paper_embeddings");
+            int count = 0;
+            if (!existingRows.empty() && existingRows[0].count("cnt")) {
+                try { count = std::stoi(existingRows[0].at("cnt")); } catch (...) {}
+            }
+            if (count == 0) {
+                spdlog::info("[UnifiedAIWorkflow] Embeddings table empty, indexing papers...");
+                vectorStore.indexPapersFromDatabase(impl_->database_, 1000);
+            }
 
-    // 4. 获取对话历史
-    // TODO: SELECT * FROM conversation_history WHERE user_id = userId ORDER BY timestamp DESC LIMIT 10
+            // 搜索相似论文（余弦相似度 >= 0.3，取 top 5）
+            auto results = vectorStore.search(queryVector, 5, 0.3f);
+            for (const auto& result : results) {
+                context.relevantPapers.push_back(result.id);
+                // 提取标题作为知识图谱实体候选
+                auto titleIt = result.metadata.find("title");
+                if (titleIt != result.metadata.end() && !titleIt->second.empty()) {
+                    context.knowledgeGraphEntities.push_back(titleIt->second);
+                }
+            }
+        }
+
+        // 3. 获取用户上下文（书签、阅读历史、研究兴趣）
+        if (impl_->database_ && userId > 0) {
+            // 用户研究兴趣
+            try {
+                auto interests = impl_->database_->query(
+                    "SELECT interest FROM user_research_interests WHERE user_id = " + std::to_string(userId));
+                for (const auto& row : interests) {
+                    if (row.count("interest")) {
+                        context.userContext["research_interest"] += row.at("interest") + "; ";
+                    }
+                }
+            } catch (...) {
+                // Table may not exist yet
+            }
+
+            // 用户书签
+            try {
+                auto bookmarks = impl_->database_->query(
+                    "SELECT paper_id FROM user_bookmarks WHERE user_id = " + std::to_string(userId) +
+                    " ORDER BY created_at DESC LIMIT 10");
+                std::string bookmarkIds;
+                for (const auto& row : bookmarks) {
+                    if (row.count("paper_id")) {
+                        bookmarkIds += row.at("paper_id") + ",";
+                    }
+                }
+                if (!bookmarkIds.empty()) {
+                    context.userContext["bookmarked_papers"] = bookmarkIds;
+                }
+            } catch (...) {
+                // Table may not exist yet
+            }
+
+            // 用户阅读历史
+            try {
+                auto history = impl_->database_->query(
+                    "SELECT paper_id FROM user_reading_history WHERE user_id = " + std::to_string(userId) +
+                    " ORDER BY read_at DESC LIMIT 10");
+                std::string historyIds;
+                for (const auto& row : history) {
+                    if (row.count("paper_id")) {
+                        historyIds += row.at("paper_id") + ",";
+                    }
+                }
+                if (!historyIds.empty()) {
+                    context.userContext["recently_read"] = historyIds;
+                }
+            } catch (...) {
+                // Table may not exist yet
+            }
+        }
+
+        // 4. 获取对话历史
+        if (impl_->database_ && userId > 0) {
+            try {
+                auto conversations = impl_->database_->query(
+                    "SELECT role, content FROM ai_conversations WHERE user_id = " + std::to_string(userId) +
+                    " ORDER BY created_at DESC LIMIT 10");
+                // Reverse to get chronological order
+                for (auto it = conversations.rbegin(); it != conversations.rend(); ++it) {
+                    const auto& row = *it;
+                    std::string role = row.count("role") ? row.at("role") : "user";
+                    std::string content = row.count("content") ? row.at("content") : "";
+                    if (!content.empty()) {
+                        context.conversationHistory.push_back("[" + role + "] " + content);
+                    }
+                }
+            } catch (...) {
+                // Table may not exist yet
+            }
+        }
+
+        spdlog::info("[UnifiedAIWorkflow] RAG context built: {} papers, {} entities, {} history messages, user context size: {}",
+            context.relevantPapers.size(),
+            context.knowledgeGraphEntities.size(),
+            context.conversationHistory.size(),
+            context.userContext.size());
+
+    } catch (const std::exception& e) {
+        spdlog::error("[UnifiedAIWorkflow] Failed to build RAG context: {}", e.what());
+        // Return partial context -- graceful degradation
+    }
 
     return context;
 }
@@ -239,12 +347,25 @@ std::string UnifiedAIWorkflow::enhancePromptWithContext(
     std::ostringstream enhanced;
     enhanced << "Context:\n";
 
-    // 添加相关论文
+    // 添加相关论文（尝试从VectorStore获取完整内容）
     if (!context.relevantPapers.empty()) {
         enhanced << "\nRelevant Papers:\n";
+        VectorStore vectorStore;
+        if (impl_->database_) {
+            vectorStore.setDatabase(impl_->database_);
+        }
         for (const auto& paperId : context.relevantPapers) {
-            // TODO: 从数据库获取论文标题和摘要
-            enhanced << "- Paper ID: " << paperId << "\n";
+            auto embedding = vectorStore.getEmbedding(paperId);
+            if (embedding.has_value() && !embedding->content.empty()) {
+                // Truncate content to keep prompt size manageable
+                std::string content = embedding->content;
+                if (content.size() > 500) {
+                    content = content.substr(0, 500) + "...";
+                }
+                enhanced << "- Paper " << paperId << ": " << content << "\n";
+            } else {
+                enhanced << "- Paper ID: " << paperId << "\n";
+            }
         }
     }
 

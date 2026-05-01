@@ -33,6 +33,9 @@ struct WebSocketConnection {
     std::string sessionId;
     WebSocketState state{WebSocketState::CONNECTING};
 
+    // Socket file descriptor (used for real I/O)
+    int socketFd{-1};
+
     // 连接信息
     std::string ipAddress;
     int port{0};
@@ -265,6 +268,19 @@ public:
      * @brief 获取所有频道
      */
     std::vector<std::string> getAllChannels() const;
+
+    /**
+     * @brief Accept a socket that has completed the HTTP 101 handshake.
+     *        The HttpServerModule calls this after sending the upgrade response.
+     */
+    std::string acceptConnection(int socketFd, const std::string& ipAddress, int port);
+
+    /**
+     * @brief Process raw bytes read from a WebSocket connection.
+     *        Decodes frames, dispatches messages, and handles ping/pong/close.
+     */
+    void handleIncomingData(const std::string& connectionId,
+                            const std::vector<uint8_t>& data);
 
 private:
     class Impl;

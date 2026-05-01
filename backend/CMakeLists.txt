@@ -118,6 +118,7 @@ set(CRAWLER_SOURCES)
 set(NETWORK_SOURCES
     src/network/HttpServerModule.cpp
     src/network/WebSocketModule.cpp
+    src/network/WebSocketProtocol.cpp
     src/network/HttpClient.cpp
 )
 
@@ -145,6 +146,12 @@ set(SECURITY_SOURCES
     src/features/security/SecurityModule.cpp
     src/features/security/SessionModule.cpp
     src/features/email/EmailService.cpp
+)
+
+# 功能模块 - AI/RAG
+set(AI_SOURCES
+    src/features/ai/VectorStore.cpp
+    src/features/ai/EmbeddingGenerator.cpp
 )
 
 # 功能模块 - 弹性
@@ -178,6 +185,7 @@ set(MODULE_SOURCES
     ${INFRASTRUCTURE_SOURCES}
     ${PERFORMANCE_SOURCES}
     ${SECURITY_SOURCES}
+    ${AI_SOURCES}
     ${RESILIENCE_SOURCES}
     ${OPERATIONS_SOURCES}
     ${BUSINESS_SOURCES}
@@ -623,6 +631,7 @@ target_sources(SystemModules PRIVATE
     # Router.cpp已移到Router.dll
     src/network/HttpClient.cpp  # 添加HttpClient支持（SearchApiModule需要）
     src/network/WebSocketModule.cpp  # 添加WebSocketModule支持（CrawlerApiModule需要）
+    src/network/WebSocketProtocol.cpp  # RFC 6455 WebSocket protocol support
     src/database/PreparedStatement.cpp  # ⭐ MySQL版本的PreparedStatement实现（所有模块通过IDatabase接口使用）
     src/data/PreparedStatement.cpp  # ⭐ DataPreparedStatement实现（DistributedTaskModule需要）
     src/data/QueryBuilder.cpp        # 添加QueryBuilder支持
@@ -636,6 +645,8 @@ target_sources(SystemModules PRIVATE
     src/modules/CrawlerTemplateSerialization.cpp
     # ⭐ 安全模块支持（AuthApiModule需要SecurityModule的密码哈希/验证功能）
     ${SECURITY_SOURCES}
+    # ⭐ AI/RAG管道支持（AiApiModule需要VectorStore和EmbeddingGenerator）
+    ${AI_SOURCES}
     # 核心框架源文件（MessageBus等）
     src/core/MessageBus.cpp
     # src/core/SharedBroadcastQueue.cpp  # ⚠️ 暂时移除，使用getDatabaseConnection()方案
@@ -954,7 +965,9 @@ add_dynamic_module_with_system(AuthApiModule
 # 阶段5：SearchApiModule动态化（修复中）
 add_dynamic_module_with_system(SearchApiModule
     src/business/SearchApiModule.cpp
+    src/features/search/MeilisearchClient.cpp
 )
+target_include_directories(SearchApiModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
 
 # 阶段6：UserApiModule动态化（已修复SQL注入和编译错误 ✓）
 add_dynamic_module_with_system(UserApiModule
