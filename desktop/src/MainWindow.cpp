@@ -108,6 +108,13 @@ MainWindow::MainWindow(QWidget* parent)
     // Check API health on startup
     apiManager_->checkHealth();
 
+    // Periodic health check every 30 seconds
+    auto* healthTimer = new QTimer(this);
+    connect(healthTimer, &QTimer::timeout, this, [this]() {
+        apiManager_->checkHealth();
+    });
+    healthTimer->start(30000);
+
     statusBar()->showMessage("Ready - PaperCrawler Desktop v1.0", 3000);
 }
 
@@ -150,6 +157,51 @@ void MainWindow::setupUI() {
     searchWidget_->setSearchHistory(searchHistory);
     searchLayout->addWidget(searchWidget_);
 
+    // Search history quick access row
+    {
+        auto* historySection = new QWidget();
+        historySection->setObjectName("searchHistorySection");
+        auto* historyLayout = new QHBoxLayout(historySection);
+        historyLayout->setContentsMargins(24, 4, 24, 4);
+        historyLayout->setSpacing(6);
+
+        auto* historyLabel = new QLabel("Recent:");
+        historyLabel->setStyleSheet("color: #94a3b8; font-size: 12px; font-weight: bold;");
+        historyLayout->addWidget(historyLabel);
+
+        historyLayout->addStretch();
+
+        auto* historyGrid = historyLayout;
+
+        // Populate on load and after search
+        connect(searchHistory, &SearchHistory::historyAdded, this, [this, historyGrid, searchHistory]() {
+            // Clear old buttons
+            while (historyGrid->count() > 2) {
+                auto* item = historyGrid->takeAt(1);
+                delete item->widget();
+                delete item;
+            }
+
+            auto keywords = searchHistory->getRecentKeywords(5);
+            for (const auto& kw : keywords) {
+                auto* btn = new QPushButton(kw);
+                btn->setStyleSheet(
+                    "QPushButton { background: palette(base); border: 1px solid palette(mid); "
+                    "border-radius: 12px; padding: 3px 12px; font-size: 11px; color: palette(text); }"
+                    "QPushButton:hover { background: #e0e7ff; }"
+                );
+                btn->setCursor(Qt::PointingHandCursor);
+                btn->setMaximumWidth(120);
+                connect(btn, &QPushButton::clicked, this, [this, kw]() {
+                    onSearch(kw);
+                });
+                historyGrid->insertWidget(historyGrid->count() - 1, btn);
+            }
+        });
+
+        searchLayout->addWidget(historySection);
+    }
+
     auto* resultsLayout = new QHBoxLayout();
     resultsLayout->setSpacing(12);
 
@@ -164,6 +216,30 @@ void MainWindow::setupUI() {
     resultsLayout->addWidget(filterPanel_);
 
     searchLayout->addLayout(resultsLayout);
+
+    // Recent papers section
+    {
+        auto* recentSection = new QWidget();
+        recentSection->setObjectName("recentPapersSection");
+        auto* recentLayout = new QVBoxLayout(recentSection);
+        recentLayout->setContentsMargins(24, 16, 24, 16);
+        recentLayout->setSpacing(8);
+
+        auto* recentHeader = new QLabel("Recent Papers");
+        recentHeader->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
+        recentLayout->addWidget(recentHeader);
+
+        auto* recentGrid = new QWidget();
+        recentGrid->setObjectName("recentPapersGrid");
+        auto* gridLayout = new QHBoxLayout(recentGrid);
+        gridLayout->setObjectName("recentGridLayout");
+        gridLayout->setSpacing(12);
+        gridLayout->setContentsMargins(0, 0, 0, 0);
+        recentLayout->addWidget(recentGrid);
+
+        searchLayout->addWidget(recentSection);
+    }
+
     searchLayout->addStretch();
 
     searchScroll->setWidget(searchPage);
@@ -179,13 +255,13 @@ void MainWindow::setupUI() {
 
         auto* headerRow = new QHBoxLayout();
         auto* header = new QLabel("My Favorites");
-        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: palette(text);");
         headerRow->addWidget(header);
         headerRow->addStretch();
 
         auto* countLabel = new QLabel("0 papers saved");
         countLabel->setObjectName("favCountLabel");
-        countLabel->setStyleSheet("color: #64748b; font-size: 13px;");
+        countLabel->setStyleSheet("color: palette(mid); font-size: 13px;");
         headerRow->addWidget(countLabel);
         layout->addLayout(headerRow);
 
@@ -223,7 +299,7 @@ void MainWindow::setupUI() {
 
         auto* headerRow = new QHBoxLayout();
         auto* header = new QLabel("Crawler Dashboard");
-        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: palette(text);");
         headerRow->addWidget(header);
         headerRow->addStretch();
 
@@ -311,7 +387,7 @@ void MainWindow::setupUI() {
         layout->setContentsMargins(24, 24, 24, 24);
 
         auto* header = new QLabel("AI Research Assistant");
-        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: palette(text);");
         layout->addWidget(header);
 
         auto* chatDisplay = new QTextEdit();
@@ -363,26 +439,115 @@ void MainWindow::setupUI() {
         auto* page = new QWidget();
         auto* layout = new QVBoxLayout(page);
         layout->setContentsMargins(24, 24, 24, 24);
+        layout->setSpacing(16);
 
         auto* header = new QLabel("Statistics");
-        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: palette(text);");
         layout->addWidget(header);
 
-        auto* statsLabel = new QLabel("Loading statistics...");
-        statsLabel->setObjectName("statsContent");
-        statsLabel->setStyleSheet("color: #64748b; font-size: 14px;");
-        layout->addWidget(statsLabel);
-        layout->addStretch();
+        // Summary cards row
+        auto* cardsRow = new QHBoxLayout();
+        cardsRow->setSpacing(12);
 
-        connect(apiManager_, &ApiManager::statsSuccess, this, [statsLabel](const QJsonObject& stats) {
-            int totalPapers = stats["total_papers"].toInt(stats["totalPapers"].toInt(0));
-            int totalJournals = stats["total_journals"].toInt(stats["totalJournals"].toInt(0));
-            statsLabel->setText(QString(
-                "<h3>Overview</h3>"
-                "<p>Total Papers: <b>%1</b></p>"
-                "<p>Total Journals: <b>%2</b></p>"
-            ).arg(totalPapers).arg(totalJournals));
-        });
+        auto makeStatCard = [](const QString& name, const QString& icon, const QString& color) {
+            auto* card = new QWidget();
+            card->setObjectName(name);
+            card->setStyleSheet(
+                QString("QWidget { background: %1; border-radius: 8px; padding: 16px; }").arg(color)
+            );
+            auto* l = new QVBoxLayout(card);
+            l->setContentsMargins(0, 0, 0, 0);
+            l->setSpacing(4);
+            auto* iconLabel = new QLabel(icon);
+            iconLabel->setStyleSheet("font-size: 20px;");
+            l->addWidget(iconLabel);
+            auto* v = new QLabel("--");
+            v->setObjectName(name + "Value");
+            v->setStyleSheet("font-size: 24px; font-weight: bold; color: white;");
+            l->addWidget(v);
+            auto* t = new QLabel(name);
+            t->setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.8); font-weight: 500;");
+            l->addWidget(t);
+            return card;
+        };
+
+        cardsRow->addWidget(makeStatCard("Papers", "📄", "#4f46e5"));
+        cardsRow->addWidget(makeStatCard("Journals", "📚", "#059669"));
+        cardsRow->addWidget(makeStatCard("Authors", "👥", "#0891b2"));
+        cardsRow->addWidget(makeStatCard("Crawled", "🕷️", "#d97706"));
+        layout->addLayout(cardsRow);
+
+        // Year distribution table
+        auto* yearHeader = new QLabel("Year Distribution");
+        yearHeader->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
+        layout->addWidget(yearHeader);
+
+        auto* yearTable = new QTableWidget(0, 3);
+        yearTable->setObjectName("statsYearTable");
+        yearTable->setHorizontalHeaderLabels({"Year", "Count", "Percentage"});
+        yearTable->horizontalHeader()->setStretchLastSection(true);
+        yearTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        yearTable->setAlternatingRowColors(true);
+        yearTable->setMaximumHeight(200);
+        layout->addWidget(yearTable);
+
+        // Top journals table
+        auto* journalHeader = new QLabel("Top Journals");
+        journalHeader->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
+        layout->addWidget(journalHeader);
+
+        auto* journalTable = new QTableWidget(0, 3);
+        journalTable->setObjectName("statsJournalTable");
+        journalTable->setHorizontalHeaderLabels({"Journal", "Papers", "Level"});
+        journalTable->horizontalHeader()->setStretchLastSection(true);
+        journalTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        journalTable->setAlternatingRowColors(true);
+        layout->addWidget(journalTable, 1);
+
+        connect(apiManager_, &ApiManager::statsSuccess, this,
+            [page](const QJsonObject& stats) {
+                // Summary cards
+                int totalPapers = stats["total_papers"].toInt(stats["totalPapers"].toInt(0));
+                int totalJournals = stats["total_journals"].toInt(stats["totalJournals"].toInt(0));
+                int totalAuthors = stats["total_authors"].toInt(stats["totalAuthors"].toInt(0));
+                int crawled = stats["crawled_count"].toInt(stats["crawledCount"].toInt(0));
+
+                auto updateVal = [page](const QString& name, const QString& val) {
+                    auto* label = page->findChild<QLabel*>(name + "Value");
+                    if (label) label->setText(val);
+                };
+                updateVal("Papers", QString::number(totalPapers));
+                updateVal("Journals", QString::number(totalJournals));
+                updateVal("Authors", QString::number(totalAuthors));
+                updateVal("Crawled", QString::number(crawled));
+
+                // Year distribution
+                auto* yearTable = page->findChild<QTableWidget*>("statsYearTable");
+                if (yearTable) {
+                    QJsonObject yearDist = stats["year_distribution"].toObject(stats["yearDistribution"].toObject());
+                    yearTable->setRowCount(yearDist.size());
+                    int row = 0;
+                    for (auto it = yearDist.begin(); it != yearDist.end(); ++it, ++row) {
+                        yearTable->setItem(row, 0, new QTableWidgetItem(it.key()));
+                        yearTable->setItem(row, 1, new QTableWidgetItem(QString::number(it.value().toInt())));
+                        double pct = totalPapers > 0 ? (it.value().toInt() * 100.0 / totalPapers) : 0;
+                        yearTable->setItem(row, 2, new QTableWidgetItem(QString("%1%").arg(pct, 0, 'f', 1)));
+                    }
+                }
+
+                // Top journals
+                auto* journalTable = page->findChild<QTableWidget*>("statsJournalTable");
+                if (journalTable) {
+                    QJsonArray topJournals = stats["top_journals"].toArray(stats["topJournals"].toArray());
+                    journalTable->setRowCount(topJournals.size());
+                    for (int i = 0; i < topJournals.size(); ++i) {
+                        auto j = topJournals[i].toObject();
+                        journalTable->setItem(i, 0, new QTableWidgetItem(j["name"].toString(j["journal"].toString())));
+                        journalTable->setItem(i, 1, new QTableWidgetItem(QString::number(j["count"].toInt(j["paper_count"].toInt()))));
+                        journalTable->setItem(i, 2, new QTableWidgetItem(j["level"].toString()));
+                    }
+                }
+            });
 
         tabWidget_->addTab(page, "Statistics");
     }
@@ -482,7 +647,7 @@ void MainWindow::createToolBar() {
     toolBar->setAllowedAreas(Qt::TopToolBarArea | Qt::BottomToolBarArea);
     toolBar->setStyleSheet(
         "QToolBar {"
-        "  background-color: rgba(255, 255, 255, 0.95);"
+        "  background-color: palette(window);"
         "  border: none;"
         "  spacing: 8px;"
         "  padding: 8px;"
@@ -612,6 +777,54 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onPaperDetailsSuccess);
     connect(apiManager_, &ApiManager::networkError,
             this, &MainWindow::onNetworkError);
+    connect(apiManager_, &ApiManager::recentPapersSuccess,
+            this, [this](const QList<Paper>& papers) {
+        auto* grid = findChild<QWidget*>("recentPapersGrid");
+        if (!grid) return;
+        auto* gridLayout = grid->findChild<QHBoxLayout*>("recentGridLayout");
+        if (!gridLayout) return;
+
+        // Clear old cards
+        QLayoutItem* item;
+        while ((item = gridLayout->takeAt(0)) != nullptr) {
+            delete item->widget();
+            delete item;
+        }
+
+        for (const auto& paper : papers) {
+            auto* card = new QWidget();
+            card->setStyleSheet(
+                "QWidget { background: palette(base); border: 1px solid palette(mid); "
+                "border-radius: 8px; }"
+            );
+            card->setCursor(Qt::PointingHandCursor);
+            card->setMaximumWidth(280);
+            card->setMinimumHeight(100);
+
+            auto* layout = new QVBoxLayout(card);
+            layout->setContentsMargins(12, 10, 12, 10);
+            layout->setSpacing(4);
+
+            auto* titleLabel = new QLabel(paper.title.left(80));
+            titleLabel->setWordWrap(true);
+            titleLabel->setStyleSheet("font-weight: bold; font-size: 12px; color: palette(text);");
+            layout->addWidget(titleLabel);
+
+            auto* meta = new QLabel(
+                (paper.journalShort.isEmpty() ? paper.journalFull : paper.journalShort)
+                + " | " + paper.year
+            );
+            meta->setStyleSheet("font-size: 10px; color: #64748b;");
+            layout->addWidget(meta);
+
+            int pid = paper.id;
+            connect(card, &QWidget::mousePressEvent, this, [this, pid](QMouseEvent*) {
+                onPaperSelected(pid);
+            });
+
+            gridLayout->addWidget(card);
+        }
+    });
 
     // Filter panel
     if (filterPanel_) {
@@ -800,13 +1013,23 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
 }
 
 void MainWindow::onSearchFailed(const QString& error) {
+    // Try local database fallback
+    if (localDb_ && localDb_->isOpen()) {
+        DbSearchResult localResult = localDb_->searchPapers(currentKeyword_, currentOffset_, currentLimit_);
+        if (!localResult.papers.isEmpty()) {
+            resultView_->setPapers(localResult.papers, localResult.totalCount, 1);
+            statusBar()->showMessage(
+                QString("API offline — showing %1 local results for \"%2\"")
+                    .arg(localResult.papers.size()).arg(currentKeyword_), 5000);
+            return;
+        }
+    }
+
     resultView_->clear();
-    QMessageBox::warning(this, "搜索失败",
-        QString("搜索论文时出错：\n%1\n\n"
-                "请检查：\n"
-                "1. 后端服务是否运行 (http://localhost:8080)\n"
-                "2. 网络连接是否正常").arg(error));
-    statusBar()->showMessage("搜索失败", 3000);
+    QMessageBox::warning(this, "Search Failed",
+        QString("Search error:\n%1\n\n"
+                "Backend may be offline. Start it at http://localhost:8080").arg(error));
+    statusBar()->showMessage("Search failed", 3000);
 }
 
 void MainWindow::onHealthCheckSuccess(bool healthy, const QString& message) {
@@ -1083,7 +1306,7 @@ void MainWindow::refreshFavoritesTab() {
 
     if (favorites.isEmpty()) {
         auto* emptyLabel = new QLabel("No favorites yet. Click the star on paper cards to add.");
-        emptyLabel->setStyleSheet("color: #94a3b8; font-size: 14px; padding: 40px;");
+        emptyLabel->setStyleSheet("color: palette(mid); font-size: 14px; padding: 40px;");
         emptyLabel->setAlignment(Qt::AlignCenter);
         listLayout->addWidget(emptyLabel);
         return;
@@ -1102,14 +1325,14 @@ void MainWindow::refreshFavoritesTab() {
 
         auto* titleLabel = new QLabel(fav.title);
         titleLabel->setWordWrap(true);
-        titleLabel->setStyleSheet("font-weight: bold; color: #1e293b; font-size: 14px;");
+        titleLabel->setStyleSheet("font-weight: bold; color: palette(text); font-size: 14px;");
         cardLayout->addWidget(titleLabel);
 
         auto* metaRow = new QHBoxLayout();
         auto* journalLabel = new QLabel(fav.journal);
-        journalLabel->setStyleSheet("color: #64748b; font-size: 12px;");
+        journalLabel->setStyleSheet("color: palette(mid); font-size: 12px;");
         auto* yearLabel = new QLabel(fav.year);
-        yearLabel->setStyleSheet("color: #64748b; font-size: 12px;");
+        yearLabel->setStyleSheet("color: palette(mid); font-size: 12px;");
         metaRow->addWidget(journalLabel);
         metaRow->addWidget(yearLabel);
         metaRow->addStretch();
