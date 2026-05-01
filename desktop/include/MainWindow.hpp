@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QTableView>
 #include <QStandardItemModel>
+#include <QTabWidget>
 #include <memory>
 #include <QPointer>
 #include "PaperTypes.hpp"
@@ -85,6 +86,7 @@ private:
     void initializeAuthentication();
 
     // UI Components
+    QTabWidget* tabWidget_{nullptr};
     HeroWidget* heroWidget_{nullptr};
     FeatureCards* featureCards_{nullptr};
     SearchWidget* searchWidget_{nullptr};

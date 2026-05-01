@@ -78,6 +78,10 @@ void ApiManager::checkHealth() {
 
 void ApiManager::searchPapers(const QString& query, const QString& year,
                               const QString& level, int offset, int limit) {
+    QString dedupKey = QString("search:%1:%2:%3:%4:%5").arg(query, year, level).arg(offset).arg(limit);
+    if (isDuplicateRequest(dedupKey)) return;
+    trackRequest(dedupKey);
+
     QUrl url(baseUrl_ + "/api/search");
     QUrlQuery urlQuery;
     urlQuery.addQueryItem("q", query);
@@ -126,6 +130,50 @@ void ApiManager::getStats(const QString& type) {
 }
 
 // ============================================================================
+// Crawler API
+// ============================================================================
+
+void ApiManager::getCrawlerDashboard() {
+    QNetworkRequest request = createRequest("/api/crawler/dashboard");
+    crawlerDashboardReply_ = networkManager_->get(request);
+    setupRequestTimeout(crawlerDashboardReply_, 10000);
+    connect(crawlerDashboardReply_, &QNetworkReply::finished, this, &ApiManager::onCrawlerDashboardReply);
+}
+
+void ApiManager::getCrawlerTasks(int page, int limit) {
+    QNetworkRequest request = createRequest(
+        QString("/api/crawler/tasks?page=%1&limit=%2").arg(page).arg(limit));
+    crawlerTasksReply_ = networkManager_->get(request);
+    setupRequestTimeout(crawlerTasksReply_, 10000);
+    connect(crawlerTasksReply_, &QNetworkReply::finished, this, &ApiManager::onCrawlerTasksReply);
+}
+
+void ApiManager::getCrawlerTemplates() {
+    QNetworkRequest request = createRequest("/api/crawler/templates");
+    crawlerTemplatesReply_ = networkManager_->get(request);
+    setupRequestTimeout(crawlerTemplatesReply_, 10000);
+    connect(crawlerTemplatesReply_, &QNetworkReply::finished, this, &ApiManager::onCrawlerTemplatesReply);
+}
+
+// ============================================================================
+// AI API
+// ============================================================================
+
+void ApiManager::aiReview(const QJsonObject& data) {
+    QNetworkRequest request = createRequest("/api/ai/review");
+    aiReviewReply_ = networkManager_->post(request, QJsonDocument(data).toJson());
+    setupRequestTimeout(aiReviewReply_, 60000);
+    connect(aiReviewReply_, &QNetworkReply::finished, this, &ApiManager::onAiReviewReply);
+}
+
+void ApiManager::aiChat(const QJsonObject& data) {
+    QNetworkRequest request = createRequest("/api/ai/chat");
+    aiChatReply_ = networkManager_->post(request, QJsonDocument(data).toJson());
+    setupRequestTimeout(aiChatReply_, 30000);
+    connect(aiChatReply_, &QNetworkReply::finished, this, &ApiManager::onAiChatReply);
+}
+
+// ============================================================================
 // Reply handlers
 // ============================================================================
 
@@ -150,6 +198,11 @@ void ApiManager::onHealthCheckReply() {
 void ApiManager::onSearchReply() {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
     if (!reply) return;
+
+    // Untrack dedup
+    QUrl url = reply->request().url();
+    QString dedupKey = "search:" + url.query();
+    untrackRequest(dedupKey);
 
     QByteArray responseData = reply->readAll();
     reply->deleteLater();
@@ -296,4 +349,103 @@ void ApiManager::setupRequestTimeout(QNetworkReply* reply, int timeoutMs) {
     });
 
     timer->start();
+}
+
+// ============================================================================
+// Crawler / AI Reply handlers
+// ============================================================================
+
+void ApiManager::onCrawlerDashboardReply() {
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    crawlerDashboardReply_ = nullptr;
+
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        emit crawlerDashboardSuccess(doc.object());
+    } else {
+        emit apiError("Crawler dashboard: " + reply->errorString());
+    }
+}
+
+void ApiManager::onCrawlerTasksReply() {
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    crawlerTasksReply_ = nullptr;
+
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonObject obj = doc.object();
+        QJsonArray tasks = obj.contains("data") ? obj["data"].toArray() : doc.array();
+        emit crawlerTasksSuccess(tasks);
+    } else {
+        emit apiError("Crawler tasks: " + reply->errorString());
+    }
+}
+
+void ApiManager::onCrawlerTemplatesReply() {
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    crawlerTemplatesReply_ = nullptr;
+
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonArray templates = doc.isArray() ? doc.array() : doc.object()["data"].toArray();
+        emit crawlerTemplatesSuccess(templates);
+    } else {
+        emit apiError("Crawler templates: " + reply->errorString());
+    }
+}
+
+void ApiManager::onAiReviewReply() {
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    aiReviewReply_ = nullptr;
+
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        emit aiReviewSuccess(doc.object());
+    } else {
+        emit apiError("AI review: " + reply->errorString());
+    }
+}
+
+void ApiManager::onAiChatReply() {
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    reply->deleteLater();
+    aiChatReply_ = nullptr;
+
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonObject obj = doc.object();
+        QString response = obj.contains("response") ? obj["response"].toString() : QString::fromUtf8(reply->readAll());
+        emit aiChatSuccess(response);
+    } else {
+        emit apiError("AI chat: " + reply->errorString());
+    }
+}
+
+// ============================================================================
+// Request dedup
+// ============================================================================
+
+bool ApiManager::isDuplicateRequest(const QString& key) {
+    if (activeRequests_.contains(key)) {
+        qDebug() << "Duplicate request blocked:" << key;
+        return true;
+    }
+    return false;
+}
+
+void ApiManager::trackRequest(const QString& key) {
+    activeRequests_.insert(key);
+}
+
+void ApiManager::untrackRequest(const QString& key) {
+    activeRequests_.remove(key);
 }

@@ -5,6 +5,7 @@
 #include <QNetworkReply>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QSet>
 #include "PaperTypes.hpp"
 
 // API response structure
@@ -47,6 +48,15 @@ public:
     void getRecentPapers(int limit = 20);
     void getStats(const QString& type = "overview");
 
+    // Crawler API
+    void getCrawlerDashboard();
+    void getCrawlerTasks(int page = 1, int limit = 20);
+    void getCrawlerTemplates();
+
+    // AI API
+    void aiReview(const QJsonObject& data);
+    void aiChat(const QJsonObject& data);
+
 signals:
     void healthCheckSuccess(bool healthy, const QString& message);
     void healthCheckFailed(const QString& error);
@@ -60,26 +70,48 @@ signals:
     void statsFailed(const QString& error);
     void networkError(const QString& error);
 
+    void crawlerDashboardSuccess(const QJsonObject& data);
+    void crawlerTasksSuccess(const QJsonArray& tasks);
+    void crawlerTemplatesSuccess(const QJsonArray& templates);
+    void apiError(const QString& error);
+
+    void aiReviewSuccess(const QJsonObject& result);
+    void aiChatSuccess(const QString& response);
+
 private slots:
     void onHealthCheckReply();
     void onSearchReply();
     void onPaperDetailsReply();
     void onRecentPapersReply();
     void onStatsReply();
+    void onCrawlerDashboardReply();
+    void onCrawlerTasksReply();
+    void onCrawlerTemplatesReply();
+    void onAiReviewReply();
+    void onAiChatReply();
     void handleNetworkError(QNetworkReply::NetworkError error);
 
 private:
     ApiResponse parseResponse(QNetworkReply* reply);
     QString buildQueryString(const QMap<QString, QString>& params);
     void setupRequestTimeout(QNetworkReply* reply, int timeoutMs = 10000);
+    bool isDuplicateRequest(const QString& key);
+    void trackRequest(const QString& key);
+    void untrackRequest(const QString& key);
 
     QNetworkAccessManager* networkManager_;
     QString baseUrl_;
     QString authToken_;
+    QSet<QString> activeRequests_;
 
     QNetworkReply* healthReply_{nullptr};
     QNetworkReply* searchReply_{nullptr};
     QNetworkReply* paperDetailsReply_{nullptr};
     QNetworkReply* recentPapersReply_{nullptr};
     QNetworkReply* statsReply_{nullptr};
+    QNetworkReply* crawlerDashboardReply_{nullptr};
+    QNetworkReply* crawlerTasksReply_{nullptr};
+    QNetworkReply* crawlerTemplatesReply_{nullptr};
+    QNetworkReply* aiReviewReply_{nullptr};
+    QNetworkReply* aiChatReply_{nullptr};
 };

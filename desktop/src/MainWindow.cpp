@@ -120,53 +120,101 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::setupUI() {
-    // Create central widget with scroll area
-    auto* scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-    scrollArea->setObjectName("mainScrollArea");
+    // Tab widget as central widget
+    tabWidget_ = new QTabWidget(this);
+    tabWidget_->setTabPosition(QTabWidget::South);
+    tabWidget_->setDocumentMode(true);
+    tabWidget_->setStyleSheet(
+        "QTabWidget::pane { border: none; }"
+        "QTabBar::tab { padding: 10px 28px; font-weight: bold; font-size: 12px; "
+        "  border: none; border-top: 2px solid transparent; }"
+        "QTabBar::tab:selected { color: #4f46e5; border-top: 2px solid #4f46e5; }"
+        "QTabBar::tab:hover { color: #6366f1; background: #f8fafc; }"
+    );
+    setCentralWidget(tabWidget_);
 
-    auto* centralWidget = new QWidget();
-    auto* mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
+    // === Tab 1: Search ===
+    auto* searchScroll = new QScrollArea();
+    searchScroll->setWidgetResizable(true);
+    searchScroll->setFrameShape(QFrame::NoFrame);
 
-    // Hero Section
+    auto* searchPage = new QWidget();
+    auto* searchLayout = new QVBoxLayout(searchPage);
+    searchLayout->setContentsMargins(0, 0, 0, 0);
+    searchLayout->setSpacing(0);
+
     heroWidget_ = new HeroWidget(this);
-    mainLayout->addWidget(heroWidget_);
+    searchLayout->addWidget(heroWidget_);
 
-    // Feature Cards
     featureCards_ = new FeatureCards(this);
-    mainLayout->addWidget(featureCards_);
+    searchLayout->addWidget(featureCards_);
 
-    // Search Widget
     searchWidget_ = new SearchWidget(this);
     searchWidget_->setSearchHistory(searchHistory);
-    mainLayout->addWidget(searchWidget_);
+    searchLayout->addWidget(searchWidget_);
 
-    // Results + Filter layout
     auto* resultsLayout = new QHBoxLayout();
     resultsLayout->setSpacing(12);
 
-    // Results Section (initially hidden)
     resultView_ = new PaperCardView(this);
     resultView_->setFavoriteManager(favoriteManager);
     resultView_->setVisible(false);
     resultsLayout->addWidget(resultView_, 1);
 
-    // Filter Panel (initially hidden)
     filterPanel_ = new FilterPanel(this);
     filterPanel_->setMaximumWidth(200);
     filterPanel_->setVisible(false);
     resultsLayout->addWidget(filterPanel_);
 
-    mainLayout->addLayout(resultsLayout);
+    searchLayout->addLayout(resultsLayout);
+    searchLayout->addStretch();
 
-    // Add stretch at bottom
-    mainLayout->addStretch();
+    searchScroll->setWidget(searchPage);
+    tabWidget_->addTab(searchScroll, "Search");
 
-    scrollArea->setWidget(centralWidget);
-    setCentralWidget(scrollArea);
+    // === Tab 2: Favorites ===
+    auto* favoritesPage = new QWidget();
+    auto* favLayout = new QVBoxLayout(favoritesPage);
+    favLayout->setContentsMargins(16, 16, 16, 16);
+    auto* favLabel = new QLabel("My Favorites");
+    favLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+    favLayout->addWidget(favLabel);
+    favLayout->addWidget(new QLabel("Click the star on paper cards to add favorites."));
+    favLayout->addStretch();
+    tabWidget_->addTab(favoritesPage, "Favorites");
+
+    // === Tab 3: Crawler ===
+    auto* crawlerPage = new QWidget();
+    auto* crawlerLayout = new QVBoxLayout(crawlerPage);
+    crawlerLayout->setContentsMargins(16, 16, 16, 16);
+    auto* crawlerLabel = new QLabel("Crawler Dashboard");
+    crawlerLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+    crawlerLayout->addWidget(crawlerLabel);
+    crawlerLayout->addWidget(new QLabel("Manage crawler tasks, templates, and monitoring."));
+    crawlerLayout->addStretch();
+    tabWidget_->addTab(crawlerPage, "Crawler");
+
+    // === Tab 4: AI Assistant ===
+    auto* aiPage = new QWidget();
+    auto* aiLayout = new QVBoxLayout(aiPage);
+    aiLayout->setContentsMargins(16, 16, 16, 16);
+    auto* aiLabel = new QLabel("AI Research Assistant");
+    aiLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+    aiLayout->addWidget(aiLabel);
+    aiLayout->addWidget(new QLabel("AI-powered paper review, literature review, and research planning."));
+    aiLayout->addStretch();
+    tabWidget_->addTab(aiPage, "AI");
+
+    // === Tab 5: Statistics ===
+    auto* statsPage = new QWidget();
+    auto* statsLayout = new QVBoxLayout(statsPage);
+    statsLayout->setContentsMargins(16, 16, 16, 16);
+    auto* statsLabel = new QLabel("Statistics");
+    statsLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+    statsLayout->addWidget(statsLabel);
+    statsLayout->addWidget(new QLabel("Paper statistics and analytics."));
+    statsLayout->addStretch();
+    tabWidget_->addTab(statsPage, "Statistics");
 }
 
 void MainWindow::paintEvent(QPaintEvent* event) {
@@ -653,9 +701,8 @@ void MainWindow::onToggleTheme() {
 }
 
 void MainWindow::onShowStatistics() {
-    auto* dialog = new StatisticsDialog(apiManager_, this);
-    dialog->exec();
-    dialog->deleteLater();
+    tabWidget_->setCurrentIndex(4);
+    apiManager_->getStats("overview");
 }
 
 void MainWindow::onAbout() {
