@@ -2,6 +2,40 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from '@/utils/notification'
 import { transformApiError, createUserFriendlyMessage, type ApiError } from '@/api/adapters/errorAdapter'
 
+// ============================================================================
+// Request Deduplication
+// ============================================================================
+
+type RequestKey = string
+type PendingRequest = {
+  request: Promise<unknown>
+  timestamp: number
+}
+
+const pendingRequests = new Map<RequestKey, PendingRequest>()
+const DEDUPE_TTL = 10000 // 10秒内的相同请求会被去重
+
+function getRequestKey(config: InternalAxiosRequestConfig): string {
+  const method = config.method || 'GET'
+  const url = config.url || ''
+  const params = JSON.stringify(config.params || {})
+  const data = config.method === 'GET' ? '' : JSON.stringify(config.data || {})
+  return `${method}:${url}:${params}:${data}`
+}
+
+function cleanupOldRequests() {
+  const now = Date.now()
+  for (const [key, request] of pendingRequests.entries()) {
+    if (now - request.timestamp > DEDUPE_TTL) {
+      pendingRequests.delete(key)
+    }
+  }
+}
+
+// ============================================================================
+// Axios Setup
+// ============================================================================
+
 const service: AxiosInstance = axios.create({
   baseURL: '',  // 空字符串，走 Vite 代理
   timeout: 30000,  // 30秒超时
@@ -34,7 +68,7 @@ function getAccessToken(): string | null {
   try {
     const authData = localStorage.getItem('auth_tokens')
     if (authData) {
-      const tokens = JSON.parse(authData)
+      const tokens = JSON.parse(authData) as Record<string, unknown>
       return tokens.accessToken || null
     }
   } catch (error) {
@@ -43,7 +77,7 @@ function getAccessToken(): string | null {
   return null
 }
 
-// Request interceptor - add auth token
+// Request interceptor - add auth token and dedupe requests
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Add metadata for timing
@@ -53,6 +87,37 @@ service.interceptors.request.use(
     const token = getAccessToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+
+    // Dedupe GET requests
+    if (config.method === 'GET') {
+      const requestKey = getRequestKey(config)
+
+      if (pendingRequests.has(requestKey)) {
+        console.log(`[RequestDedupe] Reusing existing request: ${config.url}`)
+        return new Promise((resolve) => {
+          const existingRequest = pendingRequests.get(requestKey)!
+          existingRequest.request.then(resolve)
+          // Update timestamp
+          pendingRequests.set(requestKey, {
+            ...existingRequest,
+            timestamp: Date.now()
+          })
+        })
+      }
+
+      const requestPromise = service(config)
+
+      // Track the request
+      pendingRequests.set(requestKey, {
+        request: requestPromise,
+        timestamp: Date.now()
+      })
+
+      // Clean up completed requests
+      requestPromise.finally(() => {
+        pendingRequests.delete(requestKey)
+      })
     }
 
     return config
@@ -127,6 +192,7 @@ service.interceptors.response.use(
             localStorage.setItem('auth_tokens', JSON.stringify(newTokens))
 
             processQueue(null, newTokens.accessToken || null)
+
             // Retry original request with new token
             originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`
             return service(originalRequest)
