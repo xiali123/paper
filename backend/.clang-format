@@ -1,0 +1,15 @@
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Attach
+NamespaceIndentation: None
+PointerAlignment: Left
+ReferenceAlignment: Left
+SortIncludes: false
+SpaceBeforeParens: ControlStatements
+Standard: c++17

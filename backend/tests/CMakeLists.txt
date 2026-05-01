@@ -17,6 +17,7 @@ add_executable(PaperCrawlerTests
     test_EventDrivenIntegration.cpp
     test_UnifiedAIWorkflow.cpp
     test_JsonUtils.cpp
+    test_Router.cpp
 
     # 数据库测试
     test_PreparedStatement.cpp
