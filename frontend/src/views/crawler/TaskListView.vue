@@ -1,5 +1,5 @@
 <template>
-  <div class="task-list">
+  <div class="task-list" role="main" aria-label="任务列表">
     <!-- Page Header -->
     <div class="page-header">
       <h1 class="page-title">
@@ -1118,5 +1118,51 @@ onMounted(async () => {
   .task-item {
     padding: $spacing-4;
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .task-list {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .task-list .page-header,
+[data-theme="dark"] .task-list .page-title,
+[data-theme="dark"] .task-list .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .task-list .page-subtitle,
+[data-theme="dark"] .task-list .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .task-list .stat-card,
+[data-theme="dark"] .task-list .filter-card,
+[data-theme="dark"] .task-list .tasks-card,
+[data-theme="dark"] .task-list .chart-card,
+[data-theme="dark"] .task-list .table-card,
+[data-theme="dark"] .task-list .form-card,
+[data-theme="dark"] .task-list .detail-header,
+[data-theme="dark"] .task-list .detail-content,
+[data-theme="dark"] .task-list .toolbar,
+[data-theme="dark"] .task-list .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .task-list .stat-value,
+[data-theme="dark"] .task-list .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .task-list .stat-label,
+[data-theme="dark"] .task-list .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .task-list .empty-state,
+[data-theme="dark"] .task-list .empty-text {
+  color: #9ca3af;
 }
 </style>

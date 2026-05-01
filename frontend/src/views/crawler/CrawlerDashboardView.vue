@@ -1,5 +1,5 @@
 <template>
-  <div class="crawler-dashboard">
+  <div class="crawler-dashboard" role="main" aria-label="爬虫仪表盘">
     <!-- Page Header -->
     <div class="page-header">
       <h1 class="page-title">
@@ -948,5 +948,51 @@ onMounted(async () => {
       padding: $spacing-4;
     }
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .crawler-dashboard {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .page-header,
+[data-theme="dark"] .crawler-dashboard .page-title,
+[data-theme="dark"] .crawler-dashboard .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .page-subtitle,
+[data-theme="dark"] .crawler-dashboard .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .crawler-dashboard .stat-card,
+[data-theme="dark"] .crawler-dashboard .filter-card,
+[data-theme="dark"] .crawler-dashboard .tasks-card,
+[data-theme="dark"] .crawler-dashboard .chart-card,
+[data-theme="dark"] .crawler-dashboard .table-card,
+[data-theme="dark"] .crawler-dashboard .form-card,
+[data-theme="dark"] .crawler-dashboard .detail-header,
+[data-theme="dark"] .crawler-dashboard .detail-content,
+[data-theme="dark"] .crawler-dashboard .toolbar,
+[data-theme="dark"] .crawler-dashboard .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .stat-value,
+[data-theme="dark"] .crawler-dashboard .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .stat-label,
+[data-theme="dark"] .crawler-dashboard .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .crawler-dashboard .empty-state,
+[data-theme="dark"] .crawler-dashboard .empty-text {
+  color: #9ca3af;
 }
 </style>

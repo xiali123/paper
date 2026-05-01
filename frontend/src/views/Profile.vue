@@ -1,5 +1,5 @@
 <template>
-  <div class="profile-page">
+  <div class="profile-page" role="main" aria-label="个人资料">
     <!-- Profile Header Banner -->
     <div class="profile-header">
       <div class="header-banner">
@@ -2050,4 +2050,51 @@ onMounted(() => {
     grid-template-columns: repeat(2, 1fr);
   }
 }
-	</style>
+	
+
+/* Dark mode */
+[data-theme="dark"] .profile-page {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .profile-page .page-header,
+[data-theme="dark"] .profile-page .page-title,
+[data-theme="dark"] .profile-page .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .profile-page .page-subtitle,
+[data-theme="dark"] .profile-page .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .profile-page .stat-card,
+[data-theme="dark"] .profile-page .filter-card,
+[data-theme="dark"] .profile-page .tasks-card,
+[data-theme="dark"] .profile-page .chart-card,
+[data-theme="dark"] .profile-page .table-card,
+[data-theme="dark"] .profile-page .form-card,
+[data-theme="dark"] .profile-page .detail-header,
+[data-theme="dark"] .profile-page .detail-content,
+[data-theme="dark"] .profile-page .toolbar,
+[data-theme="dark"] .profile-page .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .profile-page .stat-value,
+[data-theme="dark"] .profile-page .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .profile-page .stat-label,
+[data-theme="dark"] .profile-page .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .profile-page .empty-state,
+[data-theme="dark"] .profile-page .empty-text {
+  color: #9ca3af;
+}
+</style>

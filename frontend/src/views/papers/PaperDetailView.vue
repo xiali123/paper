@@ -1,5 +1,5 @@
 <template>
-  <div class="paper-detail-view">
+  <div class="paper-detail-view" role="main" aria-label="论文详情">
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
       <el-skeleton animated>
@@ -677,5 +677,51 @@ onMounted(() => {
     flex-direction: column;
     gap: 8px;
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .paper-detail-view {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .page-header,
+[data-theme="dark"] .paper-detail-view .page-title,
+[data-theme="dark"] .paper-detail-view .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .page-subtitle,
+[data-theme="dark"] .paper-detail-view .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .paper-detail-view .stat-card,
+[data-theme="dark"] .paper-detail-view .filter-card,
+[data-theme="dark"] .paper-detail-view .tasks-card,
+[data-theme="dark"] .paper-detail-view .chart-card,
+[data-theme="dark"] .paper-detail-view .table-card,
+[data-theme="dark"] .paper-detail-view .form-card,
+[data-theme="dark"] .paper-detail-view .detail-header,
+[data-theme="dark"] .paper-detail-view .detail-content,
+[data-theme="dark"] .paper-detail-view .toolbar,
+[data-theme="dark"] .paper-detail-view .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .stat-value,
+[data-theme="dark"] .paper-detail-view .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .stat-label,
+[data-theme="dark"] .paper-detail-view .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .paper-detail-view .empty-state,
+[data-theme="dark"] .paper-detail-view .empty-text {
+  color: #9ca3af;
 }
 </style>
