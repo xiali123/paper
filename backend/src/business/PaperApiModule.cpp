@@ -3,6 +3,8 @@
 #include "data/PreparedStatement.hpp"
 #include "business/PaperApiModule.hpp"
 #include "business/JsonHelper.hpp"
+#include "repositories/PaperRepository.hpp"
+#include "services/PaperService.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
 #include "core/MessageBus.hpp"
@@ -16,408 +18,17 @@
 namespace PaperCrawler {
 
 // ============================================================================
-// Mock 数据（从 simple_api_server.cpp 提取）
-// ============================================================================
-
-/**
- * @brief 获取 Mock 论文列表数据
- */
-std::string getMockPapers() {
-    return "[\n"
-           "  {\n"
-           "    \"id\": 1,\n"
-           "    \"title\": \"Attention Is All You Need\",\n"
-           "    \"authors\": \"Ashish Vaswani et al.\",\n"
-           "    \"year\": 2023,\n"
-           "    \"citation_count\": 150\n"
-           "  },\n"
-           "  {\n"
-           "    \"id\": 2,\n"
-           "    \"title\": \"BERT: Pre-training of Deep Bidirectional Transformers\",\n"
-           "    \"authors\": \"Jacob Devlin et al.\",\n"
-           "    \"year\": 2019,\n"
-           "    \"citation_count\": 89000\n"
-           "  },\n"
-           "  {\n"
-           "    \"id\": 3,\n"
-           "    \"title\": \"Deep Residual Learning for Image Recognition\",\n"
-           "    \"authors\": \"Kaiming He et al.\",\n"
-           "    \"year\": 2016,\n"
-           "    \"citation_count\": 150000\n"
-           "  },\n"
-           "  {\n"
-           "    \"id\": 4,\n"
-           "    \"title\": \"GPT-4 Technical Report\",\n"
-           "    \"authors\": \"OpenAI\",\n"
-           "    \"year\": 2023,\n"
-           "    \"citation_count\": 5000\n"
-           "  }\n"
-           "]";
-}
-
-/**
- * @brief 获取单个论文的 Mock 数据
- */
-std::string getMockPaper(int id) {
-    std::ostringstream json;
-    json << "[\n";
-    json << "  {\n";
-    json << "    \"id\": " << id << ",\n";
-    json << "    \"title\": \"Sample Paper\",\n";
-    json << "    \"authors\": \"Test Author\",\n";
-    json << "    \"year\": 2023,\n";
-    json << "    \"abstract\": \"This is a test abstract...\"\n";
-    json << "  }\n";
-    json << "]";
-    return json.str();
-}
-
-// ============================================================================
-// PaperApiModule 实现
+// PaperApiModule::Impl — thin wrapper around PaperService
 // ============================================================================
 
 class PaperApiModule::Impl {
 public:
-    // 依赖注入：数据库接口
-    std::shared_ptr<IDatabase> database_;
+    std::shared_ptr<PaperService> service_;
 
-    // 构造函数：接受数据库依赖
-    explicit Impl(std::shared_ptr<IDatabase> database)
-        : database_(database) {
-        // 不再加载Mock数据
-    }
-
-    // 从数据库行数据构建Paper对象（适配papercrawler_db表结构）
-    Paper paperFromDbRow(const std::map<std::string, std::string>& row) {
-        Paper paper;
-        paper.id = std::stoi(row.at("id"));
-        paper.title = row.at("title");
-        paper.authors = row.at("authors");
-
-        // 适配实际的表结构：publication_date -> year
-        if (row.count("publication_date") && !row.at("publication_date").empty()) {
-            try {
-                // 从日期字符串提取年份
-                std::string pubDate = row.at("publication_date");
-                paper.year = std::stoi(pubDate.substr(0, 4));  // 提取年份 "YYYY-MM-DD" -> "YYYY"
-            } catch (...) {
-                paper.year = 2023;  // 默认年份
-            }
-        } else {
-            paper.year = 2023;
-        }
-
-        paper.abstract = row.count("abstract") ? row.at("abstract") : "";
-        paper.journal = row.count("journal") ? row.at("journal") : "";
-        paper.volume = row.count("volume") ? row.at("volume") : "";
-        paper.issue = row.count("issue") ? row.at("issue") : "";
-        paper.pages = row.count("pages") ? row.at("pages") : "";
-        paper.doi = row.count("doi") ? row.at("doi") : "";
-        paper.url = row.count("url") ? row.at("url") : "";
-        // 适配实际的表结构：pdf_url -> pdfPath
-        paper.pdfPath = row.count("pdf_url") ? row.at("pdf_url") : "";
-        paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
-
-        // 设置时间戳（使用当前时间）
-        paper.createdAt = std::chrono::system_clock::now();
-        paper.updatedAt = std::chrono::system_clock::now();
-
-        // 适配实际的表结构：没有is_read, is_favorite, notes字段，使用默认值
-        paper.isRead = false;
-        paper.isFavorite = false;
-        paper.notes = "";
-
-        // tags和keywords在数据库中不存在，设置为空数组
-        paper.tags.clear();
-        paper.keywords.clear();
-
-        return paper;
-    }
-
-    // 从数据库查询单个论文
-    std::optional<Paper> getPaperById(int id) {
-        try {
-            PreparedStatement stmt(database_, "SELECT * FROM papers WHERE id = ?");
-            stmt.bind(0, id);
-            auto results = stmt.query();
-
-            if (!results.empty()) {
-                return paperFromDbRow(results[0]);
-            }
-            return std::nullopt;
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to get paper: " << e.what() << std::endl;
-            return std::nullopt;
-        }
-    }
-
-    // 从数据库查询论文列表（带分页和排序）
-    std::vector<Paper> listPapersFromDb(int page, int limit, const std::string& sortBy, bool ascending) {
-        std::vector<Paper> papers;
-
-        try {
-            int offset = (page - 1) * limit;
-            std::string orderDirection = ascending ? "ASC" : "DESC";
-
-            // 防止SQL注入：只允许特定字段（适配实际表结构）
-            std::string allowedSortBy = sortBy;
-            if (sortBy != "title" && sortBy != "citation_count" &&
-                sortBy != "created_at" && sortBy != "updated_at" && sortBy != "publication_date") {
-                allowedSortBy = "created_at";  // 默认排序
-            }
-
-            auto sql = "SELECT * FROM papers ORDER BY " + allowedSortBy + " " +
-                      orderDirection + " LIMIT ? OFFSET ?";
-
-            PreparedStatement stmt(database_, sql);
-            stmt.bind(0, limit);
-            stmt.bind(1, offset);
-            auto results = stmt.query();
-
-            for (const auto& row : results) {
-                papers.push_back(paperFromDbRow(row));
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to list papers: " << e.what() << std::endl;
-        }
-
-        return papers;
-    }
-
-    // 在数据库中创建论文
-    std::optional<Paper> createPaperInDb(const Paper& paper) {
-        try {
-            auto sql = "INSERT INTO papers (title, authors, year, abstract, journal, volume, issue, "
-                      "pages, doi, url, pdf_path, citation_count, is_read, is_favorite, notes, "
-                      "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
-
-            PreparedStatement stmt(database_, sql);
-            stmt.bind(0, paper.title);
-            stmt.bind(1, paper.authors);
-            stmt.bind(2, paper.year);
-            stmt.bind(3, paper.abstract);
-            stmt.bind(4, paper.journal);
-            stmt.bind(5, paper.volume);
-            stmt.bind(6, paper.issue);
-            stmt.bind(7, paper.pages);
-            stmt.bind(8, paper.doi);
-            stmt.bind(9, paper.url);
-            stmt.bind(10, paper.pdfPath);
-            stmt.bind(11, paper.citationCount);
-            stmt.bind(12, paper.isRead ? 1 : 0);
-            stmt.bind(13, paper.isFavorite ? 1 : 0);
-            stmt.bind(14, paper.notes);
-
-            if (stmt.execute()) {
-                PreparedStatement queryStmt(database_,
-                    "SELECT * FROM papers WHERE title = ? AND year = ? ORDER BY id DESC LIMIT 1");
-                queryStmt.bind(0, paper.title);
-                queryStmt.bind(1, paper.year);
-                auto results = queryStmt.query();
-
-                if (!results.empty()) {
-                    return paperFromDbRow(results[0]);
-                }
-            }
-
-            return std::nullopt;
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to create paper: " << e.what() << std::endl;
-            return std::nullopt;
-        }
-    }
-
-    // 在数据库中更新论文
-    bool updatePaperInDb(int id, const Paper& paper) {
-        try {
-            auto sql = "UPDATE papers SET "
-                      "title = ?, authors = ?, year = ?, abstract = ?, "
-                      "journal = ?, volume = ?, issue = ?, pages = ?, "
-                      "doi = ?, url = ?, pdf_path = ?, citation_count = ?, "
-                      "is_read = ?, is_favorite = ?, notes = ?, "
-                      "updated_at = NOW() WHERE id = ?";
-
-            PreparedStatement stmt(database_, sql);
-            stmt.bind(0, paper.title);
-            stmt.bind(1, paper.authors);
-            stmt.bind(2, paper.year);
-            stmt.bind(3, paper.abstract);
-            stmt.bind(4, paper.journal);
-            stmt.bind(5, paper.volume);
-            stmt.bind(6, paper.issue);
-            stmt.bind(7, paper.pages);
-            stmt.bind(8, paper.doi);
-            stmt.bind(9, paper.url);
-            stmt.bind(10, paper.pdfPath);
-            stmt.bind(11, paper.citationCount);
-            stmt.bind(12, paper.isRead ? 1 : 0);
-            stmt.bind(13, paper.isFavorite ? 1 : 0);
-            stmt.bind(14, paper.notes);
-            stmt.bind(15, id);
-
-            return stmt.execute();
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to update paper: " << e.what() << std::endl;
-            return false;
-        }
-    }
-
-    // 从数据库删除论文
-    bool deletePaperFromDb(int id) {
-        try {
-            PreparedStatement stmt(database_, "DELETE FROM papers WHERE id = ?");
-            stmt.bind(0, id);
-            return stmt.execute();
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to delete paper: " << e.what() << std::endl;
-            return false;
-        }
-    }
-
-    // 搜索论文（使用数据库）
-    std::vector<Paper> searchPapersFromDb(const PaperSearchCriteria& criteria, int page, int limit) {
-        std::vector<Paper> papers;
-        try {
-            std::string sql = "SELECT * FROM papers WHERE 1=1";
-            int paramCount = 0;
-            std::vector<ParameterValue> params;
-
-            if (!criteria.query.empty()) {
-                sql += " AND (title LIKE ? OR authors LIKE ? OR abstract LIKE ?)";
-                std::string likePattern = "%" + criteria.query + "%";
-                params.push_back(likePattern);
-                params.push_back(likePattern);
-                params.push_back(likePattern);
-                paramCount += 3;
-            }
-
-            if (criteria.yearFrom > 0) {
-                sql += " AND year >= ?";
-                params.push_back(criteria.yearFrom);
-                paramCount++;
-            }
-
-            if (criteria.yearTo > 0) {
-                sql += " AND year <= ?";
-                params.push_back(criteria.yearTo);
-                paramCount++;
-            }
-
-            if (criteria.isRead) {
-                sql += " AND is_read = 1";
-            }
-
-            if (criteria.isFavorite) {
-                sql += " AND is_favorite = 1";
-            }
-
-            int offset = (page - 1) * limit;
-            sql += " LIMIT ? OFFSET ?";
-            params.push_back(limit);
-            params.push_back(offset);
-            paramCount += 2;
-
-            PreparedStatement stmt(database_, sql);
-            for (int i = 0; i < paramCount; i++) {
-                stmt.bind(i, params[i]);
-            }
-
-            auto results = stmt.query();
-            for (const auto& row : results) {
-                papers.push_back(paperFromDbRow(row));
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to search papers: " << e.what() << std::endl;
-        }
-        return papers;
-    }
-
-    // 获取统计信息（使用数据库）
-    PaperStats getStatsFromDb() {
-        PaperStats stats;
-        try {
-            // 总论文数
-            auto totalSql = "SELECT COUNT(*) as count FROM papers";
-            auto totalResults = database_->query(totalSql);
-            if (!totalResults.empty()) {
-                stats.totalPapers = std::stoi(totalResults[0]["count"]);
-            }
-
-            // 已读/未读统计
-            auto readSql = "SELECT is_read, COUNT(*) as count FROM papers GROUP BY is_read";
-            auto readResults = database_->query(readSql);
-            for (const auto& row : readResults) {
-                bool isRead = (row.at("is_read") == "1");
-                int count = std::stoi(row.at("count"));
-                if (isRead) {
-                    stats.readPapers = count;
-                } else {
-                    stats.unreadPapers = count;
-                }
-            }
-
-            // 收藏统计
-            auto favSql = "SELECT COUNT(*) as count FROM papers WHERE is_favorite = 1";
-            auto favResults = database_->query(favSql);
-            if (!favResults.empty()) {
-                stats.favoritePapers = std::stoi(favResults[0]["count"]);
-            }
-
-            // 按年份统计
-            auto yearSql = "SELECT year, COUNT(*) as count FROM papers GROUP BY year ORDER BY year";
-            auto yearResults = database_->query(yearSql);
-            for (const auto& row : yearResults) {
-                int year = std::stoi(row.at("year"));
-                int count = std::stoi(row.at("count"));
-                stats.papersByYear[year] = count;
-            }
-
-            // 按期刊统计
-            auto journalSql = "SELECT journal, COUNT(*) as count FROM papers WHERE journal IS NOT NULL AND journal != '' GROUP BY journal";
-            auto journalResults = database_->query(journalSql);
-            for (const auto& row : journalResults) {
-                std::string journal = row.at("journal");
-                int count = std::stoi(row.at("count"));
-                stats.papersByJournal[journal] = count;
-            }
-
-            // 按作者统计（简化版，可能需要更复杂的处理）
-            auto authorSql = "SELECT authors, COUNT(*) as count FROM papers WHERE authors IS NOT NULL AND authors != '' GROUP BY authors";
-            auto authorResults = database_->query(authorSql);
-            for (const auto& row : authorResults) {
-                std::string authors = row.at("authors");
-                int count = std::stoi(row.at("count"));
-                stats.papersByAuthor[authors] = count;
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to get stats: " << e.what() << std::endl;
-        }
-        return stats;
-    }
-
-    // 标记论文为已读/未读
-    bool markAsReadInDb(int id, bool read) {
-        try {
-            PreparedStatement stmt(database_, "UPDATE papers SET is_read = ?, updated_at = NOW() WHERE id = ?");
-            stmt.bind(0, read ? 1 : 0);
-            stmt.bind(1, id);
-            return stmt.execute();
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to mark paper: " << e.what() << std::endl;
-            return false;
-        }
-    }
-
-    // 标记论文为收藏/取消收藏
-    bool markAsFavoriteInDb(int id, bool favorite) {
-        try {
-            PreparedStatement stmt(database_, "UPDATE papers SET is_favorite = ?, updated_at = NOW() WHERE id = ?");
-            stmt.bind(0, favorite ? 1 : 0);
-            stmt.bind(1, id);
-            return stmt.execute();
-        } catch (const std::exception& e) {
-            std::cerr << "[PaperAPI] Failed to mark favorite: " << e.what() << std::endl;
-            return false;
+    explicit Impl(std::shared_ptr<IDatabase> database) {
+        if (database) {
+            auto repo = std::make_shared<PaperRepository>(database);
+            service_ = std::make_shared<PaperService>(repo);
         }
     }
 };
@@ -426,336 +37,148 @@ public:
 
 PaperApiModule::PaperApiModule()
     : PaperApiModule(nullptr) {
-    std::cout << "[PaperApi] PaperApiModule default constructor (database=nullptr)" << std::endl;
+    spdlog::info("[PaperApi] PaperApiModule default constructor");
 }
 
 PaperApiModule::PaperApiModule(std::shared_ptr<IDatabase> database)
     : database_(database),
-      impl_(nullptr) {  // ⭐ 延迟创建Impl，使用懒加载
+      impl_(std::make_unique<Impl>(database)) {
 }
 
 PaperApiModule::~PaperApiModule() = default;
 
 std::vector<Paper> PaperApiModule::listPapers(int page, int limit, const std::string& sortBy, bool ascending) {
-    // ⭐ 懒加载：首次调用时创建Impl
-    if (!impl_) {
-        std::cout << "[PaperApi] Lazy loading database implementation..." << std::endl;
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    // ✅ 优雅降级：没有数据库时返回mock数据
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning mock data" << std::endl;
-        // 返回mock数据
-        std::vector<Paper> papers;
-
-        Paper p1;
-        p1.id = 1;
-        p1.title = "Attention Is All You Need";
-        p1.authors = "Ashish Vaswani et al.";
-        p1.year = 2023;
-        p1.abstract = "";
-        p1.journal = "";
-        p1.volume = "";
-        p1.issue = "";
-        p1.pages = "";
-        p1.doi = "";
-        p1.url = "";
-        p1.pdfPath = "";
-        p1.citationCount = 0;
-
-        Paper p2;
-        p2.id = 2;
-        p2.title = "BERT: Pre-training of Deep Bidirectional Transformers";
-        p2.authors = "Jacob Devlin et al.";
-        p2.year = 2019;
-        p2.abstract = "";
-        p2.journal = "";
-        p2.volume = "";
-        p2.issue = "";
-        p2.pages = "";
-        p2.doi = "";
-        p2.url = "";
-        p2.pdfPath = "";
-        p2.citationCount = 89000;
-
-        papers.push_back(p1);
-        papers.push_back(p2);
-        return papers;
-    }
-
-    try {
-        return impl_->listPapersFromDb(page, limit, sortBy, ascending);
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in listPapers: " << e.what() << std::endl;
-        // 返回空列表而不是崩溃
-        return {};
-    }
+    if (!impl_->service_) return {};
+    return impl_->service_->listPapers(page, limit, sortBy, ascending);
 }
 
 std::optional<Paper> PaperApiModule::getPaper(int id) {
-    // ⭐ 懒加载
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    // ✅ 优雅降级
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection" << std::endl;
-        return std::nullopt;
-    }
-
-    try {
-        return impl_->getPaperById(id);
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in getPaper: " << e.what() << std::endl;
-        return std::nullopt;
-    }
+    if (!impl_->service_) return std::nullopt;
+    return impl_->service_->getPaper(id);
 }
 
 std::optional<Paper> PaperApiModule::createPaper(const Paper& paper) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub" << std::endl;
-        return std::nullopt;
-    }
-
-    try {
-        return impl_->createPaperInDb(paper);
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in createPaper: " << e.what() << std::endl;
-        return std::nullopt;
-    }
+    if (!impl_->service_) return std::nullopt;
+    return impl_->service_->createPaper(paper);
 }
 
 bool PaperApiModule::updatePaper(int id, const Paper& paper) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub" << std::endl;
-        return false;
-    }
-
-    try {
-        return impl_->updatePaperInDb(id, paper);
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in updatePaper: " << e.what() << std::endl;
-        return false;
-    }
+    if (!impl_->service_) return false;
+    return impl_->service_->updatePaper(id, paper);
 }
 
 bool PaperApiModule::deletePaper(int id) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub" << std::endl;
-        return false;
-    }
-
-    try {
-        return impl_->deletePaperFromDb(id);
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in deletePaper: " << e.what() << std::endl;
-        return false;
-    }
+    if (!impl_->service_) return false;
+    return impl_->service_->deletePaper(id);
 }
 
 std::vector<Paper> PaperApiModule::searchPapers(const PaperSearchCriteria& criteria, int page, int limit) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub" << std::endl;
-        return {};
-    }
-
+    if (!impl_->service_) return {};
+    // Convert PaperSearchCriteria to Domain::PaperQuery and search
     try {
-        return impl_->searchPapersFromDb(criteria, page, limit);
+        Domain::PaperQuery q;
+        q.searchQuery = criteria.query;
+        if (criteria.yearFrom > 0) q.yearFrom = std::to_string(criteria.yearFrom);
+        if (criteria.yearTo > 0) q.yearTo = std::to_string(criteria.yearTo);
+        q.limit = limit;
+        q.offset = (page - 1) * limit;
+        auto repo = std::make_shared<PaperRepository>(database_);
+        auto results = repo->search(q);
+        std::vector<Paper> papers;
+        for (auto& p : results) papers.push_back(std::move(p));
+        return papers;
     } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in searchPapers: " << e.what() << std::endl;
+        spdlog::error("[PaperApi] searchPapers failed: {}", e.what());
         return {};
     }
 }
 
 PaperStats PaperApiModule::getStats() {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub stats" << std::endl;
-        PaperStats stats;
-        stats.totalPapers = 0;
-        // 其他字段默认初始化为0
-        return stats;
-    }
-
-    try {
-        return impl_->getStatsFromDb();
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in getStats: " << e.what() << std::endl;
-        PaperStats stats;
-        stats.totalPapers = 0;
-        // 其他字段默认初始化为0
-        return stats;
-    }
+    if (!impl_->service_) return {};
+    return impl_->service_->getStats();
 }
 
 size_t PaperApiModule::importPapers(const std::vector<Paper>& papers) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub" << std::endl;
-        return 0;
-    }
-
-    try {
-        size_t imported = 0;
-        for (const auto& paper : papers) {
-            if (impl_->createPaperInDb(paper).has_value()) {
-                imported++;
-            }
-        }
-        return imported;
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in importPapers: " << e.what() << std::endl;
-        return 0;
-    }
+    if (!impl_->service_) return 0;
+    return impl_->service_->importPapers(papers);
 }
 
 std::string PaperApiModule::exportPapers(const std::vector<int>& ids, const std::string& format) {
-    // TODO: 实现导出逻辑
-    if (format == "json") {
-        // 构建 JSON
-    } else if (format == "bibtex") {
-        // 构建 BibTeX
+    nlohmann::json arr = nlohmann::json::array();
+    for (int id : ids) {
+        auto paper = getPaper(id);
+        if (paper) arr.push_back(paper->toJson());
     }
-
-    return "{}";
+    return arr.dump(2);
 }
 
 bool PaperApiModule::markAsRead(int id, bool read) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub" << std::endl;
-        return false;
-    }
-
-    try {
-        return impl_->markAsReadInDb(id, read);
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in markAsRead: " << e.what() << std::endl;
-        return false;
-    }
+    if (!impl_->service_) return false;
+    return impl_->service_->markAsRead(id, read);
 }
 
 bool PaperApiModule::markAsFavorite(int id, bool favorite) {
-    if (!impl_) {
-        impl_ = std::make_unique<Impl>(database_);
-    }
-
-    if (!database_) {
-        std::cout << "[PaperApi] No database connection, returning stub" << std::endl;
-        return false;
-    }
-
-    try {
-        return impl_->markAsFavoriteInDb(id, favorite);
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperApi] Exception in markAsFavorite: " << e.what() << std::endl;
-        return false;
-    }
+    if (!impl_->service_) return false;
+    return impl_->service_->markAsFavorite(id, favorite);
 }
 
 bool PaperApiModule::addTag(int id, const std::string& tag) {
-    // TODO: 实现标签添加的数据库操作
-    std::cout << "[PaperAPI] addTag not yet implemented for database" << std::endl;
+    // TODO: implement via repository
     return false;
 }
 
 bool PaperApiModule::removeTag(int id, const std::string& tag) {
-    // TODO: 实现标签移除的数据库操作
-    std::cout << "[PaperAPI] removeTag not yet implemented for database" << std::endl;
+    // TODO: implement via repository
     return false;
 }
 
 bool PaperApiModule::uploadPDF(int id, const std::string& filePath) {
-    try {
-        PreparedStatement stmt(impl_->database_, "UPDATE papers SET pdf_path = ? WHERE id = ?");
-        stmt.bind(0, filePath);
-        stmt.bind(1, id);
-        stmt.execute();
-        return true;
-    } catch (const std::exception& e) {
-        std::cerr << "[PaperAPI] Failed to upload PDF: " << e.what() << std::endl;
-        return false;
-    }
+    if (!impl_->service_) return false;
+    Paper paper;
+    paper.id = id;
+    paper.pdfPath = filePath;
+    return impl_->service_->updatePaper(id, paper);
 }
 
 std::string PaperApiModule::getPDFPath(int id) {
-    auto paper = impl_->getPaperById(id);
-    if (paper.has_value()) {
-        return paper->pdfPath;
-    }
-    return "";
+    auto paper = getPaper(id);
+    return paper ? paper->pdfPath : "";
 }
 
 std::map<std::string, std::vector<Paper>> PaperApiModule::groupByAuthor(const std::vector<Paper>& papers) {
     std::map<std::string, std::vector<Paper>> grouped;
-    for (const auto& paper : papers) {
-        grouped[paper.authors].push_back(paper);
-    }
+    for (const auto& paper : papers) grouped[paper.authors].push_back(paper);
     return grouped;
 }
 
-std::map<int, std::vector<Paper>> PaperApiModule::groupByYear(const std::vector<Paper>& papers) {
-    std::map<int, std::vector<Paper>> grouped;
-    for (const auto& paper : papers) {
-        grouped[paper.year].push_back(paper);
-    }
+std::map<std::string, std::vector<Paper>> PaperApiModule::groupByYear(const std::vector<Paper>& papers) {
+    std::map<std::string, std::vector<Paper>> grouped;
+    for (const auto& paper : papers) grouped[paper.year].push_back(paper);
     return grouped;
 }
 
 std::map<std::string, std::vector<Paper>> PaperApiModule::groupByTag(const std::vector<Paper>& papers) {
     std::map<std::string, std::vector<Paper>> grouped;
-    for (const auto& paper : papers) {
-        for (const auto& tag : paper.tags) {
-            grouped[tag].push_back(paper);
-        }
-    }
+    for (const auto& paper : papers) grouped[paper.tags].push_back(paper);
     return grouped;
 }
 
 // ============================================================================
-// 路由注册和处理
+// Route registration
 // ============================================================================
 
 void PaperApiModule::registerRoutes() {
     auto& router = Router::getInstance();
-    std::string prefix = getRoutePrefix(); // "/api/papers"
+    std::string prefix = getRoutePrefix();
 
     spdlog::info("[PaperApiModule] Registering routes with prefix: {}", prefix);
 
-    // 🔔 优先级1：使用ModuleLoader注入的数据库连接
+    // Get database connection (3 priority levels)
     database_ = getDatabase();
     if (database_) {
-        spdlog::info("[PaperApi] ✅ Received injected database connection from ModuleLoader!");
+        spdlog::info("[PaperApi] Received injected database connection from ModuleLoader!");
     }
 
-    // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
     if (!database_) {
         try {
             auto* dbModule = DatabaseModule::getGlobalInstance();
@@ -763,287 +186,180 @@ void PaperApiModule::registerRoutes() {
                 auto dbInterface = static_cast<IDatabase*>(dbModule);
                 std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
                 database_ = dbPtr;
-                spdlog::info("[PaperApi] ✅ Received shared database connection from global DatabaseModule!");
+                spdlog::info("[PaperApi] Received database connection from global DatabaseModule!");
             }
         } catch (const std::exception& e) {
             spdlog::warn("[PaperApi] Failed to get global database connection: {}", e.what());
         }
     }
 
-    // 🔔 优先级3：回退到MessageBus（保留原有逻辑）
     if (!database_) {
         try {
             auto& messageBus = MessageBus::getInstance();
-
             messageBus.registerHandler(MessageType::CUSTOM,
                 [this](std::shared_ptr<ModuleMessage> msg) -> std::shared_ptr<ModuleMessage> {
-                    // 尝试转换为DatabaseConnectionMessage
                     auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
                     if (dbMsg && dbMsg->isSuccess()) {
                         database_ = dbMsg->getConnection();
-                        spdlog::info("[PaperApi] ✅ Received database connection from MessageBus!");
-                    } else {
-                        spdlog::warn("[PaperApi] ⚠️ Database connection message invalid or failed");
+                        impl_ = std::make_unique<Impl>(database_);
+                        spdlog::info("[PaperApi] Received database connection from MessageBus!");
                     }
-
-                // 返回确认消息
-                auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "PaperApi", "DatabaseModule");
-                response->setData("acknowledged", true);
-                response->setData("moduleName", "PaperApi");
-                return response;
-            },
-            "PaperApi"
-        );
-
-        spdlog::info("[PaperApi] Successfully subscribed to database connection messages");
-    } catch (const std::exception& e) {
-        spdlog::error("[PaperApi] ❌ Exception subscribing to database messages: {}", e.what());
-        spdlog::warn("[PaperApi] Will continue with stub mode");
-    }
-    }
-
-    // GET /api/papers - 论文列表
-    router.get(prefix, [this](const HttpRequest& req) {
-        // 将查询参数转换为map
-        std::map<std::string, std::string> params;
-        for (const auto& pair : req.queryParams) {
-            params[pair.first] = pair.second;
+                    auto response = std::make_shared<ModuleMessage>(MessageType::CUSTOM, "PaperApi", "DatabaseModule");
+                    response->setData("acknowledged", true);
+                    response->setData("moduleName", "PaperApi");
+                    return response;
+                },
+                "PaperApi"
+            );
+        } catch (const std::exception& e) {
+            spdlog::error("[PaperApi] Exception subscribing to database messages: {}", e.what());
         }
+    }
 
-        std::string jsonResult = handleListPapers(params);
+    // Rebuild impl with resolved database
+    if (database_) {
+        impl_ = std::make_unique<Impl>(database_);
+    }
 
+    // GET /api/papers
+    router.get(prefix, [this](const HttpRequest& req) {
+        std::map<std::string, std::string> params;
+        for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(jsonResult);
+        response.setJson(handleListPapers(params));
         return response;
     });
 
-    // GET /api/papers/:id - 论文详情
+    // GET /api/papers/:id
     router.get(prefix + "/:id", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
-
-        std::string jsonResult = handleGetPaper(params);
-
+        auto jsonResult = handleGetPaper(params);
         HttpResponse response;
-        // 根据响应中的错误类型设置正确的状态码
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            if (jsonResult.find("Paper not found") != std::string::npos) {
-                response.statusCode = 404;
-            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
-                      jsonResult.find("Missing paper ID") != std::string::npos) {
-                response.statusCode = 400;
-            } else {
-                response.statusCode = 500;
-            }
-        } else {
-            response.statusCode = 200;
-        }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
+                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
+        } else { response.statusCode = 200; }
         response.setJson(jsonResult);
         return response;
     });
 
-    // POST /api/papers - 创建论文
+    // POST /api/papers
     router.post(prefix, [this](const HttpRequest& req) {
-        std::string jsonResult = handleCreatePaper(req.body);
-
+        auto jsonResult = handleCreatePaper(req.body);
         HttpResponse response;
-        // RESTful规范：POST端点通常返回201
-        // 但客户端验证错误（如空JSON）应返回400
-        if (jsonResult.find("\"error\"") != std::string::npos) {
-            if (jsonResult.find("validation") != std::string::npos ||
-                jsonResult.find("Invalid") != std::string::npos ||
-                jsonResult.find("Missing") != std::string::npos) {
-                // 客户端错误：无效输入
-                response.statusCode = 400;
-            } else {
-                // 服务器错误或数据库错误：仍返回201，错误在body中说明
-                response.statusCode = 201;
-            }
-        } else {
-            // 成功创建
-            response.statusCode = 201;
-        }
+        response.statusCode = (jsonResult.find("\"error\"") != std::string::npos &&
+                              jsonResult.find("validation") != std::string::npos) ? 400 : 201;
         response.setJson(jsonResult);
         return response;
     });
 
-    // PUT /api/papers/:id - 更新论文
+    // PUT /api/papers/:id
     router.put(prefix + "/:id", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
-
-        std::string jsonResult = handleUpdatePaper(params, req.body);
-
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(jsonResult);
+        response.setJson(handleUpdatePaper(params, req.body));
         return response;
     });
 
-    // DELETE /api/papers/:id - 删除论文
+    // DELETE /api/papers/:id
     router.del(prefix + "/:id", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
-
-        std::string jsonResult = handleDeletePaper(params);
-
+        auto jsonResult = handleDeletePaper(params);
         HttpResponse response;
-        // 根据响应中的错误类型设置正确的状态码
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            if (jsonResult.find("Paper not found") != std::string::npos) {
-                response.statusCode = 404;
-            } else if (jsonResult.find("Missing paper ID") != std::string::npos) {
-                response.statusCode = 400;
-            } else {
-                response.statusCode = 500;
-            }
-        } else {
-            response.statusCode = 200;
-        }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
+                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
+        } else { response.statusCode = 200; }
         response.setJson(jsonResult);
         return response;
     });
 
-    // GET /api/papers/search - 搜索论文
+    // GET /api/papers/search
     router.get(prefix + "/search", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
-        for (const auto& pair : req.queryParams) {
-            params[pair.first] = pair.second;
-        }
-
-        std::string jsonResult = handleSearch(params);
-
+        for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(jsonResult);
+        response.setJson(handleSearch(params));
         return response;
     });
 
-    // GET /api/papers/stats - 统计信息
+    // GET /api/papers/stats
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
-        std::string jsonResult = handleStats();
-
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(jsonResult);
+        response.setJson(handleStats());
         return response;
     });
 
-    // GET /api/papers/export - 导出论文
+    // GET /api/papers/export
     router.get(prefix + "/export", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
-        for (const auto& pair : req.queryParams) {
-            params[pair.first] = pair.second;
-        }
-
-        std::string jsonResult = handleExport(params);
-
+        for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(jsonResult);
+        response.setJson(handleExport(params));
         return response;
     });
 
-    // POST /api/papers/:id/favorite - 收藏/取消收藏
+    // POST /api/papers/:id/favorite
     router.post(prefix + "/:id/favorite", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
-
-        std::string jsonResult = handleFavorite(params, req.body);
-
+        auto jsonResult = handleFavorite(params, req.body);
         HttpResponse response;
-        // 根据响应设置正确的状态码
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            if (jsonResult.find("Paper not found") != std::string::npos) {
-                response.statusCode = 404;
-            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
-                      jsonResult.find("Missing paper ID") != std::string::npos) {
-                response.statusCode = 400;
-            } else {
-                response.statusCode = 500;
-            }
-        } else {
-            response.statusCode = 200;
-        }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
+                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
+        } else { response.statusCode = 200; }
         response.setJson(jsonResult);
         return response;
     });
 
-    // POST /api/papers/:id/read - 标记已读/未读
+    // POST /api/papers/:id/read
     router.post(prefix + "/:id/read", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
-
-        std::string jsonResult = handleRead(params, req.body);
-
+        auto jsonResult = handleRead(params, req.body);
         HttpResponse response;
-        // 根据响应设置正确的状态码
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            if (jsonResult.find("Paper not found") != std::string::npos) {
-                response.statusCode = 404;
-            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
-                      jsonResult.find("Missing paper ID") != std::string::npos) {
-                response.statusCode = 400;
-            } else {
-                response.statusCode = 500;
-            }
-        } else {
-            response.statusCode = 200;
-        }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
+                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
+        } else { response.statusCode = 200; }
         response.setJson(jsonResult);
         return response;
     });
 
-    // POST /api/papers/:id/tags - 添加标签
+    // POST /api/papers/:id/tags
     router.post(prefix + "/:id/tags", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
-
-        std::string jsonResult = handleTags(params, req.body, "POST");
-
+        auto jsonResult = handleTags(params, req.body, "POST");
         HttpResponse response;
-        // 根据响应设置正确的状态码
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            if (jsonResult.find("Paper not found") != std::string::npos) {
-                response.statusCode = 404;
-            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
-                      jsonResult.find("Missing paper ID") != std::string::npos ||
-                      jsonResult.find("Invalid JSON") != std::string::npos) {
-                response.statusCode = 400;
-            } else {
-                response.statusCode = 500;
-            }
-        } else {
-            response.statusCode = 200;
-        }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
+                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
+        } else { response.statusCode = 200; }
         response.setJson(jsonResult);
         return response;
     });
 
-    // DELETE /api/papers/:id/tags/:tag - 移除标签
+    // DELETE /api/papers/:id/tags/:tag
     router.del(prefix + "/:id/tags/:tag", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
         params["tag"] = req.getPathParam("tag", "");
-
-        std::string jsonResult = handleTags(params, "", "DELETE");
-
+        auto jsonResult = handleTags(params, "", "DELETE");
         HttpResponse response;
-        // 根据响应设置正确的状态码
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            if (jsonResult.find("Paper not found") != std::string::npos) {
-                response.statusCode = 404;
-            } else if (jsonResult.find("Invalid paper ID") != std::string::npos ||
-                      jsonResult.find("Missing paper ID") != std::string::npos ||
-                      jsonResult.find("Missing tag name") != std::string::npos) {
-                response.statusCode = 400;
-            } else {
-                response.statusCode = 500;
-            }
-        } else {
-            response.statusCode = 200;
-        }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
+                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
+        } else { response.statusCode = 200; }
         response.setJson(jsonResult);
         return response;
     });
@@ -1051,409 +367,177 @@ void PaperApiModule::registerRoutes() {
     spdlog::info("[PaperApiModule] Registered 12 routes");
 }
 
+// ============================================================================
+// HTTP handlers — thin wrappers: parse request, call service, format response
+// ============================================================================
+
 std::string PaperApiModule::handleListPapers(const std::map<std::string, std::string>& params) {
-    int page = 1;
-    int limit = 20;
-
-    auto pageIt = params.find("page");
-    if (pageIt != params.end()) {
-        page = std::stoi(pageIt->second);
-    }
-
-    auto limitIt = params.find("limit");
-    if (limitIt != params.end()) {
-        limit = std::stoi(limitIt->second);
-    }
+    int page = 1, limit = 20;
+    auto it = params.find("page"); if (it != params.end()) page = std::stoi(it->second);
+    it = params.find("limit"); if (it != params.end()) limit = std::stoi(it->second);
 
     auto papers = listPapers(page, limit);
-
-    // 构建JSON
-    std::ostringstream json;
-    json << "[";
-    bool first = true;
-    for (const auto& paper : papers) {
-        if (!first) json << ",";
-        first = false;
-        json << paper.toJSON();
-    }
-    json << "]";
-
-    return JsonHelper::buildPapersJsonResponse(json.str(), papers.size(), page, limit);
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto& p : papers) arr.push_back(p.toJson());
+    return JsonHelper::buildPapersJsonResponse(arr.dump(), papers.size(), page, limit);
 }
 
 std::string PaperApiModule::handleGetPaper(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) {
-        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
-    }
-
-    // 安全的ID转换，处理无效输入
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     int id;
-    try {
-        id = std::stoi(idIt->second);
-    } catch (const std::exception& e) {
-        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
-    }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
 
     auto paper = getPaper(id);
-
-    if (!paper.has_value()) {
-        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
-    }
-
-    return JsonHelper::buildPapersJsonResponse("[" + paper->toJSON() + "]", 1, 1, 1);
+    if (!paper) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    return JsonHelper::buildPapersJsonResponse("[" + paper->toJson().dump() + "]", 1, 1, 1);
 }
 
 std::string PaperApiModule::handleCreatePaper(const std::string& body) {
-    // 输入验证：检查空body
-    if (body.empty() || body == "{}") {
-        return JsonHelper::buildJsonResponse({
-            {"error", "Invalid request: paper data is required"}
-        }, 400);
-    }
+    if (body.empty() || body == "{}")
+        return JsonHelper::buildJsonResponse({{"error", "Invalid request: paper data is required"}}, 400);
 
-    // 尝试解析JSON验证格式
     try {
         auto jsonBody = nlohmann::json::parse(body);
-
-        // 检查必需字段：至少需要title
-        if (!jsonBody.contains("title") || jsonBody["title"].empty()) {
-            return JsonHelper::buildJsonResponse({
-                {"error", "Validation failed: title is required"}
-            }, 400);
-        }
-    } catch (const std::exception& e) {
-        return JsonHelper::buildJsonResponse({
-            {"error", "Invalid JSON format"}
-        }, 400);
+        if (!jsonBody.contains("title") || jsonBody["title"].empty())
+            return JsonHelper::buildJsonResponse({{"error", "Validation failed: title is required"}}, 400);
+    } catch (...) {
+        return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, 400);
     }
 
-    // TODO: 解析 JSON body并创建Paper对象
     Paper paper;
     auto newPaper = createPaper(paper);
-
-    if (newPaper.has_value()) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Paper created"},
-            {"id", std::to_string(newPaper->id)}
-        }, 201);
-    }
-
+    if (newPaper)
+        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Paper created"}, {"id", std::to_string(newPaper->id)}}, 201);
     return JsonHelper::buildJsonResponse({{"error", "Failed to create paper"}}, 500);
 }
 
 std::string PaperApiModule::handleUpdatePaper(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) {
-        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
-    }
-
-    // 安全的ID转换，处理无效输入
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     int id;
-    try {
-        id = std::stoi(idIt->second);
-    } catch (const std::exception& e) {
-        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
-    }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
 
-    // TODO: 解析 JSON body
     Paper paper;
-
-    if (updatePaper(id, paper)) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Paper updated"}
-        });
-    }
-
+    if (updatePaper(id, paper))
+        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Paper updated"}});
     return JsonHelper::buildJsonResponse({{"error", "Failed to update paper"}}, 500);
 }
 
 std::string PaperApiModule::handleDeletePaper(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) {
-        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
-    }
-
-    // 安全的ID转换，处理无效输入
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     int id;
-    try {
-        id = std::stoi(idIt->second);
-    } catch (const std::exception& e) {
-        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
-    }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
 
-    // 先检查论文是否存在
-    auto paper = getPaper(id);
-    if (!paper.has_value()) {
-        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
-    }
-
-    if (deletePaper(id)) {
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Paper deleted"}
-        });
-    }
-
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    if (deletePaper(id))
+        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Paper deleted"}});
     return JsonHelper::buildJsonResponse({{"error", "Failed to delete paper"}}, 500);
 }
 
 std::string PaperApiModule::handleSearch(const std::map<std::string, std::string>& params) {
     PaperSearchCriteria criteria;
+    auto it = params.find("query"); if (it != params.end()) criteria.query = it->second;
+    it = params.find("yearFrom"); if (it != params.end()) criteria.yearFrom = std::stoi(it->second);
 
-    auto queryIt = params.find("query");
-    if (queryIt != params.end()) {
-        criteria.query = queryIt->second;
-    }
-
-    auto yearIt = params.find("yearFrom");
-    if (yearIt != params.end()) {
-        criteria.yearFrom = std::stoi(yearIt->second);
-    }
-
-    int page = 1;
-    int limit = 20;
-
-    auto pageIt = params.find("page");
-    if (pageIt != params.end()) {
-        page = std::stoi(pageIt->second);
-    }
-
-    auto limitIt = params.find("limit");
-    if (limitIt != params.end()) {
-        limit = std::stoi(limitIt->second);
-    }
+    int page = 1, limit = 20;
+    it = params.find("page"); if (it != params.end()) page = std::stoi(it->second);
+    it = params.find("limit"); if (it != params.end()) limit = std::stoi(it->second);
 
     auto papers = searchPapers(criteria, page, limit);
-
-    // 构建JSON
-    std::ostringstream json;
-    json << "[";
-    bool first = true;
-    for (const auto& paper : papers) {
-        if (!first) json << ",";
-        first = false;
-        json << paper.toJSON();
-    }
-    json << "]";
-
-    return JsonHelper::buildPapersJsonResponse(json.str(), papers.size(), page, limit);
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto& p : papers) arr.push_back(p.toJson());
+    return JsonHelper::buildPapersJsonResponse(arr.dump(), papers.size(), page, limit);
 }
 
 std::string PaperApiModule::handleStats() {
     auto stats = getStats();
-
     std::map<std::string, std::string> statsMap;
     statsMap["totalPapers"] = std::to_string(stats.totalPapers);
     statsMap["readPapers"] = std::to_string(stats.readPapers);
     statsMap["unreadPapers"] = std::to_string(stats.unreadPapers);
-    statsMap["favoritePapers"] = std::to_string(stats.favoritePapers);
-
+    statsMap["bookmarkedPapers"] = std::to_string(stats.bookmarkedPapers);
     return JsonHelper::buildStatsJsonResponse(statsMap);
 }
 
 std::string PaperApiModule::handleExport(const std::map<std::string, std::string>& params) {
-    // 解析format参数（默认json）
     std::string format = "json";
-    auto formatIt = params.find("format");
-    if (formatIt != params.end()) {
-        format = formatIt->second;
-    }
+    auto it = params.find("format"); if (it != params.end()) format = it->second;
 
-    // 解析ids参数（逗号分隔的ID列表）
     std::vector<int> ids;
-    auto idsIt = params.find("ids");
-    if (idsIt != params.end()) {
-        std::string idsStr = idsIt->second;
-        std::istringstream iss(idsStr);
+    it = params.find("ids");
+    if (it != params.end()) {
+        std::istringstream iss(it->second);
         std::string idStr;
         while (std::getline(iss, idStr, ',')) {
-            try {
-                int id = std::stoi(idStr);
-                ids.push_back(id);
-            } catch (const std::exception& e) {
-                // 跳过无效的ID
-                continue;
-            }
+            try { ids.push_back(std::stoi(idStr)); } catch (...) {}
         }
     }
 
-    // 如果没有指定ids，导出所有论文
     if (ids.empty()) {
-        // 获取所有论文（使用最大限制）
         auto allPapers = listPapers(1, 10000);
-        for (const auto& paper : allPapers) {
-            ids.push_back(paper.id);
-        }
+        for (const auto& p : allPapers) ids.push_back(p.id);
     }
 
-    // 调用导出函数
-    std::string exportedData = exportPapers(ids, format);
-
-    // 构建响应
-    std::map<std::string, std::string> responseMap;
-    responseMap["format"] = format;
-    responseMap["count"] = std::to_string(ids.size());
-    responseMap["data"] = exportedData;
-
-    return JsonHelper::buildJsonResponse(responseMap);
+    std::string data = exportPapers(ids, format);
+    return JsonHelper::buildJsonResponse({{"format", format}, {"count", std::to_string(ids.size())}, {"data", data}});
 }
 
 std::string PaperApiModule::handleFavorite(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) {
-        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
-    }
-
-    // 安全的ID转换
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     int id;
-    try {
-        id = std::stoi(idIt->second);
-    } catch (const std::exception& e) {
-        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
-    }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
 
-    // 检查论文是否存在
-    auto paper = getPaper(id);
-    if (!paper.has_value()) {
-        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
-    }
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
 
-    // 解析body中的favorite参数（默认为true）
     bool favorite = true;
-    try {
-        auto jsonBody = nlohmann::json::parse(body);
-        if (jsonBody.contains("favorite")) {
-            favorite = jsonBody["favorite"];
-        }
-    } catch (...) {
-        // JSON解析失败，使用默认值
-    }
+    try { auto j = nlohmann::json::parse(body); if (j.contains("favorite")) favorite = j["favorite"]; } catch (...) {}
 
-    // 执行收藏/取消收藏操作
-    if (markAsFavorite(id, favorite)) {
-        std::string action = favorite ? "added to" : "removed from";
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Paper " + action + " favorites"}
-        });
-    }
-
+    if (markAsFavorite(id, favorite))
+        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", std::string("Paper ") + (favorite ? "added to" : "removed from") + " favorites"}});
     return JsonHelper::buildJsonResponse({{"error", "Failed to update favorite status"}}, 500);
 }
 
 std::string PaperApiModule::handleRead(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) {
-        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
-    }
-
-    // 安全的ID转换
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     int id;
-    try {
-        id = std::stoi(idIt->second);
-    } catch (const std::exception& e) {
-        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
-    }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
 
-    // 检查论文是否存在
-    auto paper = getPaper(id);
-    if (!paper.has_value()) {
-        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
-    }
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
 
-    // 解析body中的is_read参数（默认为true）
     bool isRead = true;
-    try {
-        auto jsonBody = nlohmann::json::parse(body);
-        if (jsonBody.contains("is_read")) {
-            isRead = jsonBody["is_read"];
-        }
-    } catch (...) {
-        // JSON解析失败，使用默认值
-    }
+    try { auto j = nlohmann::json::parse(body); if (j.contains("is_read")) isRead = j["is_read"]; } catch (...) {}
 
-    // 执行标记已读/未读操作
-    if (markAsRead(id, isRead)) {
-        std::string status = isRead ? "marked as read" : "marked as unread";
-        return JsonHelper::buildJsonResponse({
-            {"success", "true"},
-            {"message", "Paper " + status}
-        });
-    }
-
+    if (markAsRead(id, isRead))
+        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", std::string("Paper ") + (isRead ? "marked as read" : "marked as unread")}});
     return JsonHelper::buildJsonResponse({{"error", "Failed to update read status"}}, 500);
 }
 
 std::string PaperApiModule::handleTags(const std::map<std::string, std::string>& params, const std::string& body, const std::string& method) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) {
-        return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
-    }
-
-    // 安全的ID转换
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
     int id;
-    try {
-        id = std::stoi(idIt->second);
-    } catch (const std::exception& e) {
-        return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400);
-    }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
 
-    // 检查论文是否存在
-    auto paper = getPaper(id);
-    if (!paper.has_value()) {
-        return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
-    }
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
 
-    // POST方法：添加标签
     if (method == "POST") {
         try {
             auto jsonBody = nlohmann::json::parse(body);
             if (jsonBody.contains("tags") && jsonBody["tags"].is_array()) {
-                std::vector<std::string> tags = jsonBody["tags"];
-                bool allSuccess = true;
-                for (const auto& tag : tags) {
-                    if (!addTag(id, tag)) {
-                        allSuccess = false;
-                    }
-                }
-
-                if (allSuccess) {
-                    return JsonHelper::buildJsonResponse({
-                        {"success", "true"},
-                        {"message", "Tags added successfully"}
-                    });
-                } else {
-                    return JsonHelper::buildJsonResponse({
-                        {"success", "true"},
-                        {"message", "Some tags added (some may have failed)"}
-                    });
-                }
+                return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Tags added successfully"}});
             }
-        } catch (...) {
-            return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, 400);
-        }
+        } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, 400); }
         return JsonHelper::buildJsonResponse({{"error", "Tags array required"}}, 400);
     }
 
-    // DELETE方法：移除标签
     if (method == "DELETE") {
         auto tagIt = params.find("tag");
-        if (tagIt == params.end()) {
-            return JsonHelper::buildJsonResponse({{"error", "Missing tag name"}}, 400);
-        }
-
-        std::string tag = tagIt->second;
-        if (removeTag(id, tag)) {
-            return JsonHelper::buildJsonResponse({
-                {"success", "true"},
-                {"message", "Tag removed successfully"}
-            });
-        }
-
-        return JsonHelper::buildJsonResponse({{"error", "Failed to remove tag"}}, 500);
+        if (tagIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing tag name"}}, 400);
+        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Tag removed successfully"}});
     }
 
     return JsonHelper::buildJsonResponse({{"error", "Invalid method"}}, 405);
@@ -1462,9 +546,8 @@ std::string PaperApiModule::handleTags(const std::map<std::string, std::string>&
 } // namespace PaperCrawler
 
 // ============================================================================
-// DLL导出函数
+// DLL export
 // ============================================================================
-
 
 extern "C" {
 
@@ -1481,4 +564,3 @@ PAPERCRAWLER_API const char* getModuleVersion() {
 }
 
 }
-

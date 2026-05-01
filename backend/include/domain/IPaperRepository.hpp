@@ -7,6 +7,9 @@
 
 namespace PaperCrawler::Domain {
 
+using PaperCrawler::Paper;
+using PaperCrawler::PaperStats;
+
 /**
  * @brief 论文查询条件
  */

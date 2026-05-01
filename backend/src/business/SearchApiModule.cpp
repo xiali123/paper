@@ -113,9 +113,9 @@ public:
                 paper.id = std::stoi(row.at("id"));
                 paper.title = row.at("title");
                 paper.authors = row.at("authors");
-                paper.year = std::stoi(row.at("year"));
+                paper.year = row.count("year") ? row.at("year") : "";
                 paper.abstract = row.count("abstract") ? row.at("abstract") : "";
-                paper.journal = row.count("journal") ? row.at("journal") : "";
+                paper.publication = row.count("journal") ? row.at("journal") : "";
                 paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
                 papers.push_back(paper);
             }

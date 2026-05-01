@@ -506,6 +506,7 @@ elseif(UNIX)
     target_link_libraries(PaperCrawlerServerHotPlug
         PRIVATE
             ${MYSQL_LIBRARIES}
+            crypto
     )
 endif()
 
@@ -643,6 +644,9 @@ target_sources(SystemModules PRIVATE
     src/core/EventBusModule.cpp
     src/core/WatchdogModule.cpp
     src/core/ConfigManager.cpp
+    # Service layer
+    src/repositories/PaperRepository.cpp
+    src/services/PaperService.cpp
     # Gumbo解析器源文件（直接编译到SystemModules中）
     ${EXTERNAL_DIR}/gumbo/src/attribute.c
     ${EXTERNAL_DIR}/gumbo/src/char_ref.c
@@ -681,7 +685,8 @@ target_include_directories(SystemModules PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/../core/include
     ${EXTERNAL_DIR}/spdlog/include  # HttpClient需要spdlog
-    ${EXTERNAL_DIR}/nlohmann  # CrawlerModule需要nlohmann/json
+    ${EXTERNAL_DIR}/nlohmann  # nlohmann/json via <json.hpp>
+    ${EXTERNAL_DIR}           # nlohmann/json via <nlohmann/json.hpp>
     ${EXTERNAL_DIR}/gumbo/src  # TemplateCrawlerModule需要gumbo
 )
 

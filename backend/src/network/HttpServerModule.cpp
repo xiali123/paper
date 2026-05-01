@@ -542,7 +542,7 @@ void HttpServerModule::resetStats() {
     impl_->stats_ = HttpServerModule::ServerStats{};
 }
 
-std::string HttpServerModule::getCorsOrigin() const {
+std::string HttpServerModule::getCorsOrigin() {
     static std::string cached = []{
         auto& cfg = ConfigManager::getInstance();
         return cfg.getString("security.cors_origin", "http://localhost:3000");
