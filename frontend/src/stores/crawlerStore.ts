@@ -535,7 +535,7 @@ export const useCrawlerStore = defineStore(
       wsConnection = new WebSocket(wsUrl)
 
       wsConnection.onopen = () => {
-        console.log(`WebSocket connected for task ${taskId}`)
+        if (import.meta.env.DEV) console.log(`[CrawlerStore] WebSocket connected for task ${taskId}`)
       }
 
       wsConnection.onmessage = (event) => {
@@ -557,7 +557,7 @@ export const useCrawlerStore = defineStore(
       }
 
       wsConnection.onclose = () => {
-        console.log(`WebSocket closed for task ${taskId}`)
+        if (import.meta.env.DEV) console.log(`[CrawlerStore] WebSocket closed for task ${taskId}`)
         wsConnection = null
       }
     }
