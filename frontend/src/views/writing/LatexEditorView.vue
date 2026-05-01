@@ -2287,11 +2287,7 @@ const createVersionSnapshot = async (content: string, isAuto: boolean = true) =>
 
 
 
-    if (import.meta.env.DEV) {
-
-      console.log(`[Version] ${isAuto ? 'Auto' : 'Manual'} version created`)
-
-    }
+    if (import.meta.env.DEV) console.log(`[Version] ${isAuto ? 'Auto' : 'Manual'} version created`)
 
   } catch (error) {
 
@@ -2331,11 +2327,7 @@ const autoSave = useAutoSave(
 
     onSuccess: () => {
 
-      if (import.meta.env.DEV) {
-
-        console.log('Auto-save successful')
-
-      }
+      if (import.meta.env.DEV) console.log('Auto-save successful')
 
       // 显示保存成功提示（可选）
 
@@ -2701,11 +2693,7 @@ function handleExport(data: any) {
 
 
 
-  if (import.meta.env.DEV) {
-
-    console.log('Export:', format, options, filename)
-
-  }
+  if (import.meta.env.DEV) console.log('Export:', format, options, filename)
 
 
 
@@ -2787,11 +2775,7 @@ async function saveDocument() {
 
 
 
-  if (import.meta.env.DEV) {
-
-    console.log('Save document clicked, project mode:', isProjectMode.value)
-
-  }
+  if (import.meta.env.DEV) console.log('Save document clicked, project mode:', isProjectMode.value)
 
   saving.value = true
 
@@ -2817,11 +2801,7 @@ async function saveDocument() {
 
 
 
-    if (import.meta.env.DEV) {
-
-      console.log('Document saved successfully')
-
-    }
+    if (import.meta.env.DEV) console.log('Document saved successfully')
 
     // Show success message
 
@@ -2833,11 +2813,7 @@ async function saveDocument() {
 
     if (error.name === 'AbortError') {
 
-      if (import.meta.env.DEV) {
-
-        console.log('Save aborted')
-
-      }
+      if (import.meta.env.DEV) console.log('Save aborted')
 
       return
 
@@ -3167,7 +3143,7 @@ async function compileDocument() {
 
       if (result.log && import.meta.env.DEV) {
 
-        console.log('Compilation log:', result.log)
+        if (import.meta.env.DEV) console.log('Compilation log:', result.log)
 
       }
 
@@ -3183,11 +3159,7 @@ async function compileDocument() {
 
     if (error.name === 'AbortError') {
 
-      if (import.meta.env.DEV) {
-
-        console.log('Compilation aborted')
-
-      }
+      if (import.meta.env.DEV) console.log('Compilation aborted')
 
       return
 
@@ -3281,11 +3253,7 @@ function cancelCompile() {
 
 function toggleLeftPanel() {
 
-  if (import.meta.env.DEV) {
-
-    console.log('Toggle left panel, project mode:', isProjectMode.value, 'outline:', showOutline.value, 'tree:', showProjectTree.value)
-
-  }
+  if (import.meta.env.DEV) console.log('Toggle left panel, project mode:', isProjectMode.value, 'outline:', showOutline.value, 'tree:', showProjectTree.value)
 
 
 
@@ -3321,11 +3289,7 @@ function toggleLeftPanel() {
 
 
 
-  if (import.meta.env.DEV) {
-
-    console.log('After toggle - outline:', showOutline.value, 'tree:', showProjectTree.value)
-
-  }
+  if (import.meta.env.DEV) console.log('After toggle - outline:', showOutline.value, 'tree:', showProjectTree.value)
 
 }
 
@@ -3333,11 +3297,7 @@ function toggleLeftPanel() {
 
 function toggleOutline() {
 
-  if (import.meta.env.DEV) {
-
-    console.log('Toggle outline clicked, current state:', showOutline.value, 'project mode:', isProjectMode.value)
-
-  }
+  if (import.meta.env.DEV) console.log('Toggle outline clicked, current state:', showOutline.value, 'project mode:', isProjectMode.value)
 
 
 
@@ -3353,11 +3313,7 @@ function toggleOutline() {
 
       showProjectTree.value = false
 
-      if (import.meta.env.DEV) {
-
-        console.log('Opening outline, closing project tree')
-
-      }
+      if (import.meta.env.DEV) console.log('Opening outline, closing project tree')
 
     } else {
 
@@ -3367,11 +3323,7 @@ function toggleOutline() {
 
       showProjectTree.value = true
 
-      if (import.meta.env.DEV) {
-
-        console.log('Closing outline, opening project tree')
-
-      }
+      if (import.meta.env.DEV) console.log('Closing outline, opening project tree')
 
     }
 
@@ -3385,11 +3337,7 @@ function toggleOutline() {
 
 
 
-  if (import.meta.env.DEV) {
-
-    console.log('New outline state:', showOutline.value, 'project tree state:', showProjectTree.value)
-
-  }
+  if (import.meta.env.DEV) console.log('New outline state:', showOutline.value, 'project tree state:', showProjectTree.value)
 
 }
 
@@ -3435,11 +3383,7 @@ function navigateToSection(position: { line: number; column?: number }) {
 
   // Navigate to specific section/line in the editor
 
-  if (import.meta.env.DEV) {
-
-    console.log('Navigate to section:', position)
-
-  }
+  if (import.meta.env.DEV) console.log('Navigate to section:', position)
 
 
 
@@ -3475,11 +3419,7 @@ function navigateToSection(position: { line: number; column?: number }) {
 
 
 
-    if (import.meta.env.DEV) {
-
-      console.log('Navigation successful to line', line, 'column', column)
-
-    }
+    if (import.meta.env.DEV) console.log('Navigation successful to line', line, 'column', column)
 
   } catch (error) {
 
@@ -3495,11 +3435,7 @@ function handleOutlineFileSelect(file: any) {
 
   // 从大纲选择文件
 
-  if (import.meta.env.DEV) {
-
-    console.log('Outline file selected:', file)
-
-  }
+  if (import.meta.env.DEV) console.log('Outline file selected:', file)
 
 
 
@@ -3551,11 +3487,7 @@ function inviteUser(email: string) {
 
   // Handle user invitation
 
-  if (import.meta.env.DEV) {
-
-    console.log('Inviting user:', email)
-
-  }
+  if (import.meta.env.DEV) console.log('Inviting user:', email)
 
 }
 
@@ -3967,11 +3899,7 @@ onMounted(async () => {
 
     documentId.value = props.documentId
 
-    if (import.meta.env.DEV) {
-
-      console.log('Loading document:', props.documentId)
-
-    }
+    if (import.meta.env.DEV) console.log('Loading document:', props.documentId)
 
 
 
@@ -4023,11 +3951,7 @@ onMounted(async () => {
 
     documentId.value = newDoc.id
 
-    if (import.meta.env.DEV) {
-
-      console.log('Document created, content length:', editorContent.value?.length)
-
-    }
+    if (import.meta.env.DEV) console.log('Document created, content length:', editorContent.value?.length)
 
   }
 
@@ -4113,11 +4037,7 @@ async function handleFileDelete(fileId: number | string) {
 
 function handleFileSelect(file: any) {
 
-  if (import.meta.env.DEV) {
-
-    console.log('[LaTeX Editor] File selected:', file.name, 'path:', file.path)
-
-  }
+  if (import.meta.env.DEV) console.log('[LaTeX Editor] File selected:', file.name, 'path:', file.path)
 
 
 

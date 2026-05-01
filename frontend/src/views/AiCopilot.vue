@@ -89,15 +89,15 @@ const tabs = [
 ]
 
 const handleReviewGenerated = (review: any) => {
-  console.log('Review generated:', review)
+  if (import.meta.env.DEV) console.log('Review generated:', review)
 }
 
 const handleLiteratureReview = (review: any) => {
-  console.log('Literature review generated:', review)
+  if (import.meta.env.DEV) console.log('Literature review generated:', review)
 }
 
 const handleResearchPlan = (plan: any) => {
-  console.log('Research plan generated:', plan)
+  if (import.meta.env.DEV) console.log('Research plan generated:', plan)
 }
 </script>
 

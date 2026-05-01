@@ -171,7 +171,7 @@ const emit = defineEmits<{
 
 // 组件挂载时打印调试信息
 onMounted(() => {
-  console.log('[DiffViewer] Mounted with props:', {
+  if (import.meta.env.DEV) console.log('[DiffViewer] Mounted with props:', {
     versionsCount: props.versions.length,
     versions: props.versions.map(v => ({
       id: v.id,
@@ -350,7 +350,7 @@ const clearSelection = () => {
 
 // 处理版本变化
 const handleVersionsChange = () => {
-  console.log('[DiffViewer] Selected versions:', selectedVersionIds.value)
+  if (import.meta.env.DEV) console.log('[DiffViewer] Selected versions:', selectedVersionIds.value)
   // 清空缓存以重新计算
   versionLinesCache.value.clear()
 }

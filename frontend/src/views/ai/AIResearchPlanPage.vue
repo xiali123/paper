@@ -166,7 +166,7 @@ const stats = ref({
 })
 
 const handleNewPlan = () => {
-  console.log('Creating new research plan')
+  if (import.meta.env.DEV) console.log('Creating new research plan')
 }
 </script>
 
