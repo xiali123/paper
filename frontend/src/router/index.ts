@@ -344,27 +344,12 @@ router.beforeEach(async (to, from, next) => {
 
   // Initialize auth store if not already initialized
   const hasStoredTokens = localStorage.getItem('auth_tokens')
-  console.log('🔄 [Router] Navigation guard:', {
-    to: to.path,
-    isAuthenticated: authStore.isAuthenticated,
-    hasStoredTokens: !!hasStoredTokens,
-    hasUser: !!authStore.user,
-    hasTokens: !!authStore.tokens
-  })
 
   if (!authStore.isAuthenticated && hasStoredTokens) {
-    console.log('🔄 [Router] Initializing auth from localStorage...')
     try {
-      const result = await authStore.initializeAuth()
-      console.log('📦 [Router] initializeAuth() returned:', result)
-      console.log('📦 [Router] After initializeAuth():', {
-        isAuthenticated: authStore.isAuthenticated,
-        hasUser: !!authStore.user,
-        hasTokens: !!authStore.tokens
-      })
+      await authStore.initializeAuth()
     } catch (error) {
-      console.error('❌ [Router] Auth initialization failed:', error)
-      // Clear invalid tokens
+      if (import.meta.env.DEV) console.error('[Router] Auth initialization failed:', error)
       authStore.clearAuth()
     }
   }

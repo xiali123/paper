@@ -171,6 +171,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import DOMPurify from 'dompurify'
 import {
   Search,
   Close,
@@ -608,7 +609,8 @@ const highlightMatch = (text: string) => {
 
   const escaped = searchQuery.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${escaped})`, 'gi')
-  return text.replace(regex, '<mark>$1</mark>')
+  const highlighted = text.replace(regex, '<mark>$1</mark>')
+  return DOMPurify.sanitize(highlighted, { ALLOWED_TAGS: ['mark'] })
 }
 
 // 获取全局索引
