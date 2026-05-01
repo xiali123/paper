@@ -86,12 +86,12 @@ void SearchWidget::setupUI() {
     historyDropdown_->hide();
     historyDropdown_->setStyleSheet(
         "QListWidget#historyDropdown {"
-        "  background: white; border: 1px solid #e2e8f0; border-radius: 8px; "
+        "  background: palette(base); border: 1px solid palette(mid); border-radius: 8px; "
         "  padding: 4px; font-size: 11pt; }"
         "QListWidget#historyDropdown::item {"
         "  padding: 8px 16px; border-radius: 4px; }"
         "QListWidget#historyDropdown::item:hover {"
-        "  background: #f1f5f9; }"
+        "  background: palette(alternate-base); }"
         "QListWidget#historyDropdown::item:selected {"
         "  background: #e0e7ff; color: #4f46e5; }"
     );

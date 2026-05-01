@@ -5,6 +5,7 @@
 #include <QHBoxLayout>
 #include <QSplitter>
 #include <QProgressBar>
+#include <QElapsedTimer>
 #include <QLabel>
 #include <QTableView>
 #include <QStandardItemModel>
@@ -122,6 +123,7 @@ private:
     QPushButton* themeButton_{nullptr};
     QSystemTrayIcon* trayIcon_{nullptr};
     int lastRunningCount_{0};
+    QElapsedTimer healthTimer_;
 
     // State
     bool darkMode_{false};

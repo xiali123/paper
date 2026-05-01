@@ -117,14 +117,16 @@ MainWindow::MainWindow(QWidget* parent)
     }
 
     // Check API health on startup
+    healthTimer_.start();
     apiManager_->checkHealth();
 
     // Periodic health check every 30 seconds
-    auto* healthTimer = new QTimer(this);
-    connect(healthTimer, &QTimer::timeout, this, [this]() {
+    auto* healthCheckTimer = new QTimer(this);
+    connect(healthCheckTimer, &QTimer::timeout, this, [this]() {
+        healthTimer_.restart();
         apiManager_->checkHealth();
     });
-    healthTimer->start(30000);
+    healthCheckTimer->start(30000);
 
     statusBar()->showMessage("Ready - Ctrl+F: Search | Ctrl+E: Export | Ctrl+T: Theme | Ctrl+,: Settings", 5000);
 
@@ -1204,6 +1206,35 @@ void MainWindow::loadSettings() {
 
     restoreGeometry(settings.value("geometry").toByteArray());
     restoreState(settings.value("windowState").toByteArray());
+
+    // Apply saved theme
+    int themeIndex = settings.value("display/theme", 0).toInt();
+    if (themeIndex == 2 && themeManager_) {
+        // Dark
+        if (themeManager_->currentTheme() != ThemeManager::ThemeMode::Dark) {
+            themeManager_->toggleTheme();
+            themeButton_->setText("\xe2\x98\x80\xef\xb8\x8f");
+        }
+    } else if (themeIndex == 1 && themeManager_) {
+        // Light
+        if (themeManager_->currentTheme() == ThemeManager::ThemeMode::Dark) {
+            themeManager_->toggleTheme();
+            themeButton_->setText("\xf0\x9f\x8c\x99");
+        }
+    }
+
+    // Apply saved page size
+    int savedPageSize = settings.value("display/pageSize", 20).toInt();
+    currentLimit_ = savedPageSize;
+
+    // Apply saved server URL
+    QString savedUrl = settings.value("server/url", "http://localhost:8080").toString();
+    if (apiManager_) {
+        apiManager_->setBaseUrl(savedUrl);
+        if (authManager_) {
+            authManager_->setBaseUrl(savedUrl);
+        }
+    }
 }
 
 void MainWindow::saveSettings() {
@@ -1211,6 +1242,13 @@ void MainWindow::saveSettings() {
 
     settings.setValue("geometry", saveGeometry());
     settings.setValue("windowState", saveState());
+
+    // Save theme preference
+    if (themeManager_) {
+        int themeIndex = themeManager_->currentTheme() == ThemeManager::ThemeMode::Dark ? 2 : 1;
+        settings.setValue("display/theme", themeIndex);
+    }
+    settings.setValue("display/pageSize", currentLimit_);
 }
 
 void MainWindow::onSearch(const QString& keyword) {
@@ -1413,6 +1451,9 @@ void MainWindow::onSearchFailed(const QString& error) {
 }
 
 void MainWindow::onHealthCheckSuccess(bool healthy, const QString& message) {
+    Q_UNUSED(message);
+    qint64 latencyMs = healthTimer_.elapsed();
+
     if (heroWidget_) {
         heroWidget_->setHealthStatus(healthy
             ? HeroWidget::HealthStatus::Healthy
@@ -1431,7 +1472,26 @@ void MainWindow::onHealthCheckSuccess(bool healthy, const QString& message) {
                 "color: %1; background: %2;")
         .arg(healthy ? "#059669" : "#dc2626", healthy ? "#d1fae5" : "#fee2e2")
     );
-    healthLabel->setText(healthy ? "Online" : "Offline");
+    healthLabel->setText(healthy ? QString("Online %1ms").arg(latencyMs) : "Offline");
+
+    // Cache stats in status bar
+    auto* cacheLabel = findChild<QLabel*>("cacheStats");
+    if (!cacheLabel && paperCache_) {
+        cacheLabel = new QLabel(this);
+        cacheLabel->setObjectName("cacheStats");
+        cacheLabel->setStyleSheet("color: palette(mid); font-size: 11px; padding: 2px 6px;");
+        statusBar()->addPermanentWidget(cacheLabel);
+    }
+    if (cacheLabel && paperCache_) {
+        cacheLabel->setText(QString("Cache: %1").arg(paperCache_->getCacheSize()));
+    }
+
+    // Window title with status
+    QString title = healthy ? "PaperCrawler - Connected" : "PaperCrawler - Offline";
+    if (authManager_ && authManager_->isAuthenticated()) {
+        title += QString(" (%1)").arg(authManager_->getCurrentUser().username);
+    }
+    setWindowTitle(title);
 
     // Load recent papers on first health check success
     if (healthy) {
@@ -1509,19 +1569,38 @@ void MainWindow::onShowStatistics() {
 }
 
 void MainWindow::onAbout() {
+    int favCount = 0;
+    auto* favMgr = findChild<FavoriteManager*>();
+    if (favMgr) favCount = favMgr->getFavoriteCount();
+    int cacheSize = paperCache_ ? paperCache_->getCacheSize() : 0;
+    int dbCount = localDb_ ? localDb_->getPaperCount() : 0;
+
     QMessageBox::about(this, "About PaperCrawler",
-        "<h2>📚 PaperCrawler Desktop</h2>"
-        "<p>Version 1.0.0</p>"
-        "<p>A modern academic paper search and management tool.</p>"
+        QString(
+        "<h2>PaperCrawler Desktop</h2>"
+        "<p>Version 2.0.0</p>"
+        "<p>Academic paper search, management and analysis tool.</p>"
+        "<hr>"
         "<p><b>Features:</b></p>"
         "<ul>"
-        "<li>Search papers from DBLP</li>"
-        "<li>Fetch journal information</li>"
-        "<li>Export to CSV/JSON/BibTeX</li>"
-        "<li>Beautiful Qt6 GUI</li>"
+        "<li>Full-text search with pagination and caching</li>"
+        "<li>CCF level / year / type filters</li>"
+        "<li>Favorites with notes (%1 saved)</li>"
+        "<li>Export to CSV / BibTeX / JSON / PDF</li>"
+        "<li>Crawler task management</li>"
+        "<li>AI research assistant (chat + review)</li>"
+        "<li>Statistics dashboard</li>"
+        "<li>Local SQLite database (%2 papers)</li>"
+        "<li>Offline search fallback</li>"
+        "<li>Dark theme support</li>"
+        "<li>System tray integration</li>"
         "</ul>"
-        "<p><b>Web Version:</b> Run START-WEB.bat and visit http://localhost:5173</p>"
-        "<p>&copy; 2024 PaperCrawler Project</p>");
+        "<hr>"
+        "<p>Cache: %3 entries | Server: %4</p>"
+        "<p>Built with Qt 6 / C++17</p>"
+        "<p>&copy; 2026 PaperCrawler Project</p>"
+        ).arg(favCount).arg(dbCount).arg(cacheSize).arg(apiManager_->baseUrl())
+    );
 }
 
 void MainWindow::onPaperAdded(int paperId) {
