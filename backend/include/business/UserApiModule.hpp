@@ -3,6 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
+#include "features/security/SecurityModule.hpp"
 #include "../../core/external/nlohmann/json.hpp"
 #include <string>
 #include <vector>
