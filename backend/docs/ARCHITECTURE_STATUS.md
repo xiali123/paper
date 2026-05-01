@@ -1,11 +1,107 @@
 # PaperCrawler 模块化后端架构完成状态
 
-## 📊 总体进度
+> **2026-05-01修订**: 原文档声称100%完成，实际代码审计发现多个关键模块为stub/mock实现。以下为修正后的实际状态。
 
-**完成度**: 100% (架构设计阶段)
-**模块总数**: 34个 (31个系统模块 + 3个业务模块)
-**头文件总数**: 46个
-**代码行数**: ~5000+ 行
+## 总体进度（2026-05-01实际审计）
+
+**代码文件**: 85个（.cpp/.h）
+**架构完成度**: 设计100%，实现~60%
+**安全就绪度**: F级（mock加密，SQL注入）
+**生产就绪度**: 不可上线（需安全修复）
+
+### 实际模块清单和状态
+
+### 实际模块清单和状态
+
+#### 核心层 (src/core/) — 实现状态
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| Router.cpp | 可用 | 三层路由匹配（精确/参数/模块前缀） |
+| ModuleLoader.cpp | 可用 | 动态加载，优先级排序，健康检查 |
+| ModuleRegistry.cpp | 可用 | 模块元数据管理 |
+| PluginManager.cpp | 可用 | 与ModuleLoader功能重叠 |
+| MessageBus.cpp | 可用 | 点对点消息分发 |
+| EventBusModule.cpp | 可用 | pub/sub事件，异步worker |
+| HotReloadManager.cpp | 可用 | 文件监控DLL热重载 |
+| PoolCoordinator.cpp | 可用 | 三池联动 |
+| PoolModule.cpp | 可用 | 资源池管理 |
+| QueueModule.cpp | 可用 | 优先级队列 |
+| WatchdogModule.cpp | 可用 | 看门狗监控 |
+| SmartUnloadStrategy.cpp | 可用 | 智能卸载策略 |
+| ConfigManager.cpp | 可用 | 配置管理 |
+
+#### 业务层 (src/business/) — 实现状态
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| PaperApiModule.cpp | 有代码 | SQL注入漏洞，缺Service层 |
+| AuthApiModule.cpp | 有代码 | SQL注入，mock认证 |
+| UserApiModule.cpp | 有代码 | SQL注入，弱密码哈希 |
+| SearchApiModule.cpp | 有代码 | 搜索API |
+| ExportApiModule.cpp | 有代码 | 导出API |
+| StatsApiModule.cpp | 有代码 | 统计API |
+| AdminApiModule.cpp | 有代码 | 无admin鉴权 |
+| AiApiModule.cpp | 有代码 | AI功能 |
+| AiCoPilotModule.cpp | 有代码 | AI副驾驶 |
+| LatexApiModule.cpp | 有代码 | LaTeX API |
+| CrawlerApiModule.cpp | 有代码 | 爬虫API |
+| RecommendationApiModule.cpp | 有代码 | 推荐引擎 |
+| AnalyticsIntelligenceModule.cpp | 有代码 | 分析智能 |
+| CollaborativeWritingModule.cpp | 有代码 | 协作写作（依赖WebSocket stub） |
+
+#### 数据层 (src/data/) — 实现状态
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| DatabaseModule.cpp | 可用 | MySQL连接池，硬编码凭据 |
+| SimpleMySQLDatabase.cpp | 有风险 | CLIENT_MULTI_STATEMENTS启用 |
+| CacheModule.cpp | 可用 | Redis缓存 |
+| RedisConnection.cpp | 可用 | Redis连接 |
+| RedisConnectionPool.cpp | 可用 | Redis连接池 |
+| MySqlConnection.cpp | 可用 | MySQL C API封装 |
+| FileStorageModule.cpp | 有风险 | 路径遍历漏洞 |
+| QueryBuilder.cpp | 可用 | 查询构建器 |
+| PreparedStatement.cpp | 可用 | 预处理语句（但部分API未使用） |
+
+#### 网络层 (src/network/) — 实现状态
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| HttpServerModule.cpp | 可用 | thread-per-connection模型，CORS通配符 |
+| HttpClient.cpp | 可用 | HTTP客户端 |
+| AsyncHttpClient.cpp | 可用 | 异步HTTP客户端 |
+| WebSocketModule.cpp | **STUB** | 全部为空实现，协作编辑不可用 |
+| WinHttpClient.cpp | 可用 | Windows HTTP客户端 |
+
+#### 功能层 (src/features/) — 实现状态
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| SecurityModule.cpp | **MOCK** | bcrypt/AES/HMAC全为占位符实现 |
+| SessionModule.cpp | 可用 | 会话管理 |
+| CircuitBreakerModule.cpp | 可用 | 熔断器 |
+| SchedulerModule.cpp | 可用 | 定时任务 |
+| MultiLevelCacheModule.cpp | 简陋 | 基于std::map，非真正多级缓存 |
+| CompressionModule.cpp | 可用 | 压缩模块 |
+| AsyncTaskModule.cpp | 可用 | 异步任务 |
+| ZeroCopyModule.cpp | 待验证 | 共享内存零拷贝 |
+| ApiGatewayModule.cpp | 可用 | API网关 |
+| ConfigModule.cpp | 可用 | 配置模块 |
+| FilterModule.cpp | 可用 | 过滤器链 |
+| LoggingModule.cpp | 可用 | 结构化日志 |
+| MetricsModule.cpp | 可用 | Prometheus指标 |
+| ValidationModule.cpp | 可用 | 请求验证（未集成到所有端点） |
+| BackupModule.cpp | 可用 | 备份模块 |
+| NotificationModule.cpp | 可用 | 通知模块 |
+| ProxyModule.cpp | 可用 | 反向代理 |
+| ResponseHandlerModule.cpp | 可用 | 响应处理 |
+| ResponseQueueModule.cpp | 可用 | 响应队列 |
+| APIDocumentationModule.cpp | 可用 | API文档生成 |
+
+#### 爬虫模块 (src/modules/) — 实现状态
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| CrawlerModule.cpp | 可用 | 基础爬虫 |
+| DBLPCrawler.cpp | 可用 | DBLP爬虫 |
+| TemplateCrawlerModule.cpp | 可用 | 模板爬虫（集成gumbo） |
+| CrawlerTemplateSerialization.cpp | 可用 | 模板序列化 |
+| DistributedTaskModule.cpp | 可用 | 分布式任务 |
 
 ---
 
@@ -220,95 +316,74 @@
 
 ---
 
-## 📁 目录结构
+## 实际目录结构（2026-05-01验证）
 
 ```
 backend/
-├── include/
-│   ├── framework/           # 核心框架 (6个)
-│   │   ├── IModule.hpp
-│   │   ├── ModuleExports.hpp
-│   │   ├── ModuleRegistry.hpp
-│   │   ├── SmartUnloadStrategy.hpp
-│   │   └── HotReloadManager.hpp
-│   │
-│   ├── communication/       # 通信层 (3个)
-│   │   ├── UnifiedMessage.hpp
-│   │   ├── MessagePool.hpp
-│   │   └── EventBusModule.hpp
-│   │
-│   ├── pool/               # 资源池 (2个)
-│   │   └── PoolCoordinator.hpp
-│   │
-│   ├── data/               # 数据层 (3个)
-│   │   ├── DatabaseModule.hpp
-│   │   ├── CacheModule.hpp
-│   │   └── FileStorageModule.hpp
-│   │
-│   ├── modules/            # 基础设施模块 (5个)
-│   │   ├── PoolModule.hpp
-│   │   ├── FilterModule.hpp
-│   │   ├── QueueModule.hpp
-│   │   ├── ResponseQueueModule.hpp
-│   │   └── ResponseHandlerModule.hpp
-│   │
-│   ├── performance/        # 性能优化 (4个)
-│   │   ├── MultiLevelCacheModule.hpp
-│   │   ├── CompressionModule.hpp
-│   │   ├── AsyncTaskModule.hpp
-│   │   └── ZeroCopyModule.hpp
-│   │
-│   ├── system/             # 系统服务 (2个)
-│   │   ├── LoggingModule.hpp
-│   │   └── ConfigModule.hpp
-│   │
-│   ├── monitoring/         # 监控 (1个)
-│   │   └── MetricsModule.hpp
-│   │
-│   ├── security/           # 安全 (2个)
-│   │   ├── SecurityModule.hpp
-│   │   └── SessionModule.hpp
-│   │
-│   ├── resilience/         # 弹性 (1个)
-│   │   └── CircuitBreakerModule.hpp
-│   │
-│   ├── scheduler/          # 调度 (1个)
-│   │   └── SchedulerModule.hpp
-│   │
-│   ├── notification/       # 通知 (1个)
-│   │   └── NotificationModule.hpp
-│   │
-│   ├── validation/         # 验证 (1个)
-│   │   └── ValidationModule.hpp
-│   │
-│   ├── network/            # 网络 (2个)
-│   │   ├── WebSocketModule.hpp
-│   │   └── HttpServerModule.hpp (待实现)
-│   │
-│   ├── documentation/      # 文档 (1个)
-│   │   └── APIDocumentationModule.hpp
-│   │
-│   ├── backup/             # 备份 (1个)
-│   │   └── BackupModule.hpp
-│   │
-│   ├── proxy/              # 代理 (1个)
-│   │   └── ProxyModule.hpp
-│   │
-│   └── business/           # 业务模块 (3个)
-│       ├── PaperApiModule.hpp
-│       ├── AuthApiModule.hpp
-│       └── StatsApiModule.hpp
-│
-├── config/
-│   └── modules.json        # 模块配置文件
-│
 ├── src/
-│   └── main.cpp            # 主程序入口
+│   ├── business/           # 业务层 (24个.cpp)
+│   │   ├── PaperApiModule.cpp, AuthApiModule.cpp, UserApiModule.cpp
+│   │   ├── SearchApiModule.cpp, ExportApiModule.cpp, StatsApiModule.cpp
+│   │   ├── AdminApiModule.cpp, AiApiModule.cpp, AiCoPilotModule*.cpp
+│   │   ├── LatexApiModule.cpp, CrawlerApiModule.cpp
+│   │   ├── RecommendationApiModule.cpp, AnalyticsIntelligenceModule.cpp
+│   │   ├── CollaborativeWriting*.cpp, RealTimeCollaborativeService.cpp
+│   │   ├── ResearchIntelligenceService.cpp, UnifiedAIWorkflow.cpp
+│   │   └── AIClients.cpp, AIResponseParser.cpp, AiCoPilotService.cpp
+│   │
+│   ├── core/               # 核心层 (18个.cpp)
+│   │   ├── Router.cpp, ModuleLoader.cpp, ModuleRegistry.cpp
+│   │   ├── PluginManager.cpp, MessageBus.cpp, EventBusModule.cpp
+│   │   ├── HotReloadManager.cpp, PoolCoordinator.cpp, PoolModule.cpp
+│   │   ├── QueueModule.cpp, WatchdogModule.cpp, SmartUnloadStrategy.cpp
+│   │   ├── ConfigManager.cpp, MessagePool.cpp, SharedBroadcastQueue.cpp
+│   │   ├── UnifiedMessage.cpp, main_refactored.cpp
+│   │   └── ...
+│   │
+│   ├── data/               # 数据层 (9个.cpp)
+│   │   ├── DatabaseModule.cpp, CacheModule.cpp, FileStorageModule.cpp
+│   │   ├── MySqlConnection.cpp, SimpleMySQLDatabase.cpp
+│   │   ├── RedisConnection.cpp, RedisConnectionPool.cpp
+│   │   ├── QueryBuilder.cpp, PreparedStatement.cpp
+│   │   └── ...
+│   │
+│   ├── network/            # 网络层 (5个.cpp)
+│   │   ├── HttpServerModule.cpp, HttpClient.cpp, AsyncHttpClient.cpp
+│   │   ├── WebSocketModule.cpp [STUB], WinHttpClient.cpp
+│   │   └── ...
+│   │
+│   ├── features/           # 功能层 (20个.cpp)
+│   │   ├── infrastructure/ (5): ApiGateway, Config, Filter, Logging, Metrics
+│   │   ├── operations/ (7): APIDoc, Backup, Notification, Proxy, Response, ResponseQueue, Validation
+│   │   ├── performance/ (4): MultiLevelCache, Compression, AsyncTask, ZeroCopy
+│   │   ├── resilience/ (2): CircuitBreaker, Scheduler
+│   │   └── security/ (2): SecurityModule [MOCK], SessionModule
+│   │
+│   ├── modules/            # 爬虫模块 (5个.cpp)
+│   │   ├── CrawlerModule.cpp, DBLPCrawler.cpp, TemplateCrawlerModule.cpp
+│   │   ├── CrawlerTemplateSerialization.cpp, DistributedTaskModule.cpp
+│   │   └── ...
+│   │
+│   ├── collaboration/      # 协作层 (1个.cpp)
+│   │   └── OTEngine.cpp
+│   │
+│   └── common/             # 公共工具 (1个.cpp)
+│       └── JsonUtils.cpp
 │
-└── CMakeLists.txt          # CMake配置（待更新）
+├── include/                # 头文件 (110个.hpp)
+│   ├── business/, core/, data/, network/, features/
+│   ├── collaboration/, common/, modules/, interfaces/
+│   └── messages/, domain/, application/, prompts/
+│
+├── migrations/             # 数据库迁移 (11个.sql)
+├── tests/                  # 测试脚本
+├── scripts/                # 构建/部署脚本
+├── config.json             # 运行配置
+├── CMakeLists.txt          # 构建配置
+└── docs/                   # 文档
 ```
 
-**总计**: 46个头文件 + 1个配置文件 + 1个主程序 = 48个文件
+**总计**: 85个.cpp + 110个.hpp = 195个源文件, 70,570行代码
 
 ---
 
@@ -355,27 +430,30 @@ backend/
 
 ---
 
-## 🚀 下一步工作
+## 下一步工作（按优先级排序）
 
-### Phase 1: 实现文件（.cpp）
-- [ ] 为所有46个头文件创建对应的实现文件
-- [ ] 估计需要 ~15000 行代码
+### P0: 安全修复（阻断上线）
+- [ ] SecurityModule.cpp: 替换mock加密为OpenSSL实现（bcrypt, AES-256-GCM, HMAC）
+- [ ] AuthApiModule.cpp: 修复SQL注入 → 参数化查询
+- [ ] UserApiModule.cpp: 修复SQL注入 → 参数化查询
+- [ ] PaperApiModule.cpp: 修复SQL注入 → 参数化查询
+- [ ] FileStorageModule.cpp: 添加路径规范化验证
+- [ ] config.json: 移除硬编码凭据，改用环境变量
+- [ ] HttpServerModule.cpp: CORS限制具体域名
 
-### Phase 2: CMake配置
-- [ ] 更新根CMakeLists.txt
-- [ ] 为每个模块创建独立的CMakeLists.txt
-- [ ] 配置模块输出到build/lib/
+### P1: 功能补全
+- [ ] WebSocketModule.cpp: 从stub实现为完整WebSocket服务器
+- [ ] MultiLevelCacheModule.cpp: 从std::map升级为真正的L1/L2/L3缓存
+- [ ] HttpServerModule.cpp: 从thread-per-connection升级为异步I/O
+- [ ] 所有API模块: 添加ValidationModule集成
+- [ ] AdminApiModule.cpp: 添加admin角色鉴权中间件
 
-### Phase 3: 测试和验证
-- [ ] 编写单元测试
-- [ ] 集成测试
-- [ ] 性能测试
-- [ ] 压力测试
-
-### Phase 4: Standalone服务器
-- [ ] 为业务模块创建Python Flask服务器
-- [ ] 创建Mock数据
-- [ ] 生成OpenAPI规范
+### P2: 质量提升
+- [ ] 引入Google Test框架
+- [ ] 核心模块单元测试（Router, ModuleLoader, Security）
+- [ ] API集成测试（所有端点）
+- [ ] 统一错误处理框架
+- [ ] Service层抽象（从API层解耦业务逻辑）
 
 ---
 
@@ -392,14 +470,11 @@ backend/
 
 ---
 
-## 🎉 成就
+## 成就与现状
 
-- ✅ 完整的34模块架构设计
-- ✅ 清晰的模块划分和职责
-- ✅ 完善的依赖关系管理
-- ✅ 智能的热插拔机制
-- ✅ 生产级的功能覆盖
-- ✅ 高性能设计优化
-- ✅ 完整的配置和文档
+**架构设计**: 完成 — 模块化、热插拔、事件驱动架构设计优秀
+**代码实现**: ~60% — 大部分模块有代码，但2个关键模块为stub/mock
+**安全状态**: 不可上线 — SecurityModule mock + SQL注入 + 路径遍历
+**测试覆盖**: ~0% — 无单元测试，仅有shell脚本端点测试
 
-**这是一个完整的企业级、生产就绪的模块化后端架构！** 🚀
+**关键结论**: 架构设计达到A级水平，但实现和安全修复需要大量工作才能达到生产就绪。

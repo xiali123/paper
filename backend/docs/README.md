@@ -1,6 +1,6 @@
 # PaperCrawler 模块化后端
 
-> **C++17 高性能模块化后端系统** | 29个模块 | 100%完成度
+> **C++17 高性能模块化后端系统** | 85源文件/110头文件 | 安全评级F(需修复)
 
 ---
 
@@ -12,11 +12,11 @@
 
 ## 📊 核心数据
 
-- **模块数量**: 29个（业务6个 + 功能14个 + 核心9个）
-- **API端点**: 79个（业务64个 + 管理15个）
-- **代码量**: ~20,000行
-- **性能**: 15,000+ RPS, P95<50ms
-- **完成度**: 100% ✅
+- **源文件**: 85个.cpp + 110个.hpp，70,570行
+- **业务模块**: 14个（Auth, Paper, User, Crawler, Search, AI, Latex, Export, Stats, Admin, Analytics, Collaborative, Recommendation, AiCoPilot）
+- **API端点**: 64+（文档覆盖中）
+- **安全状态**: F级（SecurityModule为mock，SQL注入存在）
+- **架构**: 热插拔动态DLL，模块化设计
 
 ---
 
@@ -125,7 +125,7 @@ GET  /api/export/:id/download # 下载文件
 ## 📚 详细文档
 
 - **[模块导航指南](./MODULE_GUIDE.md)** - 按功能查找模块
-- **[业务模块报告](./BUSINESS_MODULES_COMPLETE.md)** - 6个业务模块详解
+- **[业务模块报告](./BUSINESS_MODULES_COMPLETE.md)** - 14个业务模块详解
 - **[最终架构总结](./FINAL_ARCHITECTURE_SUMMARY.md)** - 完整架构说明
 
 ---
@@ -143,13 +143,21 @@ GET  /api/export/:id/download # 下载文件
 
 ## 📖 模块清单
 
-### 业务层 (6个)
-- ✅ PaperApiModule - 论文管理
-- ✅ AuthApiModule - 认证
-- ✅ StatsApiModule - 统计
-- ✅ UserApiModule - 用户管理
-- ✅ SearchApiModule - 搜索
-- ✅ ExportApiModule - 导出
+### 业务层 (14个)
+- PaperApiModule - 论文管理
+- AuthApiModule - 认证（mock加密）
+- StatsApiModule - 统计
+- UserApiModule - 用户管理
+- SearchApiModule - 搜索
+- ExportApiModule - 导出
+- AiApiModule - AI功能
+- AiCoPilotModule - AI副驾驶
+- LatexApiModule - LaTeX编辑
+- CrawlerApiModule - 爬虫管理
+- RecommendationApiModule - 推荐引擎
+- AnalyticsIntelligenceModule - 分析智能
+- CollaborativeWritingModule - 协作写作（依赖WS stub）
+- AdminApiModule - 系统管理（无鉴权）
 
 ### 功能层 (14个)
 - ✅ MultiLevelCacheModule - 多级缓存

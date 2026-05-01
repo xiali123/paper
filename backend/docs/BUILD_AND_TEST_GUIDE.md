@@ -2,7 +2,7 @@
 
 **更新日期**: 2026-04-02
 **适用版本**: Phase 1-2 完成版
-**代码量**: 27个文件，~9,000行C++
+**代码量**: 85个.cpp + 110个.hpp，70,570行（2026-05-01修订）
 
 ---
 
@@ -62,7 +62,7 @@ git clone https://github.com/your-repo/PaperCrawler.git
 cd PaperCrawler/backend
 
 # 或者切换到已存在的项目目录
-cd E:\PaperCrawler\backend
+cd backend
 ```
 
 ### 2. 创建构建目录

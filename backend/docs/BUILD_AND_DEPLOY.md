@@ -116,7 +116,7 @@ make test
 mysql -u root -p papercrawler
 
 # 执行迁移文件
-source E:/PaperCrawler/backend/migrations/005_add_ai_co_pilot_mysql.sql;
+source backend/migrations/005_add_ai_co_pilot_mysql.sql;
 
 # 验证表创建
 SHOW TABLES LIKE 'ai_%';

@@ -1,9 +1,18 @@
-# 🚀 部署指南 (Deployment Guide)
+# 部署指南 (Deployment Guide)
 
-**版本**: 1.0.0
-**部署日期**: 2026-04-04
-**环境**: Windows Server 2022 / Windows 11
-**状态**: 生产就绪 ✅
+**版本**: 2.0.0
+**最后更新**: 2026-05-01
+**环境**: Windows Server 2022 / Linux (Ubuntu 22.04+)
+**状态**: 不可上线（需安全修复）
+
+> **安全警告**: 当前系统不可部署到任何对外环境。原因：
+> 1. SecurityModule.cpp中所有加密为mock实现（bcrypt=XOR, AES=原文返回）
+> 2. 多个API模块存在SQL注入漏洞
+> 3. FileStorageModule存在路径遍历漏洞
+> 4. config.json中硬编码数据库密码
+> 5. 无HTTPS/TLS支持
+>
+> 请先完成 [BACKEND_ARCHITECTURE_REVIEW.md](./BACKEND_ARCHITECTURE_REVIEW.md) 中的P0安全修复。
 
 ---
 
@@ -98,15 +107,15 @@ FLUSH PRIVILEGES;
 
 -- 初始化表结构
 USE papercrawler;
-SOURCE E:/PaperCrawler/backend/database/schema.sql;
+SOURCE backend/database/schema.sql;
 ```
 
 #### 1.3 配置依赖库
 ```batch
 REM 复制依赖DLL到系统目录或应用目录
-copy C:\msys64\mingw64\bin\libxml2-2.dll   E:\PaperCrawler\backend\Release\
-copy C:\msys64\mingw64\bin\libcurl-4.dll    E:\PaperCrawler\backend\Release\
-copy C:\msys64\mingw64\bin\zlib1.dll       E:\PaperCrawler\backend\Release\
+copy C:\msys64\mingw64\bin\libxml2-2.dll   backend\Release\
+copy C:\msys64\mingw64\bin\libcurl-4.dll    backend\Release\
+copy C:\msys64\mingw64\bin\zlib1.dll       backend\Release\
 ```
 
 ---
@@ -115,8 +124,8 @@ copy C:\msys64\mingw64\bin\zlib1.dll       E:\PaperCrawler\backend\Release\
 
 #### 2.1 创建部署目录
 ```batch
-mkdir E:\PaperCrawler\Production
-cd E:\PaperCrawler\Production
+mkdir ..\Production
+cd ..\Production
 mkdir logs
 mkdir data
 mkdir backup
@@ -125,16 +134,16 @@ mkdir backup
 #### 2.2 复制文件
 ```batch
 REM 复制可执行文件
-copy E:\PaperCrawler\backend\build\Release\PaperCrawlerServer.exe E:\PaperCrawler\Production\
+copy backend\build\Release\PaperCrawlerServer.exe ..\Production\
 
 REM 复制动态模块
-xcopy /E /I E:\PaperCrawler\backend\build\Release\modules E:\PaperCrawler\Production\modules
+xcopy /E /I backend\build\Release\modules ..\Production\modules
 
 REM 复制配置文件
-copy E:\PaperCrawler\backend\config\config.json E:\PaperCrawler\Production\
+copy backend\config\config.json ..\Production\
 
 REM 复制依赖DLL
-copy E:\PaperCrawler\backend\build\Release\*.dll E:\PaperCrawler\Production\
+copy backend\build\Release\*.dll ..\Production\
 ```
 
 ---
@@ -173,10 +182,10 @@ copy E:\PaperCrawler\backend\build\Release\*.dll E:\PaperCrawler\Production\
 #### 3.2 设置文件权限
 ```batch
 REM 配置日志目录权限
-icacls E:\PaperCrawler\Production\logs /grant Users:F
+icacls ..\Production\logs /grant Users:F
 
 REM 配置数据目录权限
-icacls E:\PaperCrawler\Production\data /grant Users:F
+icacls ..\Production\data /grant Users:F
 ```
 
 ---
@@ -185,7 +194,7 @@ icacls E:\PaperCrawler\Production\data /grant Users:F
 
 #### 4.1 手动启动（测试）
 ```batch
-cd E:\PaperCrawler\Production
+cd ..\Production
 PaperCrawlerServer.exe
 ```
 
@@ -211,8 +220,8 @@ PaperCrawler Server v1.0.0
 REM 使用NSSM（Non-Sucking Service Manager）
 REM 下载: https://nssm.cc/download
 
-nssm install PaperCrawlerServer E:\PaperCrawler\Production\PaperCrawlerServer.exe
-nssm set PaperCrawlerServer AppDirectory E:\PaperCrawler\Production
+nssm install PaperCrawlerServer ..\Production\PaperCrawlerServer.exe
+nssm set PaperCrawlerServer AppDirectory ..\Production
 nssm set PaperCrawlerServer AppEnvironmentExtra "PATH=C:\msys64\mingw64\bin"
 nssm set PaperCrawlerServer DisplayName "PaperCrawler Server"
 nssm set PaperCrawlerServer Description "Academic Paper Crawling and Management System"
@@ -264,7 +273,111 @@ curl -X POST http://localhost:8080/api/users/login \
 #### 5.3 日志检查
 ```batch
 REM 查看日志文件
-type E:\PaperCrawler\Production\logs\papercrawler.log | findstr /C:"ERROR" /C:"WARN"
+type ..\Production\logs\papercrawler.log | findstr /C:"ERROR" /C:"WARN"
+```
+
+---
+
+## 🐧 Linux部署 (Ubuntu 22.04+)
+
+### 环境准备
+```bash
+# 安装编译工具链
+sudo apt update && sudo apt install -y build-essential cmake g++ libmysqlclient-dev libcurl4-openssl-dev libxml2-dev zlib1g-dev
+
+# 安装Redis (可选)
+sudo apt install -y redis-server
+sudo systemctl enable redis-server
+```
+
+### 编译
+```bash
+cd backend
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+```
+
+### 配置
+```bash
+# 复制配置模板
+cp ../config.example.json config.json
+
+# 编辑配置（使用环境变量替换硬编码凭据）
+# 编辑 config.json 设置数据库连接等
+```
+
+### 数据库初始化
+```bash
+mysql -u root -p -e "CREATE DATABASE papercrawler CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p papercrawler < ../migrations/001_init_schema_sqlite.sql
+# ... 按顺序执行其他migration
+```
+
+### 启动服务
+```bash
+# 直接启动
+./PaperCrawlerServer
+
+# 或使用systemd服务（生产环境推荐）
+```
+
+### systemd服务配置
+
+创建 `/etc/systemd/system/papercrawler.service`:
+```
+[Unit]
+Description=PaperCrawler Server
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+User=papercrawler
+WorkingDirectory=/opt/papercrawler
+ExecStart=/opt/papercrawler/PaperCrawlerServer
+Restart=always
+RestartSec=10
+Environment=LD_LIBRARY_PATH=/opt/papercrawler/lib
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable papercrawler
+sudo systemctl start papercrawler
+sudo systemctl status papercrawler
+```
+
+### Nginx反代配置
+```nginx
+server {
+    listen 80;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+### 验证
+```bash
+curl http://localhost:8080/health
+# 或通过nginx
+curl http://api.example.com/health
 ```
 
 ---
@@ -284,14 +397,14 @@ type E:\PaperCrawler\Production\logs\papercrawler.log | findstr /C:"ERROR" /C:"W
 
 2. **保留日志和数据**:
    ```batch
-   copy E:\PaperCrawler\Production\logs\*.* E:\PaperCrawler\Backup\logs\
-   copy E:\PaperCrawler\Production\data\*.* E:\PaperCrawler\Backup\data\
+   copy ..\Production\logs\*.* ..\Backup\logs\
+   copy ..\Production\data\*.* ..\Backup\data\
    ```
 
 3. **恢复旧版本**:
    ```batch
-   copy E:\PaperCrawler\Backup\PaperCrawlerServer.exe E:\PaperCrawler\Production\
-   xcopy /E /I /Y E:\PaperCrawler\Backup\modules E:\PaperCrawler\Production\modules
+   copy ..\Backup\PaperCrawlerServer.exe ..\Production\
+   xcopy /E /I /Y ..\Backup\modules ..\Production\modules
    ```
 
 4. **重启服务**:
@@ -320,10 +433,10 @@ type E:\PaperCrawler\Production\logs\papercrawler.log | findstr /C:"ERROR" /C:"W
 ### 日志监控
 ```batch
 REM 监控SQL注入尝试
-findstr /C:"SQL injection" /C:"malicious input" E:\PaperCrawler\Production\logs\papercrawler.log
+findstr /C:"SQL injection" /C:"malicious input" ..\Production\logs\papercrawler.log
 
 REM 监控错误
-findstr /C:"ERROR" E:\PaperCrawler\Production\logs\papercrawler.log
+findstr /C:"ERROR" ..\Production\logs\papercrawler.log
 ```
 
 ---
@@ -358,7 +471,7 @@ mysql -u papercrawler -p -e "SELECT 1"
 **解决方案**:
 ```batch
 REM 1. 检查DLL路径
-dir E:\PaperCrawler\Production\modules\dynamic\
+dir ..\Production\modules\dynamic\
 
 REM 2. 使用Dependency Walker检查依赖
 REM 下载: http://www.dependencywalker.com
@@ -400,6 +513,6 @@ dumpbin /EXPORTS xxx.dll
 
 ---
 
-**部署状态**: ✅ **就绪 (READY)**
-**文档版本**: 1.0.0
-**最后更新**: 2026-04-04 00:30
+**部署状态**: **不可上线 (NOT READY)** — 需先修复安全漏洞
+**文档版本**: 2.0.0
+**最后更新**: 2026-05-01

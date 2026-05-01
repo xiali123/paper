@@ -1,27 +1,33 @@
 # PaperCrawler 模块导航指南
 
-## 📚 快速导航
+> **2026-05-01修订**: 补全所有14个业务模块，修正目录结构与实际代码一致。
+
+## 快速导航
 
 ### 按功能分类查找模块
 
 **我想找...**
-- 📖 论文管理 → [PaperApiModule](#业务层-6个模块)
-- 🔐 用户认证 → [AuthApiModule](#业务层-6个模块)
-- 📊 系统统计 → [StatsApiModule](#业务层-6个模块)
-- 👥 用户管理 → [UserApiModule](#业务层-6个模块)
-- 🔍 高级搜索 → [SearchApiModule](#业务层-6个模块)
-- 📤 数据导出 → [ExportApiModule](#业务层-6个模块)
-- 🗄️ 数据库访问 → [DatabaseModule](#数据层-3个模块)
-- 💾 缓存管理 → [CacheModule](#数据层-3个模块)
-- 📁 文件存储 → [FileStorageModule](#数据层-3个模块)
-- 🌐 HTTP服务 → [HttpServerModule](#网络层-2个模块)
-- 🔌 WebSocket → [WebSocketModule](#网络层-2个模块)
-- 🔒 安全加密 → [SecurityModule](#安全层-2个模块)
-- 🔑 会话管理 → [SessionModule](#安全层-2个模块)
-- ⚡ 性能优化 → [性能层-4个模块](#性能层-4个模块)
-- 📝 日志监控 → [基础设施层-3个模块](#基础设施层-3个模块)
-- 🔄 弹性容错 → [弹性层-2个模块](#弹性层-2个模块)
-- ⏰ 任务调度 → [SchedulerModule](#运维层-8个模块)
+- 📖 论文管理 → [PaperApiModule](#业务层-14个模块)
+- 🔐 用户认证 → [AuthApiModule](#业务层-14个模块)
+- 📊 系统统计 → [StatsApiModule](#业务层-14个模块)
+- 👥 用户管理 → [UserApiModule](#业务层-14个模块)
+- 🔍 高级搜索 → [SearchApiModule](#业务层-14个模块)
+- 📤 数据导出 → [ExportApiModule](#业务层-14个模块)
+- 🤖 AI功能 → [AiApiModule](#业务层-14个模块)
+- 🤖 AI副驾驶 → [AiCoPilotModule](#业务层-14个模块)
+- 🧮 LaTeX编辑 → [LatexApiModule](#业务层-14个模块)
+- 🕷️ 爬虫管理 → [CrawlerApiModule](#业务层-14个模块)
+- 🎯 推荐引擎 → [RecommendationApiModule](#业务层-14个模块)
+- 📈 分析智能 → [AnalyticsIntelligenceModule](#业务层-14个模块)
+- ✍️ 协作写作 → [CollaborativeWritingModule](#业务层-14个模块)
+- 🔧 系统管理 → [AdminApiModule](#业务层-14个模块)
+- 🗄️ 数据库访问 → [DatabaseModule](#数据层)
+- 💾 缓存管理 → [CacheModule](#数据层)
+- 📁 文件存储 → [FileStorageModule](#数据层)
+- 🌐 HTTP服务 → [HttpServerModule](#网络层)
+- 🔌 WebSocket → [WebSocketModule](#网络层) **（当前为stub）**
+- 🔒 安全加密 → [SecurityModule](#安全层) **（当前为mock）**
+- 🔑 会话管理 → [SessionModule](#安全层)
 
 ---
 
@@ -49,18 +55,26 @@
 
 ---
 
-## 1️⃣ 业务层 (6个模块)
+## 1️⃣ 业务层 (14个模块)
 
 > **功能**: 提供业务API接口，处理具体业务逻辑
 
-| 模块 | 功能 | API数量 | 路由前缀 | 状态 |
-|------|------|--------|----------|------|
-| [PaperApiModule](#paperapimodule) | 论文管理 | 12 | `/api/papers` | ✅ |
-| [AuthApiModule](#authapimodule) | 用户认证 | 8 | `/api/auth` | ✅ |
-| [StatsApiModule](#statsapimodule) | 系统统计 | 7 | `/api/stats` | ✅ |
-| [UserApiModule](#userapimodule) | 用户管理 | 12 | `/api/users` | ✅ |
-| [SearchApiModule](#searchapimodule) | 高级搜索 | 13 | `/api/search` | ✅ |
-| [ExportApiModule](#exportapimodule) | 数据导出 | 12 | `/api/export` | ✅ |
+| 模块 | 功能 | 路由前缀 | 源文件 | 状态 |
+|------|------|----------|--------|------|
+| PaperApiModule | 论文管理 | `/api/papers` | src/business/PaperApiModule.cpp | 有代码，SQL注入 |
+| AuthApiModule | 用户认证 | `/api/auth` | src/business/AuthApiModule.cpp | 有代码，mock认证 |
+| UserApiModule | 用户管理 | `/api/users` | src/business/UserApiModule.cpp | 有代码，SQL注入 |
+| SearchApiModule | 高级搜索 | `/api/search` | src/business/SearchApiModule.cpp | 有代码 |
+| ExportApiModule | 数据导出 | `/api/export` | src/business/ExportApiModule.cpp | 有代码 |
+| StatsApiModule | 系统统计 | `/api/stats` | src/business/StatsApiModule.cpp | 有代码 |
+| AiApiModule | AI功能 | `/api/ai` | src/business/AiApiModule.cpp | 有代码 |
+| AiCoPilotModule | AI副驾驶 | `/api/ai/copilot` | src/business/AiCoPilotModule.cpp | 有代码 |
+| LatexApiModule | LaTeX编辑 | `/api/latex` | src/business/LatexApiModule.cpp | 有代码 |
+| CrawlerApiModule | 爬虫管理 | `/api/crawler` | src/business/CrawlerApiModule.cpp | 有代码 |
+| RecommendationApiModule | 推荐引擎 | `/api/recommendations` | src/business/RecommendationApiModule.cpp | 有代码 |
+| AnalyticsIntelligenceModule | 分析智能 | `/api/analytics` | src/business/AnalyticsIntelligenceModule.cpp | 有代码 |
+| CollaborativeWritingModule | 协作写作 | `/api/collaboration` | src/business/CollaborativeWritingModule.cpp | 有代码，依赖WS stub |
+| AdminApiModule | 系统管理 | `/api/admin` | src/business/AdminApiModule.cpp | 有代码，无鉴权 |
 
 ### 📄 PaperApiModule - 论文管理
 - **文件**: `src/business/PaperApiModule.cpp`
@@ -344,7 +358,7 @@ auto token = security.generateJWT(claims);
 
 ---
 
-**最后更新**: 2026-03-29
-**版本**: v1.0.0
-**模块总数**: 29个
-**完成度**: 100% ✅
+**最后更新**: 2026-05-01
+**版本**: v2.0.0
+**业务模块数**: 14个
+**关键问题**: SecurityModule为mock，WebSocketModule为stub

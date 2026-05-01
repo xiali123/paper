@@ -289,8 +289,8 @@ RecommendationModule.on("paper.added") → 更新推荐模型
 ```
 
 **实现**：
-- 复用：`E:\PaperCrawler\backend\include\modules\EventBusModule.hpp`
-- 文件：`E:\PaperCrawler\backend\src\core\EventDrivenIntegration.cpp`
+- 复用：`backend\include\modules\EventBusModule.hpp`
+- 文件：`backend\src\core\EventDrivenIntegration.cpp`
 - 优先级：P0（立即实施）
 
 ### 2. AI能力深度集成
@@ -315,7 +315,7 @@ RecommendationModule.on("paper.added") → 更新推荐模型
 - 平均成本：$0.0033/篇（降低94%）
 
 **实现**：
-- 文件：`E:\PaperCrawler\backend\src\business\UnifiedAIWorkflow.cpp`
+- 文件：`backend\src\business\UnifiedAIWorkflow.cpp`
 - 优先级：P0
 
 ### 3. 实时协作引擎
@@ -334,8 +334,8 @@ WebSocket连接 → 心跳机制（30秒） → 操作转换 → 冲突解决 �
 - 并发用户：100+（单文档）
 
 **实现**：
-- 复用：`E:\PaperCrawler\backend\include\modules\WebSocketModule.hpp`
-- 文件：`E:\PaperCrawler\backend\src\collaboration\OTEngine.cpp`
+- 复用：`backend\include\modules\WebSocketModule.hpp`
+- 文件：`backend\src\collaboration\OTEngine.cpp`
 - 优先级：P1
 
 ### 4. 知识图谱推荐引擎
@@ -352,7 +352,7 @@ WebSocket连接 → 心跳机制（30秒） → 操作转换 → 冲突解决 �
 - 语义搜索召回率：+30-40%
 
 **实现**：
-- 文件：`E:\PaperCrawler\backend\src\recommendation\GraphNeuralNetwork.cpp`
+- 文件：`backend\src\recommendation\GraphNeuralNetwork.cpp`
 - 优先级：P1
 
 ### 5. 边缘计算混合架构
@@ -370,7 +370,7 @@ WebSocket连接 → 心跳机制（30秒） → 操作转换 → 冲突解决 �
 - 减少80%云端流量
 
 **实现**：
-- 文件：`E:\PaperCrawler\backend\src\edge\HybridInferenceEngine.cpp`
+- 文件：`backend\src\edge\HybridInferenceEngine.cpp`
 - 优先级：P2
 
 ---
@@ -432,16 +432,16 @@ WebSocket连接 → 心跳机制（30秒） → 操作转换 → 冲突解决 �
 **目标**：搭建事件驱动架构和AI深度集成基础
 
 1. **事件驱动集成**（2周）
-   - 文件：`E:\PaperCrawler\backend\src\core\EventDrivenIntegration.cpp`
+   - 文件：`backend\src\core\EventDrivenIntegration.cpp`
    - 复用：`EventBusModule.hpp`
    - 实现：跨模块事件发布/订阅机制
 
 2. **统一AI工作流**（2周）
-   - 文件：`E:\PaperCrawler\backend\src\business\UnifiedAIWorkflow.cpp`
+   - 文件：`backend\src\business\UnifiedAIWorkflow.cpp`
    - 实现：RAG架构、三层缓存、成本优化
 
 3. **实时协作基础**（2周）
-   - 文件：`E:\PaperCrawler\backend\src\collaboration\OTEngine.cpp`
+   - 文件：`backend\src\collaboration\OTEngine.cpp`
    - 复用：`WebSocketModule.hpp`
    - 实现：OT算法、冲突解决
 
@@ -457,7 +457,7 @@ WebSocket连接 → 心跳机制（30秒） → 操作转换 → 冲突解决 �
 
 **数据库迁移**：
 ```sql
--- E:\PaperCrawler\backend\migrations\005_add_ai_co_pilot_mysql.sql
+-- backend\migrations\005_add_ai_co_pilot_mysql.sql
 
 CREATE TABLE ai_review_feedback (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -500,7 +500,7 @@ POST /api/ai-co-pilot/chat            # AI对话
 
 **数据库迁移**：
 ```sql
--- E:\PaperCrawler\backend\migrations\006_add_collaborative_writing_mysql.sql
+-- backend\migrations\006_add_collaborative_writing_mysql.sql
 
 CREATE TABLE collaborative_documents (
     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -702,18 +702,18 @@ POST /api/writing-studio/documents/:Id/suggestions # AI建议
 ## 📚 参考文档
 
 ### 架构基础
-- `E:\PaperCrawler\backend\include\core\ModuleBase.hpp` - 模块基类
-- `E:\PaperCrawler\backend\include\core\ServiceContainer.hpp` - 依赖注入
-- `E:\PaperCrawler\backend\include\modules\EventBusModule.hpp` - 事件总线
-- `E:\PaperCrawler\backend\include\modules\WebSocketModule.hpp` - WebSocket
+- `backend\include\core\ModuleBase.hpp` - 模块基类
+- `backend\include\core\ServiceContainer.hpp` - 依赖注入
+- `backend\include\modules\EventBusModule.hpp` - 事件总线
+- `backend\include\modules\WebSocketModule.hpp` - WebSocket
 
 ### 业务模块
-- `E:\PaperCrawler\backend\include\business\AiApiModule.hpp` - AI模块
-- `E:\PaperCrawler\backend\include\business\PaperApiModule.hpp` - 论文模块
-- `E:\PaperCrawler\backend\include\business\RecommendationApiModule.hpp` - 推荐模块
+- `backend\include\business\AiApiModule.hpp` - AI模块
+- `backend\include\business\PaperApiModule.hpp` - 论文模块
+- `backend\include\business\RecommendationApiModule.hpp` - 推荐模块
 
 ### 数据库
-- `E:\PaperCrawler\backend\migrations\` - 迁移文件目录
+- `backend\migrations\` - 迁移文件目录
 
 ---
 

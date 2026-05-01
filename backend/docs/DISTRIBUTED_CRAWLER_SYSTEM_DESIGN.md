@@ -894,7 +894,7 @@ CREATE TABLE crawler_statistics (
 
 ### 核心接口文件
 
-**E:\PaperCrawler\backend\include\business\CrawlerApiModule.hpp**
+**backend\include\business\CrawlerApiModule.hpp**
 
 ```cpp
 #pragma once
@@ -1257,44 +1257,44 @@ private:
 
 ### 核心模块文件（需创建）
 
-1. **E:\PaperCrawler\backend\include\modules\TemplateCrawlerModule.hpp**
+1. **backend\include\modules\TemplateCrawlerModule.hpp**
    - 模板爬虫引擎头文件
    - 定义核心数据结构和接口
 
-2. **E:\PaperCrawler\backend\src\modules\TemplateCrawlerModule.cpp**
+2. **backend\src\modules\TemplateCrawlerModule.cpp**
    - 模板解析引擎实现
    - 支持4种解析方式
 
-3. **E:\PaperCrawler\backend\include\modules\DistributedTaskModule.hpp**
+3. **backend\include\modules\DistributedTaskModule.hpp**
    - 分布式任务调度模块头文件
 
-4. **E:\PaperCrawler\backend\src\modules\DistributedTaskModule.cpp**
+4. **backend\src\modules\DistributedTaskModule.cpp**
    - 任务队列和分配实现
    - 工作节点管理
 
-5. **E:\PaperCrawler\backend\include\business\CrawlerApiModule.hpp**
+5. **backend\include\business\CrawlerApiModule.hpp**
    - REST API和WebSocket接口
 
-6. **E:\PaperCrawler\backend\src\business\CrawlerApiModule.cpp**
+6. **backend\src\business\CrawlerApiModule.cpp**
    - API端点实现
 
-7. **E:\PaperCrawler\backend\src\modules\CrawlerScheduler.cpp**
+7. **backend\src\modules\CrawlerScheduler.cpp**
    - 定时任务调度器
 
-8. **E:\PaperCrawler\backend\migrations\008_add_distributed_crawler_mysql.sql**
+8. **backend\migrations\008_add_distributed_crawler_mysql.sql**
    - 数据库迁移脚本
 
 ### 前端文件（需创建）
 
-9. **E:\PaperCrawler\frontend\src\crawler\CrawlerWorker.js**
+9. **..\frontend\src\crawler\CrawlerWorker.js**
    - 浏览器爬虫SDK
 
-10. **E:\PaperCrawler\frontend\src\crawler\TemplateEditor.vue**
+10. **..\frontend\src\crawler\TemplateEditor.vue**
     - 模板编辑器组件
 
 ### 配置文件（需创建）
 
-11. **E:\PaperCrawler\backend\config\crawler_templates.json**
+11. **backend\config\crawler_templates.json**
     - 预置模板库
 
 ---
