@@ -89,16 +89,17 @@ service.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    // Dedupe GET requests
-    if (config.method === 'GET') {
+    // Dedupe GET requests (skip if already dispatched internally)
+    if (config.method === 'GET' && !(config as any)._dedupeInternal) {
       const requestKey = getRequestKey(config)
 
       if (pendingRequests.has(requestKey)) {
-        console.log(`[RequestDedupe] Reusing existing request: ${config.url}`)
+        if (import.meta.env.DEV) {
+          console.log(`[RequestDedupe] Reusing existing request: ${config.url}`)
+        }
         return new Promise((resolve) => {
           const existingRequest = pendingRequests.get(requestKey)!
           existingRequest.request.then(resolve)
-          // Update timestamp
           pendingRequests.set(requestKey, {
             ...existingRequest,
             timestamp: Date.now()
@@ -106,15 +107,15 @@ service.interceptors.request.use(
         })
       }
 
-      const requestPromise = service(config)
+      // Mark to prevent re-entry into dedup logic
+      const dedupeConfig = { ...config, _dedupeInternal: true } as InternalAxiosRequestConfig
+      const requestPromise = service(dedupeConfig)
 
-      // Track the request
       pendingRequests.set(requestKey, {
         request: requestPromise,
         timestamp: Date.now()
       })
 
-      // Clean up completed requests
       requestPromise.finally(() => {
         pendingRequests.delete(requestKey)
       })

@@ -281,9 +281,11 @@ const formatTime = (timestamp: string) => {
   return date.toLocaleDateString()
 }
 
+import DOMPurify from 'dompurify'
+
 const formatMessage = (content: string) => {
-  // 将换行符转换为<br>标签
-  return content.replace(/\n/g, '<br>')
+  const html = content.replace(/\n/g, '<br>')
+  return DOMPurify.sanitize(html)
 }
 </script>
 

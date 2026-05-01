@@ -479,8 +479,11 @@ defineExpose({
 })
 
 onUnmounted(() => {
-  pdfDocument = null
-  // 清理object URL
+  // Free PDF.js internal resources before nulling
+  if (pdfDocument) {
+    pdfDocument.destroy()
+    pdfDocument = null
+  }
   if (objectUrl) {
     URL.revokeObjectURL(objectUrl)
     objectUrl = null

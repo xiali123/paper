@@ -146,7 +146,7 @@
                       'status-busy': worker.status === 'BUSY'
                     }"
                   >
-                    <CircleFilled />
+                    <SuccessFilled />
                   </el-icon>
                   {{ worker.name || worker.nodeId }}
                 </div>
@@ -560,7 +560,7 @@ import {
   RemoveFilled,
   CirclePlusFilled,
   Close,
-  CircleFilled,
+  SuccessFilled,
   CircleClose
 } from '@element-plus/icons-vue'
 

@@ -48,9 +48,9 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true, // Remove console.log in production
-        drop_debugger: true, // Remove debugger statements
-        pure_funcs: ['console.info', 'console.debug', 'console.warn'] // Remove specific console functions
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn']
       }
     },
     rollupOptions: {
@@ -58,9 +58,7 @@ export default defineConfig({
         manualChunks: {
           'element-plus': ['element-plus'],
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'charts': ['chart.js', 'vue-chartjs'],
-          'latex-math': ['katex', '@types/katex'],
-          'latex-syntax': ['prismjs'],
+          'latex-math': ['katex'],
           'security': ['dompurify'],
           'utils': ['lodash-es', 'date-fns'],
           'socket': ['socket.io-client'],

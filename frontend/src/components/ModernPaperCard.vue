@@ -165,7 +165,8 @@ const highlightedTitle = computed(() => {
 
   const keyword = props.highlightKeyword
   const title = props.paper.title
-  const regex = new RegExp(`(${keyword})`, 'gi')
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escaped})`, 'gi')
   return title.replace(regex, '<mark>$1</mark>')
 })
 

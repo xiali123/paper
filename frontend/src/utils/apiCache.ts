@@ -32,7 +32,14 @@ class ApiCache {
    */
   private generateKey(method: string, url: string, params?: any): string {
     const paramsStr = params ? JSON.stringify(params) : ''
-    return `${this.config.prefix}:${method}:${url}:${btoa(paramsStr)}`
+    // Simple hash to avoid btoa Unicode crash
+    let hash = 0
+    for (let i = 0; i < paramsStr.length; i++) {
+      const char = paramsStr.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash |= 0
+    }
+    return `${this.config.prefix}:${method}:${url}:${hash}`
   }
 
   /**

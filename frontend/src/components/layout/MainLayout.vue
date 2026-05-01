@@ -57,7 +57,7 @@ const isRouteReady = ref(true)
 
 // Computed
 const isSidebarCollapsed = computed(() => uiStore.isSidebarCollapsed)
-const isMobile = computed(() => window.innerWidth < 1024)
+const isMobile = ref(window.innerWidth < 1024)
 
 // Watch route changes for transition
 watch(
@@ -72,7 +72,7 @@ watch(
 
 // Methods
 function handleResize() {
-  // Close mobile sidebar when resizing to desktop
+  isMobile.value = window.innerWidth < 1024
   if (!isMobile.value && isMobileSidebarOpen.value) {
     isMobileSidebarOpen.value = false
   }
