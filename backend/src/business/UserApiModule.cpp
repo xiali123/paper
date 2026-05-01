@@ -343,10 +343,14 @@ public:
         }
     }
 
-    // 密码哈希
+    // 密码哈希 — 使用SecurityModule PBKDF2-HMAC-SHA256
     std::string hashPassword(const std::string& password) {
-        // TODO: 实现真实的bcrypt哈希
-        return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
+        auto result = securityModule_->hashPassword(password, 12);
+        if (result.success) {
+            return result.hash;
+        }
+        spdlog::error("[UserApi] Password hashing failed: {}", result.errorMessage);
+        throw std::runtime_error("Password hashing failed: " + result.errorMessage);
     }
 
     // 激活用户
