@@ -1,16 +1,21 @@
 #include <iostream>
 #include "data/DatabaseModule.hpp"
+#include "data/PreparedStatement.hpp"
 #include "business/ExportApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "core/Router.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
+#include "../../core/external/nlohmann/json.hpp"
 #include <sstream>
 #include <iomanip>
 #include <fstream>
 #include <filesystem>
 #include <chrono>
+#include <algorithm>
 #include <spdlog/spdlog.h>
+
+using json = nlohmann::json;
 
 namespace PaperCrawler {
 
@@ -643,6 +648,11 @@ void ExportApiModule::registerRoutes() {
         }
     }
 
+    // Sync database connection to impl_ so route handlers can use impl_->getPapersForExport()
+    if (database_ && !impl_->database_) {
+        impl_->database_ = database_;
+    }
+
     // 🔔 优先级3：回退到MessageBus（保留原有逻辑）
     if (!database_) {
     std::string prefix = getRoutePrefix(); // "/api/export"
@@ -672,16 +682,141 @@ void ExportApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"tasks\":[],\"count\":0,\"message\":\"No export tasks (stub mode)\"}";
+
+        json j;
+        j["success"] = true;
+        j["tasks"] = json::array();
+
+        // Collect in-memory export tasks into the response
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            for (const auto& [taskId, task] : exportTasks_) {
+                json item;
+                item["task_id"] = task.taskId;
+                item["user_id"] = task.userId;
+                item["paper_ids"] = task.paperIds;
+
+                std::string statusStr;
+                switch (task.status) {
+                    case ExportTaskStatus::PENDING:    statusStr = "pending"; break;
+                    case ExportTaskStatus::PROCESSING: statusStr = "processing"; break;
+                    case ExportTaskStatus::COMPLETED:  statusStr = "completed"; break;
+                    case ExportTaskStatus::FAILED:     statusStr = "failed"; break;
+                }
+                item["status"] = statusStr;
+                item["download_url"] = task.downloadUrl;
+                item["file_size"] = task.fileSize;
+                j["tasks"].push_back(item);
+            }
+        }
+
+        j["count"] = j["tasks"].size();
+        response.body = j.dump();
         return response;
     });
 
     // POST /api/export - 创建导出任务
     router.post(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 201;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"message\":\"Export task created (stub mode)\",\"task_id\":\"stub_task_id\"}";
+
+        // Parse request body
+        std::vector<int> paperIds;
+        ExportOptions options;
+        std::string formatStr = "json";
+
+        try {
+            auto j = json::parse(req.body);
+
+            if (j.contains("paper_ids") && j["paper_ids"].is_array()) {
+                for (const auto& id : j["paper_ids"]) {
+                    paperIds.push_back(id.get<int>());
+                }
+            }
+
+            if (j.contains("format") && j["format"].is_string()) {
+                formatStr = j["format"].get<std::string>();
+                // Convert to lowercase for matching
+                std::string lower = formatStr;
+                std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+                if (lower == "bibtex" || lower == "bib")       options.format = ExportFormat::BIBTEX;
+                else if (lower == "endnote")                   options.format = ExportFormat::ENDNOTE;
+                else if (lower == "csv")                       options.format = ExportFormat::CSV;
+                else if (lower == "xml")                       options.format = ExportFormat::XML;
+                else if (lower == "markdown" || lower == "md") options.format = ExportFormat::MARKDOWN;
+                else                                            options.format = ExportFormat::JSON;
+            }
+
+            if (j.contains("options") && j["options"].is_object()) {
+                auto& opts = j["options"];
+                if (opts.contains("include_abstract"))  options.includeAbstract  = opts["include_abstract"].get<bool>();
+                if (opts.contains("include_keywords"))  options.includeKeywords  = opts["include_keywords"].get<bool>();
+                if (opts.contains("include_references")) options.includeReferences = opts["include_references"].get<bool>();
+                if (opts.contains("include_citations")) options.includeCitations  = opts["include_citations"].get<bool>();
+                if (opts.contains("include_metadata"))  options.includeMetadata   = opts["include_metadata"].get<bool>();
+            }
+        } catch (const json::parse_error& e) {
+            spdlog::warn("[ExportApi] JSON parse error in POST /api/export: {}", e.what());
+        } catch (const std::exception& e) {
+            spdlog::warn("[ExportApi] Error parsing POST /api/export body: {}", e.what());
+        }
+
+        // Fetch papers from database if available
+        std::vector<Paper> papers;
+        if (database_ && !paperIds.empty()) {
+            try {
+                papers = impl_->getPapersForExport(paperIds);
+            } catch (const std::exception& e) {
+                spdlog::error("[ExportApi] Failed to fetch papers for export: {}", e.what());
+            }
+        }
+
+        // Perform the export using the appropriate format method
+        std::string content;
+        switch (options.format) {
+            case ExportFormat::JSON:
+                content = exportToJSON(papers, options);
+                break;
+            case ExportFormat::BIBTEX:
+                content = exportToBibTeX(papers, options);
+                break;
+            case ExportFormat::ENDNOTE:
+                content = exportToEndNote(papers, options);
+                break;
+            case ExportFormat::CSV:
+                content = exportToCSV(papers, options);
+                break;
+            case ExportFormat::XML:
+                content = exportToXML(papers, options);
+                break;
+            case ExportFormat::MARKDOWN:
+                content = exportToMarkdown(papers, options);
+                break;
+            default:
+                content = exportToJSON(papers, options);
+                break;
+        }
+
+        // Create an in-memory task record
+        std::string taskId = createExportTask("api_user", paperIds, options);
+
+        // Update stats
+        updateStats(options.format, true, static_cast<int>(content.size()));
+
+        response.statusCode = 201;
+        json result;
+        result["success"] = true;
+        result["message"] = "Export completed successfully";
+        result["task_id"] = taskId;
+        result["format"] = formatStr;
+        result["paper_count"] = papers.size();
+        result["content_length"] = content.size();
+
+        // Include the exported content inline
+        result["data"] = content;
+
+        response.body = result.dump();
         return response;
     });
 
@@ -690,7 +825,28 @@ void ExportApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"formats\":[\"JSON\",\"BIBTEX\",\"CSV\",\"PDF\",\"MARKDOWN\"],\"count\":5}";
+
+        auto formats = getSupportedFormats();
+        json j;
+        j["success"] = true;
+        j["formats"] = json::array();
+
+        for (const auto& fmt : formats) {
+            std::string name;
+            switch (fmt) {
+                case ExportFormat::JSON:     name = "JSON"; break;
+                case ExportFormat::BIBTEX:   name = "BIBTEX"; break;
+                case ExportFormat::ENDNOTE:  name = "ENDNOTE"; break;
+                case ExportFormat::CSV:      name = "CSV"; break;
+                case ExportFormat::XML:      name = "XML"; break;
+                case ExportFormat::MARKDOWN: name = "MARKDOWN"; break;
+                default:                     name = "UNKNOWN"; break;
+            }
+            j["formats"].push_back(name);
+        }
+
+        j["count"] = formats.size();
+        response.body = j.dump();
         return response;
     });
 
@@ -699,7 +855,33 @@ void ExportApiModule::registerRoutes() {
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"true\",\"total_exports\":0,\"successful_exports\":0,\"failed_exports\":0}";
+
+        auto stats = getStats();
+        json j;
+        j["success"] = true;
+        j["total_exports"] = stats.totalExports;
+        j["successful_exports"] = stats.successfulExports;
+        j["failed_exports"] = stats.failedExports;
+        j["total_bytes_exported"] = stats.totalBytesExported;
+
+        // Per-format breakdown
+        json byFormat = json::object();
+        for (const auto& [fmt, count] : stats.exportsByFormat) {
+            std::string name;
+            switch (fmt) {
+                case ExportFormat::JSON:     name = "JSON"; break;
+                case ExportFormat::BIBTEX:   name = "BIBTEX"; break;
+                case ExportFormat::ENDNOTE:  name = "ENDNOTE"; break;
+                case ExportFormat::CSV:      name = "CSV"; break;
+                case ExportFormat::XML:      name = "XML"; break;
+                case ExportFormat::MARKDOWN: name = "MARKDOWN"; break;
+                default:                     name = "UNKNOWN"; break;
+            }
+            byFormat[name] = count;
+        }
+        j["exports_by_format"] = byFormat;
+
+        response.body = j.dump();
         return response;
     });
 

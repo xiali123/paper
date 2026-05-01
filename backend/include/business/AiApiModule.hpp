@@ -34,6 +34,7 @@ struct AiConfig {
     double temperature{0.7};
     int maxTokens{1000};
     int timeoutSeconds{30};
+    bool allowMockFallback{true};    // allow mock data when API key is missing (backwards compat)
 };
 
 /**
