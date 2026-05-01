@@ -283,9 +283,6 @@ export function useWebSocket(
     disconnect();
   });
 
-  // 自动连接
-  connect();
-
   return {
     // 状态
     connectionState,

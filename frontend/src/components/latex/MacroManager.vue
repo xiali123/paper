@@ -281,7 +281,7 @@
             class="template-card"
             @click="useTemplate(tpl)"
           >
-            <div class="template-preview" v-html="tpl.preview"></div>
+            <div class="template-preview" v-html="sanitizePreview(tpl.preview)"></div>
             <div class="template-info">
               <div class="template-name">
                 <code>{{ tpl.name }}</code>
@@ -529,7 +529,7 @@
             class="library-template-card"
             @click="useTemplate(tpl)"
           >
-            <div class="template-card-preview" v-html="tpl.preview"></div>
+            <div class="template-card-preview" v-html="sanitizePreview(tpl.preview)"></div>
             <div class="template-card-info">
               <code class="template-card-name">{{ tpl.name }}</code>
               <p class="template-card-desc">{{ tpl.description }}</p>
@@ -574,6 +574,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import DOMPurify from 'dompurify'
 import {
   Plus,
   Download,
@@ -666,6 +667,10 @@ const previewingMacro = ref<MacroCommand | null>(null)
 const saving = ref(false)
 const formRef = ref<FormInstance>()
 const templateCategory = ref('all')
+
+function sanitizePreview(html: string): string {
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['span', 'code', 'strong', 'em', 'br', 'sub', 'sup'] })
+}
 const groupFilter = ref('')
 
 // 表单数据

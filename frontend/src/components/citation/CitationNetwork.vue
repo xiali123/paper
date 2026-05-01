@@ -204,7 +204,7 @@ function tickSimulation() {
   simAlpha *= 0.995
 }
 
-function animationLoop() { tickSimulation(); animFrameId = requestAnimationFrame(animationLoop) }
+function animationLoop() { tickSimulation(); if (simAlpha >= 0.001) animFrameId = requestAnimationFrame(animationLoop) }
 function resetSimulation() { initPositions(); simAlpha = 1.0 }
 function applyFilters() { simAlpha = Math.max(simAlpha, 0.3) }
 

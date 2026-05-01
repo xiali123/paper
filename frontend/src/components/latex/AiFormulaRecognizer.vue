@@ -139,6 +139,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
+import DOMPurify from 'dompurify'
 import {
   UploadFilled,
   Delete,
@@ -296,7 +297,7 @@ const renderedFormula = computed(() => {
   try {
     // 这里需要集成 KaTeX 或 MathJax
     // 简单演示：返回带格式的文本
-    return `<span style="font-family: 'Times New Roman', serif; font-size: 18px;">${result.value.latex}</span>`
+    return DOMPurify.sanitize(`<span style="font-family: 'Times New Roman', serif; font-size: 18px;">${result.value.latex}</span>`)
   } catch (err) {
     return result.value.latex
   }

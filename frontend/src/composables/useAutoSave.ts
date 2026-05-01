@@ -148,6 +148,9 @@ export function useAutoSave(
   // 防抖保存
   const debouncedPerformSave = debounce(performSave, debounceDelay)
 
+  // Watcher stop handle
+  let contentWatcher: (() => void) | null = null
+
   // 启动自动保存
   const startAutoSave = () => {
     // 创建防抖保存函数
@@ -159,7 +162,7 @@ export function useAutoSave(
     }, interval)
 
     // 监听内容变化
-    watch(content, (newContent, oldContent) => {
+    contentWatcher = watch(content, (newContent, oldContent) => {
       const hasChanges = newContent !== state.value.lastSavedContent
       state.value.hasUnsavedChanges = hasChanges
 
@@ -171,6 +174,7 @@ export function useAutoSave(
 
   // 停止自动保存
   const stopAutoSave = () => {
+    if (contentWatcher) { contentWatcher(); contentWatcher = null }
     if (autoSaveTimer) {
       clearInterval(autoSaveTimer)
       autoSaveTimer = null

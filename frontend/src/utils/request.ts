@@ -83,6 +83,9 @@ service.interceptors.request.use(
     // Add metadata for timing
     ;(config as any).metadata = { startTime: Date.now() }
 
+    // Cleanup stale dedup entries
+    cleanupOldRequests()
+
     // Add authorization header if token exists
     const token = getAccessToken()
     if (token) {
@@ -133,15 +136,13 @@ service.interceptors.response.use(
   (response: any) => {
     const duration = Date.now() - ((response.config as any)?.metadata?.startTime || 0)
     if (import.meta.env.DEV) {
-      console.log(`✅ API Success: ${response.config.method?.toUpperCase()} ${response.config.url} - ${duration}ms`)
-      console.log('📦 [Response] Raw response.data:', response.data)
+      console.log(`[API] ${response.config.method?.toUpperCase()} ${response.config.url} - ${duration}ms`)
     }
 
     // Extract data from backend response wrapper
     const responseData = response.data
     if (responseData && typeof responseData === 'object' && 'success' in responseData) {
       if (responseData.success && 'data' in responseData) {
-        console.log('📦 [Response] Extracting data:', responseData.data)
         return responseData.data
       }
       // Handle error responses from backend
@@ -155,7 +156,6 @@ service.interceptors.response.use(
     }
 
     // For responses without success wrapper (like health check)
-    console.log('📦 [Response] Returning response.data directly')
     return response.data
   },
   async (error: any) => {
@@ -183,7 +183,17 @@ service.interceptors.response.use(
       isRefreshing = true
 
       // Try to refresh token
-      const refreshToken = localStorage.getItem('refresh_token') || getAccessToken()
+      function getStoredRefreshToken(): string | null {
+        try {
+          const authData = localStorage.getItem('auth_tokens') || sessionStorage.getItem('auth_tokens')
+          if (authData) {
+            const tokens = JSON.parse(authData) as Record<string, unknown>
+            return (tokens.refreshToken as string) || null
+          }
+        } catch { /* ignore */ }
+        return null
+      }
+      const refreshToken = getStoredRefreshToken()
       if (refreshToken) {
         try {
           const response = await axios.post('/api/auth/refresh', { refreshToken })

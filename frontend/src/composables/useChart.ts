@@ -4,7 +4,9 @@
  */
 
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { Chart, ChartConfiguration, ChartType } from 'chart.js/auto'
+import { Chart, ChartConfiguration, ChartType, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, RadialLinearScale, Title, Tooltip, Legend, Filler } from 'chart.js'
+
+Chart.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, RadialLinearScale, Title, Tooltip, Legend, Filler)
 
 export interface ChartOptions {
   type: ChartType

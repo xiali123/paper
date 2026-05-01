@@ -284,8 +284,7 @@ export const latexApi = {
    */
   createCollaborationSession: async (requestData: CollaborationSessionRequest): Promise<CollaborationSessionResponse> => {
     try {
-      const response = await request.post('/api/latex/collaboration/sessions', requestData)
-      return response.data
+      return await request.post('/api/latex/collaboration/sessions', requestData)
     } catch (error) {
       console.error('Failed to create collaboration session:', error)
       return {
@@ -300,8 +299,7 @@ export const latexApi = {
    */
   updateCursorPosition: async (requestData: CursorPositionRequest): Promise<CursorPositionResponse> => {
     try {
-      const response = await request.put('/api/latex/collaboration/cursor', requestData)
-      return response.data
+      return await request.put('/api/latex/collaboration/cursor', requestData)
     } catch (error) {
       console.error('Failed to update cursor position:', error)
       return {
@@ -414,8 +412,7 @@ Your conclusion here.
    */
   validateLatex: async (content: string) => {
     try {
-      const response = await request.post('/api/latex/validate', { content })
-      return response.data
+      return await request.post('/api/latex/validate', { content })
     } catch (error) {
       console.error('LaTeX validation failed:', error)
       // 客户端验证作为后备

@@ -227,7 +227,8 @@ const truncatedVenue = computed(() => {
 const highlightedTitle = computed(() => {
   if (!props.highlightKeyword) return props.paper.title
 
-  const regex = new RegExp(`(${props.highlightKeyword})`, 'gi')
+  const escaped = props.highlightKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escaped})`, 'gi')
   return props.paper.title.replace(regex, '<mark class="paper-card__highlight">$1</mark>')
 })
 

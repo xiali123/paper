@@ -8,7 +8,7 @@
  * - Track synchronization status
  */
 
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useCache } from './useCache'
 
 // ============================================================================
@@ -224,6 +224,12 @@ export function useOfflineStorage() {
     } catch (error) {
       console.error('Failed to initialize offline storage:', error)
     }
+  })
+
+  // Cleanup event listeners on unmount
+  onUnmounted(() => {
+    window.removeEventListener('online', handleOnline)
+    window.removeEventListener('offline', handleOffline)
   })
 
   // Event handlers

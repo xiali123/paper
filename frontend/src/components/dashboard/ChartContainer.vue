@@ -54,7 +54,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, computed, nextTick } from 'vue'
-import { Chart, type ChartConfiguration, type ChartType } from 'chart.js/auto'
+import { Chart, type ChartConfiguration, type ChartType, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js'
+
+Chart.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler)
 import { Refresh, Loading, Warning } from '@element-plus/icons-vue'
 
 /**

@@ -77,7 +77,7 @@ export const usePaperStore = defineStore(
     // Computed Properties
     // ========================================================================
 
-    /** Filtered papers */
+    /** Filtered papers (client-side: only filters currently loaded page) */
     const filteredPapers = computed(() => {
       let result = papers.value
 
