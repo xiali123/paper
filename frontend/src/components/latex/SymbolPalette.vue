@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
@@ -202,19 +203,14 @@ function getFilteredSymbols(symbols: Symbol[]): Symbol[] {
 
 function renderSymbol(symbol: Symbol): string {
   try {
+    let html: string
     if (symbol.command.includes('{ }') || symbol.command.includes('{}')) {
-      // 对于需要参数的命令，显示简化版本
       const simplified = symbol.command.replace(/\{ ?\}?/g, 'x')
-      return katex.renderToString(simplified, {
-        displayMode: false,
-        throwOnError: false
-      })
+      html = katex.renderToString(simplified, { displayMode: false, throwOnError: false })
+    } else {
+      html = katex.renderToString(symbol.command, { displayMode: false, throwOnError: false })
     }
-
-    return katex.renderToString(symbol.command, {
-      displayMode: false,
-      throwOnError: false
-    })
+    return DOMPurify.sanitize(html)
   } catch {
     return symbol.command
   }
