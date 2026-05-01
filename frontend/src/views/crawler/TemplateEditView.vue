@@ -776,4 +776,50 @@ onMounted(async () => {
     margin-bottom: $spacing-4;
   }
 }
+
+/* Dark mode */
+[data-theme="dark"] .template-edit {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-edit .page-header,
+[data-theme="dark"] .template-edit .page-title,
+[data-theme="dark"] .template-edit .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-edit .page-subtitle,
+[data-theme="dark"] .template-edit .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .template-edit .stat-card,
+[data-theme="dark"] .template-edit .filter-card,
+[data-theme="dark"] .template-edit .tasks-card,
+[data-theme="dark"] .template-edit .chart-card,
+[data-theme="dark"] .template-edit .table-card,
+[data-theme="dark"] .template-edit .form-card,
+[data-theme="dark"] .template-edit .detail-header,
+[data-theme="dark"] .template-edit .detail-content,
+[data-theme="dark"] .template-edit .toolbar,
+[data-theme="dark"] .template-edit .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-edit .stat-value,
+[data-theme="dark"] .template-edit .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-edit .stat-label,
+[data-theme="dark"] .template-edit .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .template-edit .empty-state,
+[data-theme="dark"] .template-edit .empty-text {
+  color: #9ca3af;
+}
 </style>

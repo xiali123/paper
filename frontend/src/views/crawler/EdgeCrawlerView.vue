@@ -1,5 +1,5 @@
 <template>
-  <div class="edge-crawler">
+  <div class="edge-crawler" role="main" aria-label="边缘爬虫">
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-left">
@@ -929,5 +929,51 @@ onMounted(() => {
     line-height: 1.8;
     margin-bottom: 16px;
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .edge-crawler {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .edge-crawler .page-header,
+[data-theme="dark"] .edge-crawler .page-title,
+[data-theme="dark"] .edge-crawler .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .edge-crawler .page-subtitle,
+[data-theme="dark"] .edge-crawler .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .edge-crawler .stat-card,
+[data-theme="dark"] .edge-crawler .filter-card,
+[data-theme="dark"] .edge-crawler .tasks-card,
+[data-theme="dark"] .edge-crawler .chart-card,
+[data-theme="dark"] .edge-crawler .table-card,
+[data-theme="dark"] .edge-crawler .form-card,
+[data-theme="dark"] .edge-crawler .detail-header,
+[data-theme="dark"] .edge-crawler .detail-content,
+[data-theme="dark"] .edge-crawler .toolbar,
+[data-theme="dark"] .edge-crawler .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .edge-crawler .stat-value,
+[data-theme="dark"] .edge-crawler .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .edge-crawler .stat-label,
+[data-theme="dark"] .edge-crawler .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .edge-crawler .empty-state,
+[data-theme="dark"] .edge-crawler .empty-text {
+  color: #9ca3af;
 }
 </style>

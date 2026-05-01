@@ -1,5 +1,5 @@
 <template>
-  <div class="paper-list-view">
+  <div class="paper-list-view" role="main" aria-label="论文列表">
     <!-- Page Header -->
     <div class="page-header">
       <div class="page-header__content">
@@ -849,5 +849,51 @@ watch(() => route.name, () => {
   .toolbar {
     padding: $spacing-3;
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .paper-list-view {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-list-view .page-header,
+[data-theme="dark"] .paper-list-view .page-title,
+[data-theme="dark"] .paper-list-view .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-list-view .page-subtitle,
+[data-theme="dark"] .paper-list-view .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .paper-list-view .stat-card,
+[data-theme="dark"] .paper-list-view .filter-card,
+[data-theme="dark"] .paper-list-view .tasks-card,
+[data-theme="dark"] .paper-list-view .chart-card,
+[data-theme="dark"] .paper-list-view .table-card,
+[data-theme="dark"] .paper-list-view .form-card,
+[data-theme="dark"] .paper-list-view .detail-header,
+[data-theme="dark"] .paper-list-view .detail-content,
+[data-theme="dark"] .paper-list-view .toolbar,
+[data-theme="dark"] .paper-list-view .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-list-view .stat-value,
+[data-theme="dark"] .paper-list-view .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-list-view .stat-label,
+[data-theme="dark"] .paper-list-view .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .paper-list-view .empty-state,
+[data-theme="dark"] .paper-list-view .empty-text {
+  color: #9ca3af;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="node-management">
+  <div class="node-management" role="main" aria-label="节点管理">
     <!-- Page Header -->
     <div class="page-header">
       <h1 class="page-title">
@@ -1182,5 +1182,51 @@ onMounted(async () => {
       padding: $spacing-3 $spacing-4;
     }
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .node-management {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .page-header,
+[data-theme="dark"] .node-management .page-title,
+[data-theme="dark"] .node-management .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .page-subtitle,
+[data-theme="dark"] .node-management .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .node-management .stat-card,
+[data-theme="dark"] .node-management .filter-card,
+[data-theme="dark"] .node-management .tasks-card,
+[data-theme="dark"] .node-management .chart-card,
+[data-theme="dark"] .node-management .table-card,
+[data-theme="dark"] .node-management .form-card,
+[data-theme="dark"] .node-management .detail-header,
+[data-theme="dark"] .node-management .detail-content,
+[data-theme="dark"] .node-management .toolbar,
+[data-theme="dark"] .node-management .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .stat-value,
+[data-theme="dark"] .node-management .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .stat-label,
+[data-theme="dark"] .node-management .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .node-management .empty-state,
+[data-theme="dark"] .node-management .empty-text {
+  color: #9ca3af;
 }
 </style>
