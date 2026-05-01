@@ -1,4 +1,6 @@
 #include "network/HttpServerModule.hpp"
+#include "network/WebSocketProtocol.hpp"
+#include "network/WebSocketModule.hpp"
 #include "core/Router.hpp"
 #include "core/ConfigManager.hpp"
 #include <spdlog/spdlog.h>
@@ -34,6 +36,9 @@ public:
     bool running_{false};
     std::thread acceptThread_;
     HttpHandler routeHandler_;
+
+    // WebSocket module for upgrade handoff
+    WebSocketModule* wsModule_{nullptr};
 
     // 统计信息
     HttpServerModule::ServerStats stats_;
@@ -263,6 +268,59 @@ public:
 
             // Debug: Log parsed request
             spdlog::info("Request: {} {}", request.method, request.path);
+
+            // ----------------------------------------------------------------
+            // WebSocket upgrade detection (RFC 6455 Section 4.1)
+            // ----------------------------------------------------------------
+            if (WebSocketProtocol::isWebSocketUpgrade(fullRequestStr)) {
+                spdlog::info("[HTTP] WebSocket upgrade detected for {}", request.path);
+
+                WSHandshake wsHandshake;
+                if (WebSocketProtocol::parseHandshake(fullRequestStr, wsHandshake)) {
+                    // Send the 101 Switching Protocols response
+                    std::string acceptResponse =
+                        WebSocketProtocol::createHandshakeResponse(wsHandshake.clientKey);
+                    ::send(clientSocket, acceptResponse.c_str(),
+                           acceptResponse.length(), 0);
+
+                    spdlog::info("[HTTP] Sent 101 Switching Protocols");
+
+                    // Transfer socket to WebSocketModule.
+                    if (wsModule_) {
+                        char clientIP[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &clientAddr.sin_addr, clientIP, INET_ADDRSTRLEN);
+                        int clientPort = ntohs(clientAddr.sin_port);
+
+                        std::string connId =
+                            wsModule_->acceptConnection(clientSocket, clientIP, clientPort);
+                        spdlog::info("[HTTP] WebSocket connection {} handed off to WebSocketModule",
+                                     connId);
+
+                        // The socket is now owned by WebSocketModule -- do NOT close it here.
+                        // Detach the client thread so the connection stays alive.
+                        return;
+                    } else {
+                        spdlog::warn("[HTTP] No WebSocketModule available, closing upgraded socket");
+                        // No WS module to handle it -- close the socket.
+#ifdef _WIN32
+                        closesocket(clientSocket);
+#else
+                        close(clientSocket);
+#endif
+                        return;
+                    }
+                } else {
+                    spdlog::warn("[HTTP] WebSocket handshake parse failed");
+                    std::string bad = "HTTP/1.1 400 Bad Request\r\n\r\n";
+                    ::send(clientSocket, bad.c_str(), bad.length(), 0);
+#ifdef _WIN32
+                    closesocket(clientSocket);
+#else
+                    close(clientSocket);
+#endif
+                    return;
+                }
+            }
 
             // Handle OPTIONS preflight requests for CORS
             if (request.method == "OPTIONS") {
@@ -548,6 +606,11 @@ std::string HttpServerModule::getCorsOrigin() {
         return cfg.getString("security.cors_origin", "http://localhost:3000");
     }();
     return cached;
+}
+
+void HttpServerModule::setWebSocketModule(WebSocketModule* wsModule) {
+    impl_->wsModule_ = wsModule;
+    spdlog::info("HTTP server: WebSocketModule registered for upgrade support");
 }
 
 } // namespace PaperCrawler

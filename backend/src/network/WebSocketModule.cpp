@@ -1,11 +1,29 @@
 #include <optional>
 #include "network/WebSocketModule.hpp"
+#include "network/WebSocketProtocol.hpp"
+#include <spdlog/spdlog.h>
 #include <iostream>
 #include <sstream>
 #include <random>
 #include <algorithm>
 #include <thread>
 #include <atomic>
+#include <cstring>
+#include <cerrno>
+
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    typedef int socklen_t;
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+    #define INVALID_SOCKET -1
+    #define SOCKET_ERROR -1
+    typedef int SOCKET;
+#endif
 
 namespace PaperCrawler {
 
@@ -36,29 +54,30 @@ public:
 
         auto it = connections_.find(connectionId);
         if (it == connections_.end()) {
-            std::cout << "[WebSocket] Connection not found: " << connectionId << std::endl;
+            spdlog::warn("[WebSocket] Connection not found: {}", connectionId);
             return false;
         }
 
         if (it->second.state != WebSocketState::OPEN) {
-            std::cout << "[WebSocket] Connection not open: " << connectionId << std::endl;
+            spdlog::warn("[WebSocket] Connection not open: {}", connectionId);
             return false;
         }
 
-        // TODO: 实际WebSocket发送
-        // 这里是mock实现
-        it->second.messagesSent++;
-        it->second.bytesSent += message.size();
-        it->second.lastMessageAt = std::chrono::system_clock::now();
+        // Encode text as a WebSocket frame and send via the socket
+        auto frame = WebSocketProtocol::encodeTextFrame(message, false);
+        bool ok = sendRaw(it->second.socketFd, frame.data(), frame.size());
 
-        stats_.totalMessagesSent++;
-        stats_.totalBytesSent += message.size();
-        stats_.lastMessageTime = std::chrono::system_clock::now();
+        if (ok) {
+            it->second.messagesSent++;
+            it->second.bytesSent += frame.size();
+            it->second.lastMessageAt = std::chrono::system_clock::now();
 
-        std::cout << "[WebSocket] Sent to " << connectionId
-                  << ": " << message.substr(0, 50) << "..." << std::endl;
+            stats_.totalMessagesSent++;
+            stats_.totalBytesSent += frame.size();
+            stats_.lastMessageTime = std::chrono::system_clock::now();
+        }
 
-        return true;
+        return ok;
     }
 
     bool sendBinary(const std::string& connectionId, const std::vector<uint8_t>& data) {
@@ -69,17 +88,22 @@ public:
             return false;
         }
 
-        // TODO: 实际二进制WebSocket发送
-        it->second.messagesSent++;
-        it->second.bytesSent += data.size();
+        if (it->second.state != WebSocketState::OPEN) {
+            return false;
+        }
 
-        stats_.totalMessagesSent++;
-        stats_.totalBytesSent += data.size();
+        auto frame = WebSocketProtocol::encodeBinaryFrame(data, false);
+        bool ok = sendRaw(it->second.socketFd, frame.data(), frame.size());
 
-        std::cout << "[WebSocket] Sent binary to " << connectionId
-                  << ": " << data.size() << " bytes" << std::endl;
+        if (ok) {
+            it->second.messagesSent++;
+            it->second.bytesSent += frame.size();
 
-        return true;
+            stats_.totalMessagesSent++;
+            stats_.totalBytesSent += frame.size();
+        }
+
+        return ok;
     }
 
     size_t broadcast(const std::string& message) {
@@ -172,7 +196,24 @@ public:
             return false;
         }
 
+        // Send WebSocket close frame if the connection is still open
+        if (it->second.state == WebSocketState::OPEN && it->second.socketFd >= 0) {
+            auto closeFrame = WebSocketProtocol::encodeCloseFrame(
+                static_cast<uint16_t>(code), reason);
+            sendRaw(it->second.socketFd, closeFrame.data(), closeFrame.size());
+        }
+
         it->second.state = WebSocketState::CLOSED;
+
+        // Close the underlying socket
+        if (it->second.socketFd >= 0) {
+#ifdef _WIN32
+            closesocket(it->second.socketFd);
+#else
+            ::close(it->second.socketFd);
+#endif
+            it->second.socketFd = -1;
+        }
 
         // 从所有频道取消订阅
         for (const auto& channel : it->second.subscriptions) {
@@ -190,8 +231,8 @@ public:
         stats_.activeConnections--;
         stats_.closedConnections++;
 
-        std::cout << "[WebSocket] Closed " << connectionId
-                  << " (code: " << code << ", reason: " << reason << ")" << std::endl;
+        spdlog::info("[WebSocket] Closed {} (code: {}, reason: {})",
+                     connectionId, code, reason);
 
         return true;
     }
@@ -234,10 +275,15 @@ public:
 
                 std::lock_guard<std::mutex> lock(mutex_);
                 for (auto& [connId, conn] : connections_) {
-                    if (conn.state == WebSocketState::OPEN) {
-                        // TODO: 发送实际的WebSocket ping
-                        // 这里只是更新lastPingAt
-                        // conn.lastPingAt = std::chrono::system_clock::now();
+                    if (conn.state == WebSocketState::OPEN && conn.socketFd >= 0) {
+                        // Send actual WebSocket ping frame
+                        auto pingFrame = WebSocketProtocol::encodePingFrame("heartbeat");
+                        bool ok = sendRaw(conn.socketFd, pingFrame.data(), pingFrame.size());
+                        if (ok) {
+                            conn.lastPingAt = std::chrono::system_clock::now();
+                        } else {
+                            spdlog::warn("[WebSocket] Failed to send ping to {}", connId);
+                        }
                     }
                 }
             }
@@ -249,6 +295,160 @@ public:
         if (heartbeatThread_.joinable()) {
             heartbeatThread_.join();
         }
+    }
+
+    /**
+     * Send raw bytes over a socket with retry on partial sends.
+     */
+    static bool sendRaw(int socketFd, const uint8_t* data, size_t len) {
+        if (socketFd < 0) return false;
+
+        size_t totalSent = 0;
+        while (totalSent < len) {
+            int sent = ::send(socketFd,
+                              reinterpret_cast<const char*>(data + totalSent),
+                              static_cast<int>(len - totalSent),
+                              0);
+            if (sent == SOCKET_ERROR) {
+                spdlog::error("[WebSocket] send() failed on fd {}: {}",
+                              socketFd, strerror(errno));
+                return false;
+            }
+            totalSent += static_cast<size_t>(sent);
+        }
+        return true;
+    }
+
+    /**
+     * Register a newly upgraded WebSocket connection.
+     */
+    std::string acceptConnection(int socketFd, const std::string& ipAddress, int port) {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        std::string connId = generateConnectionId();
+
+        WebSocketConnection conn;
+        conn.connectionId = connId;
+        conn.socketFd = socketFd;
+        conn.state = WebSocketState::OPEN;
+        conn.ipAddress = ipAddress;
+        conn.port = port;
+        conn.connectedAt = std::chrono::system_clock::now();
+        conn.lastPingAt = std::chrono::system_clock::now();
+        conn.lastPongAt = std::chrono::system_clock::now();
+        conn.lastMessageAt = std::chrono::system_clock::now();
+
+        connections_[connId] = std::move(conn);
+
+        stats_.totalConnections++;
+        stats_.activeConnections++;
+
+        spdlog::info("[WebSocket] Accepted connection {} from {}:{} (fd={})",
+                     connId, ipAddress, port, socketFd);
+
+        return connId;
+    }
+
+    /**
+     * Process raw bytes from a connection. Decodes frames and dispatches.
+     */
+    void handleIncomingData(const std::string& connectionId,
+                            const std::vector<uint8_t>& data) {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        auto it = connections_.find(connectionId);
+        if (it == connections_.end()) return;
+
+        auto frames = WebSocketProtocol::decodeFrames(data);
+
+        for (const auto& frame : frames) {
+            it->second.messagesReceived++;
+            it->second.bytesReceived += frame.payload.size();
+            it->second.lastMessageAt = std::chrono::system_clock::now();
+
+            stats_.totalMessagesReceived++;
+            stats_.totalBytesReceived += frame.payload.size();
+            stats_.lastMessageTime = std::chrono::system_clock::now();
+
+            switch (frame.opcode) {
+                case WSOpcode::Text: {
+                    WebSocketMessage msg;
+                    msg.connectionId = connectionId;
+                    msg.data = std::string(frame.payload.begin(), frame.payload.end());
+                    msg.binary = false;
+                    msg.messageType = "text";
+                    msg.timestamp = std::chrono::system_clock::now();
+                    if (messageHandler_) messageHandler_(msg);
+                    break;
+                }
+                case WSOpcode::Binary: {
+                    WebSocketMessage msg;
+                    msg.connectionId = connectionId;
+                    msg.data = std::string(frame.payload.begin(), frame.payload.end());
+                    msg.binary = true;
+                    msg.messageType = "binary";
+                    msg.timestamp = std::chrono::system_clock::now();
+                    if (messageHandler_) messageHandler_(msg);
+                    break;
+                }
+                case WSOpcode::Ping: {
+                    // Respond with pong (unmasked)
+                    auto pongFrame = WebSocketProtocol::encodePongFrame(
+                        std::string(frame.payload.begin(), frame.payload.end()));
+                    sendRaw(it->second.socketFd, pongFrame.data(), pongFrame.size());
+                    it->second.lastPongAt = std::chrono::system_clock::now();
+                    spdlog::debug("[WebSocket] Ping received from {}, sent Pong", connectionId);
+                    break;
+                }
+                case WSOpcode::Pong: {
+                    it->second.lastPongAt = std::chrono::system_clock::now();
+                    spdlog::debug("[WebSocket] Pong received from {}", connectionId);
+                    break;
+                }
+                case WSOpcode::Close: {
+                    uint16_t closeCode = 1000;
+                    if (frame.payload.size() >= 2) {
+                        closeCode = (static_cast<uint16_t>(frame.payload[0]) << 8)
+                                    | frame.payload[1];
+                    }
+                    spdlog::info("[WebSocket] Close frame from {} (code={})",
+                                 connectionId, closeCode);
+
+                    // Send close frame back
+                    auto closeFrame = WebSocketProtocol::encodeCloseFrame(closeCode);
+                    sendRaw(it->second.socketFd, closeFrame.data(), closeFrame.size());
+
+                    it->second.state = WebSocketState::CLOSED;
+                    if (it->second.socketFd >= 0) {
+#ifdef _WIN32
+                        closesocket(it->second.socketFd);
+#else
+                        ::close(it->second.socketFd);
+#endif
+                        it->second.socketFd = -1;
+                    }
+                    stats_.activeConnections--;
+
+                    if (closeHandler_) {
+                        closeHandler_(it->second);
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+
+    static std::string generateConnectionId() {
+        static std::atomic<uint64_t> counter{0};
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        static std::uniform_int_distribution<> dis(1000, 9999);
+
+        std::ostringstream oss;
+        oss << "ws_" << std::time(nullptr) << "_" << counter.fetch_add(1) << "_" << dis(gen);
+        return oss.str();
     }
 };
 
@@ -271,7 +471,7 @@ bool WebSocketModule::initialize() {
 }
 
 bool WebSocketModule::start() {
-    std::cout << "WebSocketModule started (Mock mode)" << std::endl;
+    std::cout << "WebSocketModule started (RFC 6455 protocol)" << std::endl;
 
     // 启动心跳线程
     impl_->startHeartbeat();
@@ -464,6 +664,15 @@ void WebSocketModule::heartbeatLoop() {
     // 由Impl内部处理
 }
 
+std::string WebSocketModule::acceptConnection(int socketFd, const std::string& ipAddress, int port) {
+    return impl_->acceptConnection(socketFd, ipAddress, port);
+}
+
+void WebSocketModule::handleIncomingData(const std::string& connectionId,
+                                          const std::vector<uint8_t>& data) {
+    impl_->handleIncomingData(connectionId, data);
+}
+
 void WebSocketModule::processMessage(const WebSocketMessage& message) {
     if (impl_->messageHandler_) {
         impl_->messageHandler_(message);
@@ -483,14 +692,7 @@ void WebSocketModule::handleConnectionClose(const WebSocketConnection& connectio
 }
 
 std::string WebSocketModule::generateConnectionId() {
-    static std::atomic<uint64_t> counter{0};
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<> dis(1000, 9999);
-
-    std::ostringstream oss;
-    oss << "ws_" << std::time(nullptr) << "_" << counter.fetch_add(1) << "_" << dis(gen);
-    return oss.str();
+    return Impl::generateConnectionId();
 }
 
 } // namespace PaperCrawler

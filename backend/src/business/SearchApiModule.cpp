@@ -6,6 +6,7 @@
 #include "network/HttpClient.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
+#include "features/search/MeilisearchClient.hpp"
 #include "../../core/external/nlohmann/json.hpp"
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -417,7 +418,53 @@ SearchResult SearchApiModule::search(const std::string& query, SearchType type, 
     result.page = page;
     result.limit = limit;
 
-    if (impl_->database_) {
+    // --- Strategy: Try Meilisearch first, fall back to MySQL FULLTEXT ---
+    bool usedMeilisearch = false;
+
+    try {
+        MeilisearchClient meili(meilisearchHost_);
+
+        if (meili.isHealthy() && !query.empty()) {
+            int offset = (page - 1) * limit;
+            MeiliSearchResponse meiliResp = meili.search(papersIndex_, query, limit, offset);
+
+            if (!meiliResp.hits.empty()) {
+                // Convert Meilisearch results to SearchResult
+                for (const auto& hit : meiliResp.hits) {
+                    SearchResultItem item;
+                    try {
+                        item.id = std::stoi(hit.id);
+                    } catch (...) {
+                        item.id = 0;
+                    }
+                    item.type           = "paper";
+                    item.title          = hit.title;
+                    item.description    = hit.abstract;
+                    item.relevanceScore = static_cast<double>(hit.relevanceScore);
+                    item.url            = "/api/papers/" + hit.id;
+
+                    // Transfer highlighted snippets from _formatted
+                    for (const auto& [key, value] : hit.formatted) {
+                        item.highlights[key] = value;
+                    }
+
+                    result.items.push_back(std::move(item));
+                }
+
+                result.total      = meiliResp.estimatedTotalHits;
+                result.totalPages = (result.total + limit - 1) / limit;
+                usedMeilisearch   = true;
+
+                spdlog::debug("[SearchAPI] Meilisearch returned {} hits for '{}'",
+                              meiliResp.hits.size(), query);
+            }
+        }
+    } catch (const std::exception& e) {
+        spdlog::warn("[SearchAPI] Meilisearch unavailable, falling back to MySQL: {}", e.what());
+    }
+
+    // Fallback to MySQL FULLTEXT search
+    if (!usedMeilisearch && impl_->database_) {
         auto papers = impl_->searchPapersFromDatabase(query, page, limit);
 
         for (const auto& paper : papers) {
@@ -516,6 +563,128 @@ bool SearchApiModule::rebuildSearchIndex() {
 
 std::vector<TrendingSearch> SearchApiModule::calculateTrendingSearches() {
     return getTrendingSearches(10);
+}
+
+// ============================================================================
+// Meilisearch integration methods
+// ============================================================================
+
+std::string SearchApiModule::callMeilisearchAPI(const std::string& endpoint,
+                                                  const std::string& jsonData) {
+    try {
+        MeilisearchClient client(meilisearchHost_);
+        // The endpoint is a relative path like /indexes/papers/search
+        // Delegate to the client's HTTP layer
+        if (endpoint.find("/search") != std::string::npos && !jsonData.empty()) {
+            // Parse the search request to extract parameters
+            auto req = nlohmann::json::parse(jsonData);
+            std::string query = req.value("q", std::string{});
+            int limit  = req.value("limit", 20);
+            int offset = req.value("offset", 0);
+
+            // Extract index uid from endpoint path: /indexes/{uid}/search
+            std::string uid = papersIndex_;
+            auto idxPos = endpoint.find("/indexes/");
+            if (idxPos != std::string::npos) {
+                auto start = idxPos + 9; // skip "/indexes/"
+                auto end   = endpoint.find("/search", start);
+                if (end != std::string::npos) {
+                    uid = endpoint.substr(start, end - start);
+                }
+            }
+
+            MeiliSearchResponse meiliResp = client.search(uid, query, limit, offset);
+            // Return the raw-ish JSON so the caller can parse it
+            nlohmann::json out;
+            out["estimatedTotalHits"] = meiliResp.estimatedTotalHits;
+            out["offset"]             = meiliResp.offset;
+            out["limit"]              = meiliResp.limit;
+            out["processingTimeMs"]   = meiliResp.processingTimeMs;
+            out["q"]                  = meiliResp.query;
+            out["hits"]               = nlohmann::json::array();
+            for (const auto& hit : meiliResp.hits) {
+                nlohmann::json h;
+                h["id"]       = hit.id;
+                h["title"]    = hit.title;
+                h["abstract"] = hit.abstract;
+                h["authors"]  = hit.authors;
+                h["_rankingScore"] = hit.relevanceScore;
+                if (!hit.formatted.empty()) {
+                    h["_formatted"] = hit.formatted;
+                }
+                out["hits"].push_back(h);
+            }
+            return out.dump();
+        }
+
+        // For non-search endpoints, use a generic HTTP call
+        std::string resp;
+        if (!jsonData.empty()) {
+            resp = client.post(endpoint, jsonData);
+        } else {
+            resp = client.get(endpoint);
+        }
+        return resp;
+
+    } catch (const std::exception& e) {
+        spdlog::error("[SearchAPI] callMeilisearchAPI error: {}", e.what());
+        return "";
+    }
+}
+
+SearchResult SearchApiModule::parseMeilisearchResponse(const std::string& response) {
+    SearchResult result;
+    result.query = "";
+
+    if (response.empty()) return result;
+
+    try {
+        auto j = nlohmann::json::parse(response);
+
+        result.total = j.value("estimatedTotalHits", 0);
+        result.query = j.value("q", "");
+
+        int limit = j.value("limit", 20);
+        int offset = j.value("offset", 0);
+        result.limit = limit;
+        result.page  = (offset / limit) + 1;
+        result.totalPages = (result.total + limit - 1) / limit;
+        result.searchTimeMs = static_cast<double>(j.value("processingTimeMs", 0));
+
+        if (j.contains("hits") && j["hits"].is_array()) {
+            for (const auto& hit : j["hits"]) {
+                SearchResultItem item;
+                // Meilisearch returns id as string or number
+                if (hit["id"].is_string()) {
+                    item.id = std::stoi(hit["id"].get<std::string>());
+                } else {
+                    item.id = hit.value("id", 0);
+                }
+                item.type           = "paper";
+                item.title          = hit.value("title", std::string{});
+                item.description    = hit.value("abstract", std::string{});
+                item.relevanceScore = hit.value("_rankingScore", 0.0);
+                item.url            = "/api/papers/" + std::to_string(item.id);
+
+                // Extract highlighted snippets from _formatted
+                if (hit.contains("_formatted") && hit["_formatted"].is_object()) {
+                    auto& fmt = hit["_formatted"];
+                    if (fmt.contains("title") && fmt["title"].is_string()) {
+                        item.highlights["title"] = fmt["title"].get<std::string>();
+                    }
+                    if (fmt.contains("abstract") && fmt["abstract"].is_string()) {
+                        item.highlights["abstract"] = fmt["abstract"].get<std::string>();
+                    }
+                }
+
+                result.items.push_back(std::move(item));
+            }
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[SearchAPI] parseMeilisearchResponse error: {}", e.what());
+    }
+
+    return result;
 }
 
 void SearchApiModule::registerRoutes() {

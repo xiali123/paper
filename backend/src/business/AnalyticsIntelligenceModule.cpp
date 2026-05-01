@@ -165,9 +165,51 @@ std::vector<AcademicImpactMetrics> AnalyticsIntelligenceModule::calculateImpactM
         metric.comparisonValue = std::stod(row.at("avg_comparison"));
         metric.percentile = std::stof(row.at("avg_percentile"));
 
-        // 计算趋势（简化实现：与上次对比）
-        // TODO: 实现真实趋势计算
-        metric.trend = 0.05; // 示例：5%增长
+        // 计算趋势：对比当前时间窗口与前一个等长时间窗口的指标值变化率
+        metric.trend = 0.0; // 默认无变化
+        try {
+            // 构建前一时间窗口的条件
+            std::string previousDateCondition;
+            if (timeframe == "last_6_months") {
+                previousDateCondition = "recorded_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) "
+                                        "AND recorded_at < DATE_SUB(CURDATE(), INTERVAL 6 MONTH)";
+            } else if (timeframe == "last_1_year") {
+                previousDateCondition = "recorded_at >= DATE_SUB(CURDATE(), INTERVAL 2 YEAR) "
+                                        "AND recorded_at < DATE_SUB(CURDATE(), INTERVAL 1 YEAR)";
+            } else {
+                // all_time: 对比前半段和后半段
+                previousDateCondition = "recorded_at < (SELECT MIN(recorded_at) + "
+                                        "INTERVAL TIMESTAMPDIFF(DAY, MIN(recorded_at), MAX(recorded_at)) / 2 DAY "
+                                        "FROM academic_impact_metrics WHERE user_id = " + std::to_string(userId) + ")";
+            }
+
+            std::string mType = row.at("metric_type");
+            std::string escapedMetricType = database_ ? database_->escapeString(mType) : mType;
+
+            std::ostringstream trendSql;
+            trendSql << "SELECT COALESCE(AVG(metric_value), 0) as prev_avg_value "
+                     << "FROM academic_impact_metrics "
+                     << "WHERE user_id = " << userId << " "
+                     << "AND metric_type = '" << escapedMetricType << "' "
+                     << "AND " << previousDateCondition;
+
+            auto trendRows = database_->query(trendSql.str());
+            if (!trendRows.empty()) {
+                double prevValue = std::stod(trendRows[0].at("prev_avg_value"));
+                double currentValue = metric.metricValue;
+
+                if (prevValue > 0.0) {
+                    metric.trend = (currentValue - prevValue) / prevValue;
+                } else if (currentValue > 0.0) {
+                    metric.trend = 1.0; // 从0增长视为100%增长
+                }
+            }
+        } catch (const std::exception& e) {
+            if (auto logging = Services::resolve<LoggingModule>()) {
+                logging->error("Failed to calculate trend for metric '" + row.at("metric_type") + "': " + std::string(e.what()));
+            }
+            metric.trend = 0.0; // Fallback
+        }
 
         metrics.push_back(metric);
     }
@@ -191,8 +233,35 @@ bool AnalyticsIntelligenceModule::updateImpactMetrics(
             peerAverage = std::stod(rows[0]["peer_avg"]);
         }
 
-        // 计算百分位（简化实现）
-        float percentile = 0.5f; // TODO: 实现真实百分位计算
+        // 计算百分位：基于同行对比表中该指标的排名
+        float percentile = 0.5f; // 默认50百分位
+        try {
+            std::string escapedMetric = database_->escapeString(metricType);
+
+            // 查询同行对比表中排名低于当前用户的比例
+            std::ostringstream percentileSql;
+            percentileSql << "SELECT "
+                          << "COALESCE(COUNT(*), 0) as total_peers, "
+                          << "COALESCE(SUM(CASE WHEN user_value < " << value << " THEN 1 ELSE 0 END), 0) as below_count "
+                          << "FROM peer_comparison_analysis "
+                          << "WHERE metric_name = '" << escapedMetric << "' "
+                          << "AND comparison_group = 'field'";
+
+            auto pctRows = database_->query(percentileSql.str());
+            if (!pctRows.empty()) {
+                double totalPeers = std::stod(pctRows[0].at("total_peers"));
+                double belowCount = std::stod(pctRows[0].at("below_count"));
+
+                if (totalPeers > 0.0) {
+                    percentile = static_cast<float>(belowCount / totalPeers);
+                }
+            }
+        } catch (const std::exception& e) {
+            if (auto logging = Services::resolve<LoggingModule>()) {
+                logging->error("Failed to calculate percentile, using default 0.5: " + std::string(e.what()));
+            }
+            percentile = 0.5f; // Fallback
+        }
 
         // 插入新记录
         PreparedStatement stmt(database_,
@@ -259,20 +328,149 @@ std::vector<ResearchInterest> AnalyticsIntelligenceModule::analyzeResearchIntere
 }
 
 double AnalyticsIntelligenceModule::calculateTFIDF(const std::string& term, int userId) {
-    // 简化的TF-IDF计算
+    // TF-IDF计算
     // TF (Term Frequency) = 该词在用户文档中出现的次数 / 用户总词数
     // IDF (Inverse Document Frequency) = log(总用户数 / 包含该词的用户数)
+    if (!database_) {
+        // Fallback: 数据库不可用时返回中性权重
+        return 1.0;
+    }
 
-    // TODO: 实现完整的TF-IDF计算
-    return 1.0; // 占位符
+    try {
+        std::string escapedTerm = database_->escapeString(term);
+
+        // TF: 该词在用户研究兴趣中的出现次数
+        std::ostringstream tfSql;
+        tfSql << "SELECT COALESCE(occurrence_count, 0) as term_count "
+              << "FROM research_interest_evolution "
+              << "WHERE user_id = " << userId << " "
+              << "AND interest_keyword = '" << escapedTerm << "'";
+
+        auto tfRows = database_->query(tfSql.str());
+        double termCount = 0.0;
+        if (!tfRows.empty()) {
+            termCount = std::stod(tfRows[0].at("term_count"));
+        }
+
+        // 用户所有关键词的总出现次数（分母）
+        std::ostringstream totalSql;
+        totalSql << "SELECT COALESCE(SUM(occurrence_count), 0) as total_count "
+                 << "FROM research_interest_evolution "
+                 << "WHERE user_id = " << userId;
+
+        auto totalRows = database_->query(totalSql.str());
+        double totalCount = 1.0; // 避免除以0
+        if (!totalRows.empty()) {
+            double dbTotal = std::stod(totalRows[0].at("total_count"));
+            if (dbTotal > 0.0) {
+                totalCount = dbTotal;
+            }
+        }
+
+        double tf = termCount / totalCount;
+
+        // IDF: 总用户数 / 包含该词的用户数
+        std::ostringstream idfSql;
+        idfSql << "SELECT "
+               << "(SELECT COUNT(DISTINCT user_id) FROM research_interest_evolution) as total_users, "
+               << "(SELECT COUNT(DISTINCT user_id) FROM research_interest_evolution "
+               << " WHERE interest_keyword = '" << escapedTerm << "') as term_users";
+
+        auto idfRows = database_->query(idfSql.str());
+        double idf = 1.0; // 默认IDF
+        if (!idfRows.empty()) {
+            double totalUsers = std::stod(idfRows[0].at("total_users"));
+            double termUsers = std::stod(idfRows[0].at("term_users"));
+
+            if (totalUsers > 0.0 && termUsers > 0.0) {
+                idf = std::log(totalUsers / termUsers);
+                // IDF下限保护：避免过于常见或稀有的词权重极端
+                if (idf < 0.0) idf = 0.0;
+            } else if (termUsers == 0.0) {
+                // 没有其他用户使用该词，IDF保持默认
+                idf = 1.0;
+            }
+        }
+
+        return tf * idf;
+
+    } catch (const std::exception& e) {
+        if (auto logging = Services::resolve<LoggingModule>()) {
+            logging->error("Failed to calculate TF-IDF for term '" + term + "': " + std::string(e.what()));
+        }
+        return 1.0; // Fallback: 出错时返回中性权重
+    }
 }
 
 float AnalyticsIntelligenceModule::calculateTrendScore(const std::string& keyword, int userId) {
     // 计算趋势分数（-1到1）
     // 基于最近30天与之前30天的对比
+    if (!database_) {
+        // Fallback: 数据库不可用时返回中性值
+        return 0.0f;
+    }
 
-    // TODO: 实现真实趋势计算
-    return 0.1f; // 占位符：轻微上升
+    try {
+        std::string escapedKeyword = database_->escapeString(keyword);
+
+        // 最近30天内该关键词的出现次数
+        std::ostringstream recentSql;
+        recentSql << "SELECT COALESCE(SUM(occurrence_count), 0) as cnt "
+                  << "FROM research_interest_evolution "
+                  << "WHERE user_id = " << userId << " "
+                  << "AND interest_keyword = '" << escapedKeyword << "' "
+                  << "AND last_seen_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+
+        auto recentRows = database_->query(recentSql.str());
+        double recentCount = 0.0;
+        if (!recentRows.empty()) {
+            recentCount = std::stod(recentRows[0].at("cnt"));
+        }
+
+        // 之前30天（30~60天前）该关键词的出现次数
+        std::ostringstream previousSql;
+        previousSql << "SELECT COALESCE(SUM(occurrence_count), 0) as cnt "
+                    << "FROM research_interest_evolution "
+                    << "WHERE user_id = " << userId << " "
+                    << "AND interest_keyword = '" << escapedKeyword << "' "
+                    << "AND last_seen_at >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) "
+                    << "AND last_seen_at < DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+
+        auto previousRows = database_->query(previousSql.str());
+        double previousCount = 0.0;
+        if (!previousRows.empty()) {
+            previousCount = std::stod(previousRows[0].at("cnt"));
+        }
+
+        // 计算趋势：正数=上升，负数=下降，范围[-1, 1]
+        if (previousCount == 0.0 && recentCount == 0.0) {
+            return 0.0f; // 无数据
+        }
+        if (previousCount == 0.0) {
+            return 1.0f; // 新出现的关键词，强上升趋势
+        }
+        if (recentCount == 0.0) {
+            return -1.0f; // 完全消失，强下降趋势
+        }
+
+        // 趋势分数 = (recent - previous) / max(recent, previous)
+        // 这样归一化到 [-1, 1] 区间
+        double diff = recentCount - previousCount;
+        double maxVal = std::max(recentCount, previousCount);
+        float trendScore = static_cast<float>(diff / maxVal);
+
+        // Clamp to [-1, 1] 以防浮点误差
+        if (trendScore > 1.0f) trendScore = 1.0f;
+        if (trendScore < -1.0f) trendScore = -1.0f;
+
+        return trendScore;
+
+    } catch (const std::exception& e) {
+        if (auto logging = Services::resolve<LoggingModule>()) {
+            logging->error("Failed to calculate trend score for keyword '" + keyword + "': " + std::string(e.what()));
+        }
+        return 0.0f; // Fallback: 出错时返回中性值
+    }
 }
 
 // ============================================================================

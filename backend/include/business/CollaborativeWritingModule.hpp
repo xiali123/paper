@@ -12,6 +12,9 @@
 
 namespace PaperCrawler {
 
+// Forward declaration -- avoids pulling the full WebSocketModule header here.
+class WebSocketModule;
+
 /**
  * @brief OT操作类型
  */
@@ -105,6 +108,11 @@ public:
     std::string getDescription() const override {
         return "Real-time AI collaborative writing platform";
     }
+
+    /**
+     * @brief Inject the WebSocketModule used for real-time broadcast.
+     */
+    void setWebSocketModule(std::shared_ptr<WebSocketModule> wsModule);
 
     // ========================================================================
     // 1. 文档管理
@@ -278,6 +286,8 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
+
+    std::shared_ptr<WebSocketModule> wsModule_;
 
     void registerRoutes() override;
 

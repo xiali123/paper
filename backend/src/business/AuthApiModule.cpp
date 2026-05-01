@@ -2,6 +2,7 @@
 #include "business/AuthApiModule.hpp"
 #include "features/security/SessionModule.hpp"
 #include "features/security/SecurityModule.hpp"
+#include "features/email/EmailService.hpp"
 #include "data/DatabaseModule.hpp"
 
 #include "data/PreparedStatement.hpp"
@@ -67,6 +68,9 @@ public:
 
     // 安全模块（用于密码哈希和验证）
     std::unique_ptr<SecurityModule> securityModule_;
+
+    // 邮件服务（用于发送验证/重置邮件）
+    EmailService emailService_;
 
     // 会话管理（已迁移到数据库user_sessions表）
     std::map<std::string, Session> sessions_;
@@ -655,6 +659,18 @@ void AuthApiModule::registerRoutes() {
             if (newUser) {
                 impl_->stats_.successfulRegistrations++;
                 impl_->stats_.lastRegistrationTime = std::chrono::system_clock::now();
+
+                // 发送注册欢迎邮件
+                TemplateVars welcomeVars;
+                welcomeVars["username"] = newUser->username;
+                EmailResult welcomeResult = impl_->emailService_.sendTemplate(
+                    newUser->email, "Welcome to PaperCrawler", "welcome", welcomeVars);
+                if (welcomeResult.success) {
+                    spdlog::info("[Auth] Welcome email sent to {}", newUser->email);
+                } else {
+                    spdlog::warn("[Auth] Failed to send welcome email to {}: {}",
+                                 newUser->email, welcomeResult.errorMessage);
+                }
 
                 // 构建用户JSON
                 nlohmann::json userJson;
@@ -1625,12 +1641,32 @@ bool AuthApiModule::initiatePasswordReset(const std::string& email) {
 
             spdlog::info("[Auth] Password reset token generated for user {} (id={})", username, userId);
 
-            // 记录邮件发送日志
+            // 构造重置URL和模板变量
+            std::string resetUrl = std::string("/reset-password?token=") + token;
+            TemplateVars vars;
+            vars["username"] = username;
+            vars["resetUrl"] = resetUrl;
+            vars["expiry"] = "30";
+
+            // 通过EmailService发送密码重置邮件
+            std::string emailStatus = "pending";
+            EmailResult emailResult = impl_->emailService_.sendTemplate(
+                email, "Password Reset Request", "password_reset", vars);
+            if (emailResult.success) {
+                emailStatus = "sent";
+                spdlog::info("[Auth] Password reset email sent to {} (messageId={})", email, emailResult.messageId);
+            } else {
+                emailStatus = "failed";
+                spdlog::error("[Auth] Failed to send password reset email to {}: {}", email, emailResult.errorMessage);
+            }
+
+            // 记录邮件发送日志（状态反映实际发送结果）
             PreparedStatement logStmt(db,
                 "INSERT INTO email_send_log (user_id, email, email_type, subject, template_name, status) "
-                "VALUES (?, ?, 'password_reset', 'Password Reset Request', 'password_reset_template', 'pending')");
+                "VALUES (?, ?, 'password_reset', 'Password Reset Request', 'password_reset_template', ?)");
             logStmt.bind(0, userId);
             logStmt.bind(1, email);
+            logStmt.bind(2, emailStatus);
             logStmt.execute();
 
             return true;
@@ -1976,6 +2012,18 @@ std::string AuthApiModule::handleRegister(const std::string& body) {
             impl_->stats_.successfulRegistrations++;
             impl_->stats_.lastRegistrationTime = std::chrono::system_clock::now();
 
+            // 发送注册欢迎邮件
+            TemplateVars welcomeVars;
+            welcomeVars["username"] = newUser->username;
+            EmailResult welcomeResult = impl_->emailService_.sendTemplate(
+                newUser->email, "Welcome to PaperCrawler", "welcome", welcomeVars);
+            if (welcomeResult.success) {
+                spdlog::info("[Auth] Welcome email sent to {}", newUser->email);
+            } else {
+                spdlog::warn("[Auth] Failed to send welcome email to {}: {}",
+                             newUser->email, welcomeResult.errorMessage);
+            }
+
             // 构建用户JSON
             nlohmann::json userJson;
             userJson["id"] = newUser->id;
@@ -2106,10 +2154,13 @@ std::string AuthApiModule::handleResetPassword(const std::string& body) {
 
         std::string email = jsonBody["email"];
 
-        // Stub实现：直接返回成功
+        // 调用真实的密码重置流程（含邮件发送）
+        initiatePasswordReset(email);
+
+        // 始终返回相同响应以防止用户枚举
         return buildJsonResponse({
             {"success", "true"},
-            {"message", "If the email exists, a password reset link has been sent (stub mode)"}
+            {"message", "If the email exists, a password reset link has been sent"}
         });
 
     } catch (const std::exception& e) {

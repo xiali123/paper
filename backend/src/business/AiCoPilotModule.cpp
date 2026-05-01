@@ -4,6 +4,7 @@
 #include "modules/LoggingModule.hpp"
 #include "prompts/AIPromptTemplates.hpp"
 #include "business/AIResponseParser.hpp"
+#include "data/PreparedStatement.hpp"
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -231,7 +232,42 @@ std::vector<AIReviewResult> AiCoPilotModule::getReviewHistory(int userId, int pa
 
     auto rows = database_->query(sql.str());
 
-    // TODO: 解析行数据为AIReviewResult
+    for (const auto& row : rows) {
+        AIReviewResult r;
+        r.success = true;
+        r.paperId = row.count("paper_id") ? std::stoi(row.at("paper_id")) : 0;
+        r.reviewScore = row.count("review_score") ? std::stoi(row.at("review_score")) : 0;
+        r.acceptanceProbability = row.count("acceptance_probability")
+            ? std::stof(row.at("acceptance_probability")) : 0.0f;
+        r.reviewerComments = row.count("reviewer_comments") ? row.at("reviewer_comments") : "";
+        r.costUsd = row.count("cost_usd") ? std::stod(row.at("cost_usd")) : 0.0;
+
+        // 解析improvement_suggestions（存储为JSON数组字符串）
+        if (row.count("improvement_suggestions") && !row.at("improvement_suggestions").empty()) {
+            try {
+                auto suggestionsJson = json::parse(row.at("improvement_suggestions"));
+                if (suggestionsJson.is_array()) {
+                    for (const auto& s : suggestionsJson) {
+                        r.improvements.push_back(s.get<std::string>());
+                    }
+                }
+            } catch (...) {
+                // JSON解析失败，保留空列表
+            }
+        }
+
+        // created_at转time_point
+        if (row.count("created_at")) {
+            std::tm tm = {};
+            std::istringstream iss(row.at("created_at"));
+            iss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+            if (!iss.fail()) {
+                r.reviewedAt = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+            }
+        }
+
+        results.push_back(r);
+    }
 
     return results;
 }
@@ -502,7 +538,34 @@ std::string AiCoPilotModule::chat(int userId, const std::string& message, const 
             impl_->conversationHistory_[actualSessionId].push_back("Assistant: " + response);
 
             // 保存到数据库
-            // TODO: INSERT INTO ai_conversations ...
+            try {
+                auto now = std::chrono::system_clock::now();
+                auto now_time_t = std::chrono::system_clock::to_time_t(now);
+                std::ostringstream timeStr;
+                timeStr << std::put_time(std::localtime(&now_time_t), "%Y-%m-%d %H:%M:%S");
+
+                PreparedStatement stmt(database_,
+                    "INSERT INTO ai_conversations (user_id, session_id, role, content, created_at) "
+                    "VALUES (?, ?, ?, ?, ?)");
+                stmt.bind(0, userId);
+                stmt.bind(1, actualSessionId);
+                stmt.bind(2, std::string("user"));
+                stmt.bind(3, message);
+                stmt.bind(4, timeStr.str());
+                stmt.execute();
+
+                stmt.clear();
+                stmt.bind(0, userId);
+                stmt.bind(1, actualSessionId);
+                stmt.bind(2, std::string("assistant"));
+                stmt.bind(3, response);
+                stmt.bind(4, timeStr.str());
+                stmt.execute();
+            } catch (const std::exception& e) {
+                if (auto logging = Services::resolve<LoggingModule>()) {
+                    logging->error("Failed to persist conversation: " + std::string(e.what()));
+                }
+            }
 
             impl_->totalChats_++;
 
@@ -556,7 +619,47 @@ std::map<std::string, std::string> AiCoPilotModule::getUsageStats(int userId) {
     stats["total_chats"] = std::to_string(impl_->totalChats_);
 
     // 从数据库查询用户的详细使用统计
-    // TODO: SELECT * FROM ai_usage_statistics WHERE user_id = userId
+    try {
+        // 审稿统计
+        std::ostringstream reviewSql;
+        reviewSql << "SELECT COUNT(*) AS cnt, AVG(review_score) AS avg_score "
+                  << "FROM ai_review_feedback WHERE user_id = " << userId;
+        auto reviewRows = database_->query(reviewSql.str());
+        if (!reviewRows.empty()) {
+            stats["db_review_count"] = reviewRows[0].count("cnt") ? reviewRows[0].at("cnt") : "0";
+            stats["db_avg_review_score"] = reviewRows[0].count("avg_score") ? reviewRows[0].at("avg_score") : "0";
+        }
+
+        // 文献综述统计
+        std::ostringstream litSql;
+        litSql << "SELECT COUNT(*) AS cnt FROM literature_reviews WHERE user_id = " << userId;
+        auto litRows = database_->query(litSql.str());
+        if (!litRows.empty()) {
+            stats["db_literature_review_count"] = litRows[0].count("cnt") ? litRows[0].at("cnt") : "0";
+        }
+
+        // 研究计划统计
+        std::ostringstream planSql;
+        planSql << "SELECT COUNT(*) AS cnt FROM research_plans WHERE user_id = " << userId;
+        auto planRows = database_->query(planSql.str());
+        if (!planRows.empty()) {
+            stats["db_research_plan_count"] = planRows[0].count("cnt") ? planRows[0].at("cnt") : "0";
+        }
+
+        // 对话统计
+        std::ostringstream chatSql;
+        chatSql << "SELECT COUNT(DISTINCT session_id) AS session_count, COUNT(*) AS message_count "
+                << "FROM ai_conversations WHERE user_id = " << userId;
+        auto chatRows = database_->query(chatSql.str());
+        if (!chatRows.empty()) {
+            stats["db_session_count"] = chatRows[0].count("session_count") ? chatRows[0].at("session_count") : "0";
+            stats["db_message_count"] = chatRows[0].count("message_count") ? chatRows[0].at("message_count") : "0";
+        }
+    } catch (const std::exception& e) {
+        if (auto logging = Services::resolve<LoggingModule>()) {
+            logging->error("Failed to query usage statistics: " + std::string(e.what()));
+        }
+    }
 
     return stats;
 }

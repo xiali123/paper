@@ -1,6 +1,7 @@
 #include "business/CollaborativeWritingModule.hpp"
 #include "core/Router.hpp"
 #include "core/ModuleExports.hpp"
+#include "network/WebSocketModule.hpp"
 #include <json.hpp>
 #include <sstream>
 #include <algorithm>
@@ -97,6 +98,11 @@ CollaborativeWritingModule::CollaborativeWritingModule()
     : impl_(std::make_unique<Impl>()) {}
 
 CollaborativeWritingModule::~CollaborativeWritingModule() = default;
+
+void CollaborativeWritingModule::setWebSocketModule(std::shared_ptr<WebSocketModule> wsModule) {
+    wsModule_ = std::move(wsModule);
+    spdlog::info("[Writing] WebSocketModule registered for real-time collaboration");
+}
 
 // ============================================================================
 // 路由注册（直接在 lambda 中处理，不代理到 handleRequest）
@@ -866,7 +872,28 @@ void CollaborativeWritingModule::handleWebSocketDisconnection(const std::string&
 }
 
 void CollaborativeWritingModule::broadcastOperation(int documentId, const OTOperation& operation) {
-    // TODO: 实际 WebSocket 广播
+    if (!wsModule_) {
+        spdlog::debug("[Writing] broadcastOperation: no WebSocketModule, skipping broadcast");
+        return;
+    }
+
+    // Build the broadcast message as JSON
+    std::string message = "{\"type\":\"operation\",\"document_id\":" +
+                          std::to_string(documentId) +
+                          ",\"operation\":" + operation.toJSON() + "}";
+
+    // Broadcast to all sessions subscribed to this document
+    auto it = impl_->documentSessions_.find(documentId);
+    if (it == impl_->documentSessions_.end()) {
+        return;
+    }
+
+    for (const auto& socketId : it->second) {
+        wsModule_->send(socketId, message);
+    }
+
+    spdlog::debug("[Writing] Broadcast operation to {} sessions for document {}",
+                  it->second.size(), documentId);
 }
 
 // ============================================================================
