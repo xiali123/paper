@@ -231,22 +231,28 @@ DatabaseModule::~DatabaseModule() = default;
 bool DatabaseModule::onInitialize() {
     std::cout << "DatabaseModule::onInitialize" << std::endl;
 
-    // 直接使用硬编码配置（临时方案）
-    DatabaseConfig dbConfig;
-    dbConfig.host = "127.0.0.1";
-    dbConfig.port = 3306;
-    dbConfig.username = "root";
-    dbConfig.password = "123456";
-    dbConfig.database = "papercrawler_db";
-    dbConfig.poolSize = 10;
-    dbConfig.maxPoolSize = 20;
-    dbConfig.connectTimeoutSeconds = 30;
+    // 从ConfigManager读取配置（支持环境变量覆盖）
+    auto& cfg = ConfigManager::getInstance();
+    cfg.loadFromEnvironment();
 
-    std::cout << "[Database] Using hardcoded database config:" << std::endl;
-    std::cout << "  User: " << dbConfig.username << std::endl;
-    std::cout << "  Password: " << (dbConfig.password.empty() ? "(empty)" : "(***)") << std::endl;
-    std::cout << "  Host: " << dbConfig.host << ":" << dbConfig.port << std::endl;
-    std::cout << "  Database: " << dbConfig.database << std::endl;
+    DatabaseConfig dbConfig;
+    dbConfig.host = cfg.getString("database.host", "127.0.0.1");
+    dbConfig.port = cfg.getInt("database.port", 3306);
+    dbConfig.username = cfg.getString("database.user", "");
+    dbConfig.password = cfg.getString("database.password", "");
+    dbConfig.database = cfg.getString("database.name", "papercrawler_db");
+    dbConfig.poolSize = cfg.getInt("database.connection_pool_size", 10);
+    dbConfig.maxPoolSize = cfg.getInt("database.max_pool_size", 20);
+    dbConfig.connectTimeoutSeconds = cfg.getInt("database.timeout", 30);
+
+    if (dbConfig.username.empty() || dbConfig.password.empty()) {
+        spdlog::error("[Database] DB credentials not configured. Set DB_USER/DB_PASSWORD env vars or config.json");
+        return false;
+    }
+
+    spdlog::info("[Database] Config loaded from ConfigManager:");
+    spdlog::info("  Host: {}:{}", dbConfig.host, dbConfig.port);
+    spdlog::info("  Database: {}", dbConfig.database);
 
     return impl_->initializePool(dbConfig);
 }

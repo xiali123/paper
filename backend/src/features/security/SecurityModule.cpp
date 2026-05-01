@@ -7,6 +7,15 @@
 #include <chrono>
 #include <cstring>
 #include <algorithm>
+#include <cstdlib>
+
+#include "../../core/external/nlohmann/json.hpp"
+
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/sha.h>
+#include <openssl/rand.h>
+#include <openssl/err.h>
 
 // Base64辅助函数（静态函数避免链接冲突）
 static std::string base64_encode(const unsigned char* data, size_t len) {
@@ -56,58 +65,82 @@ static std::vector<unsigned char> base64_decode(const std::string& encoded_strin
     return result;
 }
 
+// URL-safe Base64 (no padding) for JWT
+static std::string base64url_encode(const unsigned char* data, size_t len) {
+    std::string b64 = base64_encode(data, len);
+    // Replace +/ with -_ and strip padding
+    for (auto& c : b64) {
+        if (c == '+') c = '-';
+        else if (c == '/') c = '_';
+    }
+    while (!b64.empty() && b64.back() == '=') b64.pop_back();
+    return b64;
+}
+
+static std::string base64url_encode(const std::string& str) {
+    return base64url_encode(reinterpret_cast<const unsigned char*>(str.data()), str.size());
+}
+
+static std::vector<unsigned char> base64url_decode(const std::string& encoded) {
+    std::string b64 = encoded;
+    // Restore standard base64 chars
+    for (auto& c : b64) {
+        if (c == '-') c = '+';
+        else if (c == '_') c = '/';
+    }
+    // Add padding
+    while (b64.size() % 4 != 0) b64.push_back('=');
+    return base64_decode(b64);
+}
+
 namespace PaperCrawler {
 
 // ============================================================================
-// SecurityModule::Impl
+// SecurityModule::Impl — Real OpenSSL implementations
 // ============================================================================
 
 class SecurityModule::Impl {
 public:
-    std::string jwtSecret_{"your-secret-key-change-in-production"};
+    std::string jwtSecret_{"change-me-in-production"};
     std::chrono::seconds defaultExpiry_{3600};
     int bcryptCost_{12};
 
     SecurityStats stats_{};
 
-    // Mock JWT生成
+    // Real JWT generation with HMAC-SHA256
     std::string generateJWT(const JWTClaims& claims, std::chrono::seconds expiry) {
-        std::ostringstream oss;
-
-        // Header
-        oss << "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";  // {"alg":"HS256","typ":"JWT"}
-
-        oss << ".";
+        // Header: {"alg":"HS256","typ":"JWT"}
+        std::string headerJson = R"({"alg":"HS256","typ":"JWT"})";
+        std::string headerB64 = base64url_encode(headerJson);
 
         // Payload
         auto now = std::chrono::system_clock::now();
         auto iat = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
         auto exp = iat + expiry.count();
 
-        oss << base64EncodeClaims({
-            {"iat", std::to_string(iat)},
-            {"exp", std::to_string(exp)}
-        });
-
-        // 合并claims
+        std::ostringstream payload;
+        payload << "{\"iat\":" << iat << ",\"exp\":" << exp;
         for (const auto& [key, value] : claims) {
-            oss << "." << base64EncodeString(key + ":" + value);
+            payload << ",\"" << key << "\":\"" << value << "\"";
         }
+        payload << "}";
 
-        // Signature (mock)
-        oss << "." << generateMockSignature(oss.str());
+        std::string payloadB64 = base64url_encode(payload.str());
+
+        // Sign: HMAC-SHA256(header.payload, secret)
+        std::string signingInput = headerB64 + "." + payloadB64;
+        auto sig = hmacSHA256(signingInput, jwtSecret_);
+        std::string signatureB64 = base64url_encode(sig.data(), sig.size());
 
         stats_.totalJWTGenerated++;
+        spdlog::debug("[Security] JWT generated (exp: {})", exp);
 
-        std::cout << "[Security] JWT generated (exp: " << exp << ")" << std::endl;
-
-        return oss.str();
+        return signingInput + "." + signatureB64;
     }
 
     JWTVerifyResult verifyJWT(const std::string& token) {
         JWTVerifyResult result;
 
-        // 简化的JWT验证（mock）
         if (token.empty()) {
             result.valid = false;
             result.errorMessage = "Token is empty";
@@ -115,121 +148,220 @@ public:
             return result;
         }
 
-        // TODO: 实际应解析JWT并验证签名
-        // 这里简单检查token格式
-        if (token.find('.') == std::string::npos) {
+        // Split by '.'
+        size_t dot1 = token.find('.');
+        size_t dot2 = (dot1 != std::string::npos) ? token.find('.', dot1 + 1) : std::string::npos;
+
+        if (dot1 == std::string::npos || dot2 == std::string::npos || dot2 >= token.size() - 1) {
             result.valid = false;
             result.errorMessage = "Invalid token format";
             stats_.totalJWTVerifyFailures++;
             return result;
         }
 
+        std::string headerB64 = token.substr(0, dot1);
+        std::string payloadB64 = token.substr(dot1 + 1, dot2 - dot1 - 1);
+        std::string signatureB64 = token.substr(dot2 + 1);
+
+        // Verify signature
+        std::string signingInput = headerB64 + "." + payloadB64;
+        auto expectedSig = hmacSHA256(signingInput, jwtSecret_);
+        std::string expectedB64 = base64url_encode(expectedSig.data(), expectedSig.size());
+
+        if (signatureB64 != expectedB64) {
+            result.valid = false;
+            result.errorMessage = "Invalid signature";
+            stats_.totalJWTVerifyFailures++;
+            return result;
+        }
+
+        // Decode payload
+        auto payloadBytes = base64url_decode(payloadB64);
+        std::string payloadStr(payloadBytes.begin(), payloadBytes.end());
+
+        // Simple JSON parsing for claims
+        auto parsed = nlohmann::json::parse(payloadStr, nullptr, false);
+        if (parsed.is_discarded()) {
+            result.valid = false;
+            result.errorMessage = "Invalid payload JSON";
+            stats_.totalJWTVerifyFailures++;
+            return result;
+        }
+
+        // Check expiry
+        if (parsed.contains("exp")) {
+            auto exp = parsed["exp"].get<int64_t>();
+            auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            if (now > exp) {
+                result.valid = false;
+                result.errorMessage = "Token expired";
+                stats_.totalJWTVerifyFailures++;
+                return result;
+            }
+        }
+
+        // Extract claims
+        for (auto& [key, value] : parsed.items()) {
+            if (key != "iat" && key != "exp" && value.is_string()) {
+                result.claims[key] = value.get<std::string>();
+            }
+        }
+
         result.valid = true;
-        result.claims = {{"sub", "user123"}, {"role", "user"}};
-
         stats_.totalJWTVerified++;
-
-        std::cout << "[Security] JWT verified" << std::endl;
-
+        spdlog::debug("[Security] JWT verified");
         return result;
     }
 
+    // PBKDF2-based password hashing (bcrypt requires separate lib; PBKDF2 is OpenSSL-native)
     PasswordHashResult hashPassword(const std::string& password, int cost) {
         PasswordHashResult result;
 
-        // Mock bcrypt哈希
-        // 实际应使用bcrypt库
+        // Generate random salt (16 bytes)
+        unsigned char salt[16];
+        if (RAND_bytes(salt, sizeof(salt)) != 1) {
+            result.success = false;
+            result.errorMessage = "Failed to generate salt";
+            return result;
+        }
+
+        // Derive key using PBKDF2-HMAC-SHA256
+        // iterations = 2^cost, capped to reasonable range
+        int iterations = 1 << std::min(std::max(cost, 4), 20);
+        std::vector<unsigned char> derived(32);
+
+        if (PKCS5_PBKDF2_HMAC(password.c_str(), password.size(),
+                               salt, sizeof(salt),
+                               iterations, EVP_sha256(),
+                               derived.size(), derived.data()) != 1) {
+            result.success = false;
+            result.errorMessage = "PBKDF2 derivation failed";
+            return result;
+        }
+
+        // Format: $pbkdf2-sha256$iterations$salt_base64$hash_base64
         std::ostringstream hash;
-        hash << "$2b$" << cost << "$";
-        hash << generateMockHash(password, cost);
+        hash << "$pbkdf2-sha256$" << iterations << "$"
+             << base64_encode(salt, sizeof(salt)) << "$"
+             << base64_encode(derived.data(), derived.size());
 
         result.success = true;
         result.hash = hash.str();
-
         stats_.totalPasswordsHashed++;
-
-        std::cout << "[Security] Password hashed (cost: " << cost << ")" << std::endl;
-
+        spdlog::debug("[Security] Password hashed (iterations: {})", iterations);
         return result;
     }
 
     bool verifyPassword(const std::string& password, const std::string& storedHash) {
-        // 安全的密码验证（与main.cpp中的实现保持一致）
-        // 解析存储的哈希值
-        size_t delim = storedHash.find('$');
-        if (delim == std::string::npos) {
-            spdlog::error("[Security] Invalid hash format");
+        // Parse stored hash: $pbkdf2-sha256$iterations$salt$hash
+        if (storedHash.find("$pbkdf2-sha256$") != 0) {
+            spdlog::error("[Security] Unknown hash format");
             return false;
         }
 
-        // 提取salt（Base64解码）
-        std::string saltBase64 = storedHash.substr(0, delim);
-        std::vector<unsigned char> salt = base64_decode(saltBase64);
-
-        // 提取存储的哈希值（Base64解码）
-        std::string hashBase64 = storedHash.substr(delim + 1);
-        std::vector<unsigned char> storedHashBytes = base64_decode(hashBase64);
-
-        // 使用相同的参数计算哈希（10000次迭代）
-        std::string salted_password = password + std::string(reinterpret_cast<char*>(salt.data()), salt.size());
-        std::size_t hash_value = std::hash<std::string>{}(password);
-
-        for (int i = 0; i < 10000; i++) {
-            hash_value = std::hash<std::string>{}(std::to_string(hash_value) + salted_password);
+        std::istringstream ss(storedHash.substr(15)); // skip "$pbkdf2-sha256$"
+        std::string iterStr, saltB64, hashB64;
+        if (!std::getline(ss, iterStr, '$') ||
+            !std::getline(ss, saltB64, '$') ||
+            !std::getline(ss, hashB64, '$')) {
+            spdlog::error("[Security] Malformed hash");
+            return false;
         }
 
-        // 转换为字节数组进行比较
-        unsigned char computed_hash_bytes[sizeof(hash_value)];
-        std::memcpy(computed_hash_bytes, &hash_value, sizeof(hash_value));
+        int iterations = std::stoi(iterStr);
+        auto salt = base64_decode(saltB64);
+        auto storedHashBytes = base64_decode(hashB64);
 
-        // 常量时间比较，防止时序攻击
-        bool result = true;
-        if (storedHashBytes.size() != sizeof(computed_hash_bytes)) {
-            result = false;
-        } else {
-            for (size_t i = 0; i < storedHashBytes.size(); i++) {
-                if (computed_hash_bytes[i] != storedHashBytes[i]) {
-                    result = false;
-                    break;
-                }
-            }
+        if (salt.empty() || storedHashBytes.empty()) {
+            spdlog::error("[Security] Failed to decode salt or hash");
+            return false;
         }
 
-        if (result) {
+        // Derive with same parameters
+        std::vector<unsigned char> derived(storedHashBytes.size());
+        if (PKCS5_PBKDF2_HMAC(password.c_str(), password.size(),
+                               salt.data(), salt.size(),
+                               iterations, EVP_sha256(),
+                               derived.size(), derived.data()) != 1) {
+            spdlog::error("[Security] PBKDF2 derivation failed");
+            return false;
+        }
+
+        // Constant-time comparison
+        bool match = (derived.size() == storedHashBytes.size()) &&
+                     CRYPTO_memcmp(derived.data(), storedHashBytes.data(), derived.size()) == 0;
+
+        if (match) {
             stats_.totalPasswordsVerified++;
-            spdlog::info("[Security] Password verified successfully");
-        } else {
-            spdlog::warn("[Security] Password verification failed");
         }
-
-        return result;
+        return match;
     }
 
+    // Real AES-256-GCM encryption
     EncryptionResult encrypt(const std::vector<uint8_t>& data,
                              const std::vector<uint8_t>& key,
                              const std::vector<uint8_t>& nonce) {
         EncryptionResult result;
 
-        // Mock AES-256-GCM加密
-        // 实际应使用OpenSSL EVP APIs
-
-        // 简单XOR加密（仅用于演示，不安全）
-        std::vector<uint8_t> encrypted;
-        encrypted.reserve(data.size());
-
-        for (size_t i = 0; i < data.size(); ++i) {
-            uint8_t keyByte = key[i % key.size()];
-            uint8_t nonceByte = nonce[i % nonce.size()];
-            encrypted.push_back(data[i] ^ keyByte ^ nonceByte);
+        if (key.size() != 32) {
+            result.errorMessage = "Key must be 32 bytes for AES-256-GCM";
+            return result;
+        }
+        if (nonce.size() != 12) {
+            result.errorMessage = "Nonce must be 12 bytes for AES-256-GCM";
+            return result;
         }
 
+        EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+            result.errorMessage = "Failed to create cipher context";
+            return result;
+        }
+
+        std::vector<uint8_t> ciphertext(data.size());
+        std::vector<uint8_t> tag(16);
+        int len = 0, ciphertextLen = 0;
+
+        if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) != 1 ||
+            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 12, nullptr) != 1 ||
+            EVP_EncryptInit_ex(ctx, nullptr, nullptr, key.data(), nonce.data()) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "AES-256-GCM init failed";
+            return result;
+        }
+
+        if (EVP_EncryptUpdate(ctx, ciphertext.data(), &len,
+                              data.data(), data.size()) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "AES-256-GCM encrypt failed";
+            return result;
+        }
+        ciphertextLen = len;
+
+        if (EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "AES-256-GCM final failed";
+            return result;
+        }
+        ciphertextLen += len;
+
+        // Get tag
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag.data()) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "Failed to get GCM tag";
+            return result;
+        }
+
+        EVP_CIPHER_CTX_free(ctx);
+
+        // Output: ciphertext || tag (16 bytes appended)
+        result.encryptedData.resize(ciphertextLen + 16);
+        std::memcpy(result.encryptedData.data(), ciphertext.data(), ciphertextLen);
+        std::memcpy(result.encryptedData.data() + ciphertextLen, tag.data(), 16);
+
         result.success = true;
-        result.encryptedData = encrypted;
-
         stats_.totalEncryptions++;
-
-        std::cout << "[Security] Encrypted " << data.size() << " bytes" << std::endl;
-
         return result;
     }
 
@@ -238,38 +370,82 @@ public:
                              const std::vector<uint8_t>& nonce) {
         DecryptionResult result;
 
-        // Mock解密
-        std::vector<uint8_t> decrypted;
-        decrypted.reserve(encryptedData.size());
-
-        for (size_t i = 0; i < encryptedData.size(); ++i) {
-            uint8_t keyByte = key[i % key.size()];
-            uint8_t nonceByte = nonce[i % nonce.size()];
-            decrypted.push_back(encryptedData[i] ^ keyByte ^ nonceByte);
+        if (key.size() != 32) {
+            result.errorMessage = "Key must be 32 bytes for AES-256-GCM";
+            return result;
+        }
+        if (nonce.size() != 12) {
+            result.errorMessage = "Nonce must be 12 bytes for AES-256-GCM";
+            return result;
+        }
+        if (encryptedData.size() < 16) {
+            result.errorMessage = "Encrypted data too short (missing GCM tag)";
+            return result;
         }
 
+        // Split ciphertext and tag
+        size_t ciphertextLen = encryptedData.size() - 16;
+        const uint8_t* ciphertext = encryptedData.data();
+        const uint8_t* tag = encryptedData.data() + ciphertextLen;
+
+        EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) {
+            result.errorMessage = "Failed to create cipher context";
+            return result;
+        }
+
+        std::vector<uint8_t> plaintext(ciphertextLen);
+        int len = 0, plaintextLen = 0;
+
+        if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) != 1 ||
+            EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 12, nullptr) != 1 ||
+            EVP_DecryptInit_ex(ctx, nullptr, nullptr, key.data(), nonce.data()) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "AES-256-GCM decrypt init failed";
+            return result;
+        }
+
+        if (EVP_DecryptUpdate(ctx, plaintext.data(), &len,
+                              ciphertext, ciphertextLen) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "AES-256-GCM decrypt update failed";
+            return result;
+        }
+        plaintextLen = len;
+
+        // Set expected tag
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16,
+                                const_cast<uint8_t*>(tag)) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "Failed to set GCM tag";
+            return result;
+        }
+
+        // Verify tag (this is the authentication step)
+        if (EVP_DecryptFinal_ex(ctx, plaintext.data() + len, &len) != 1) {
+            EVP_CIPHER_CTX_free(ctx);
+            result.errorMessage = "AES-256-GCM authentication failed (tampered data?)";
+            return result;
+        }
+        plaintextLen += len;
+
+        EVP_CIPHER_CTX_free(ctx);
+
+        result.decryptedData.assign(plaintext.begin(), plaintext.begin() + plaintextLen);
         result.success = true;
-        result.decryptedData = decrypted;
-
         stats_.totalDecryptions++;
-
-        std::cout << "[Security] Decrypted " << decrypted.size() << " bytes" << std::endl;
-
         return result;
     }
 
     std::vector<uint8_t> generateKey(size_t length) {
         std::vector<uint8_t> key(length);
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, 255);
-
-        for (auto& byte : key) {
-            byte = static_cast<uint8_t>(dis(gen));
+        if (RAND_bytes(key.data(), length) != 1) {
+            spdlog::error("[Security] RAND_bytes failed, fallback to std::random_device");
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 255);
+            for (auto& byte : key) byte = static_cast<uint8_t>(dis(gen));
         }
-
-        std::cout << "[Security] Generated " << length << "-byte key" << std::endl;
-
         return key;
     }
 
@@ -277,69 +453,42 @@ public:
         return generateKey(length);
     }
 
+    // Real HMAC-SHA256
     std::vector<uint8_t> hmacSign(const std::string& message,
                                    const std::vector<uint8_t>& key) {
-        // Mock HMAC-SHA256签名
-        // 实际应使用OpenSSL HMAC()
-
-        std::string data = message + std::string(key.begin(), key.end());
-        return sha256(data);
+        return hmacSHA256(message, std::string(key.begin(), key.end()));
     }
 
     bool hmacVerify(const std::string& message,
                     const std::vector<uint8_t>& signature,
                     const std::vector<uint8_t>& key) {
-        // Mock验证
         auto computed = hmacSign(message, key);
-        return computed == signature;
+        if (computed.size() != signature.size()) return false;
+        return CRYPTO_memcmp(computed.data(), signature.data(), computed.size()) == 0;
     }
 
+    // Real SHA-256
     std::vector<uint8_t> sha256(const std::string& data) {
-        // Mock SHA-256
-        // 实际应使用OpenSSL SHA256()
-
-        std::vector<uint8_t> hash(32, 0x42);  // 固定值（mock）
-
+        std::vector<uint8_t> hash(SHA256_DIGEST_LENGTH);
+        SHA256(reinterpret_cast<const unsigned char*>(data.c_str()),
+               data.size(), hash.data());
         return hash;
     }
 
+    // Real SHA-512
     std::vector<uint8_t> sha512(const std::string& data) {
-        // Mock SHA-512
-        std::vector<uint8_t> hash(64, 0x43);  // 固定值（mock）
-
+        std::vector<uint8_t> hash(SHA512_DIGEST_LENGTH);
+        SHA512(reinterpret_cast<const unsigned char*>(data.c_str()),
+               data.size(), hash.data());
         return hash;
     }
 
     std::string base64Encode(const std::vector<uint8_t>& data) {
-        static const char* encodeTable =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-        std::string result;
-        result.reserve((data.size() * 4 + 2) / 3);
-
-        for (size_t i = 0; i < data.size(); i += 3) {
-            uint32_t triple = (data[i] << 16) |
-                             (i + 1 < data.size() ? data[i + 1] << 8 : 0) |
-                             (i + 2 < data.size() ? data[i + 2] : 0);
-
-            result.push_back(encodeTable[(triple >> 18) & 0x3F]);
-            result.push_back(encodeTable[(triple >> 12) & 0x3F]);
-            result.push_back(encodeTable[(triple >> 6) & 0x3F]);
-            result.push_back(encodeTable[triple & 0x3F]);
-        }
-
-        // Padding
-        while (result.size() % 4 != 0) {
-            result.push_back('=');
-        }
-
-        return result;
+        return base64_encode(data.data(), data.size());
     }
 
     std::vector<uint8_t> base64Decode(const std::string& encoded) {
-        // Mock Base64解码
-        // 实际应使用完整的实现
-        return std::vector<uint8_t>(encoded.begin(), encoded.end());
+        return base64_decode(encoded);
     }
 
     SecurityStats getStats() const {
@@ -347,35 +496,17 @@ public:
     }
 
 private:
-    std::string base64EncodeClaims(const std::map<std::string, std::string>& claims) {
-        std::ostringstream oss;
-        oss << "{";
+    // Internal HMAC-SHA256 with string key
+    std::vector<uint8_t> hmacSHA256(const std::string& data, const std::string& key) {
+        std::vector<uint8_t> result(SHA256_DIGEST_LENGTH);
+        unsigned int hmacLen = 0;
 
-        bool first = true;
-        for (const auto& [key, value] : claims) {
-            if (!first) oss << ",";
-            oss << "\"" << key << "\":\"" << value << "\"";
-            first = false;
-        }
+        HMAC(EVP_sha256(),
+             key.c_str(), key.size(),
+             reinterpret_cast<const unsigned char*>(data.c_str()), data.size(),
+             result.data(), &hmacLen);
 
-        oss << "}";
-        return oss.str();
-    }
-
-    std::string base64EncodeString(const std::string& str) {
-        std::vector<uint8_t> data(str.begin(), str.end());
-        return base64Encode(data);
-    }
-
-    std::string generateMockHash(const std::string& password, int cost) {
-        std::ostringstream oss;
-        oss << std::hex << std::hash<std::string>{}(password + std::to_string(cost));
-        return oss.str();
-    }
-
-    std::string generateMockSignature(const std::string& data) {
-        // Mock签名
-        return std::to_string(std::hash<std::string>{}(data + jwtSecret_));
+        return result;
     }
 };
 
@@ -389,34 +520,33 @@ SecurityModule::SecurityModule()
 SecurityModule::~SecurityModule() = default;
 
 bool SecurityModule::initialize() {
-    std::cout << "SecurityModule::initialize" << std::endl;
-    std::cout << "  JWT secret: " << (jwtSecret_.empty() ? "default (WARNING: change in production)" : "configured") << std::endl;
-    std::cout << "  JWT expiry: " << defaultJWTExpiry_.count() << "s" << std::endl;
-    std::cout << "  bcrypt cost: " << bcryptCost_ << std::endl;
-    std::cout << "  WARNING: Using mock crypto - replace with real implementations for production!" << std::endl;
+    spdlog::info("[Security] Initializing SecurityModule");
+    spdlog::info("  JWT secret: {}", jwtSecret_.empty() ? "default (WARNING: change in production)" : "configured");
+    spdlog::info("  JWT expiry: {}s", defaultJWTExpiry_.count());
+    spdlog::info("  bcrypt cost: {}", bcryptCost_);
     return true;
 }
 
 bool SecurityModule::start() {
-    std::cout << "SecurityModule started (Mock mode - replace with OpenSSL for production)" << std::endl;
+    spdlog::info("[Security] SecurityModule started (OpenSSL crypto)");
     return true;
 }
 
 bool SecurityModule::stop() {
-    std::cout << "SecurityModule stopped" << std::endl;
+    spdlog::info("[Security] SecurityModule stopped");
 
     auto stats = getStats();
-    std::cout << "  JWT generated: " << stats.totalJWTGenerated << std::endl;
-    std::cout << "  JWT verified: " << stats.totalJWTVerified << std::endl;
-    std::cout << "  JWT verify failures: " << stats.totalJWTVerifyFailures << std::endl;
-    std::cout << "  Passwords hashed: " << stats.totalPasswordsHashed << std::endl;
-    std::cout << "  Passwords verified: " << stats.totalPasswordsVerified << std::endl;
+    spdlog::info("  JWT generated: {}", stats.totalJWTGenerated);
+    spdlog::info("  JWT verified: {}", stats.totalJWTVerified);
+    spdlog::info("  JWT verify failures: {}", stats.totalJWTVerifyFailures);
+    spdlog::info("  Passwords hashed: {}", stats.totalPasswordsHashed);
+    spdlog::info("  Passwords verified: {}", stats.totalPasswordsVerified);
 
     return true;
 }
 
 void SecurityModule::cleanup() {
-    // 清理敏感数据
+    // Securely wipe JWT secret from memory
     std::fill(jwtSecret_.begin(), jwtSecret_.end(), '\0');
 }
 
@@ -430,13 +560,11 @@ JWTVerifyResult SecurityModule::verifyJWT(const std::string& token) {
 }
 
 std::string SecurityModule::refreshJWT(const std::string& token) {
-    // 验证旧token
     auto result = verifyJWT(token);
     if (!result.valid) {
         return "";
     }
 
-    // 生成新token
     JWTClaims newClaims = result.claims;
     newClaims.erase("iat");
     newClaims.erase("exp");

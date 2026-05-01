@@ -4,8 +4,8 @@
     "host": "localhost",
     "port": 3306,
     "name": "papercrawler",
-    "user": "root",
-    "password": "123456",
+    "user": "${DB_USER|root}",
+    "password": "${DB_PASSWORD|changeme}",
     "sqlite_path": "papercrawler.db",
     "charset": "utf8mb4",
     "connection_pool_size": 10,
@@ -29,7 +29,7 @@
   },
   "authentication": {
     "enabled": true,
-    "jwtSecret": "paper-crawler-secret-key-2024-change-in-production",
+    "jwtSecret": "${JWT_SECRET|change-me-in-production}",
     "accessTokenExpiry": 15,
     "refreshTokenExpiry": 30,
     "maxLoginAttempts": 5,
@@ -52,7 +52,7 @@
   },
   "security": {
     "enable_cors": true,
-    "cors_origin": "*",
+    "cors_origin": "${CORS_ORIGIN|http://localhost:3000}",
     "cors_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "cors_headers": ["Content-Type", "Authorization"],
     "rate_limiting": {
