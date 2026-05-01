@@ -53,6 +53,13 @@
         </div>
       </div>
 
+      <!-- Breadcrumb -->
+      <el-breadcrumb separator="/" class="page-breadcrumb">
+        <el-breadcrumb-item :to="{ path: '/papers' }">论文</el-breadcrumb-item>
+        <el-breadcrumb-item>论文详情</el-breadcrumb-item>
+        <el-breadcrumb-item v-if="paper?.title">{{ paper.title }}</el-breadcrumb-item>
+      </el-breadcrumb>
+
       <!-- Main Content -->
       <div class="detail-content">
         <!-- Title Section -->
@@ -465,6 +472,16 @@ onMounted(() => {
   max-width: 1600px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.page-breadcrumb {
+  padding: 0 24px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .page-breadcrumb {
+  color: #9ca3af;
 }
 
 .loading-container,

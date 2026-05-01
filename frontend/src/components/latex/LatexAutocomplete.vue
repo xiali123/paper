@@ -218,4 +218,40 @@ function getTypeLabel(type: string): string {
     background: var(--el-border-color-darker);
   }
 }
+
+// Dark mode overrides
+[data-theme="dark"] {
+  .latex-autocomplete {
+    background: rgba(40, 40, 45, 0.98);
+    border-color: rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .autocomplete-header {
+    background: rgba(30, 30, 35, 0.95);
+    border-bottom-color: rgba(102, 126, 234, 0.3);
+  }
+
+  .autocomplete-option {
+    border-bottom-color: rgba(102, 126, 234, 0.15);
+
+    &:hover,
+    &.is-selected {
+      background: rgba(64, 158, 255, 0.15);
+    }
+
+    &.is-selected {
+      border-left-color: var(--el-color-primary);
+    }
+  }
+
+  .autocomplete-footer {
+    background: rgba(30, 30, 35, 0.95);
+    border-top-color: rgba(102, 126, 234, 0.3);
+  }
+
+  .autocomplete-empty {
+    color: #9ca3af;
+  }
+}
 </style>

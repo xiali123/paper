@@ -519,4 +519,42 @@ defineExpose({ open })
   opacity: 0;
   transition: all 0.2s;
 }
+
+// Dark mode overrides
+[data-theme="dark"] {
+  .search-section {
+    background: rgba(40, 40, 45, 0.98);
+    border-bottom-color: rgba(102, 126, 234, 0.3);
+  }
+
+  .category-tabs {
+    background: rgba(40, 40, 45, 0.98);
+    border-bottom-color: rgba(102, 126, 234, 0.3);
+  }
+
+  .command-item {
+    background: rgba(40, 40, 45, 0.98);
+
+    &:hover {
+      background: rgba(50, 50, 55, 0.95);
+    }
+  }
+
+  .command-icon {
+    background: rgba(30, 30, 35, 0.95);
+    border-color: rgba(102, 126, 234, 0.3);
+  }
+
+  .command-name {
+    color: #f3f4f6;
+  }
+
+  .command-code {
+    color: #9ca3af;
+  }
+
+  .group-title {
+    color: #9ca3af;
+  }
+}
 </style>

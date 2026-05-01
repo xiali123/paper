@@ -24,6 +24,12 @@
       </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <el-breadcrumb separator="/" class="page-breadcrumb">
+      <el-breadcrumb-item :to="{ path: '/crawler' }">爬虫</el-breadcrumb-item>
+      <el-breadcrumb-item>边缘爬虫</el-breadcrumb-item>
+    </el-breadcrumb>
+
     <!-- Quick Stats -->
     <el-row :gutter="16" class="stats-row">
       <el-col :xs="12" :sm="6">
@@ -645,6 +651,16 @@ onMounted(() => {
   padding: 24px;
   max-width: 1600px;
   margin: 0 auto;
+}
+
+.page-breadcrumb {
+  padding: 0 24px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .page-breadcrumb {
+  color: #9ca3af;
 }
 
 .page-header {

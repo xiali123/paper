@@ -792,11 +792,69 @@ onUnmounted(() => {
   }
 }
 
-// 深色模式
-.dark {
+// Dark mode overrides
+[data-theme="dark"] {
+  .latex-preview {
+    background: rgba(30, 30, 35, 0.95);
+  }
+
   .preview-rendered {
-    :deep(h2), :deep(h3), :deep(h4) {
-      border-color: var(--el-border-color);
+    color: #f3f4f6;
+
+    :deep(h2) {
+      border-bottom-color: rgba(102, 126, 234, 0.3);
+    }
+
+    :deep(.latex-table) {
+      td {
+        border-color: rgba(102, 126, 234, 0.3);
+      }
+
+      tr:first-child td {
+        background-color: rgba(40, 40, 45, 0.98);
+      }
+
+      tr:hover td {
+        background-color: rgba(50, 50, 55, 0.95);
+      }
+    }
+
+    :deep(.latex-figure-float) {
+      border-color: rgba(102, 126, 234, 0.3);
+      background-color: rgba(30, 30, 35, 0.95);
+    }
+
+    :deep(.latex-cite) {
+      background-color: rgba(40, 40, 45, 0.98);
+    }
+
+    :deep(.latex-bibliography) {
+      background-color: rgba(40, 40, 45, 0.98);
+    }
+
+    :deep(.latex-quote) {
+      border-left-color: rgba(102, 126, 234, 0.3);
+      background-color: rgba(40, 40, 45, 0.98);
+    }
+
+    :deep(.latex-verbatim) {
+      background-color: rgba(40, 40, 45, 0.98);
+      border-color: rgba(102, 126, 234, 0.3);
+
+      code {
+        color: #f3f4f6;
+      }
+    }
+
+    :deep(.inline-code) {
+      background-color: rgba(40, 40, 45, 0.98);
+      border-color: rgba(102, 126, 234, 0.3);
+    }
+
+    :deep(.unprocessed-latex) {
+      background-color: rgba(180, 120, 20, 0.2);
+      border-color: rgba(200, 150, 50, 0.4);
+      color: #e0c068;
     }
   }
 }
