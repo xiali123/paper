@@ -92,10 +92,10 @@ const { isConnected, send } = useWebSocket({
     handleWebSocketMessage(data)
   },
   onOpen: () => {
-    console.log('WebSocket connected')
+    if (import.meta.env.DEV) console.log('WebSocket connected')
   },
   onClose: () => {
-    console.log('WebSocket disconnected')
+    if (import.meta.env.DEV) console.log('WebSocket disconnected')
   }
 })
 

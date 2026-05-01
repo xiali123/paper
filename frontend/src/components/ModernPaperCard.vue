@@ -210,13 +210,13 @@ const toggleSelect = () => {
 
 const openDetails = () => {
   // 导航到详情页
-  console.log('Opening details for paper:', props.paper.id)
+  if (import.meta.env.DEV) console.log('Opening details for paper:', props.paper.id)
 }
 
 const copyCitation = () => {
   const citation = `${props.paper.authors} (${props.paper.year}). ${props.paper.title}. ${props.paper.venue}.`
   navigator.clipboard.writeText(citation)
-  console.log('Citation copied:', citation)
+  if (import.meta.env.DEV) console.log('Citation copied:', citation)
 }
 
 const exportBibTex = () => {
@@ -227,7 +227,7 @@ const exportBibTex = () => {
   venue={${props.paper.venue}}
 }`
   navigator.clipboard.writeText(bibTeX)
-  console.log('BibTeX exported:', bibTeX)
+  if (import.meta.env.DEV) console.log('BibTeX exported:', bibTeX)
 }
 
 const onMouseEnter = () => {

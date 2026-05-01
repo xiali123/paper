@@ -322,11 +322,11 @@ export function useAdminDashboard() {
         search: searchQuery.value,
         role: roleFilter.value as UserRole
       })
-      console.log('[loadUsers] API response:', response)
-      console.log('[loadUsers] response.items:', response.items)
+      if (import.meta.env.DEV) console.log('[loadUsers] API response:', response)
+      if (import.meta.env.DEV) console.log('[loadUsers] response.items:', response.items)
       users.value = response.items || []
       pagination.value.total = response.total || 0
-      console.log('[loadUsers] users.value:', users.value.length, 'users')
+      if (import.meta.env.DEV) console.log('[loadUsers] users.value:', users.value.length, 'users')
     } catch (error: any) {
       console.error('[loadUsers] Error:', error)
       ElMessage.error('加载用户列表失败: ' + (error.message || '未知错误'))
@@ -340,10 +340,10 @@ export function useAdminDashboard() {
     loading.value = true
     try {
       const result = await adminApi.getModules()
-      console.log('[loadModules] API returned:', result)
-      console.log('[loadModules] result type:', Array.isArray(result) ? 'Array' : typeof result)
+      if (import.meta.env.DEV) console.log('[loadModules] API returned:', result)
+      if (import.meta.env.DEV) console.log('[loadModules] result type:', Array.isArray(result) ? 'Array' : typeof result)
       modules.value = result || []
-      console.log('[loadModules] modules.value:', modules.value)
+      if (import.meta.env.DEV) console.log('[loadModules] modules.value:', modules.value)
     } catch (error: any) {
       console.error('[loadModules] API call failed:', error)
       ElMessage.error('加载模块列表失败: ' + (error.message || '未知错误'))

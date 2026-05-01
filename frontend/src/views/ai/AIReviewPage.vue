@@ -165,7 +165,7 @@ const stats = ref({
 
 const handleNewReview = () => {
   // 导航到审稿界面
-  console.log('Starting new review')
+  if (import.meta.env.DEV) console.log('Starting new review')
 }
 </script>
 

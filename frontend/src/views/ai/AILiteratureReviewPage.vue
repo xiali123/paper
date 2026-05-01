@@ -165,7 +165,7 @@ const stats = ref({
 })
 
 const handleNewReview = () => {
-  console.log('Starting new literature review')
+  if (import.meta.env.DEV) console.log('Starting new literature review')
 }
 </script>
 

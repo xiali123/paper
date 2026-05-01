@@ -121,7 +121,7 @@ const refreshVersions = () => {
 }
 
 const selectVersion = (version: FrontendLatexVersionNode) => {
-  console.log('Selected version:', version)
+  if (import.meta.env.DEV) console.log('Selected version:', version)
 }
 
 const formatTime = (timestamp: Date) => {

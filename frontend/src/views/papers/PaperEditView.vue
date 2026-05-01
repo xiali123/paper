@@ -444,12 +444,12 @@ const searchPublications = (queryString: string, cb: any) => {
 
 // Handle file change
 const handleFileChange = (file: UploadFile) => {
-  console.log('File changed:', file)
+  if (import.meta.env.DEV) console.log('File changed:', file)
 }
 
 // Handle file remove
 const handleFileRemove = (file: UploadFile) => {
-  console.log('File removed:', file)
+  if (import.meta.env.DEV) console.log('File removed:', file)
 }
 
 // Handle batch import
