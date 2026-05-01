@@ -57,8 +57,8 @@ int DataPreparedStatement::getAffectedRows() {
 std::string DataPreparedStatement::buildFinalSQL() {
     std::string result = sql_;
 
-    // 替换位置参数 (?)
-    int paramIndex = 1;
+    // 替换位置参数 (?) — index从0开始，匹配bind(0,...)调用
+    int paramIndex = 0;
     size_t pos = 0;
     while ((pos = result.find('?', pos)) != std::string::npos) {
         auto it = positionalParams_.find(paramIndex);
@@ -69,16 +69,6 @@ std::string DataPreparedStatement::buildFinalSQL() {
             pos++;
         }
         paramIndex++;
-    }
-
-    // 替换命名参数 (:name)
-    for (const auto& [name, value] : namedParams_) {
-        std::string placeholder = ":" + name;
-        size_t pos = 0;
-        while ((pos = result.find(placeholder, pos)) != std::string::npos) {
-            result.replace(pos, placeholder.length(), escapeValue(value));
-            pos += escapeValue(value).length();
-        }
     }
 
     return result;
