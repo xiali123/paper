@@ -5,6 +5,11 @@
 #include <QComboBox>
 #include <QGraphicsDropShadowEffect>
 #include <QToolTip>
+#include <QMenu>
+#include <QClipboard>
+#include <QApplication>
+#include <QDesktopServices>
+#include <algorithm>
 
 PaperCardView::PaperCardView(QWidget* parent) : QWidget(parent) {
     setupUI();
@@ -78,6 +83,40 @@ void PaperCardView::setupUI() {
     paginationLayout->addWidget(pageSizeUnitLabel);
     paginationLayout->addSpacing(30);
     paginationLayout->addWidget(pageInfoLabel_);
+    paginationLayout->addSpacing(20);
+
+    // Sort dropdown
+    auto* sortLabel = new QLabel("Sort:", paginationBar_);
+    sortLabel->setStyleSheet("color: palette(mid); font-size: 11px;");
+    paginationLayout->addWidget(sortLabel);
+
+    auto* sortCombo = new QComboBox(paginationBar_);
+    sortCombo->setObjectName("sortCombo");
+    sortCombo->addItem("Relevance", "relevance");
+    sortCombo->addItem("Year (Newest)", "year_desc");
+    sortCombo->addItem("Year (Oldest)", "year_asc");
+    sortCombo->setCursor(Qt::PointingHandCursor);
+    paginationLayout->addWidget(sortCombo);
+
+    connect(sortCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+        [this](int) {
+            auto* combo = findChild<QComboBox*>("sortCombo");
+            if (!combo) return;
+            QString sortBy = combo->currentData().toString();
+            if (sortBy == "year_desc") {
+                std::sort(papers_.begin(), papers_.end(),
+                    [](const Paper& a, const Paper& b) { return a.year > b.year; });
+            } else if (sortBy == "year_asc") {
+                std::sort(papers_.begin(), papers_.end(),
+                    [](const Paper& a, const Paper& b) { return a.year < b.year; });
+            }
+            // Re-render cards
+            clearPapersOnly();
+            for (const auto& paper : papers_) {
+                addPaper(paper);
+            }
+        });
+
     paginationLayout->addSpacing(20);
 
     // Pagination buttons
@@ -495,16 +534,67 @@ void PaperCardView::onCardClicked() {
 }
 
 bool PaperCardView::eventFilter(QObject* obj, QEvent* event) {
+    QWidget* card = qobject_cast<QWidget*>(obj);
+    if (!card) return QWidget::eventFilter(obj, event);
+
+    QVariant paperIdVar = card->property("paperId");
+    if (!paperIdVar.isValid()) return QWidget::eventFilter(obj, event);
+    int pid = paperIdVar.toInt();
+
     if (event->type() == QEvent::MouseButtonPress) {
-        QWidget* card = qobject_cast<QWidget*>(obj);
-        if (card) {
-            QVariant paperId = card->property("paperId");
-            if (paperId.isValid()) {
-                emit paperSelected(paperId.toInt());
-                return true;
-            }
-        }
+        emit paperSelected(pid);
+        return true;
     }
+
+    if (event->type() == QEvent::ContextMenu) {
+        // Find paper data
+        Paper paper;
+        for (const auto& p : papers_) {
+            if (p.id == pid) { paper = p; break; }
+        }
+
+        auto* menu = new QMenu(this);
+        menu->setStyleSheet(
+            "QMenu { background: palette(base); border: 1px solid palette(mid); padding: 4px; }"
+            "QMenu::item { padding: 6px 20px; }"
+            "QMenu::item:selected { background: #e0e7ff; }"
+        );
+
+        auto* viewAction = menu->addAction("View Details");
+        connect(viewAction, &QAction::triggered, this, [this, pid]() {
+            emit paperSelected(pid);
+        });
+
+        bool isFav = favoriteManager_ && favoriteManager_->isFavorite(pid);
+        auto* favAction = menu->addAction(isFav ? "Remove from Favorites" : "Add to Favorites");
+        connect(favAction, &QAction::triggered, this, [this, pid, paper, isFav]() {
+            if (favoriteManager_) {
+                if (isFav) {
+                    favoriteManager_->removeFavorite(pid);
+                } else {
+                    favoriteManager_->addFavorite(pid, paper.title, paper.journal, paper.year);
+                }
+                emit favoriteToggled(pid, !isFav);
+            }
+        });
+
+        auto* copyTitle = menu->addAction("Copy Title");
+        connect(copyTitle, &QAction::triggered, this, [paper]() {
+            QApplication::clipboard()->setText(paper.title);
+        });
+
+        if (!paper.doiUrl.isEmpty()) {
+            auto* openDoi = menu->addAction("Open DOI");
+            connect(openDoi, &QAction::triggered, this, [paper]() {
+                QDesktopServices::openUrl(QUrl(paper.doiUrl));
+            });
+        }
+
+        menu->exec(static_cast<QContextMenuEvent*>(event)->globalPos());
+        menu->deleteLater();
+        return true;
+    }
+
     return QWidget::eventFilter(obj, event);
 }
 

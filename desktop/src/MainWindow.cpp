@@ -32,6 +32,7 @@
 #include <QStatusBar>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QInputDialog>
 #include <QSettings>
 #include <QApplication>
 #include <QStyleFactory>
@@ -105,6 +106,14 @@ MainWindow::MainWindow(QWidget* parent)
     connect(statsShortcut, &QShortcut::activated, this, &MainWindow::onShowStatistics);
     auto* settingsShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma), this);
     connect(settingsShortcut, &QShortcut::activated, this, &MainWindow::onPreferences);
+
+    // Tab switch shortcuts Ctrl+1..5
+    for (int i = 1; i <= 5; ++i) {
+        auto* sc = new QShortcut(QKeySequence(Qt::CTRL | (Qt::Key_1 + i - 1)), this);
+        connect(sc, &QShortcut::activated, this, [this, i]() {
+            if (tabWidget_ && i < tabWidget_->count()) tabWidget_->setCurrentIndex(i);
+        });
+    }
 
     // Check API health on startup
     apiManager_->checkHealth();
@@ -1263,6 +1272,11 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
     }
     statusBar()->showMessage(message, 5000);
 
+    // Update Search tab badge with result count
+    if (tabWidget_) {
+        tabWidget_->setTabText(0, QString("Search (%1)").arg(totalResults_));
+    }
+
     // Log cache statistics
     qDebug() << "Cache statistics for" << currentKeyword_ << ":"
              << "Cached pages:" << paperCache_->getCacheCount(currentKeyword_)
@@ -1592,6 +1606,14 @@ void MainWindow::refreshFavoritesTab() {
         titleLabel->setStyleSheet("font-weight: bold; color: palette(text); font-size: 14px;");
         cardLayout->addWidget(titleLabel);
 
+        // Notes display
+        if (!fav.notes.isEmpty()) {
+            auto* notesLabel = new QLabel(fav.notes.left(100));
+            notesLabel->setWordWrap(true);
+            notesLabel->setStyleSheet("color: palette(mid); font-size: 12px; font-style: italic; padding-left: 8px; border-left: 2px solid #e0e7ff;");
+            cardLayout->addWidget(notesLabel);
+        }
+
         auto* metaRow = new QHBoxLayout();
         auto* journalLabel = new QLabel(fav.journal);
         journalLabel->setStyleSheet("color: palette(mid); font-size: 12px;");
@@ -1601,13 +1623,32 @@ void MainWindow::refreshFavoritesTab() {
         metaRow->addWidget(yearLabel);
         metaRow->addStretch();
 
+        // Note button
+        auto* noteBtn = new QPushButton("Note");
+        noteBtn->setStyleSheet(
+            "QPushButton { background: none; border: 1px solid palette(mid); color: palette(text); "
+            "border-radius: 4px; padding: 2px 8px; font-size: 11px; }"
+            "QPushButton:hover { background: #e0e7ff; }"
+        );
+        int pid = fav.paperId;
+        connect(noteBtn, &QPushButton::clicked, this, [this, favMgr, pid]() {
+            QString currentNote = favMgr->getNotes(pid);
+            bool ok;
+            QString note = QInputDialog::getMultiLineText(this, "Edit Note",
+                "Add notes for this paper:", currentNote, &ok);
+            if (ok) {
+                favMgr->setNotes(pid, note);
+                refreshFavoritesTab();
+            }
+        });
+        metaRow->addWidget(noteBtn);
+
         auto* removeBtn = new QPushButton("Remove");
         removeBtn->setStyleSheet(
             "QPushButton { background: none; border: none; color: #ef4444; "
             "font-size: 11px; font-weight: bold; }"
             "QPushButton:hover { color: #dc2626; }"
         );
-        int pid = fav.paperId;
         connect(removeBtn, &QPushButton::clicked, this, [this, favMgr, pid]() {
             favMgr->removeFavorite(pid);
         });
