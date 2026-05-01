@@ -172,18 +172,22 @@ void MainWindow::setupUI() {
     // === Tab 2: Favorites ===
     {
         auto* page = new QWidget();
+        page->setObjectName("favoritesPage");
         auto* layout = new QVBoxLayout(page);
         layout->setContentsMargins(24, 24, 24, 24);
         layout->setSpacing(12);
 
+        auto* headerRow = new QHBoxLayout();
         auto* header = new QLabel("My Favorites");
         header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
-        layout->addWidget(header);
+        headerRow->addWidget(header);
+        headerRow->addStretch();
 
         auto* countLabel = new QLabel("0 papers saved");
         countLabel->setObjectName("favCountLabel");
         countLabel->setStyleSheet("color: #64748b; font-size: 13px;");
-        layout->addWidget(countLabel);
+        headerRow->addWidget(countLabel);
+        layout->addLayout(headerRow);
 
         auto* favScroll = new QScrollArea();
         favScroll->setWidgetResizable(true);
@@ -196,6 +200,17 @@ void MainWindow::setupUI() {
         favScroll->setWidget(favContent);
         layout->addWidget(favScroll, 1);
 
+        // Refresh favorites when toggled
+        auto* favMgr = favoriteManager;
+        if (favMgr) {
+            connect(favMgr, &FavoriteManager::favoriteAdded, this, [this]() {
+                if (tabWidget_->currentIndex() == 1) refreshFavoritesTab();
+            });
+            connect(favMgr, &FavoriteManager::favoriteRemoved, this, [this]() {
+                if (tabWidget_->currentIndex() == 1) refreshFavoritesTab();
+            });
+        }
+
         tabWidget_->addTab(page, "Favorites");
     }
 
@@ -204,10 +219,52 @@ void MainWindow::setupUI() {
         auto* page = new QWidget();
         auto* layout = new QVBoxLayout(page);
         layout->setContentsMargins(24, 24, 24, 24);
+        layout->setSpacing(12);
 
+        auto* headerRow = new QHBoxLayout();
         auto* header = new QLabel("Crawler Dashboard");
         header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
-        layout->addWidget(header);
+        headerRow->addWidget(header);
+        headerRow->addStretch();
+
+        auto* refreshBtn = new QPushButton("Refresh");
+        refreshBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 16px; font-weight: bold; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        connect(refreshBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getCrawlerTasks();
+            apiManager_->getCrawlerDashboard();
+        });
+        headerRow->addWidget(refreshBtn);
+        layout->addLayout(headerRow);
+
+        // Stats row
+        auto* statsRow = new QHBoxLayout();
+        statsRow->setSpacing(16);
+        auto makeCard = [](const QString& title, const QString& value, const QString& color) {
+            auto* card = new QWidget();
+            card->setStyleSheet(
+                QString("QWidget { background: %1; border-radius: 8px; padding: 16px; }").arg(color)
+            );
+            auto* l = new QVBoxLayout(card);
+            l->setContentsMargins(0, 0, 0, 0);
+            l->setSpacing(4);
+            auto* v = new QLabel(value);
+            v->setStyleSheet("font-size: 24px; font-weight: bold; color: white;");
+            v->setObjectName(title);
+            l->addWidget(v);
+            auto* t = new QLabel(title);
+            t->setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.8); font-weight: 500;");
+            l->addWidget(t);
+            return card;
+        };
+        statsRow->addWidget(makeCard("Total Tasks", "0", "#4f46e5"));
+        statsRow->addWidget(makeCard("Running", "0", "#059669"));
+        statsRow->addWidget(makeCard("Completed", "0", "#0891b2"));
+        statsRow->addWidget(makeCard("Failed", "0", "#dc2626"));
+        layout->addLayout(statsRow);
 
         auto* taskTable = new QTableWidget(0, 5);
         taskTable->setObjectName("crawlerTaskTable");
@@ -228,6 +285,20 @@ void MainWindow::setupUI() {
                     taskTable->setItem(i, 3, new QTableWidgetItem(t["status"].toString()));
                     taskTable->setItem(i, 4, new QTableWidgetItem(t["created_at"].toString()));
                 }
+            });
+
+        connect(apiManager_, &ApiManager::crawlerDashboardSuccess, this,
+            [page](const QJsonObject& data) {
+                auto updateCard = [page](const QString& name, const QString& value) {
+                    auto* card = page->findChild<QWidget*>(name);
+                    if (!card) return;
+                    auto labels = card->findChildren<QLabel*>();
+                    if (!labels.isEmpty()) labels[0]->setText(value);
+                };
+                updateCard("Total Tasks", QString::number(data["totalTasks"].toInt(data["total_tasks"].toInt())));
+                updateCard("Running", QString::number(data["runningTasks"].toInt(data["running_tasks"].toInt())));
+                updateCard("Completed", QString::number(data["completedTasks"].toInt(data["completed_tasks"].toInt())));
+                updateCard("Failed", QString::number(data["failedTasks"].toInt(data["failed_tasks"].toInt())));
             });
 
         tabWidget_->addTab(page, "Crawler");
@@ -557,9 +628,7 @@ void MainWindow::connectSignals() {
     connect(tabWidget_, &QTabWidget::currentChanged, this, [this](int index) {
         switch (index) {
             case 1: // Favorites
-                if (localDb_ && localDb_->isOpen()) {
-                    qDebug() << "Favorites tab: local papers:" << localDb_->getPaperCount();
-                }
+                refreshFavoritesTab();
                 break;
             case 2: // Crawler
                 apiManager_->getCrawlerDashboard();
@@ -747,10 +816,23 @@ void MainWindow::onHealthCheckSuccess(bool healthy, const QString& message) {
             : HeroWidget::HealthStatus::Unhealthy);
     }
 
+    // Status bar health indicator
+    auto* healthLabel = findChild<QLabel*>("healthIndicator");
+    if (!healthLabel) {
+        healthLabel = new QLabel(this);
+        healthLabel->setObjectName("healthIndicator");
+        statusBar()->addPermanentWidget(healthLabel);
+    }
+    healthLabel->setStyleSheet(
+        QString("padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; "
+                "color: %1; background: %2;")
+        .arg(healthy ? "#059669" : "#dc2626", healthy ? "#d1fae5" : "#fee2e2")
+    );
+    healthLabel->setText(healthy ? "Online" : "Offline");
+
+    // Load recent papers on first health check success
     if (healthy) {
-        qDebug() << "API Health check: OK -" << message;
-    } else {
-        qDebug() << "API Health check: FAILED -" << message;
+        apiManager_->getRecentPapers(6);
     }
 }
 
@@ -962,5 +1044,89 @@ void MainWindow::updateAuthUI() {
         setWindowTitle(QString("PaperCrawler - %1").arg(user.username));
     } else {
         setWindowTitle("PaperCrawler");
+    }
+}
+
+// ============================================================================
+// Favorites Tab Refresh
+// ============================================================================
+
+void MainWindow::refreshFavoritesTab() {
+    auto* page = findChild<QWidget*>("favoritesPage");
+    if (!page) return;
+
+    auto* favMgr = findChild<FavoriteManager*>();
+    if (!favMgr) return;
+
+    auto* countLabel = page->findChild<QLabel*>("favCountLabel");
+    auto* listLayout = page->findChild<QVBoxLayout*>("favListLayout");
+
+    if (!listLayout) return;
+
+    // Clear existing items
+    QLayoutItem* item;
+    while ((item = listLayout->takeAt(0)) != nullptr) {
+        delete item->widget();
+        delete item;
+    }
+
+    auto favorites = favMgr->getFavorites();
+
+    if (countLabel) {
+        countLabel->setText(QString("%1 paper(s) saved").arg(favorites.size()));
+    }
+
+    // Update tab badge
+    if (tabWidget_) {
+        tabWidget_->setTabText(1, QString("Favorites (%1)").arg(favorites.size()));
+    }
+
+    if (favorites.isEmpty()) {
+        auto* emptyLabel = new QLabel("No favorites yet. Click the star on paper cards to add.");
+        emptyLabel->setStyleSheet("color: #94a3b8; font-size: 14px; padding: 40px;");
+        emptyLabel->setAlignment(Qt::AlignCenter);
+        listLayout->addWidget(emptyLabel);
+        return;
+    }
+
+    for (const auto& fav : favorites) {
+        auto* card = new QWidget();
+        card->setStyleSheet(
+            "QWidget { background: palette(base); border: 1px solid palette(mid); "
+            "border-radius: 8px; padding: 12px 16px; }"
+        );
+
+        auto* cardLayout = new QVBoxLayout(card);
+        cardLayout->setContentsMargins(0, 0, 0, 0);
+        cardLayout->setSpacing(4);
+
+        auto* titleLabel = new QLabel(fav.title);
+        titleLabel->setWordWrap(true);
+        titleLabel->setStyleSheet("font-weight: bold; color: #1e293b; font-size: 14px;");
+        cardLayout->addWidget(titleLabel);
+
+        auto* metaRow = new QHBoxLayout();
+        auto* journalLabel = new QLabel(fav.journal);
+        journalLabel->setStyleSheet("color: #64748b; font-size: 12px;");
+        auto* yearLabel = new QLabel(fav.year);
+        yearLabel->setStyleSheet("color: #64748b; font-size: 12px;");
+        metaRow->addWidget(journalLabel);
+        metaRow->addWidget(yearLabel);
+        metaRow->addStretch();
+
+        auto* removeBtn = new QPushButton("Remove");
+        removeBtn->setStyleSheet(
+            "QPushButton { background: none; border: none; color: #ef4444; "
+            "font-size: 11px; font-weight: bold; }"
+            "QPushButton:hover { color: #dc2626; }"
+        );
+        int pid = fav.paperId;
+        connect(removeBtn, &QPushButton::clicked, this, [this, favMgr, pid]() {
+            favMgr->removeFavorite(pid);
+        });
+        metaRow->addWidget(removeBtn);
+        cardLayout->addLayout(metaRow);
+
+        listLayout->addWidget(card);
     }
 }

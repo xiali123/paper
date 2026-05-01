@@ -84,6 +84,7 @@ private:
     void loadSettings();
     void saveSettings();
     void initializeAuthentication();
+    void refreshFavoritesTab();
 
     // UI Components
     QTabWidget* tabWidget_{nullptr};
