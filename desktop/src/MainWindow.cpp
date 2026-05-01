@@ -263,6 +263,54 @@ void MainWindow::setupUI() {
         countLabel->setObjectName("favCountLabel");
         countLabel->setStyleSheet("color: palette(mid); font-size: 13px;");
         headerRow->addWidget(countLabel);
+
+        // Batch export button
+        auto* exportFavBtn = new QPushButton("Export All");
+        exportFavBtn->setStyleSheet(
+            "QPushButton { background: #059669; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #047857; }"
+        );
+        connect(exportFavBtn, &QPushButton::clicked, this, [this, favoriteManager]() {
+            auto favs = favoriteManager->getFavorites();
+            if (favs.isEmpty()) {
+                QMessageBox::information(this, "Export", "No favorites to export.");
+                return;
+            }
+            QList<Paper> papers;
+            for (const auto& f : favs) {
+                Paper p;
+                p.id = f.paperId;
+                p.title = f.title;
+                p.journalFull = f.journal;
+                p.year = f.year;
+                papers.append(p);
+            }
+            QString fileName = exportManager_->showSaveDialog(this, ExportFormat::CSV);
+            if (!fileName.isEmpty()) {
+                exportManager_->exportToCSV(fileName, papers);
+            }
+        });
+        headerRow->addWidget(exportFavBtn);
+
+        // Clear all button
+        auto* clearFavBtn = new QPushButton("Clear All");
+        clearFavBtn->setStyleSheet(
+            "QPushButton { background: none; border: 1px solid #ef4444; color: #ef4444; "
+            "border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #fef2f2; }"
+        );
+        connect(clearFavBtn, &QPushButton::clicked, this, [this, favoriteManager]() {
+            auto reply = QMessageBox::question(this, "Clear Favorites",
+                "Remove all favorites?",
+                QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::Yes) {
+                favoriteManager->clear();
+                refreshFavoritesTab();
+            }
+        });
+        headerRow->addWidget(clearFavBtn);
+
         layout->addLayout(headerRow);
 
         auto* favScroll = new QScrollArea();
@@ -314,6 +362,64 @@ void MainWindow::setupUI() {
             apiManager_->getCrawlerDashboard();
         });
         headerRow->addWidget(refreshBtn);
+
+        // New Task button
+        auto* newTaskBtn = new QPushButton("+ New Task");
+        newTaskBtn->setStyleSheet(
+            "QPushButton { background: #059669; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 16px; font-weight: bold; }"
+            "QPushButton:hover { background: #047857; }"
+        );
+        connect(newTaskBtn, &QPushButton::clicked, this, [this]() {
+            auto* dlg = new QDialog(this);
+            dlg->setWindowTitle("New Crawler Task");
+            dlg->setMinimumWidth(400);
+            auto* form = new QVBoxLayout(dlg);
+
+            auto* urlLabel = new QLabel("URL to crawl:");
+            form->addWidget(urlLabel);
+            auto* urlInput = new QLineEdit();
+            urlInput->setPlaceholderText("https://dblp.org/...");
+            form->addWidget(urlInput);
+
+            auto* sourceLabel = new QLabel("Source:");
+            form->addWidget(sourceLabel);
+            auto* sourceCombo = new QComboBox();
+            sourceCombo->addItems({"dblp", "semantic_scholar", "crossref", "arxiv"});
+            form->addWidget(sourceCombo);
+
+            auto* btnRow = new QHBoxLayout();
+            auto* cancelBtn = new QPushButton("Cancel");
+            connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+            btnRow->addWidget(cancelBtn);
+            auto* createBtn = new QPushButton("Create");
+            createBtn->setStyleSheet(
+                "QPushButton { background: #4f46e5; color: white; border: none; "
+                "border-radius: 6px; padding: 6px 20px; font-weight: bold; }"
+            );
+            connect(createBtn, &QPushButton::clicked, this, [this, dlg, urlInput, sourceCombo]() {
+                QString url = urlInput->text().trimmed();
+                if (url.isEmpty()) return;
+                QJsonObject data;
+                data["url"] = url;
+                data["source"] = sourceCombo->currentText();
+                apiManager_->post(apiManager_->createRequest("/api/crawler/tasks"),
+                    QJsonDocument(data).toJson());
+                dlg->accept();
+                statusBar()->showMessage("Crawler task created for: " + url, 5000);
+                // Refresh after short delay
+                QTimer::singleShot(1000, this, [this]() {
+                    apiManager_->getCrawlerTasks();
+                    apiManager_->getCrawlerDashboard();
+                });
+            });
+            btnRow->addWidget(createBtn);
+            form->addLayout(btnRow);
+
+            dlg->exec();
+            dlg->deleteLater();
+        });
+        headerRow->addWidget(newTaskBtn);
         layout->addLayout(headerRow);
 
         // Stats row
@@ -385,10 +491,79 @@ void MainWindow::setupUI() {
         auto* page = new QWidget();
         auto* layout = new QVBoxLayout(page);
         layout->setContentsMargins(24, 24, 24, 24);
+        layout->setSpacing(12);
 
+        auto* headerRow = new QHBoxLayout();
         auto* header = new QLabel("AI Research Assistant");
         header->setStyleSheet("font-size: 20px; font-weight: bold; color: palette(text);");
-        layout->addWidget(header);
+        headerRow->addWidget(header);
+        headerRow->addStretch();
+
+        // Review selected paper button
+        auto* reviewBtn = new QPushButton("Review Paper");
+        reviewBtn->setStyleSheet(
+            "QPushButton { background: #7c3aed; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 16px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #6d28d9; }"
+        );
+        connect(reviewBtn, &QPushButton::clicked, this, [this, page]() {
+            auto* chatDisplay = page->findChild<QTextEdit*>("aiChatDisplay");
+            if (!chatDisplay) return;
+
+            // Use last selected paper from resultView
+            if (!resultView_ || resultView_->paperCount() == 0) {
+                chatDisplay->append("<i>Select a paper first by searching and clicking a result.</i>");
+                return;
+            }
+
+            // Get the first paper from current results for review
+            auto papers = resultView_->getPapers();
+            if (papers.isEmpty()) return;
+
+            const auto& paper = papers.first();
+            chatDisplay->append("<b>You:</b> Please review this paper: " + paper.title);
+
+            QJsonObject data;
+            data["paperId"] = paper.id;
+            data["title"] = paper.title;
+            data["abstract"] = paper.abstract;
+            apiManager_->aiReview(data);
+        });
+        headerRow->addWidget(reviewBtn);
+        layout->addLayout(headerRow);
+
+        // Quick questions row
+        auto* quickRow = new QHBoxLayout();
+        quickRow->setSpacing(6);
+        auto makeQuickBtn = [](const QString& text) {
+            auto* btn = new QPushButton(text);
+            btn->setStyleSheet(
+                "QPushButton { background: palette(base); border: 1px solid palette(mid); "
+                "border-radius: 14px; padding: 4px 14px; font-size: 11px; color: palette(text); }"
+                "QPushButton:hover { background: #e0e7ff; }"
+            );
+            btn->setCursor(Qt::PointingHandCursor);
+            return btn;
+        };
+        for (const auto& q : {"Summarize trends", "Compare methods", "Find gaps", "Suggest keywords"}) {
+            auto* btn = makeQuickBtn(q);
+            connect(btn, &QPushButton::clicked, this, [this, btn]() {
+                // Forward to chat input
+                auto* page = btn->parentWidget();
+                while (page && !page->inherits("QWidget")) page = page->parentWidget();
+                auto* chatInput = page ? page->findChild<QLineEdit*>() : nullptr;
+                auto* chatDisplay = page ? page->findChild<QTextEdit*>("aiChatDisplay") : nullptr;
+                if (chatInput && chatDisplay) {
+                    chatDisplay->append("<b>You:</b> " + btn->text());
+                    QJsonObject data;
+                    data["message"] = btn->text();
+                    data["userId"] = 1;
+                    apiManager_->aiChat(data);
+                }
+            });
+            quickRow->addWidget(btn);
+        }
+        layout->addLayout(quickRow);
 
         auto* chatDisplay = new QTextEdit();
         chatDisplay->setObjectName("aiChatDisplay");
@@ -429,6 +604,11 @@ void MainWindow::setupUI() {
 
         connect(apiManager_, &ApiManager::aiChatSuccess, this, [chatDisplay](const QString& response) {
             chatDisplay->append("<b>AI:</b> " + response);
+        });
+
+        connect(apiManager_, &ApiManager::aiReviewSuccess, this, [chatDisplay](const QJsonObject& result) {
+            QString review = result["review"].toString(result["summary"].toString("Review completed."));
+            chatDisplay->append("<b>AI Review:</b> " + review);
         });
 
         tabWidget_->addTab(page, "AI");
