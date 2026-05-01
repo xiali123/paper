@@ -121,6 +121,7 @@ private:
     QAction* themeAction_{nullptr};
     QPushButton* themeButton_{nullptr};
     QSystemTrayIcon* trayIcon_{nullptr};
+    int lastRunningCount_{0};
 
     // State
     bool darkMode_{false};

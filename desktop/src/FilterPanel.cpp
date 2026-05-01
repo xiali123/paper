@@ -9,12 +9,12 @@ FilterPanel::FilterPanel(QWidget* parent) : QGroupBox("Filters", parent) {
 
 void FilterPanel::setupUI() {
     setStyleSheet(
-        "QGroupBox { font-weight: bold; color: #1e293b; border: 1px solid #e2e8f0; "
+        "QGroupBox { font-weight: bold; color: palette(text); border: 1px solid palette(mid); "
         "border-radius: 8px; margin-top: 12px; padding-top: 20px; }"
         "QGroupBox::title { subcontrol-origin: margin; left: 12px; }"
-        "QCheckBox { padding: 4px 0; color: #475569; }"
+        "QCheckBox { padding: 4px 0; color: palette(text); }"
         "QCheckBox::indicator { width: 16px; height: 16px; }"
-        "QComboBox { padding: 6px; border: 1px solid #e2e8f0; border-radius: 6px; }"
+        "QComboBox { padding: 6px; border: 1px solid palette(mid); border-radius: 6px; }"
     );
 
     auto* layout = new QVBoxLayout(this);
@@ -22,7 +22,7 @@ void FilterPanel::setupUI() {
 
     // Level filters
     auto* levelLabel = new QLabel("CCF Level:");
-    levelLabel->setStyleSheet("font-weight: 600; color: #64748b; font-size: 11px;");
+    levelLabel->setStyleSheet("font-weight: 600; color: palette(mid); font-size: 11px;");
     layout->addWidget(levelLabel);
 
     checkAll_ = new QCheckBox("All Levels", this);
@@ -44,7 +44,7 @@ void FilterPanel::setupUI() {
         checkA_->setChecked(checked);
         checkB_->setChecked(checked);
         checkC_->setChecked(checked);
-        emit filterChanged(getLevel(), getYear());
+        emit filterChanged(getLevel(), getYear(), getType());
     });
     connect(checkA_, &QCheckBox::toggled, this, &FilterPanel::onLevelToggled);
     connect(checkB_, &QCheckBox::toggled, this, &FilterPanel::onLevelToggled);
@@ -54,7 +54,7 @@ void FilterPanel::setupUI() {
 
     // Year filter
     auto* yearLabel = new QLabel("Year:");
-    yearLabel->setStyleSheet("font-weight: 600; color: #64748b; font-size: 11px;");
+    yearLabel->setStyleSheet("font-weight: 600; color: palette(mid); font-size: 11px;");
     layout->addWidget(yearLabel);
 
     yearCombo_ = new QComboBox(this);
@@ -68,16 +68,34 @@ void FilterPanel::setupUI() {
     connect(yearCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &FilterPanel::onYearChanged);
 
+    layout->addSpacing(12);
+
+    // Paper type filter
+    auto* typeLabel = new QLabel("Type:");
+    typeLabel->setStyleSheet("font-weight: 600; color: palette(mid); font-size: 11px;");
+    layout->addWidget(typeLabel);
+
+    typeCombo_ = new QComboBox(this);
+    typeCombo_->addItem("All Types", "");
+    typeCombo_->addItem("Journal", "journal");
+    typeCombo_->addItem("Conference", "conference");
+    typeCombo_->addItem("Preprint", "preprint");
+    typeCombo_->addItem("Book", "book");
+    layout->addWidget(typeCombo_);
+
+    connect(typeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this]() { emit filterChanged(getLevel(), getYear(), getType()); });
+
     layout->addStretch();
 }
 
 void FilterPanel::onLevelToggled(bool) {
     updateLevelCheckboxes();
-    emit filterChanged(getLevel(), getYear());
+    emit filterChanged(getLevel(), getYear(), getType());
 }
 
 void FilterPanel::onYearChanged(int) {
-    emit filterChanged(getLevel(), getYear());
+    emit filterChanged(getLevel(), getYear(), getType());
 }
 
 void FilterPanel::updateLevelCheckboxes() {
@@ -99,4 +117,8 @@ QString FilterPanel::getLevel() const {
 
 QString FilterPanel::getYear() const {
     return yearCombo_ ? yearCombo_->currentData().toString() : "";
+}
+
+QString FilterPanel::getType() const {
+    return typeCombo_ ? typeCombo_->currentData().toString() : "";
 }

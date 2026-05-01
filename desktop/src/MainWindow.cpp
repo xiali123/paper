@@ -116,7 +116,7 @@ MainWindow::MainWindow(QWidget* parent)
     });
     healthTimer->start(30000);
 
-    statusBar()->showMessage("Ready - PaperCrawler Desktop v1.0", 3000);
+    statusBar()->showMessage("Ready - Ctrl+F: Search | Ctrl+E: Export | Ctrl+T: Theme | Ctrl+,: Settings", 5000);
 
     // System tray icon
     trayIcon_ = new QSystemTrayIcon(this);
@@ -495,17 +495,29 @@ void MainWindow::setupUI() {
             });
 
         connect(apiManager_, &ApiManager::crawlerDashboardSuccess, this,
-            [page](const QJsonObject& data) {
+            [this, page](const QJsonObject& data) {
                 auto updateCard = [page](const QString& name, const QString& value) {
                     auto* card = page->findChild<QWidget*>(name);
                     if (!card) return;
                     auto labels = card->findChildren<QLabel*>();
                     if (!labels.isEmpty()) labels[0]->setText(value);
                 };
+                int running = data["runningTasks"].toInt(data["running_tasks"].toInt());
                 updateCard("Total Tasks", QString::number(data["totalTasks"].toInt(data["total_tasks"].toInt())));
-                updateCard("Running", QString::number(data["runningTasks"].toInt(data["running_tasks"].toInt())));
+                updateCard("Running", QString::number(running));
                 updateCard("Completed", QString::number(data["completedTasks"].toInt(data["completed_tasks"].toInt())));
                 updateCard("Failed", QString::number(data["failedTasks"].toInt(data["failed_tasks"].toInt())));
+
+                // Notify when tasks complete
+                if (lastRunningCount_ > 0 && running == 0) {
+                    if (trayIcon_) {
+                        int completed = data["completedTasks"].toInt(data["completed_tasks"].toInt());
+                        trayIcon_->showMessage("Crawler Complete",
+                            QString("All tasks finished. %1 completed.").arg(completed),
+                            QSystemTrayIcon::Information, 3000);
+                    }
+                }
+                lastRunningCount_ = running;
             });
 
         tabWidget_->addTab(page, "Crawler");
@@ -1041,7 +1053,8 @@ void MainWindow::connectSignals() {
     // Filter panel
     if (filterPanel_) {
         connect(filterPanel_, &FilterPanel::filterChanged,
-                this, [this](const QString& level, const QString& year) {
+                this, [this](const QString& level, const QString& year, const QString& type) {
+            Q_UNUSED(type);
             if (!currentKeyword_.isEmpty()) {
                 currentOffset_ = 0;
                 apiManager_->searchPapers(currentKeyword_, year, level, 0, currentLimit_);

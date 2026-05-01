@@ -16,9 +16,10 @@ public:
 
     QString getLevel() const;
     QString getYear() const;
+    QString getType() const;
 
 signals:
-    void filterChanged(const QString& level, const QString& year);
+    void filterChanged(const QString& level, const QString& year, const QString& type);
 
 private slots:
     void onLevelToggled(bool checked);
@@ -33,4 +34,5 @@ private:
     QCheckBox* checkB_{nullptr};
     QCheckBox* checkC_{nullptr};
     QComboBox* yearCombo_{nullptr};
+    QComboBox* typeCombo_{nullptr};
 };
