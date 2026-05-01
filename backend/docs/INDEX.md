@@ -1,10 +1,30 @@
 # PaperCrawler 后端文档索引
 
-**最后更新**: 2026-05-01
+**最后更新**: 2026-05-02
 
 ---
 
 ## 📚 文档分类
+
+### 🔍 功能分析文档
+
+#### [FEATURE_EXPANSION_ANALYSIS.md](./FEATURE_EXPANSION_ANALYSIS.md) ⭐ **2026-05-02 最新！**
+**后端功能深度拓展分析报告**
+
+基于5个专家代理并行分析（业务模块、数据层、AI/分析、架构模式、前后端差距）的完整报告。
+
+**核心发现**:
+- 20个业务模块 / 28,355+行代码 / 95张数据库表 / 270+条API路由
+- DashboardApiModule 前端已就绪但后端完全缺失（最高优先级）
+- 密码哈希不安全（std::hash 替代 bcrypt）
+- AI RAG 框架是空壳，SSE/多Provider未实现
+- WebSocket 是 mock 实现，协作写作实时推送未接通
+- 50+ TODO 注释标记未完成功能
+- 总修复/拓展估算：408-588小时
+
+**适合**: 所有角色（必读）
+
+---
 
 ### 🎯 战略规划文档
 
@@ -109,18 +129,21 @@
 ## 🎯 按角色快速导航
 
 ### 👔 项目经理/产品负责人
-1. 先读 [SUPER_FEATURES_PLAN.md](./SUPER_FEATURES_PLAN.md) - 最新战略规划
+1. 先读 [FEATURE_EXPANSION_ANALYSIS.md](./FEATURE_EXPANSION_ANALYSIS.md) - 最新功能拓展分析
+2. 再读 [SUPER_FEATURES_PLAN.md](./SUPER_FEATURES_PLAN.md) - 战略规划
 2. 再读 [BUSINESS_COMPETITIVENESS_SUMMARY.md](./architecture-analysis/BUSINESS_COMPETITIVENESS_SUMMARY.md) - 商业分析
 3. 最后读 [ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md](./architecture-analysis/ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md) - 实施计划
 
 ### 🏗️ 架构师/技术负责人
-1. [SUPER_FEATURES_PLAN.md](./SUPER_FEATURES_PLAN.md) - 技术架构创新
+1. [FEATURE_EXPANSION_ANALYSIS.md](./FEATURE_EXPANSION_ANALYSIS.md) - 功能拓展分析与路线图
+2. [SUPER_FEATURES_PLAN.md](./SUPER_FEATURES_PLAN.md) - 技术架构创新
 2. [FINAL_ARCHITECTURE_REPORT.md](./architecture-analysis/FINAL_ARCHITECTURE_REPORT.md) - 完整架构报告
 3. [ARCHITECTURE_VISUALIZATION.md](./architecture-analysis/ARCHITECTURE_VISUALIZATION.md) - 架构图表
 4. [COMPREHENSIVE_ARCHITECTURE_REPORT.md](./architecture-analysis/COMPREHENSIVE_ARCHITECTURE_REPORT.md) - 技术细节
 
 ### 💻 开发者/工程师
-1. [ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md](./architecture-analysis/ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md) - 修复方案
+1. [FEATURE_EXPANSION_ANALYSIS.md](./FEATURE_EXPANSION_ANALYSIS.md) - 拓展路线图与优先级
+2. [ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md](./architecture-analysis/ARCHITECTURE_OPTIMIZATION_RECOMMENDATIONS.md) - 修复方案
 2. [ARCHITECTURE_VISUALIZATION.md](./architecture-analysis/ARCHITECTURE_VISUALIZATION.md) - 系统架构图
 3. [COMPREHENSIVE_ARCHITECTURE_REPORT.md](./architecture-analysis/COMPREHENSIVE_ARCHITECTURE_REPORT.md) - 代码实现
 
@@ -218,6 +241,6 @@ git checkout -b fix/security-critical-issues
 
 ---
 
-**文档生成时间**: 2026-05-01
+**文档生成时间**: 2026-05-02
 **分析专家**: Backend Architect, Security Auditor, Documentation Reviewer
 **状态**: 安全评级F，需紧急修复mock加密和SQL注入后方可用于生产环境

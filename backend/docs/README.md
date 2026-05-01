@@ -124,6 +124,8 @@ GET  /api/export/:id/download # 下载文件
 
 ## 📚 详细文档
 
+- **[功能拓展分析报告](./FEATURE_EXPANSION_ANALYSIS.md)** ⭐ 最新 — 5专家代理分析，高价值拓展方向与路线图
+- **[文档索引](./INDEX.md)** — 全部文档导航
 - **[模块导航指南](./MODULE_GUIDE.md)** - 按功能查找模块
 - **[业务模块报告](./BUSINESS_MODULES_COMPLETE.md)** - 14个业务模块详解
 - **[最终架构总结](./FINAL_ARCHITECTURE_SUMMARY.md)** - 完整架构说明
@@ -281,7 +283,7 @@ MIT License
 ---
 
 **项目状态**: ✅ 生产就绪
-**最后更新**: 2026-03-29
+**最后更新**: 2026-05-02
 **版本**: v1.0.0
 - C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - MySQL server (for database)
