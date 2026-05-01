@@ -138,20 +138,11 @@ import { formatDate } from '@/utils/format'
 const { overview, loading, error, lastUpdate, fetchOverview } = useStats()
 
 onMounted(async () => {
-  console.log('🎯 [Fixed Stats] Component mounted')
-  console.log('📊 [Fixed Stats] Overview:', overview.value)
-  console.log('🔄 [Fixed Stats] Loading:', loading.value)
-  console.log('✅ [Fixed Stats] Has Data:', overview.value !== null)
-
   await fetchOverview()
-
-  console.log('✨ [Fixed Stats] After fetch:')
-  console.log('  Overview:', overview.value)
-  console.log('  Loading:', loading.value)
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .stats-page {
   width: 100%;
   max-width: 100%;
