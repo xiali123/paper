@@ -25,6 +25,7 @@ public:
     const QList<Paper>& getPapers() const { return papers_; }
     int getTotalCount() const { return totalCount_; }
     int getCurrentPage() const { return currentPage_; }
+    void setHighlightKeyword(const QString& keyword) { highlightKeyword_ = keyword; }
 
 protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
@@ -71,4 +72,4 @@ private:
     int currentPage_{1};
     int currentPageSize_{20};
     int currentOffset_{0};
-};
+    QString highlightKeyword_;

@@ -19,6 +19,7 @@
 #include "database/LocalDatabase.hpp"
 #include <QTimer>
 #include <QCloseEvent>
+#include <QResizeEvent>
 #include <QPainter>
 #include <QLinearGradient>
 #include <QScrollArea>
@@ -774,6 +775,13 @@ void MainWindow::paintEvent(QPaintEvent* event) {
     painter.fillRect(rect(), gradient);
 }
 
+void MainWindow::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);
+    if (themeButton_) {
+        themeButton_->move(width() - 70, 80);
+    }
+}
+
 void MainWindow::createMenus() {
     // File menu
     QMenu* fileMenu = menuBar()->addMenu("&File");
@@ -1096,6 +1104,7 @@ void MainWindow::onSearch(const QString& keyword) {
     statusBar()->showMessage("Searching: " + keyword + "...");
     resultView_->setVisible(true);
     resultView_->clear();
+    resultView_->setHighlightKeyword(keyword);
     filterPanel_->setVisible(true);
 
     // Show loading indicator in status bar

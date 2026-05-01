@@ -290,10 +290,19 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
     auto* headerLayout = new QHBoxLayout();
     headerLayout->setSpacing(15);
 
-    auto* titleLabel = new QLabel(paper.title, card);
+    auto* titleLabel = new QLabel(card);
     titleLabel->setObjectName("paperTitle");
     titleLabel->setWordWrap(true);
+    titleLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    if (!highlightKeyword_.isEmpty()) {
+        QString escaped = paper.title.toHtmlEscaped();
+        QString keywordEscaped = highlightKeyword_.toHtmlEscaped();
+        escaped.replace(keywordEscaped, "<span style='background:#fde68a;font-weight:bold;'>" + keywordEscaped + "</span>", Qt::CaseInsensitive);
+        titleLabel->setText(escaped);
+    } else {
+        titleLabel->setText(paper.title);
+    }
 
     auto* levelBadge = new QLabel(paper.level.toUpper(), card);
     levelBadge->setObjectName("levelBadge");
