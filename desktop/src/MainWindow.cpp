@@ -13,12 +13,9 @@
 #include "AuthManager.hpp"
 #include "LoginWindow.hpp"
 #include "PaperDetailDialog.hpp"
-#include "StatisticsDialog.hpp"
 #include "SettingsDialog.hpp"
 #include "FavoriteManager.hpp"
 #include "SearchHistory.hpp"
-#include "CrawlerDashboardDialog.hpp"
-#include "FavoritesDialog.hpp"
 #include "database/LocalDatabase.hpp"
 #include <QTimer>
 #include <QCloseEvent>
@@ -28,6 +25,8 @@
 
 #include <QMenuBar>
 #include <QShortcut>
+#include <QTextEdit>
+#include <QTableWidget>
 #include <QToolBar>
 #include <QStatusBar>
 #include <QMessageBox>
@@ -171,48 +170,151 @@ void MainWindow::setupUI() {
     tabWidget_->addTab(searchScroll, "Search");
 
     // === Tab 2: Favorites ===
-    auto* favoritesPage = new QWidget();
-    auto* favLayout = new QVBoxLayout(favoritesPage);
-    favLayout->setContentsMargins(16, 16, 16, 16);
-    auto* favLabel = new QLabel("My Favorites");
-    favLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
-    favLayout->addWidget(favLabel);
-    favLayout->addWidget(new QLabel("Click the star on paper cards to add favorites."));
-    favLayout->addStretch();
-    tabWidget_->addTab(favoritesPage, "Favorites");
+    {
+        auto* page = new QWidget();
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(24, 24, 24, 24);
+        layout->setSpacing(12);
+
+        auto* header = new QLabel("My Favorites");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        layout->addWidget(header);
+
+        auto* countLabel = new QLabel("0 papers saved");
+        countLabel->setObjectName("favCountLabel");
+        countLabel->setStyleSheet("color: #64748b; font-size: 13px;");
+        layout->addWidget(countLabel);
+
+        auto* favScroll = new QScrollArea();
+        favScroll->setWidgetResizable(true);
+        favScroll->setFrameShape(QFrame::NoFrame);
+        auto* favContent = new QWidget();
+        auto* favListLayout = new QVBoxLayout(favContent);
+        favListLayout->setObjectName("favListLayout");
+        favListLayout->setAlignment(Qt::AlignTop);
+        favListLayout->setSpacing(8);
+        favScroll->setWidget(favContent);
+        layout->addWidget(favScroll, 1);
+
+        tabWidget_->addTab(page, "Favorites");
+    }
 
     // === Tab 3: Crawler ===
-    auto* crawlerPage = new QWidget();
-    auto* crawlerLayout = new QVBoxLayout(crawlerPage);
-    crawlerLayout->setContentsMargins(16, 16, 16, 16);
-    auto* crawlerLabel = new QLabel("Crawler Dashboard");
-    crawlerLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
-    crawlerLayout->addWidget(crawlerLabel);
-    crawlerLayout->addWidget(new QLabel("Manage crawler tasks, templates, and monitoring."));
-    crawlerLayout->addStretch();
-    tabWidget_->addTab(crawlerPage, "Crawler");
+    {
+        auto* page = new QWidget();
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(24, 24, 24, 24);
+
+        auto* header = new QLabel("Crawler Dashboard");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        layout->addWidget(header);
+
+        auto* taskTable = new QTableWidget(0, 5);
+        taskTable->setObjectName("crawlerTaskTable");
+        taskTable->setHorizontalHeaderLabels({"ID", "Source", "URL", "Status", "Created"});
+        taskTable->horizontalHeader()->setStretchLastSection(true);
+        taskTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        taskTable->setAlternatingRowColors(true);
+        layout->addWidget(taskTable, 1);
+
+        connect(apiManager_, &ApiManager::crawlerTasksSuccess, this,
+            [taskTable](const QJsonArray& tasks) {
+                taskTable->setRowCount(tasks.size());
+                for (int i = 0; i < tasks.size(); ++i) {
+                    auto t = tasks[i].toObject();
+                    taskTable->setItem(i, 0, new QTableWidgetItem(QString::number(t["id"].toInt())));
+                    taskTable->setItem(i, 1, new QTableWidgetItem(t["source"].toString()));
+                    taskTable->setItem(i, 2, new QTableWidgetItem(t["url"].toString().left(60)));
+                    taskTable->setItem(i, 3, new QTableWidgetItem(t["status"].toString()));
+                    taskTable->setItem(i, 4, new QTableWidgetItem(t["created_at"].toString()));
+                }
+            });
+
+        tabWidget_->addTab(page, "Crawler");
+    }
 
     // === Tab 4: AI Assistant ===
-    auto* aiPage = new QWidget();
-    auto* aiLayout = new QVBoxLayout(aiPage);
-    aiLayout->setContentsMargins(16, 16, 16, 16);
-    auto* aiLabel = new QLabel("AI Research Assistant");
-    aiLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
-    aiLayout->addWidget(aiLabel);
-    aiLayout->addWidget(new QLabel("AI-powered paper review, literature review, and research planning."));
-    aiLayout->addStretch();
-    tabWidget_->addTab(aiPage, "AI");
+    {
+        auto* page = new QWidget();
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(24, 24, 24, 24);
+
+        auto* header = new QLabel("AI Research Assistant");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        layout->addWidget(header);
+
+        auto* chatDisplay = new QTextEdit();
+        chatDisplay->setObjectName("aiChatDisplay");
+        chatDisplay->setReadOnly(true);
+        chatDisplay->setStyleSheet(
+            "QTextEdit { background: palette(base); border: 1px solid palette(mid); "
+            "border-radius: 8px; padding: 12px; font-size: 14px; }"
+        );
+        chatDisplay->setPlaceholderText("AI responses will appear here...");
+        layout->addWidget(chatDisplay, 1);
+
+        auto* inputRow = new QHBoxLayout();
+        auto* chatInput = new QLineEdit();
+        chatInput->setPlaceholderText("Ask about papers, research topics...");
+        chatInput->setStyleSheet("QLineEdit { padding: 10px; border: 1px solid palette(mid); border-radius: 8px; }");
+        inputRow->addWidget(chatInput, 1);
+
+        auto* sendBtn = new QPushButton("Send");
+        sendBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; "
+            "border-radius: 8px; padding: 10px 24px; font-weight: bold; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        inputRow->addWidget(sendBtn);
+        layout->addLayout(inputRow);
+
+        connect(sendBtn, &QPushButton::clicked, this, [this, chatInput, chatDisplay]() {
+            QString msg = chatInput->text().trimmed();
+            if (msg.isEmpty()) return;
+            chatDisplay->append("<b>You:</b> " + msg);
+            chatInput->clear();
+            QJsonObject data;
+            data["message"] = msg;
+            data["userId"] = 1;
+            apiManager_->aiChat(data);
+        });
+        connect(chatInput, &QLineEdit::returnPressed, sendBtn, &QPushButton::click);
+
+        connect(apiManager_, &ApiManager::aiChatSuccess, this, [chatDisplay](const QString& response) {
+            chatDisplay->append("<b>AI:</b> " + response);
+        });
+
+        tabWidget_->addTab(page, "AI");
+    }
 
     // === Tab 5: Statistics ===
-    auto* statsPage = new QWidget();
-    auto* statsLayout = new QVBoxLayout(statsPage);
-    statsLayout->setContentsMargins(16, 16, 16, 16);
-    auto* statsLabel = new QLabel("Statistics");
-    statsLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
-    statsLayout->addWidget(statsLabel);
-    statsLayout->addWidget(new QLabel("Paper statistics and analytics."));
-    statsLayout->addStretch();
-    tabWidget_->addTab(statsPage, "Statistics");
+    {
+        auto* page = new QWidget();
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(24, 24, 24, 24);
+
+        auto* header = new QLabel("Statistics");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: #1e293b;");
+        layout->addWidget(header);
+
+        auto* statsLabel = new QLabel("Loading statistics...");
+        statsLabel->setObjectName("statsContent");
+        statsLabel->setStyleSheet("color: #64748b; font-size: 14px;");
+        layout->addWidget(statsLabel);
+        layout->addStretch();
+
+        connect(apiManager_, &ApiManager::statsSuccess, this, [statsLabel](const QJsonObject& stats) {
+            int totalPapers = stats["total_papers"].toInt(stats["totalPapers"].toInt(0));
+            int totalJournals = stats["total_journals"].toInt(stats["totalJournals"].toInt(0));
+            statsLabel->setText(QString(
+                "<h3>Overview</h3>"
+                "<p>Total Papers: <b>%1</b></p>"
+                "<p>Total Journals: <b>%2</b></p>"
+            ).arg(totalPapers).arg(totalJournals));
+        });
+
+        tabWidget_->addTab(page, "Statistics");
+    }
 }
 
 void MainWindow::paintEvent(QPaintEvent* event) {
@@ -288,16 +390,13 @@ void MainWindow::createMenus() {
 
     QAction* crawlerAction = toolsMenu->addAction("&Crawler Dashboard");
     connect(crawlerAction, &QAction::triggered, this, [this]() {
-        auto* dlg = new CrawlerDashboardDialog(this);
-        dlg->exec();
-        dlg->deleteLater();
+        tabWidget_->setCurrentIndex(2);
+        apiManager_->getCrawlerDashboard();
     });
 
     QAction* aiAction = toolsMenu->addAction("&AI Assistant");
     connect(aiAction, &QAction::triggered, this, [this]() {
-        auto* dlg = new AIDialog(this);
-        dlg->exec();
-        dlg->deleteLater();
+        tabWidget_->setCurrentIndex(3);
     });
 
     // Help menu
@@ -369,12 +468,7 @@ void MainWindow::createToolBar() {
 
     auto* favoritesAction = toolBar->addAction("Favorites");
     connect(favoritesAction, &QAction::triggered, this, [this]() {
-        auto* favMgr = findChild<FavoriteManager*>();
-        if (favMgr) {
-            auto* dlg = new FavoritesDialog(favMgr, this);
-            dlg->exec();
-            dlg->deleteLater();
-        }
+        tabWidget_->setCurrentIndex(1);
     });
 
     // User label in status bar
