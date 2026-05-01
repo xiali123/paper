@@ -1,4 +1,3 @@
-#include <iostream>
 #include "data/DatabaseModule.hpp"
 #include "data/MySqlConnection.hpp"
 #include "features/operations/ResponseHandlerModule.hpp"
@@ -49,10 +48,10 @@ public:
     bool initializePool(const DatabaseConfig& config) {
         config_ = config;
 
-        std::cout << "[Database] Initializing connection pool..." << std::endl;
-        std::cout << "  Host: " << config.host << ":" << config.port << std::endl;
-        std::cout << "  Database: " << config.database << std::endl;
-        std::cout << "  Pool size: " << config.poolSize << std::endl;
+        spdlog::info("[Database] Initializing connection pool...");
+        spdlog::info("  Host: {}:{}", config.host, config.port);
+        spdlog::info("  Database: {}", config.database);
+        spdlog::info("  Pool size: {}", config.poolSize);
 
         // 创建初始连接
         for (size_t i = 0; i < config.poolSize; ++i) {
@@ -63,8 +62,7 @@ public:
             }
         }
 
-        std::cout << "[Database] Connection pool initialized with "
-                  << totalConnections_ << " connections" << std::endl;
+        spdlog::info("[Database] Connection pool initialized with {} connections", totalConnections_);
 
         return totalConnections_ > 0;
     }
@@ -83,10 +81,10 @@ public:
         );
 
         if (connection->isConnected()) {
-            std::cout << "[Database] MySQL connection created successfully" << std::endl;
+            spdlog::info("[Database] MySQL connection created successfully");
             return connection;
         } else {
-            std::cerr << "[Database] Failed to create MySQL connection" << std::endl;
+            spdlog::error("[Database] Failed to create MySQL connection");
             return nullptr;
         }
     }
@@ -102,7 +100,7 @@ public:
         if (!poolCondition_.wait_for(lock, timeout, [this] {
             return !connectionPool_.empty() || totalConnections_ < config_.maxPoolSize;
         })) {
-            std::cerr << "[Database] Connection pool timeout" << std::endl;
+            spdlog::error("[Database] Connection pool timeout");
             return nullptr;
         }
 
@@ -115,7 +113,7 @@ public:
 
             // 检查连接是否仍然有效
             if (!connection->isConnected() || !connection->ping()) {
-                std::cout << "[Database] Stale connection, recreating..." << std::endl;
+                spdlog::info("[Database] Stale connection, recreating...");
                 connection = createConnection();
                 if (!connection) {
                     totalConnections_--;
@@ -152,7 +150,7 @@ public:
             connectionPool_.push(connection);
         } else {
             totalConnections_--;
-            std::cout << "[Database] Invalid connection removed from pool" << std::endl;
+            spdlog::info("[Database] Invalid connection removed from pool");
         }
 
         poolCondition_.notify_one();
@@ -215,7 +213,7 @@ public:
             connectionPool_ = newPool;
 
             if (removed > 0) {
-                std::cout << "[Database] Cleaned up " << removed << " idle connections" << std::endl;
+                spdlog::info("[Database] Cleaned up {} idle connections", removed);
             }
         }
     }
@@ -230,7 +228,7 @@ DatabaseModule::DatabaseModule()
 DatabaseModule::~DatabaseModule() = default;
 
 bool DatabaseModule::onInitialize() {
-    std::cout << "DatabaseModule::onInitialize" << std::endl;
+    spdlog::info("DatabaseModule::onInitialize");
 
     // 从ConfigManager读取配置（支持环境变量覆盖）
     auto& cfg = ConfigManager::getInstance();
@@ -259,12 +257,12 @@ bool DatabaseModule::onInitialize() {
 }
 
 bool DatabaseModule::onStart() {
-    std::cout << "DatabaseModule started" << std::endl;
+    spdlog::info("DatabaseModule started");
     return true;
 }
 
 bool DatabaseModule::onStop() {
-    std::cout << "DatabaseModule stopped" << std::endl;
+    spdlog::info("DatabaseModule stopped");
 
     // 清理所有连接
     std::lock_guard<std::mutex> lock(impl_->poolMutex_);
@@ -290,6 +288,27 @@ void DatabaseModule::setConfig(const DatabaseConfig& config) {
 
 DatabaseConfig DatabaseModule::getConfig() const {
     return impl_->config_;
+}
+
+std::string DatabaseModule::escapeString(const std::string& str) {
+    auto connection = getConnection();
+    if (!connection) {
+        // 无连接时做基础转义
+        std::string escaped;
+        for (char c : str) {
+            if (c == '\'') escaped += "''";
+            else if (c == '\\') escaped += "\\\\";
+            else if (c == '\0') escaped += "\\0";
+            else if (c == '\n') escaped += "\\n";
+            else if (c == '\r') escaped += "\\r";
+            else if (c == '\x1a') escaped += "\\Z";
+            else escaped += c;
+        }
+        return escaped;
+    }
+    std::string result = connection->escape(str);
+    returnConnection(connection);
+    return result;
 }
 
 std::vector<std::map<std::string, std::string>> DatabaseModule::query(const std::string& sql) {
@@ -397,20 +416,20 @@ ConnectionPoolStats DatabaseModule::getPoolStats() const {
 bool DatabaseModule::testConnection() {
     auto connection = getConnection();
     if (!connection) {
-        std::cerr << "[Database] Failed to get connection from pool" << std::endl;
+        spdlog::error("[Database] Failed to get connection from pool");
         return false;
     }
 
     bool success = connection->ping();
 
     if (success) {
-        std::cout << "[Database] ✓ Connection ping successful" << std::endl;
+        spdlog::debug("[Database] ✓ Connection ping successful");
 
         // 查询数据库版本
         try {
             auto versionResult = connection->query("SELECT VERSION() as version");
             if (!versionResult.empty()) {
-                std::cout << "[Database] MySQL Version: " << versionResult[0]["version"] << std::endl;
+                spdlog::debug("[Database] MySQL Version: {}", versionResult[0]["version"]);
             }
         } catch (...) {}
 
@@ -418,43 +437,43 @@ bool DatabaseModule::testConnection() {
         try {
             auto dbResult = connection->query("SELECT DATABASE() as current_db");
             if (!dbResult.empty()) {
-                std::cout << "[Database] Current Database: " << dbResult[0]["current_db"] << std::endl;
+                spdlog::debug("[Database] Current Database: {}", dbResult[0]["current_db"]);
             }
         } catch (...) {}
 
         // 查询所有表
         try {
             auto tables = connection->query("SHOW TABLES");
-            std::cout << "[Database] Found " << tables.size() << " tables:" << std::endl;
+            spdlog::debug("[Database] Found {} tables:", tables.size());
             for (const auto& table : tables) {
                 std::string tableName = table.begin()->second;
-                std::cout << "[Database]   - " << tableName << std::endl;
+                spdlog::debug("[Database]   - {}", tableName);
             }
         } catch (const std::exception& e) {
-            std::cout << "[Database] Warning: Could not list tables: " << e.what() << std::endl;
+            spdlog::debug("[Database] Warning: Could not list tables: {}", e.what());
         }
 
         // 查询users表记录数
         try {
             auto userCount = connection->query("SELECT COUNT(*) as count FROM users");
             if (!userCount.empty()) {
-                std::cout << "[Database] Users table: " << userCount[0]["count"] << " records" << std::endl;
+                spdlog::debug("[Database] Users table: {} records", userCount[0]["count"]);
             }
         } catch (...) {
-            std::cout << "[Database] Users table: not found or empty" << std::endl;
+            spdlog::debug("[Database] Users table: not found or empty");
         }
 
         // 查询papers表记录数
         try {
             auto paperCount = connection->query("SELECT COUNT(*) as count FROM papers");
             if (!paperCount.empty()) {
-                std::cout << "[Database] Papers table: " << paperCount[0]["count"] << " records" << std::endl;
+                spdlog::debug("[Database] Papers table: {} records", paperCount[0]["count"]);
             }
         } catch (...) {
-            std::cout << "[Database] Papers table: not found or empty" << std::endl;
+            spdlog::debug("[Database] Papers table: not found or empty");
         }
     } else {
-        std::cerr << "[Database] ✗ Connection ping failed" << std::endl;
+        spdlog::error("[Database] ✗ Connection ping failed");
     }
 
     returnConnection(connection);
@@ -520,13 +539,13 @@ std::map<std::string, std::string> DatabaseModule::getTableSchema(const std::str
 }
 
 bool DatabaseModule::backup(const std::string& backupPath) {
-    std::cout << "[Database] Backup to: " << backupPath << std::endl;
+    spdlog::info("[Database] Backup to: {}", backupPath);
     // TODO: 实现实际的备份逻辑（使用mysqldump或类似工具）
     return true;
 }
 
 bool DatabaseModule::restore(const std::string& backupPath) {
-    std::cout << "[Database] Restore from: " << backupPath << std::endl;
+    spdlog::info("[Database] Restore from: {}", backupPath);
     // TODO: 实现实际的恢复逻辑
     return true;
 }
@@ -544,19 +563,19 @@ void DatabaseModule::setGlobalInstance(DatabaseModule* instance) {
 }
 
 std::shared_ptr<IDatabase> DatabaseModule::getSharedConnection() {
-    std::cout << "[Database] getSharedConnection() called" << std::endl;
+    spdlog::debug("[Database] getSharedConnection() called");
     if (!globalInstance_) {
-        std::cout << "[Database] ❌ globalInstance_ is nullptr!" << std::endl;
+        spdlog::debug("[Database] ❌ globalInstance_ is nullptr!");
         return nullptr;
     }
 
-    std::cout << "[Database] ✅ globalInstance_ exists, testing connection..." << std::endl;
+    spdlog::debug("[Database] ✅ globalInstance_ exists, testing connection...");
 
     // 转换为IDatabase接口并测试连接
     auto dbInterface = static_cast<IDatabase*>(globalInstance_);
     bool connected = dbInterface->testConnection();
 
-    std::cout << "[Database] testConnection() returned: " << (connected ? "true" : "false") << std::endl;
+    spdlog::debug("[Database] testConnection() returned: {}", connected ? "true" : "false");
 
     if (connected) {
         // 返回shared_ptr，但不负责删除（由globalInstance_拥有所有权）
@@ -566,7 +585,7 @@ std::shared_ptr<IDatabase> DatabaseModule::getSharedConnection() {
         });
     }
 
-    std::cout << "[Database] ❌ testConnection() failed, returning nullptr" << std::endl;
+    spdlog::debug("[Database] ❌ testConnection() failed, returning nullptr");
     return nullptr;
 }
 

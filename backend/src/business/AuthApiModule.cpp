@@ -3,7 +3,7 @@
 #include "features/security/SessionModule.hpp"
 #include "features/security/SecurityModule.hpp"
 #include "data/DatabaseModule.hpp"
-#include "data/SimpleMySQLDatabase.hpp"
+
 #include "data/PreparedStatement.hpp"
 #include "core/MessageBus.hpp"
 #include "core/ConfigManager.hpp"
@@ -14,14 +14,15 @@
 #include <map>
 #include <chrono>
 #include <iomanip>
-#include <cstdlib>
+#include <random>
+#include <cstring>
 
 namespace PaperCrawler {
 
 // 默认构造函数实现
 AuthApiModule::AuthApiModule()
     : AuthApiModule(nullptr) {
-    std::cout << "[Auth] AuthApiModule default constructor (database=nullptr)" << std::endl;
+    spdlog::info("[Auth] AuthApiModule default constructor (database=nullptr)");
 }
 
 // 简单JSON构建辅助函数
@@ -38,6 +39,21 @@ namespace {
         json << "\n}";
         return json.str();
     }
+
+    std::string generateRandomToken(const std::string& prefix) {
+        std::ostringstream token;
+        token << prefix << "_";
+        std::random_device rd;
+        unsigned char buf[32];
+        for (size_t i = 0; i < sizeof(buf); i += sizeof(unsigned int)) {
+            unsigned int val = rd();
+            std::memcpy(buf + i, &val, std::min(sizeof(unsigned int), sizeof(buf) - i));
+        }
+        for (unsigned char c : buf) {
+            token << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(c);
+        }
+        return token.str();
+    }
 }
 
 // ============================================================================
@@ -49,16 +65,11 @@ public:
     // 依赖注入：数据库接口
     std::shared_ptr<IDatabase> database_;
 
-    // 直接MySQL连接（用于AuthApiModule）
-    std::shared_ptr<SimpleMySQLDatabase> mysqlDatabase_;
-
     // 安全模块（用于密码哈希和验证）
     std::unique_ptr<SecurityModule> securityModule_;
 
     // 会话管理（已迁移到数据库user_sessions表）
-    // std::map<std::string, std::string> mockTokens_;  // 已废弃
-    // std::map<std::string, std::string> refreshTokens_;  // 已废弃
-    std::map<std::string, Session> sessions_;  // 临时会话缓存
+    std::map<std::string, Session> sessions_;
 
     // 配置
     AuthConfig config_;
@@ -81,24 +92,18 @@ public:
     }
 
     std::string generateAccessToken(int userId) {
-        // 简化的JWT生成（实际应该使用SecurityModule）
-        std::ostringstream token;
-        token << "access_" << userId << "_" << std::time(nullptr) << "_" << stats_.totalLogins;
-        return token.str();
+        return generateRandomToken("access");
     }
 
     std::string generateRefreshToken(int userId) {
-        std::ostringstream token;
-        token << "refresh_" << userId << "_" << std::time(nullptr);
-        return token.str();
+        return generateRandomToken("refresh");
     }
 
-    bool verifyPassword(const std::string& username, const std::string& password) {
-        // ✅ 安全修复：使用SecurityModule进行真实的密码验证
+    bool verifyPassword(const std::string& usernameOrEmail, const std::string& password) {
         try {
-            // 从数据库查询密码哈希
-            PreparedStatement stmt(database_, "SELECT password_hash FROM users WHERE username = ?");
-            stmt.bind(0, username);
+            PreparedStatement stmt(database_, "SELECT password_hash FROM users WHERE username = ? OR email = ?");
+            stmt.bind(0, usernameOrEmail);
+            stmt.bind(1, usernameOrEmail);
             auto results = stmt.query();
 
             if (!results.empty()) {
@@ -108,7 +113,7 @@ public:
                 if (securityModule_) {
                     bool verified = securityModule_->verifyPassword(password, storedHash);
                     if (!verified) {
-                        spdlog::warn("[Auth] Password verification failed for user: {}", username);
+                        spdlog::warn("[Auth] Password verification failed for user: {}", usernameOrEmail);
                     }
                     return verified;
                 } else {
@@ -118,7 +123,7 @@ public:
                 }
             }
 
-            spdlog::warn("[Auth] User not found: {}", username);
+            spdlog::warn("[Auth] User not found: {}", usernameOrEmail);
             return false;
         } catch (const std::exception& e) {
             spdlog::error("[Auth] Password verification failed: {}", e.what());
@@ -148,50 +153,9 @@ public:
     bool storeSession(int userId, const std::string& accessToken,
                      const std::string& refreshToken, std::chrono::seconds expiresIn) {
         try {
-            // 优先使用MySQL数据库
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
+            if (database_) {
                 spdlog::info("[Auth] Storing session for user_id: {}", userId);
 
-                // 检查用户是否已有活跃会话
-                auto checkSql = "SELECT id FROM user_sessions WHERE user_id = " + std::to_string(userId);
-                auto existingResults = mysqlDatabase_->query(checkSql);
-
-                // 转义tokens以避免SQL注入
-                auto escapedAccessToken = mysqlDatabase_->escape(accessToken);
-                auto escapedRefreshToken = mysqlDatabase_->escape(refreshToken);
-
-                if (!existingResults.empty()) {
-                    // 更新现有会话
-                    spdlog::info("[Auth] Updating existing session for user_id: {}", userId);
-                    auto updateSql = "UPDATE user_sessions SET "
-                                   "access_token_hash = SHA2('" + escapedAccessToken + "', 256), "
-                                   "refresh_token = '" + escapedRefreshToken + "', "
-                                   "expires_at = DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn.count()) + " SECOND), "
-                                   "updated_at = NOW() "
-                                   "WHERE user_id = " + std::to_string(userId);
-
-                    bool success = mysqlDatabase_->execute(updateSql);
-                    spdlog::info("[Auth] Session update result: {}", success);
-                    return success;
-                } else {
-                    // 创建新会话
-                    spdlog::info("[Auth] Creating new session for user_id: {}", userId);
-                    auto insertSql = "INSERT INTO user_sessions (user_id, access_token_hash, "
-                                   "refresh_token, expires_at, created_at) VALUES (" +
-                                   std::to_string(userId) + ", "
-                                   "SHA2('" + escapedAccessToken + "', 256), "
-                                   "'" + escapedRefreshToken + "', "
-                                   "DATE_ADD(NOW(), INTERVAL " + std::to_string(expiresIn.count()) + " SECOND), "
-                                   "NOW())";
-
-                    bool success = mysqlDatabase_->execute(insertSql);
-                    spdlog::info("[Auth] Session insert result: {}", success);
-                    return success;
-                }
-            }
-
-            // Fallback to old database_ interface
-            if (database_) {
                 PreparedStatement checkStmt(database_, "SELECT id FROM user_sessions WHERE user_id = ?");
                 checkStmt.bind(0, userId);
                 auto existingResults = checkStmt.query();
@@ -224,27 +188,22 @@ public:
 
             return false;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Failed to store session: " << e.what() << std::endl;
+            spdlog::error("[Auth] Failed to store session: {}", e.what());
             return false;
         }
     }
 
     std::optional<int> validateSession(const std::string& accessToken) {
         try {
-            // 优先使用mysqlDatabase_（与storeSession保持一致）
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                auto escapedAccessToken = mysqlDatabase_->escape(accessToken);
-                auto sql = "SELECT user_id FROM user_sessions WHERE "
-                         "access_token_hash = SHA2('" + escapedAccessToken + "', 256) "
-                         "AND expires_at > NOW()";
-                auto results = mysqlDatabase_->query(sql);
+            if (database_) {
+                PreparedStatement stmt(database_, "SELECT user_id FROM user_sessions WHERE "
+                         "access_token_hash = SHA2(?, 256) "
+                         "AND expires_at > NOW()");
+                stmt.bind(0, accessToken);
+                auto results = stmt.query();
 
                 spdlog::info("[Auth] validateSession: Query returned {} rows for token: {}", results.size(), accessToken);
                 if (!results.empty()) {
-                    spdlog::info("[Auth] validateSession: Result keys:");
-                    for (const auto& [key, value] : results[0]) {
-                        spdlog::info("[Auth]   {} = '{}'", key, value);
-                    }
                     try {
                         int userId = std::stoi(results[0]["user_id"]);
                         spdlog::info("[Auth] validateSession: Successfully parsed userId: {}", userId);
@@ -258,48 +217,16 @@ public:
                 return std::nullopt;
             }
 
-            // Fallback to database_ interface（与storeSession保持一致）
-            if (database_) {
-                PreparedStatement stmt(database_, "SELECT user_id FROM user_sessions WHERE "
-                         "access_token_hash = SHA2(?, 256) "
-                         "AND expires_at > NOW()");
-                stmt.bind(0, accessToken);
-                auto results = stmt.query();
-
-                spdlog::info("[Auth] validateSession (fallback): Query returned {} rows for token: {}", results.size(), accessToken);
-                if (!results.empty()) {
-                    try {
-                        int userId = std::stoi(results[0]["user_id"]);
-                        spdlog::info("[Auth] validateSession (fallback): Successfully parsed userId: {}", userId);
-                        return userId;
-                    } catch (const std::exception& e) {
-                        spdlog::error("[Auth] validateSession (fallback): Failed to parse userId: {}", e.what());
-                        return std::nullopt;
-                    }
-                }
-                spdlog::warn("[Auth] validateSession (fallback): No results found for token");
-                return std::nullopt;
-            }
-
             spdlog::warn("[Auth] validateSession: No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Failed to validate session: " << e.what() << std::endl;
+            spdlog::error("[Auth] Failed to validate session: {}", e.what());
             return std::nullopt;
         }
     }
 
     bool deleteSession(const std::string& accessToken) {
         try {
-            // 优先使用MySQL数据库
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                auto escapedAccessToken = mysqlDatabase_->escape(accessToken);
-                auto sql = "DELETE FROM user_sessions WHERE "
-                         "access_token_hash = SHA2('" + escapedAccessToken + "', 256)";
-                return mysqlDatabase_->execute(sql);
-            }
-
-            // Fallback to old database_ interface
             if (database_) {
                 PreparedStatement stmt(database_, "DELETE FROM user_sessions WHERE "
                          "access_token_hash = SHA2(?, 256)");
@@ -309,29 +236,13 @@ public:
 
             return false;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Failed to delete session: " << e.what() << std::endl;
+            spdlog::error("[Auth] Failed to delete session: {}", e.what());
             return false;
         }
     }
 
     std::optional<std::string> getRefreshTokenUsername(const std::string& refreshToken) {
         try {
-            // 优先使用MySQL数据库
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                auto escapedRefreshToken = mysqlDatabase_->escape(refreshToken);
-                auto sql = "SELECT u.username FROM user_sessions s "
-                         "JOIN users u ON s.user_id = u.id "
-                         "WHERE s.refresh_token = '" + escapedRefreshToken + "' "
-                         "AND s.expires_at > NOW()";
-                auto results = mysqlDatabase_->query(sql);
-
-                if (!results.empty()) {
-                    return results[0]["username"];
-                }
-                return std::nullopt;
-            }
-
-            // Fallback to old database_ interface
             if (database_) {
                 PreparedStatement stmt(database_, "SELECT u.username FROM user_sessions s "
                          "JOIN users u ON s.user_id = u.id "
@@ -348,7 +259,7 @@ public:
 
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Failed to get refresh token: " << e.what() << std::endl;
+            spdlog::error("[Auth] Failed to get refresh token: {}", e.what());
             return std::nullopt;
         }
     }
@@ -356,26 +267,6 @@ public:
     // 从数据库查询用户（仅用户名）
     std::optional<User> getUserByUsername(const std::string& username) {
         try {
-            // 优先使用mysqlDatabase_
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                auto escapedUsername = mysqlDatabase_->escape(username);
-                auto sql = "SELECT * FROM users WHERE username = '" + escapedUsername + "'";
-                auto results = mysqlDatabase_->query(sql);
-
-                if (!results.empty()) {
-                    User user;
-                    user.id = std::stoi(results[0]["id"]);
-                    user.username = results[0]["username"];
-                    user.email = results[0]["email"];
-                    user.fullName = results[0]["full_name"];
-                    user.role = results[0]["role"];
-                    user.active = (results[0]["is_active"] == "1" || results[0]["is_active"] == "TRUE");
-                    return user;
-                }
-                return std::nullopt;
-            }
-
-            // 其次使用database_（如果通过MessageBus连接）
             if (database_) {
                 PreparedStatement stmt(database_, "SELECT * FROM users WHERE username = ?");
                 stmt.bind(0, username);
@@ -397,58 +288,50 @@ public:
             spdlog::warn("[Auth] No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Failed to query user: " << e.what() << std::endl;
+            spdlog::error("[Auth] Failed to query user: {}", e.what());
             return std::nullopt;
         }
     }
 
-    // 从数据库查询用户（支持用户名或邮箱）
-    std::optional<User> getUserByUsernameOrEmail(const std::string& usernameOrEmail) {
+
+    // 从数据库查询用户（仅邮箱）
+    std::optional<User> getUserByEmail(const std::string& email) {
         try {
-            spdlog::info("[Auth] 🔍 getUserByUsernameOrEmail called with: '{}'", usernameOrEmail);
-
-            // 优先使用mysqlDatabase_
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                // ✅ 支持用户名或邮箱登录
-                auto escapedUsernameOrEmail = mysqlDatabase_->escape(usernameOrEmail);
-                auto sql = "SELECT * FROM users WHERE username = '" + escapedUsernameOrEmail + "' OR email = '" + escapedUsernameOrEmail + "'";
-                spdlog::info("[Auth] Executing SQL: {}", sql);
-                auto results = mysqlDatabase_->query(sql);
-
-                spdlog::info("[Auth] Query returned {} results", results.size());
+            if (database_) {
+                PreparedStatement stmt(database_, "SELECT * FROM users WHERE email = ?");
+                stmt.bind(0, email);
+                auto results = stmt.query();
 
                 if (!results.empty()) {
-                    spdlog::info("[Auth] First result keys:");
-                    for (const auto& [key, value] : results[0]) {
-                        spdlog::info("[Auth]   {} = '{}'", key, value);
-                    }
-
                     User user;
                     user.id = std::stoi(results[0]["id"]);
                     user.username = results[0]["username"];
                     user.email = results[0]["email"];
                     user.fullName = results[0]["full_name"];
                     user.role = results[0]["role"];
-
-                    std::string isActiveValue = results[0]["is_active"];
-                    spdlog::info("[Auth] 🎯 is_active field value: '{}'", isActiveValue);
-                    user.active = (isActiveValue == "1" || isActiveValue == "TRUE");
-
-                    spdlog::info("[Auth] ✅ User found - id: {}, username: {}, email: {}, active: {}",
-                                user.id, user.username, user.email, user.active);
+                    user.active = (results[0]["is_active"] == "1" || results[0]["is_active"] == "TRUE");
                     return user;
                 }
-                spdlog::warn("[Auth] ❌ User not found in database");
                 return std::nullopt;
             }
 
-            // 其次使用database_（如果通过MessageBus连接）
+            spdlog::warn("[Auth] No database connection available");
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            spdlog::error("[Auth] Failed to query user by email: {}", e.what());
+            return std::nullopt;
+        }
+    }
+    // 从数据库查询用户（支持用户名或邮箱）
+    std::optional<User> getUserByUsernameOrEmail(const std::string& usernameOrEmail) {
+        try {
+            spdlog::info("[Auth] getUserByUsernameOrEmail called with: '{}'", usernameOrEmail);
+
             if (database_) {
-                // ✅ 支持用户名或邮箱登录
                 PreparedStatement stmt(database_, "SELECT * FROM users WHERE username = ? OR email = ?");
                 stmt.bind(0, usernameOrEmail);
                 stmt.bind(1, usernameOrEmail);
-                spdlog::info("[Auth] Executing SQL (fallback): {}", stmt.getSQL());
+                spdlog::info("[Auth] Executing SQL: {}", stmt.getSQL());
                 auto results = stmt.query();
 
                 spdlog::info("[Auth] Query returned {} results", results.size());
@@ -467,21 +350,21 @@ public:
                     user.role = results[0]["role"];
 
                     std::string isActiveValue = results[0]["is_active"];
-                    spdlog::info("[Auth] 🎯 is_active field value: '{}'", isActiveValue);
+                    spdlog::info("[Auth] is_active field value: '{}'", isActiveValue);
                     user.active = (isActiveValue == "1" || isActiveValue == "TRUE");
 
-                    spdlog::info("[Auth] ✅ User found - id: {}, username: {}, email: {}, active: {}",
+                    spdlog::info("[Auth] User found - id: {}, username: {}, email: {}, active: {}",
                                 user.id, user.username, user.email, user.active);
                     return user;
                 }
-                spdlog::warn("[Auth] ❌ User not found in database");
+                spdlog::warn("[Auth] User not found in database");
                 return std::nullopt;
             }
 
             spdlog::warn("[Auth] No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Failed to query user: " << e.what() << std::endl;
+            spdlog::error("[Auth] Failed to query user: {}", e.what());
             return std::nullopt;
         }
     }
@@ -492,34 +375,6 @@ public:
                                              const std::string& fullName,
                                              const std::string& passwordHash) {
         try {
-            // 优先使用mysqlDatabase_
-            std::shared_ptr<IDatabase> db = nullptr;
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                // 需要通过database_接口，但mysqlDatabase_不是IDatabase的派生类
-                // 所以直接在这里执行SQL
-                // 检查用户是否已存在
-                auto existingUser = getUserByUsername(username);
-                if (existingUser) {
-                    return std::nullopt;  // 用户已存在
-                }
-
-                // 插入新用户 (修复：移除salt和is_verified字段，与UserApiModule保持一致)
-                auto escapedUsername = mysqlDatabase_->escape(username);
-                auto escapedEmail = mysqlDatabase_->escape(email);
-                auto escapedFullName = mysqlDatabase_->escape(fullName);
-                auto escapedPasswordHash = mysqlDatabase_->escape(passwordHash);
-                auto sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active, created_at) "
-                          "VALUES ('" + escapedUsername + "', '" + escapedEmail + "', '" + escapedFullName + "', "
-                          "'" + escapedPasswordHash + "', 'user', 1, NOW())";
-
-                if (mysqlDatabase_->execute(sql)) {
-                    // 返回新创建的用户
-                    return getUserByUsername(username);
-                }
-                return std::nullopt;
-            }
-
-            // 其次使用database_（如果通过MessageBus连接）
             if (database_) {
                 // 检查用户是否已存在
                 auto existingUser = getUserByUsername(username);
@@ -545,7 +400,7 @@ public:
             spdlog::warn("[Auth] No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[Auth] Failed to create user: " << e.what() << std::endl;
+            spdlog::error("[Auth] Failed to create user: {}", e.what());
             return std::nullopt;
         }
     }
@@ -553,76 +408,29 @@ public:
     // 初始化数据库表
     bool initializeDatabaseTables() {
         try {
-            // 优先使用mysqlDatabase_
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                spdlog::info("[Auth] Initializing database tables using mysqlDatabase_...");
+            auto createSessionsTable = R"(
+                CREATE TABLE IF NOT EXISTS user_sessions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    access_token_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 hash of access token',
+                    refresh_token VARCHAR(255) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_user_id (user_id),
+                    INDEX idx_access_token_hash (access_token_hash),
+                    INDEX idx_refresh_token (refresh_token),
+                    INDEX idx_expires_at (expires_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            )";
 
-                // 先删除已存在的表（确保使用最新的schema）
-                auto dropTable = "DROP TABLE IF EXISTS user_sessions";
-                if (mysqlDatabase_->execute(dropTable)) {
-                    spdlog::info("[Auth] Dropped existing user_sessions table");
-                }
-
-                // 创建user_sessions表
-                auto createSessionsTable = R"(
-                    CREATE TABLE user_sessions (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        user_id INT NOT NULL,
-                        access_token_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 hash of access token',
-                        refresh_token VARCHAR(255) NOT NULL,
-                        expires_at TIMESTAMP NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        INDEX idx_user_id (user_id),
-                        INDEX idx_access_token_hash (access_token_hash),
-                        INDEX idx_refresh_token (refresh_token),
-                        INDEX idx_expires_at (expires_at)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                )";
-
-                if (mysqlDatabase_->execute(createSessionsTable)) {
-                    spdlog::info("[Auth] ✅ user_sessions table created successfully using mysqlDatabase_");
-                    return true;
-                } else {
-                    spdlog::error("[Auth] ❌ Failed to create user_sessions table using mysqlDatabase_");
-                    return false;
-                }
-            }
-
-            // 其次使用database_（如果通过MessageBus连接）
             if (database_) {
-                spdlog::info("[Auth] Initializing database tables using database_ interface...");
-
-                // 先删除已存在的表（确保使用最新的schema）
-                auto dropTable = "DROP TABLE IF EXISTS user_sessions";
-                if (database_->execute(dropTable)) {
-                    spdlog::info("[Auth] Dropped existing user_sessions table");
-                }
-
-                // 创建user_sessions表
-                auto createSessionsTable = R"(
-                    CREATE TABLE user_sessions (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        user_id INT NOT NULL,
-                        access_token_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 hash of access token',
-                        refresh_token VARCHAR(255) NOT NULL,
-                        expires_at TIMESTAMP NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        INDEX idx_user_id (user_id),
-                        INDEX idx_access_token_hash (access_token_hash),
-                        INDEX idx_refresh_token (refresh_token),
-                        INDEX idx_expires_at (expires_at)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                )";
-
+                spdlog::info("[Auth] Ensuring user_sessions table exists...");
                 if (database_->execute(createSessionsTable)) {
-                    spdlog::info("[Auth] ✅ user_sessions table created successfully using database_ interface");
+                    spdlog::info("[Auth] user_sessions table ready");
                     return true;
-                } else {
-                    spdlog::error("[Auth] ❌ Failed to create user_sessions table using database_ interface");
-                    return false;
                 }
+                return false;
             }
 
             spdlog::warn("[Auth] No database connection available for table initialization");
@@ -669,22 +477,12 @@ public:
             }
 
             // 插入用户到数据库
-            std::shared_ptr<IDatabase> db = nullptr;
-            std::string sql;
-
-            if (mysqlDatabase_ && mysqlDatabase_->isConnected()) {
-                auto escapedPasswordHash = mysqlDatabase_->escape(passwordHash);
-                sql = "INSERT INTO users (username, email, full_name, password_hash, role, is_active) VALUES "
-                      "('admin', 'admin@papercrawler.com', 'Super Administrator', '" +
-                      escapedPasswordHash + "', 'superadmin', 1)";
-                mysqlDatabase_->execute(sql);
-                spdlog::info("[Auth] Default superadmin created in MySQL database");
-            } else if (database_) {
+            if (database_) {
                 PreparedStatement stmt(database_, "INSERT INTO users (username, email, full_name, password_hash, role, is_active) VALUES "
                       "('admin', 'admin@papercrawler.com', 'Super Administrator', ?, 'superadmin', 1)");
                 stmt.bind(0, passwordHash);
                 stmt.execute();
-                spdlog::info("[Auth] Default superadmin created using database_ interface");
+                spdlog::info("[Auth] Default superadmin created");
             } else {
                 spdlog::warn("[Auth] No database connection available, cannot create default superadmin");
             }
@@ -766,43 +564,6 @@ void AuthApiModule::registerRoutes() {
         }
     }
 
-    // 🔔 优先级3：回退方案 - 直接创建MySQL连接
-    if (!impl_->database_) {
-        try {
-            spdlog::info("[AuthApi] 🔔 Creating direct MySQL connection as fallback...");
-
-            // 从ConfigManager读取数据库配置（支持环境变量）
-            auto& cfg = ConfigManager::getInstance();
-            cfg.loadFromEnvironment();
-            std::string dbHost = cfg.getString("database.host", "localhost");
-            int dbPort = cfg.getInt("database.port", 3306);
-            std::string dbName = cfg.getString("database.name", "papercrawler");
-            std::string dbUser = cfg.getString("database.user", "");
-            std::string dbPass = cfg.getString("database.password", "");
-
-            if (dbUser.empty() || dbPass.empty()) {
-                spdlog::warn("[AuthApi] DB credentials not configured. Set DB_USER/DB_PASSWORD env vars.");
-            } else {
-                // 创建MySQL连接（保存到单独的成员变量）
-                impl_->mysqlDatabase_ = std::make_shared<SimpleMySQLDatabase>(
-                    dbHost, dbPort, dbUser, dbPass, dbName
-                );
-
-                if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
-                    spdlog::info("[AuthApi] ✅ MySQL database connected successfully (fallback mode)!");
-
-                    // 初始化数据库表
-                    impl_->initializeDatabaseTables();
-                } else {
-                    spdlog::warn("[AuthApi] ⚠️ Failed to connect to MySQL, will use stub mode");
-                }
-            }
-        } catch (const std::exception& e) {
-            spdlog::error("[AuthApi] ❌ Exception connecting to database: {}", e.what());
-            spdlog::warn("[AuthApi] Will continue with stub mode");
-        }
-    }
-
     // 辅助函数：检查字符串是否为空
     auto isEmpty = [](const std::string& s) { return s.empty() || s.find_first_not_of(" \t\r\n") == std::string::npos; };
 
@@ -840,7 +601,7 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Email is required\"}";
+                response.body = "{\"success\":false,\"error\":\"Email is required\"}";
                 return response;
             }
 
@@ -864,7 +625,7 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Invalid email format\"}";
+                response.body = "{\"success\":false,\"error\":\"Invalid email format\"}";
                 return response;
             }
 
@@ -873,7 +634,7 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Password must be at least 6 characters\"}";
+                response.body = "{\"success\":false,\"error\":\"Password must be at least 6 characters\"}";
                 return response;
             }
 
@@ -883,7 +644,7 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 409;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Username already exists\"}";
+                response.body = "{\"success\":false,\"error\":\"Username already exists\"}";
                 return response;
             }
 
@@ -907,14 +668,14 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 201;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"true\",\"message\":\"User registered successfully\",\"user\":" + userJson.dump() + "}";
+                response.body = "{\"success\":true,\"message\":\"User registered successfully\",\"user\":" + userJson.dump() + "}";
                 return response;
             } else {
                 impl_->stats_.failedRegistrations++;
                 HttpResponse response;
                 response.statusCode = 500;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Failed to create user in database\"}";
+                response.body = "{\"success\":false,\"error\":\"Failed to create user in database\"}";
                 return response;
             }
 
@@ -999,8 +760,8 @@ void AuthApiModule::registerRoutes() {
                 return response;
             }
 
-            // 验证密码（简化版：非空密码都通过）
-            if (password.empty()) {
+            // 验证密码
+            if (password.empty() || !impl_->verifyPassword(user.username, password)) {
                 impl_->stats_.failedLogins++;
                 HttpResponse response;
                 response.statusCode = 401;
@@ -1018,7 +779,7 @@ void AuthApiModule::registerRoutes() {
 
             // 存储会话到数据库
             if (!impl_->storeSession(user.id, accessToken, refreshToken, impl_->config_.accessTokenExpiry)) {
-                std::cerr << "[Auth] Failed to store session in database" << std::endl;
+                spdlog::error("[Auth] Failed to store session in database");
                 impl_->stats_.failedLogins++;
                 HttpResponse response;
                 response.statusCode = 500;
@@ -1035,15 +796,24 @@ void AuthApiModule::registerRoutes() {
 
             // 更新数据库中的last_login_at和last_login_ip字段
             // 获取客户端IP地址（从请求头中提取）
-            std::string clientIp = "127.0.0.1";  // 默认本地IP
-            // TODO: 从HttpRequest中提取真实的客户端IP
+            std::string clientIp = req.remoteAddress.empty() ? "127.0.0.1" : req.remoteAddress;
+
+            // 检查X-Forwarded-For和X-Real-IP头（代理环境）
+            auto forwardedFor = req.headers.find("X-Forwarded-For");
+            if (forwardedFor != req.headers.end() && !forwardedFor->second.empty()) {
+                // 获取第一个IP（原始客户端IP）
+                size_t commaPos = forwardedFor->second.find(',');
+                clientIp = (commaPos != std::string::npos) ?
+                    forwardedFor->second.substr(0, commaPos) : forwardedFor->second;
+            } else {
+                auto realIp = req.headers.find("X-Real-IP");
+                if (realIp != req.headers.end() && !realIp->second.empty()) {
+                    clientIp = realIp->second;
+                }
+            }
 
             bool updateOk = false;
-            if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
-                auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
-                std::string updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + escapedClientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
-                updateOk = impl_->mysqlDatabase_->execute(updateSql);
-            } else if (impl_->database_) {
+            if (impl_->database_) {
                 PreparedStatement updateStmt(impl_->database_, "UPDATE users SET last_login_at = NOW(), last_login_ip = ?, login_count = login_count + 1 WHERE id = ?");
                 updateStmt.bind(0, clientIp);
                 updateStmt.bind(1, user.id);
@@ -1053,12 +823,7 @@ void AuthApiModule::registerRoutes() {
                 spdlog::error("[Auth] Failed to update last_login_at for user {}", user.id);
             } else {
                 spdlog::info("[Auth] Updated last_login_at for user {} (id={})", user.username, user.id);
-                if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
-                    auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
-                    std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
-                        + std::to_string(user.id) + ", '" + escapedClientIp + "', 1)";
-                    impl_->mysqlDatabase_->execute(histSql);
-                } else if (impl_->database_) {
+                if (impl_->database_) {
                     PreparedStatement histStmt(impl_->database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
                     histStmt.bind(0, user.id);
                     histStmt.bind(1, clientIp);
@@ -1116,20 +881,31 @@ void AuthApiModule::registerRoutes() {
 
     // POST /api/auth/logout - 用户登出
     router.post(prefix + "/logout", [this](const HttpRequest& req) {
-        auto jsonResponse = handleLogout(req.headers);
-
-        HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
-
-        // 检查是否是成功响应
-        if (jsonResponse.find("\"success\":\"true\"") != std::string::npos) {
-            response.statusCode = 200;
-        } else {
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) {
+            HttpResponse response;
             response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
+            return response;
         }
 
-        response.body = jsonResponse;
-        return response;
+        std::string token = authIt->second;
+        if (token.find("Bearer ") == 0) token = token.substr(7);
+
+        if (this->logout(token)) {
+            HttpResponse response;
+            response.statusCode = 200;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":true,\"message\":\"Logged out successfully\"}";
+            return response;
+        } else {
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Invalid token\"}";
+            return response;
+        }
     });
 
     // POST /api/auth/refresh - 刷新令牌
@@ -1141,24 +917,35 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Refresh token is required\"}";
+                response.body = "{\"success\":false,\"error\":\"Refresh token is required\"}";
                 return response;
             }
 
             std::string refreshToken = json["refresh_token"].get<std::string>();
 
-            // Stub模式：验证刷新令牌
-            if (refreshToken == "stub_token_12345" || refreshToken == "valid_token") {
+            // 使用真实的刷新令牌验证
+            RefreshTokenRequest refreshReq;
+            refreshReq.refreshToken = refreshToken;
+            auto result = this->refreshToken(refreshReq);
+
+            if (result.success) {
                 HttpResponse response;
                 response.statusCode = 200;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"true\",\"access_token\":\"new_stub_token_67890\",\"expires_in\":3600}";
+                nlohmann::json responseJson;
+                responseJson["success"] = true;
+                responseJson["access_token"] = result.accessToken;
+                responseJson["expires_in"] = result.expiresIn.count();
+                response.body = responseJson.dump();
                 return response;
             } else {
                 HttpResponse response;
                 response.statusCode = 401;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Invalid refresh token\"}";
+                nlohmann::json errJson;
+                errJson["success"] = false;
+                errJson["error"] = result.message;
+                response.body = errJson.dump();
                 return response;
             }
 
@@ -1176,33 +963,68 @@ void AuthApiModule::registerRoutes() {
 
     // GET /api/auth/me - 获取当前用户信息
     router.get(prefix + "/me", [this](const HttpRequest& req) {
-        auto jsonResponse = handleGetCurrentUser(req.headers);
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) {
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
+            return response;
+        }
+
+        std::string token = authIt->second;
+        if (token.find("Bearer ") == 0) token = token.substr(7);
+
+        auto user = this->getCurrentUser(token);
+        if (!user.has_value()) {
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
+            return response;
+        }
 
         HttpResponse response;
         response.statusCode = 200;
         response.headers["Content-Type"] = "application/json";
-
-        // 检查是否是错误响应
-        if (jsonResponse.find("\"success\":\"false\"") != std::string::npos &&
-            jsonResponse.find("\"error\":") != std::string::npos) {
-            response.statusCode = 401;
-        }
-
-        response.body = jsonResponse;
+        response.body = "{\"success\":true,\"user\":" + user->toJSON() + "}";
         return response;
     });
 
     // POST /api/auth/change-password - 修改密码
     router.post(prefix + "/change-password", [this, isEmpty, isStrongPassword](const HttpRequest& req) {
         try {
+            // 验证认证
+            auto authIt = req.headers.find("Authorization");
+            if (authIt == req.headers.end()) {
+                HttpResponse response;
+                response.statusCode = 401;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
+                return response;
+            }
+
+            std::string token = authIt->second;
+            if (token.find("Bearer ") == 0) {
+                token = token.substr(7);
+            }
+
+            int userId;
+            if (!this->validateAccessToken(token, userId)) {
+                HttpResponse response;
+                response.statusCode = 401;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
+                return response;
+            }
+
             auto json = nlohmann::json::parse(req.body);
 
-            // 验证必填字段
             if (!json.contains("old_password") || isEmpty(json["old_password"].get<std::string>())) {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Old password is required\"}";
+                response.body = "{\"success\":false,\"error\":\"Old password is required\"}";
                 return response;
             }
 
@@ -1210,27 +1032,37 @@ void AuthApiModule::registerRoutes() {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"New password is required\"}";
+                response.body = "{\"success\":false,\"error\":\"New password is required\"}";
                 return response;
             }
 
             std::string newPassword = json["new_password"].get<std::string>();
 
-            // 验证新密码强度
             if (!isStrongPassword(newPassword)) {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"New password must be at least 6 characters\"}";
+                response.body = "{\"success\":false,\"error\":\"New password must be at least 6 characters\"}";
                 return response;
             }
 
-            // 未认证
-            HttpResponse response;
-            response.statusCode = 401;
-            response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - Authentication required\"}";
-            return response;
+            ChangePasswordRequest cpReq;
+            cpReq.oldPassword = json["old_password"].get<std::string>();
+            cpReq.newPassword = newPassword;
+
+            if (this->changePassword(userId, cpReq)) {
+                HttpResponse response;
+                response.statusCode = 200;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":true,\"message\":\"Password changed successfully\"}";
+                return response;
+            } else {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":false,\"error\":\"Failed to change password. Verify your old password.\"}";
+                return response;
+            }
 
         } catch (const nlohmann::json::parse_error& e) {
             HttpResponse response;
@@ -1240,68 +1072,222 @@ void AuthApiModule::registerRoutes() {
             errJson["success"] = false;
             errJson["error"] = "Invalid JSON format";
             response.body = errJson.dump();
+            return response;
+        } catch (const std::exception& e) {
+            HttpResponse response;
+            response.statusCode = 500;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
             return response;
         }
     });
 
-    // POST /api/auth/reset-password - 重置密码
-    router.post(prefix + "/reset-password", [this, isEmpty, isValidEmail](const HttpRequest& req) {
+    // POST /api/auth/reset-password - 请求密码重置
+    router.post(prefix + "/reset-password", [this](const HttpRequest& req) {
         try {
             auto json = nlohmann::json::parse(req.body);
 
-            if (!json.contains("email") || isEmpty(json["email"].get<std::string>())) {
+            if (!json.contains("email") || json["email"].empty()) {
                 HttpResponse response;
                 response.statusCode = 400;
                 response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Email is required\"}";
+                response.body = "{\"success\":false,\"error\":\"Email is required\"}";
                 return response;
             }
 
-            std::string email = json["email"].get<std::string>();
+            std::string email = json["email"];
 
-            // 验证邮箱格式
-            if (!isValidEmail(email)) {
-                HttpResponse response;
-                response.statusCode = 400;
-                response.headers["Content-Type"] = "application/json";
-                response.body = "{\"success\":\"false\",\"error\":\"Invalid email format\"}";
-                return response;
-            }
-
+            initiatePasswordReset(email);
+            // Always return same response to prevent user enumeration
             HttpResponse response;
             response.statusCode = 200;
             response.headers["Content-Type"] = "application/json";
-            response.body = "{\"success\":\"true\",\"message\":\"If the email exists, a password reset link has been sent\"}";
+            response.body = "{\"success\":true,\"message\":\"If the email exists, a password reset link has been sent\"}";
             return response;
 
-        } catch (const nlohmann::json::parse_error& e) {
+        } catch (const nlohmann::json::exception& e) {
             HttpResponse response;
             response.statusCode = 400;
             response.headers["Content-Type"] = "application/json";
-            nlohmann::json errJson;
-            errJson["success"] = false;
-            errJson["error"] = "Invalid JSON format";
-            response.body = errJson.dump();
+            response.body = "{\"success\":false,\"error\":\"Invalid JSON format\"}";
+            return response;
+        }
+    });
+
+    // POST /api/auth/reset-password/complete - 完成密码重置
+    router.post(prefix + "/reset-password/complete", [this](const HttpRequest& req) {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+
+            if (!json.contains("token") || json["token"].empty()) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":false,\"error\":\"Reset token is required\"}";
+                return response;
+            }
+
+            if (!json.contains("new_password") || json["new_password"].empty()) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":false,\"error\":\"New password is required\"}";
+                return response;
+            }
+
+            std::string token = json["token"];
+            std::string newPassword = json["new_password"];
+
+            // 验证密码强度
+            if (newPassword.length() < 6) {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":false,\"error\":\"Password must be at least 6 characters\"}";
+                return response;
+            }
+
+            if (completePasswordReset(token, newPassword)) {
+                HttpResponse response;
+                response.statusCode = 200;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":true,\"message\":\"Password reset successfully\"}";
+                return response;
+            } else {
+                HttpResponse response;
+                response.statusCode = 400;
+                response.headers["Content-Type"] = "application/json";
+                response.body = "{\"success\":false,\"error\":\"Invalid or expired reset token\"}";
+                return response;
+            }
+
+        } catch (const nlohmann::json::exception& e) {
+            HttpResponse response;
+            response.statusCode = 400;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Invalid JSON format\"}";
+            return response;
+        } catch (const std::exception& e) {
+            HttpResponse response;
+            response.statusCode = 500;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
             return response;
         }
     });
 
     // GET /api/auth/sessions - 获取所有会话
     router.get(prefix + "/sessions", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = 401;
-        response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - Authentication required\"}";
-        return response;
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) {
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
+            return response;
+        }
+
+        std::string token = authIt->second;
+        if (token.find("Bearer ") == 0) token = token.substr(7);
+
+        int userId;
+        if (!this->validateAccessToken(token, userId)) {
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
+            return response;
+        }
+
+        try {
+            nlohmann::json sessions = nlohmann::json::array();
+            std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+
+            if (db) {
+                PreparedStatement stmt(db, "SELECT id, user_id, expires_at, created_at FROM user_sessions WHERE user_id = ? AND expires_at > NOW()");
+                stmt.bind(0, userId);
+                auto results = stmt.query();
+                for (const auto& row : results) {
+                    nlohmann::json s;
+                    s["id"] = std::stoi(row.at("id"));
+                    s["user_id"] = std::stoi(row.at("user_id"));
+                    s["expires_at"] = row.at("expires_at");
+                    s["created_at"] = row.at("created_at");
+                    sessions.push_back(s);
+                }
+            }
+
+            HttpResponse response;
+            response.statusCode = 200;
+            response.headers["Content-Type"] = "application/json";
+            nlohmann::json respJson;
+            respJson["success"] = true;
+            respJson["sessions"] = sessions;
+            respJson["count"] = sessions.size();
+            response.body = respJson.dump();
+            return response;
+        } catch (const std::exception& e) {
+            HttpResponse response;
+            response.statusCode = 500;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
+            return response;
+        }
     });
 
     // DELETE /api/auth/sessions/:id - 删除会话
     router.del(prefix + "/sessions/:id", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = 401;
-        response.headers["Content-Type"] = "application/json";
-        response.body = "{\"success\":\"false\",\"error\":\"Unauthorized - Authentication required\"}";
-        return response;
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) {
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
+            return response;
+        }
+
+        std::string token = authIt->second;
+        if (token.find("Bearer ") == 0) token = token.substr(7);
+
+        int userId;
+        if (!this->validateAccessToken(token, userId)) {
+            HttpResponse response;
+            response.statusCode = 401;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
+            return response;
+        }
+
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end()) {
+            HttpResponse response;
+            response.statusCode = 400;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Session ID is required\"}";
+            return response;
+        }
+
+        try {
+            std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+            if (db) {
+                PreparedStatement stmt(db, "DELETE FROM user_sessions WHERE id = ? AND user_id = ?");
+                stmt.bind(0, std::stoi(idIt->second));
+                stmt.bind(1, userId);
+                stmt.execute();
+            }
+
+            HttpResponse response;
+            response.statusCode = 200;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":true,\"message\":\"Session deleted\"}";
+            return response;
+        } catch (const std::exception& e) {
+            HttpResponse response;
+            response.statusCode = 500;
+            response.headers["Content-Type"] = "application/json";
+            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
+            return response;
+        }
     });
 
     spdlog::info("[AuthApiModule] Registered 9 routes");
@@ -1384,7 +1370,7 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
 
     // 存储会话到数据库（替代原来的mockTokens_存储）
     if (!impl_->storeSession(user.id, accessToken, refreshToken, impl_->config_.accessTokenExpiry)) {
-        std::cerr << "[Auth] Failed to store session in database" << std::endl;
+        spdlog::error("[Auth] Failed to store session in database");
         impl_->stats_.failedLogins++;
         return buildJsonResponse({
             {"success", "false"},
@@ -1398,17 +1384,8 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     // 更新数据库中的last_login_at和last_login_ip字段
     std::string clientIp = "127.0.0.1";
     bool updateOk = false;
-    if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
-        auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
-        auto updateSql = "UPDATE users SET last_login_at = NOW(), last_login_ip = '" + escapedClientIp + "', login_count = login_count + 1 WHERE id = " + std::to_string(user.id);
-        updateOk = impl_->mysqlDatabase_->execute(updateSql);
-    } else if (impl_->database_) {
+    if (impl_->database_) {
         PreparedStatement updateStmt(impl_->database_, "UPDATE users SET last_login_at = NOW(), last_login_ip = ?, login_count = login_count + 1 WHERE id = ?");
-        updateStmt.bind(0, clientIp);
-        updateStmt.bind(1, user.id);
-        updateOk = updateStmt.execute();
-    } else if (database_) {
-        PreparedStatement updateStmt(database_, "UPDATE users SET last_login_at = NOW(), last_login_ip = ?, login_count = login_count + 1 WHERE id = ?");
         updateStmt.bind(0, clientIp);
         updateStmt.bind(1, user.id);
         updateOk = updateStmt.execute();
@@ -1417,18 +1394,8 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
         spdlog::error("[Auth] handleLogin: Failed to update last_login_at for user {}", user.id);
     } else {
         spdlog::info("[Auth] handleLogin: Updated last_login_at for user {} (id={})", user.username, user.id);
-        if (impl_->mysqlDatabase_ && impl_->mysqlDatabase_->isConnected()) {
-            auto escapedClientIp = impl_->mysqlDatabase_->escape(clientIp);
-            std::string histSql = "INSERT INTO login_history (user_id, ip_address, success) VALUES ("
-                + std::to_string(user.id) + ", '" + escapedClientIp + "', 1)";
-            impl_->mysqlDatabase_->execute(histSql);
-        } else if (impl_->database_) {
+        if (impl_->database_) {
             PreparedStatement histStmt(impl_->database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
-            histStmt.bind(0, user.id);
-            histStmt.bind(1, clientIp);
-            histStmt.execute();
-        } else if (database_) {
-            PreparedStatement histStmt(database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
             histStmt.bind(0, user.id);
             histStmt.bind(1, clientIp);
             histStmt.execute();
@@ -1547,7 +1514,6 @@ std::optional<User> AuthApiModule::getCurrentUser(const std::string& accessToken
         return std::nullopt;
     } catch (const std::exception& e) {
         spdlog::error("[Auth] Failed to query user: {}", e.what());
-        std::cerr << "[Auth] Failed to query user: " << e.what() << std::endl;
         return std::nullopt;
     }
 }
@@ -1559,12 +1525,20 @@ std::optional<User> AuthApiModule::registerUser(const RegisterRequest& request) 
         return std::nullopt;  // 用户名已存在
     }
 
-    // TODO: 也检查email是否已存在
-    // auto emailCheckSql = "SELECT id FROM users WHERE email = '" + request.email + "'";
-    // auto emailResults = database_->query(emailCheckSql);
-    // if (!emailResults.empty()) {
-    //     return std::nullopt;
-    // }
+    // 检查邮箱是否已存在
+    try {
+        std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+        if (db) {
+            PreparedStatement emailStmt(db, "SELECT id FROM users WHERE email = ?");
+            emailStmt.bind(0, request.email);
+            auto emailResults = emailStmt.query();
+            if (!emailResults.empty()) {
+                return std::nullopt;
+            }
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[Auth] Failed to check email existence: {}", e.what());
+    }
 
     // 哈希密码
     std::string passwordHash = impl_->hashPassword(request.password);
@@ -1586,9 +1560,11 @@ std::optional<User> AuthApiModule::registerUser(const RegisterRequest& request) 
 }
 
 bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& request) {
-    // 从数据库查询用户（替代mockUsers_查找）
     try {
-        PreparedStatement selectStmt(database_, "SELECT * FROM users WHERE id = ?");
+        std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+        if (!db) return false;
+
+        PreparedStatement selectStmt(db, "SELECT * FROM users WHERE id = ?");
         selectStmt.bind(0, userId);
         auto results = selectStmt.query();
 
@@ -1598,50 +1574,187 @@ bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& requ
 
         std::string username = results[0]["username"];
 
-        // 验证旧密码
         if (!impl_->verifyPassword(username, request.oldPassword)) {
             return false;
         }
 
-        // 更新密码到数据库
         std::string passwordHash = impl_->hashPassword(request.newPassword);
-        PreparedStatement updateStmt(database_, "UPDATE users SET password_hash = ? "
-                        "WHERE id = ?");
+        PreparedStatement updateStmt(db, "UPDATE users SET password_hash = ? WHERE id = ?");
         updateStmt.bind(0, passwordHash);
         updateStmt.bind(1, userId);
 
-        return updateStmt.execute();
+        if (!updateStmt.execute()) {
+            return false;
+        }
+
+        // 密码修改成功后撤销所有旧会话
+        revokeAllUserTokens(userId);
+        return true;
     } catch (const std::exception& e) {
-        std::cerr << "[Auth] Failed to change password: " << e.what() << std::endl;
+        spdlog::error("[Auth] Failed to change password: {}", e.what());
         return false;
     }
 }
 
 bool AuthApiModule::initiatePasswordReset(const std::string& email) {
-    // 从数据库查询用户（替代mockUsers_查找）
     try {
-        PreparedStatement stmt(database_, "SELECT * FROM users WHERE email = ?");
+        std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+        if (!db) return false;
+
+        PreparedStatement stmt(db, "SELECT * FROM users WHERE email = ?");
         stmt.bind(0, email);
         auto results = stmt.query();
 
         if (!results.empty()) {
-            // TODO: 发送密码重置邮件
-            // 实际应该使用NotificationModule发送邮件
-            std::cout << "[Auth] Password reset requested for user: " << results[0]["username"] << std::endl;
+            int userId = std::stoi(results[0]["id"]);
+            std::string username = results[0]["username"];
+            std::string clientIp = "127.0.0.1"; // TODO: 从请求中提取
+
+            // 生成密码重置令牌（64字符十六进制）
+            std::string token = generateResetToken(userId, email);
+
+            // 记录密码重置请求
+            PreparedStatement recordStmt(db,
+                "INSERT INTO password_reset_history (user_id, email, ip_address, reset_token) "
+                "VALUES (?, ?, ?, ?)");
+            recordStmt.bind(0, userId);
+            recordStmt.bind(1, email);
+            recordStmt.bind(2, clientIp);
+            recordStmt.bind(3, token);
+            recordStmt.execute();
+
+            spdlog::info("[Auth] Password reset token generated for user {} (id={})", username, userId);
+
+            // 记录邮件发送日志
+            PreparedStatement logStmt(db,
+                "INSERT INTO email_send_log (user_id, email, email_type, subject, template_name, status) "
+                "VALUES (?, ?, 'password_reset', 'Password Reset Request', 'password_reset_template', 'pending')");
+            logStmt.bind(0, userId);
+            logStmt.bind(1, email);
+            logStmt.execute();
+
             return true;
         }
 
         return false;
     } catch (const std::exception& e) {
-        std::cerr << "[Auth] Failed to initiate password reset: " << e.what() << std::endl;
+        spdlog::error("[Auth] Failed to initiate password reset for email {}: {}", email, e.what());
         return false;
     }
 }
 
 bool AuthApiModule::completePasswordReset(const std::string& token, const std::string& newPassword) {
-    // TODO: 验证重置令牌并更新密码
-    // 实际应该验证令牌的有效性
-    return true;
+    try {
+        std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+        if (!db) return false;
+
+        PreparedStatement tokenStmt(db,
+            "SELECT user_id, email, expires_at, used_at "
+            "FROM email_verification_tokens "
+            "WHERE token = ? AND token_type = 'password_reset'");
+        tokenStmt.bind(0, token);
+        auto tokenResults = tokenStmt.query();
+
+        if (tokenResults.empty()) {
+            spdlog::warn("[Auth] Invalid password reset token");
+            return false;
+        }
+
+        if (!tokenResults[0]["used_at"].empty()) {
+            spdlog::warn("[Auth] Password reset token already used");
+            return false;
+        }
+
+        PreparedStatement expiryStmt(db,
+            "SELECT COUNT(*) AS cnt FROM email_verification_tokens "
+            "WHERE token = ? AND token_type = 'password_reset' AND expires_at > NOW()");
+        expiryStmt.bind(0, token);
+        auto expiryResults = expiryStmt.query();
+        if (expiryResults.empty() || std::stoi(expiryResults[0]["cnt"]) == 0) {
+            spdlog::warn("[Auth] Password reset token expired");
+            return false;
+        }
+
+        int userId = std::stoi(tokenResults[0]["user_id"]);
+
+        if (newPassword.length() < 6) {
+            spdlog::warn("[Auth] New password too weak");
+            return false;
+        }
+
+        std::string passwordHash = impl_->hashPassword(newPassword);
+
+        PreparedStatement updateStmt(db, "UPDATE users SET password_hash = ? WHERE id = ?");
+        updateStmt.bind(0, passwordHash);
+        updateStmt.bind(1, userId);
+        if (!updateStmt.execute()) {
+            spdlog::error("[Auth] Failed to update password for user {}", userId);
+            return false;
+        }
+
+        PreparedStatement markStmt(db, "UPDATE email_verification_tokens SET used_at = NOW() WHERE token = ?");
+        markStmt.bind(0, token);
+        markStmt.execute();
+
+        PreparedStatement historyStmt(db,
+            "UPDATE password_reset_history "
+            "SET reset_completed_at = NOW(), is_successful = TRUE "
+            "WHERE user_id = ? AND reset_token = ? AND reset_completed_at IS NULL");
+        historyStmt.bind(0, userId);
+        historyStmt.bind(1, token);
+        historyStmt.execute();
+
+        PreparedStatement historyLogStmt(db,
+            "INSERT INTO password_history (user_id, password_hash, ip_address) VALUES (?, ?, '127.0.0.1')");
+        historyLogStmt.bind(0, userId);
+        historyLogStmt.bind(1, passwordHash);
+        historyLogStmt.execute();
+
+        // 密码重置后撤销所有旧会话
+        revokeAllUserTokens(userId);
+
+        spdlog::info("[Auth] Password reset completed for user {} (id={})", userId, userId);
+
+        return true;
+    } catch (const std::exception& e) {
+        spdlog::error("[Auth] Failed to complete password reset: {}", e.what());
+        return false;
+    }
+}
+
+/**
+ * @brief 生成密码重置令牌
+ */
+std::string AuthApiModule::generateResetToken(int userId, const std::string& email) {
+    std::ostringstream token;
+    std::random_device rd;
+    unsigned char buf[32];
+    for (size_t i = 0; i < sizeof(buf); i += sizeof(unsigned int)) {
+        unsigned int val = rd();
+        std::memcpy(buf + i, &val, std::min(sizeof(unsigned int), sizeof(buf) - i));
+    }
+    for (unsigned char c : buf) {
+        token << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(c);
+    }
+    std::string tokenStr = token.str();
+
+    // 存储令牌到数据库
+    try {
+        std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+        if (db) {
+            PreparedStatement stmt(db,
+                "INSERT INTO email_verification_tokens (user_id, email, token, token_type, expires_at) "
+                "VALUES (?, ?, ?, 'password_reset', DATE_ADD(NOW(), INTERVAL 1 HOUR))");
+            stmt.bind(0, userId);
+            stmt.bind(1, email);
+            stmt.bind(2, tokenStr);
+            stmt.execute();
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[Auth] Failed to store reset token: {}", e.what());
+    }
+
+    return tokenStr;
 }
 
 bool AuthApiModule::validateAccessToken(const std::string& token, int& userId) {
@@ -1663,24 +1776,27 @@ std::string AuthApiModule::generateRefreshToken(int userId) {
 }
 
 bool AuthApiModule::revokeToken(const std::string& token) {
-    // 从数据库删除会话
     try {
-        PreparedStatement stmt(database_, "DELETE FROM user_sessions WHERE refresh_token = ?");
+        std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+        if (!db) return false;
+        PreparedStatement stmt(db, "DELETE FROM user_sessions WHERE refresh_token = ?");
         stmt.bind(0, token);
         return stmt.execute();
     } catch (const std::exception& e) {
-        std::cerr << "[Auth] Failed to revoke token: " << e.what() << std::endl;
+        spdlog::error("[Auth] Failed to revoke token: {}", e.what());
         return false;
     }
 }
 
 bool AuthApiModule::revokeAllUserTokens(int userId) {
     try {
-        PreparedStatement stmt(database_, "DELETE FROM user_sessions WHERE user_id = ?");
+        std::shared_ptr<IDatabase> db = impl_->database_ ? impl_->database_ : database_;
+        if (!db) return false;
+        PreparedStatement stmt(db, "DELETE FROM user_sessions WHERE user_id = ?");
         stmt.bind(0, userId);
         return stmt.execute();
     } catch (const std::exception& e) {
-        std::cerr << "[Auth] Failed to revoke all user tokens: " << e.what() << std::endl;
+        spdlog::error("[Auth] Failed to revoke all user tokens: {}", e.what());
         return false;
     }
 }
@@ -1725,18 +1841,40 @@ std::string AuthApiModule::handleLogout(const std::map<std::string, std::string>
 }
 
 std::string AuthApiModule::handleRefreshToken(const std::string& body) {
-    // TODO: 解析JSON body
-    RefreshTokenRequest request;
-    request.refreshToken = "refresh_token_mock";
+    try {
+        auto json = nlohmann::json::parse(body);
 
-    auto response = refreshToken(request);
+        if (!json.contains("refresh_token") || json["refresh_token"].empty()) {
+            nlohmann::json err;
+            err["success"] = false;
+            err["error"] = "Refresh token is required";
+            return err.dump();
+        }
 
-    return buildJsonResponse({
-        {"success", response.success ? "true" : "false"},
-        {"message", response.message},
-        {"access_token", response.accessToken},
-        {"expires_in", std::to_string(response.expiresIn.count())}
-    }, response.success ? 200 : 401);
+        RefreshTokenRequest request;
+        request.refreshToken = json["refresh_token"];
+
+        auto response = refreshToken(request);
+
+        nlohmann::json resp;
+        resp["success"] = response.success;
+        resp["message"] = response.message;
+        resp["access_token"] = response.accessToken;
+        resp["expires_in"] = response.expiresIn.count();
+        return resp.dump();
+
+    } catch (const nlohmann::json::exception& e) {
+        nlohmann::json err;
+        err["success"] = false;
+        err["error"] = "Invalid JSON format";
+        return err.dump();
+    } catch (const std::exception& e) {
+        spdlog::error("[Auth] handleRefreshToken: {}", e.what());
+        nlohmann::json err;
+        err["success"] = false;
+        err["error"] = "Internal server error";
+        return err.dump();
+    }
 }
 
 std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std::string>& headers) {
@@ -1764,81 +1902,6 @@ std::string AuthApiModule::handleGetCurrentUser(const std::map<std::string, std:
     return "{\"success\":true,\"user\":" + user->toJSON() + "}";
 }
 
-// std::string AuthApiModule::handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers) {
-//     auto authIt = headers.find("Authorization");
-//     if (authIt == headers.end()) {
-//         return buildJsonResponse({
-//             {"success", "false"},
-//             {"error", "Missing authorization header"}
-//         }, 401);
-//     }
-// 
-//     std::string token = authIt->second;
-//     if (token.find("Bearer ") == 0) {
-//         token = token.substr(7);
-//     }
-// 
-//     int userId;
-//     if (!validateAccessToken(token, userId)) {
-//         return buildJsonResponse({
-//             {"success", "false"},
-//             {"error", "Invalid token"}
-//         }, 401);
-//     }
-// 
-//     // TODO: 解析JSON body
-//     ChangePasswordRequest request;
-//     request.oldPassword = "old_password";
-//     request.newPassword = "new_password";
-// 
-//     if (changePassword(userId, request)) {
-//         return buildJsonResponse({
-//             {"success", "true"},
-//             {"message", "Password changed successfully"}
-//         });
-//     }
-// 
-//     return buildJsonResponse({
-//         {"success", "false"},
-//         {"error", "Failed to change password"}
-//     }, 400);
-// }
-// 
-// std::string AuthApiModule::handleInitiatePasswordReset(const std::string& body) {
-//     // TODO: 解析JSON body
-//     std::string email = "user@example.com";
-// 
-//     if (initiatePasswordReset(email)) {
-//         return buildJsonResponse({
-//             {"success", "true"},
-//             {"message", "Password reset email sent"}
-//         });
-//     }
-// 
-//     return buildJsonResponse({
-//         {"success", "false"},
-//         {"error", "User not found"}
-//     }, 404);
-// }
-// 
-// std::string AuthApiModule::handleCompletePasswordReset(const std::string& body) {
-//     // TODO: 解析JSON body
-//     std::string token = "reset_token";
-//     std::string newPassword = "new_password";
-// 
-//     if (completePasswordReset(token, newPassword)) {
-//         return buildJsonResponse({
-//             {"success", "true"},
-//             {"message", "Password reset successfully"}
-//         });
-//     }
-// 
-//     return buildJsonResponse({
-//         {"success", "false"},
-//         {"error", "Invalid or expired reset token"}
-//     }, 400);
-// }
-//
 std::string AuthApiModule::handleRegister(const std::string& body) {
     impl_->stats_.totalRegistrations++;
 
@@ -1944,11 +2007,89 @@ std::string AuthApiModule::handleRegister(const std::string& body) {
 }
 
 std::string AuthApiModule::handleChangePassword(const std::string& body, const std::map<std::string, std::string>& headers) {
-    // Stub实现：不验证token，直接返回错误（因为没有认证系统）
-    return buildJsonResponse({
-        {"success", "false"},
-        {"error", "Authentication not implemented yet"}
-    }, 501);
+    // 验证token
+    auto authIt = headers.find("Authorization");
+    if (authIt == headers.end()) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Missing authorization header"}
+        }, 401);
+    }
+
+    std::string token = authIt->second;
+    if (token.find("Bearer ") == 0) {
+        token = token.substr(7);
+    }
+
+    int userId;
+    if (!validateAccessToken(token, userId)) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid or expired token"}
+        }, 401);
+    }
+
+    // 解析JSON body
+    try {
+        auto json = nlohmann::json::parse(body);
+
+        if (!json.contains("old_password") || json["old_password"].empty()) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Old password is required"}
+            }, 400);
+        }
+
+        if (!json.contains("new_password") || json["new_password"].empty()) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "New password is required"}
+            }, 400);
+        }
+
+        ChangePasswordRequest request;
+        request.oldPassword = json["old_password"];
+        request.newPassword = json["new_password"];
+
+        // 验证密码强度
+        if (request.newPassword.length() < 6) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "New password must be at least 6 characters"}
+            }, 400);
+        }
+
+        if (request.oldPassword == request.newPassword) {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "New password cannot be the same as old password"}
+            }, 400);
+        }
+
+        if (changePassword(userId, request)) {
+            return buildJsonResponse({
+                {"success", "true"},
+                {"message", "Password changed successfully"}
+            });
+        } else {
+            return buildJsonResponse({
+                {"success", "false"},
+                {"error", "Failed to change password. Please verify your old password."}
+            }, 400);
+        }
+
+    } catch (const nlohmann::json::exception& e) {
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Invalid JSON format"}
+        }, 400);
+    } catch (const std::exception& e) {
+        spdlog::error("[Auth] handleChangePassword: {}", e.what());
+        return buildJsonResponse({
+            {"success", "false"},
+            {"error", "Internal server error"}
+        }, 500);
+    }
 }
 
 std::string AuthApiModule::handleResetPassword(const std::string& body) {

@@ -1,6 +1,6 @@
-#include <iostream>
 #include "core/QueueModule.hpp"
 #include "features/operations/ResponseHandlerModule.hpp"
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -64,7 +64,7 @@ public:
 
         if (queue_.size() >= maxSize_) {
             stats_.totalRejected++;
-            std::cout << "[Queue] Queue full, rejected request: " << item.requestId << std::endl;
+            spdlog::debug("[Queue] Queue full, rejected request: {}", item.requestId);
             return false;
         }
 
@@ -73,8 +73,7 @@ public:
         stats_.currentSize = queue_.size();
         stats_.countByPriority[item.priority]++;
 
-        std::cout << "[Queue] Enqueued: " << item.requestId
-                  << " (priority: " << item.priority << ", size: " << queue_.size() << ")" << std::endl;
+        spdlog::debug("[Queue] Enqueued: {} (priority: {}, size: {})", item.requestId, item.priority, queue_.size());
 
         condition_.notify_one();
 
@@ -108,8 +107,7 @@ public:
         // 更新平均等待时间
         stats_.averageWaitTime = (stats_.averageWaitTime * (stats_.totalDequeued - 1) + waitTime.count()) / stats_.totalDequeued;
 
-        std::cout << "[Queue] Dequeued: " << item.requestId
-                  << " (waited: " << waitTime.count() << "ms, size: " << queue_.size() << ")" << std::endl;
+        spdlog::debug("[Queue] Dequeued: {} (waited: {}ms, size: {})", item.requestId, waitTime.count(), queue_.size());
 
         return item;
     }
@@ -211,7 +209,7 @@ public:
         }
 
         stats_.currentSize = 0;
-        std::cout << "[Queue] Queue cleared" << std::endl;
+        spdlog::debug("[Queue] Queue cleared");
     }
 
     /**
@@ -232,17 +230,17 @@ QueueModule::QueueModule(size_t maxSize)
 QueueModule::~QueueModule() = default;
 
 bool QueueModule::initialize() {
-    std::cout << "QueueModule::initialize (max_size: " << impl_->maxSize_ << ")" << std::endl;
+    spdlog::info("QueueModule::initialize (max_size: {})", impl_->maxSize_);
     return true;
 }
 
 bool QueueModule::start() {
-    std::cout << "QueueModule started" << std::endl;
+    spdlog::info("QueueModule started");
     return true;
 }
 
 bool QueueModule::stop() {
-    std::cout << "QueueModule stopped" << std::endl;
+    spdlog::info("QueueModule stopped");
     impl_->stop();
     return true;
 }
@@ -264,7 +262,7 @@ size_t QueueModule::enqueueBatch(const std::vector<QueueItem>& items) {
         }
     }
 
-    std::cout << "[Queue] Batch enqueued: " << enqueued << "/" << items.size() << std::endl;
+    spdlog::debug("[Queue] Batch enqueued: {}/{}", enqueued, items.size());
 
     return enqueued;
 }

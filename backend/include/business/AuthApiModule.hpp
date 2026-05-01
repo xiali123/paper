@@ -3,7 +3,7 @@
 #include "core/ModuleBase.hpp"
 #include "core/ModuleExports.hpp"
 #include "data/IDatabase.hpp"
-#include "data/SimpleMySQLDatabase.hpp"
+
 #include <string>
 #include <map>
 #include <optional>
@@ -268,6 +268,11 @@ public:
      * @brief 生成刷新令牌
      */
     std::string generateRefreshToken(int userId);
+
+    /**
+     * @brief 生成密码重置令牌
+     */
+    std::string generateResetToken(int userId, const std::string& email);
 
     /**
      * @brief 撤销令牌

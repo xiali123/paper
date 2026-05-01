@@ -1,6 +1,6 @@
-#include <iostream>
 #include "data/CacheModule.hpp"
 #include "features/operations/ResponseHandlerModule.hpp"
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <algorithm>
 #include <thread>
@@ -31,13 +31,13 @@ public:
     bool initialize(const CacheConfig& config) {
         config_ = config;
 
-        std::cout << "[Cache] Initializing cache module..." << std::endl;
-        std::cout << "  Host: " << config.host << ":" << config.port << std::endl;
-        std::cout << "  Database: " << config.database << std::endl;
-        std::cout << "  Pool size: " << config.poolSize << std::endl;
-        std::cout << "  Default TTL: " << config.defaultTTL.count() << "s" << std::endl;
+        spdlog::info("[Cache] Initializing cache module...");
+        spdlog::info("  Host: {}:{}", config.host, config.port);
+        spdlog::info("  Database: {}", config.database);
+        spdlog::info("  Pool size: {}", config.poolSize);
+        spdlog::info("  Default TTL: {}s", config.defaultTTL.count());
 
-        std::cout << "[Cache] Initialized (Mock mode)" << std::endl;
+        spdlog::info("[Cache] Initialized (Mock mode)");
         return true;
     }
 
@@ -59,7 +59,7 @@ public:
         stats_.totalKeys = cacheStore_.size();
         stats_.totalOperations++;
 
-        std::cout << "[Cache] SET: " << key << " (TTL: " << item.ttl.count() << "s)" << std::endl;
+        spdlog::debug("[Cache] SET: {} (TTL: {}s)", key, item.ttl.count());
 
         return true;
     }
@@ -103,7 +103,7 @@ public:
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
         updateAverageAccessTime(duration);
 
-        std::cout << "[Cache] GET: " << key << " (HIT)" << std::endl;
+        spdlog::debug("[Cache] GET: {} (HIT)", key);
 
         return it->second.value;
     }
@@ -123,7 +123,7 @@ public:
         stats_.totalKeys = cacheStore_.size();
         stats_.totalOperations++;
 
-        std::cout << "[Cache] DELETE: " << key << std::endl;
+        spdlog::debug("[Cache] DELETE: {}", key);
 
         return true;
     }
@@ -190,7 +190,7 @@ public:
         it->second.ttl = ttl;
         it->second.createdAt = std::chrono::system_clock::now(); // 重置创建时间
 
-        std::cout << "[Cache] EXPIRE: " << key << " (TTL: " << ttl.count() << "s)" << std::endl;
+        spdlog::debug("[Cache] EXPIRE: {} (TTL: {}s)", key, ttl.count());
 
         return true;
     }
@@ -276,7 +276,7 @@ public:
         stats_.totalKeys = 0;
         stats_.totalOperations++;
 
-        std::cout << "[Cache] FLUSHALL: All data cleared" << std::endl;
+        spdlog::debug("[Cache] FLUSHALL: All data cleared");
 
         return true;
     }
@@ -302,7 +302,7 @@ public:
         if (removed > 0) {
             stats_.totalKeys = cacheStore_.size();
             stats_.expiredCount += removed;
-            std::cout << "[Cache] Cleaned up " << removed << " expired keys" << std::endl;
+            spdlog::debug("[Cache] Cleaned up {} expired keys", removed);
         }
 
         return removed;
@@ -397,19 +397,19 @@ CacheModule::CacheModule()
 CacheModule::~CacheModule() = default;
 
 bool CacheModule::initialize() {
-    std::cout << "CacheModule::initialize" << std::endl;
+    spdlog::info("CacheModule::initialize");
 
     CacheConfig defaultConfig;
     return impl_->initialize(defaultConfig);
 }
 
 bool CacheModule::start() {
-    std::cout << "CacheModule started" << std::endl;
+    spdlog::info("CacheModule started");
     return true;
 }
 
 bool CacheModule::stop() {
-    std::cout << "CacheModule stopped" << std::endl;
+    spdlog::info("CacheModule stopped");
     return true;
 }
 

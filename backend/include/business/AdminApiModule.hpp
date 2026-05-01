@@ -1518,19 +1518,22 @@ private:
     std::string handleGetAccountLockouts(const std::map<std::string, std::string>& params);
     std::string handleLockUserAccount(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleUnlockUserAccount(const std::map<std::string, std::string>& params);
-    std::string handleHandleSuspiciousLogin(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleHandleSuspiciousLogin(const std::map<std::string, std::string>& params, const std::string& body,
+                                          const std::map<std::string, std::string>& headers);
 
     // HTTP请求处理器 - 全局配置
     std::string handleGetConfigCategories(const std::map<std::string, std::string>& params);
     std::string handleGetConfigs(const std::map<std::string, std::string>& params);
-    std::string handleUpdateConfig(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleUpdateConfig(const std::map<std::string, std::string>& params, const std::string& body,
+                                  const std::map<std::string, std::string>& headers);
     std::string handleGetConfigHistory(const std::map<std::string, std::string>& params);
     std::string handleGetConfigSummary(const std::map<std::string, std::string>& params);
     std::string handleReloadConfigs(const std::map<std::string, std::string>& params);
 
     // HTTP请求处理器 - 数据备份
     std::string handleGetBackupJobs(const std::map<std::string, std::string>& params);
-    std::string handleCreateBackupJob(const std::map<std::string, std::string>& params, const std::string& body);
+    std::string handleCreateBackupJob(const std::map<std::string, std::string>& params, const std::string& body,
+                                     const std::map<std::string, std::string>& headers);
     std::string handleUpdateBackupJob(const std::map<std::string, std::string>& params, const std::string& body);
     std::string handleDeleteBackupJob(const std::map<std::string, std::string>& params);
     std::string handleTriggerBackup(const std::map<std::string, std::string>& params, const std::string& body);
