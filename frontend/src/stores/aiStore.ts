@@ -12,6 +12,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { aiReviewApi, literatureReviewApi, researchPlanApi } from '@/api/modules/ai'
 import type { AIReviewResult, LiteratureReview, ResearchPlan } from '@/types'
 
 export type AIFeatureType = 'review' | 'literature-review' | 'research-plan'
@@ -143,40 +144,11 @@ export const useAIStore = defineStore(
       const startTime = Date.now()
 
       try {
-        // Simulate progress
-        const progressInterval = setInterval(() => {
-          if (progress.value < 90) {
-            progress.value += 10
-          }
-        }, 500)
+        progress.value = 10
 
-        // TODO: Implement actual API call
-        // const result = await aiApi.generateReview(paperId, options)
+        const result = await aiReviewApi.generateReview({ paperId, ...options } as any)
 
-        // Mock result for now
-        const result: AIReviewResult = {
-          overallScore: 85,
-          sections: [
-            {
-              name: 'Methodology',
-              score: 90,
-              strengths: ['Novel approach', 'Well-designed experiments'],
-              weaknesses: ['Limited scalability analysis'],
-              suggestions: ['Add scalability tests']
-            },
-            {
-              name: 'Presentation',
-              score: 80,
-              strengths: ['Clear writing', 'Good organization'],
-              weaknesses: ['Some figures are hard to read'],
-              suggestions: ['Improve figure quality']
-            }
-          ],
-          overallFeedback: 'This paper presents a novel approach with strong methodology and clear presentation.',
-          recommendations: ['Accept with minor revisions']
-        }
-
-        clearInterval(progressInterval)
+        progress.value = 90
         progress.value = 100
 
         const generation: AIGeneration = {
@@ -214,37 +186,10 @@ export const useAIStore = defineStore(
       const startTime = Date.now()
 
       try {
-        // Simulate progress
-        const progressInterval = setInterval(() => {
-          if (progress.value < 90) {
-            progress.value += 10
-          }
-        }, 500)
+        progress.value = 10
 
-        // TODO: Implement actual API call
-        // const result = await aiApi.generateLiteratureReview(topic, paperIds, options)
+        const result = await literatureReviewApi.generateReview({ topic, paperIds, ...options } as any)
 
-        // Mock result for now
-        const result: LiteratureReview = {
-          topic,
-          introduction: 'This review examines recent advances in the field.',
-          sections: [
-            {
-              title: 'Background',
-              content: 'The field has evolved rapidly in recent years...',
-              papers: [1, 2, 3]
-            },
-            {
-              title: 'Recent Advances',
-              content: 'Several groundbreaking approaches have emerged...',
-              papers: [4, 5, 6]
-            }
-          ],
-          conclusion: 'The field shows great promise for future development.',
-          references: paperIds
-        }
-
-        clearInterval(progressInterval)
         progress.value = 100
 
         const generation: AIGeneration = {
@@ -283,47 +228,10 @@ export const useAIStore = defineStore(
       const startTime = Date.now()
 
       try {
-        // Simulate progress
-        const progressInterval = setInterval(() => {
-          if (progress.value < 90) {
-            progress.value += 10
-          }
-        }, 500)
+        progress.value = 10
 
-        // TODO: Implement actual API call
-        // const result = await aiApi.generateResearchPlan(topic, objectives, options)
+        const result = await researchPlanApi.generatePlan({ topic, objectives, ...options } as any)
 
-        // Mock result for now
-        const result: ResearchPlan = {
-          topic,
-          objectives,
-          phases: [
-            {
-              name: 'Literature Review',
-              duration: '4 weeks',
-              tasks: ['Survey existing research', 'Identify gaps']
-            },
-            {
-              name: 'Method Development',
-              duration: '8 weeks',
-              tasks: ['Design algorithms', 'Implement prototype']
-            },
-            {
-              name: 'Experiments',
-              duration: '6 weeks',
-              tasks: ['Collect data', 'Run experiments', 'Analyze results']
-            }
-          ],
-          timeline: '18 weeks total',
-          resources: ['Computing resources', 'Dataset access'],
-          milestones: [
-            { week: 4, milestone: 'Complete literature review' },
-            { week: 12, milestone: 'Finish implementation' },
-            { week: 18, milestone: 'Submit paper' }
-          ]
-        }
-
-        clearInterval(progressInterval)
         progress.value = 100
 
         const generation: AIGeneration = {
