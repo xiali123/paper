@@ -17,6 +17,7 @@ export { default as TablePanel } from './panels/TablePanel.vue'
 export { default as SpellCheckPanel } from './panels/SpellCheckPanel.vue'
 export { default as FontPanel } from './panels/FontPanel.vue'
 export { default as CollaborationPanel } from './panels/CollaborationPanel.vue'
+export { default as FunctionPanels } from './panels/FunctionPanels.vue'
 
 // Dialog Components
 export { default as BaseDialog } from './dialogs/BaseDialog.vue'

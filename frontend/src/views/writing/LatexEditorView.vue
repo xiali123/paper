@@ -547,80 +547,31 @@
       @clear-cache="handleClearCache"
     />
 
-    <!-- BibTeX文献管理器 -->
-    <el-drawer
-      v-model="showBibTeXManager"
-      title="BibTeX文献管理"
-      direction="rtl"
-      size="500px"
-    >
-      <BibTeXManager @insert-citation="handleInsertCitation" />
-    </el-drawer>
+    <!-- Function Panels (extracted component) -->
+    <FunctionPanels
+      :show-bib-te-x-manager="showBibTeXManager"
+      :show-macro-manager="showMacroManager"
+      :show-image-resource-manager="showImageResourceManager"
+      :show-git-integration="showGitIntegration"
+      :show-word-count="showWordCount"
+      :show-submission-checker="showSubmissionChecker"
+      :show-code-fold-navigator="showCodeFoldNavigator"
+      :editor-content="editorContent"
+      @update:show-bib-te-x-manager="showBibTeXManager = $event"
+      @update:show-macro-manager="showMacroManager = $event"
+      @update:show-image-resource-manager="showImageResourceManager = $event"
+      @update:show-git-integration="showGitIntegration = $event"
+      @update:show-word-count="showWordCount = $event"
+      @update:show-submission-checker="showSubmissionChecker = $event"
+      @update:show-code-fold-navigator="showCodeFoldNavigator = $event"
+      @insert-citation="handleInsertCitation"
+      @insert-macro="handleInsertMacro"
+      @insert-image="handleInsertImage"
+      @checker-fix="handleCheckerFix"
+      @jump-to-line="handleJumpToLine"
+    />
 
-    <!-- LaTeX宏管理器 -->
-    <el-drawer
-      v-model="showMacroManager"
-      title="LaTeX宏管理器"
-      direction="rtl"
-      size="450px"
-    >
-      <MacroManager @insert-macro="handleInsertMacro" />
-    </el-drawer>
-
-    <!-- 图片资源管理器 -->
-    <el-drawer
-      v-model="showImageResourceManager"
-      title="图片资源管理"
-      direction="rtl"
-      size="600px"
-    >
-      <ImageResourceManager @insert-image="handleInsertImage" />
-    </el-drawer>
-
-    <!-- Git集成面板 -->
-    <el-drawer
-      v-model="showGitIntegration"
-      title="版本控制 (Git)"
-      direction="ltr"
-      size="600px"
-    >
-      <GitIntegrationPanel />
-    </el-drawer>
-
-    <!-- 字数统计面板 -->
-    <el-drawer
-      v-model="showWordCount"
-      title="字数统计"
-      direction="rtl"
-      size="380px"
-    >
-      <WordCountPanel :content="editorContent" />
-    </el-drawer>
-
-    <!-- 投稿前检查面板 -->
-    <el-drawer
-      v-model="showSubmissionChecker"
-      title="投稿前检查"
-      direction="rtl"
-      size="480px"
-    >
-      <SubmissionChecker :content="editorContent" @fix="handleCheckerFix" />
-    </el-drawer>
-
-    <!-- 代码折叠导航 -->
-    <el-drawer
-      v-model="showCodeFoldNavigator"
-      title="文档大纲"
-      direction="ltr"
-      size="320px"
-    >
-      <CodeFoldNavigator
-        :content="editorContent"
-        @jump-to-line="handleJumpToLine"
-      />
-    </el-drawer>
-
-    <!-- 命令面板 -->
+        <!-- 命令面板 -->
     <CommandPalette v-model="showCommandPalette" @command-executed="handleCommandExecuted" />
 
     <!-- 统计仪表板 -->
@@ -645,10 +596,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, reactive } from 'vue'
 import { useLatexEditorStore } from '@/architecture/stores/latexEditor'
 import { useAuthStore } from '@/stores'
 import { useAutoSave } from '@/composables/useAutoSave'
+import { useEditorActions } from '@/composables/useEditorActions'
+import { useFindReplace } from '@/composables/useFindReplace'
 import { useKeyboardShortcuts, getLatexShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useScrollSync } from '@/composables/useScrollSync'
 import { useUndoRedo } from '@/composables/useUndoRedo'
@@ -692,15 +645,9 @@ import TemplatesPanel from './latex/components/panels/TemplatesPanel.vue'
 import TablePanel from './latex/components/panels/TablePanel.vue'
 import SpellCheckPanel from './latex/components/panels/SpellCheckPanel.vue'
 import FontPanel from './latex/components/panels/FontPanel.vue'
+import FunctionPanels from './latex/components/panels/FunctionPanels.vue'
 	// Batch 2 & 3 expansion components
-	import BibTeXManager from '@/components/latex/BibTeXManager.vue'
-	import CodeFoldNavigator from '@/components/latex/CodeFoldNavigator.vue'
-	import MacroManager from '@/components/latex/MacroManager.vue'
-	import ImageResourceManager from '@/components/latex/ImageResourceManager.vue'
 	import InlineCommentSystem from '@/components/latex/InlineCommentSystem.vue'
-	import GitIntegrationPanel from '@/components/latex/GitIntegrationPanel.vue'
-import WordCountPanel from '@/components/latex/WordCountPanel.vue'
-import SubmissionChecker from '@/components/latex/SubmissionChecker.vue'
 	import CommandPalette from '@/components/latex/CommandPalette.vue'
 // Monaco editor integration removed - using simple LatexEditor component
 
@@ -716,6 +663,10 @@ const latexStore = useLatexEditorStore()
 
 // Auth store for user info
 const authStore = useAuthStore()
+
+// Template data (extracted into data file)
+import { latexTemplates, shortcutCategories } from './latex/data/latexTemplates'
+import type { Template } from './latex/data/latexTemplates'
 
 // Refs
 const previewRef = ref<InstanceType<typeof LatexPreview> | null>(null)
@@ -805,28 +756,26 @@ const editorPanelRef = ref<HTMLElement | null>(null)
 const previewPanelRef = ref<HTMLElement | null>(null)
 
 // ==========================================
-// Find & Replace state
+// Find & Replace (extracted into composable)
 // ==========================================
-const showFindReplace = ref(false)
-const showReplace = ref(false)
-const findQuery = ref('')
-const replaceQuery = ref('')
-const currentMatchIndex = ref(0)
-const totalMatches = ref(0)
+const {
+  showFindReplace,
+  showReplace,
+  findQuery,
+  replaceQuery,
+  currentMatchIndex,
+  totalMatches,
+  matches,
+  findOptions,
+  performFind,
+  onFindInput,
+  findNext,
+  findPrevious,
+  replaceCurrent,
+  replaceAll
+} = useFindReplace(editorContent, editorRef, isModified)
+// Keep findInputRef for backward compat with keyboard shortcut focus
 const findInputRef = ref<any>(null)
-const matches = ref<Array<{ start: number; end: number; text: string }>>([])
-
-interface FindOptions {
-  caseSensitive: boolean
-  wholeWord: boolean
-  useRegex: boolean
-}
-
-const findOptions = reactive<FindOptions>({
-  caseSensitive: false,
-  wholeWord: false,
-  useRegex: false
-})
 
 // Store computed properties - 必须先定义这些，因为后面的 hooks 需要使用
 const currentDocument = computed(() => latexStore.currentDocument)
@@ -995,395 +944,6 @@ const currentProjectId = computed(() => {
   }
   return 1
 })
-
-// ==========================================
-// Keyboard Shortcuts Data
-// ==========================================
-
-interface Shortcut {
-  action: string
-  keys: string[]
-}
-
-interface ShortcutCategory {
-  name: string
-  shortcuts: Shortcut[]
-}
-
-const shortcutCategories: ShortcutCategory[] = [
-  {
-    name: '文件操作',
-    shortcuts: [
-      { action: '保存文档', keys: ['Ctrl', 'S'] },
-      { action: '编译文档', keys: ['Ctrl', 'Enter'] },
-    ]
-  },
-  {
-    name: '编辑操作',
-    shortcuts: [
-      { action: '撤销', keys: ['Ctrl', 'Z'] },
-      { action: '重做', keys: ['Ctrl', 'Shift', 'Z'] },
-      { action: '查找', keys: ['Ctrl', 'F'] },
-      { action: '查找下一个', keys: ['F3'] },
-      { action: '查找上一个', keys: ['Shift', 'F3'] },
-      { action: '替换', keys: ['Ctrl', 'H'] },
-      { action: '跳转到行', keys: ['Ctrl', 'G'] },
-    ]
-  },
-  {
-    name: '格式化',
-    shortcuts: [
-      { action: '粗体', keys: ['Ctrl', 'B'] },
-      { action: '斜体', keys: ['Ctrl', 'I'] },
-      { action: '下划线', keys: ['Ctrl', 'U'] },
-    ]
-  },
-  {
-    name: '视图控制',
-    shortcuts: [
-      { action: '切换预览', keys: ['Ctrl', '\\'] },
-      { action: '切换大纲', keys: ['Ctrl', 'O'] },
-      { action: '放大预览', keys: ['Ctrl', '+'] },
-      { action: '缩小预览', keys: ['Ctrl', '-'] },
-    ]
-  },
-  {
-    name: '面板',
-    shortcuts: [
-      { action: '快捷键帮助', keys: ['?'] },
-      { action: '符号面板', keys: ['Ctrl', 'Shift', 'S'] },
-      { action: '代码片段', keys: ['Ctrl', 'Space'] },
-    ]
-  }
-]
-
-// ==========================================
-// LaTeX 模板数据
-// ==========================================
-
-interface Template {
-  id: string
-  name: string
-  description: string
-  category: string
-  content: string
-  icon: string
-}
-
-const latexTemplates: Template[] = [
-  {
-    id: 'article',
-    name: '学术论文',
-    description: '标准学术论文模板',
-    category: '学术论文',
-    icon: '📄',
-    content: `\\documentclass[12pt,a4paper]{article}
-
-% 导言区
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{amsmath,amsfonts,amssymb,amsthm}
-\\usepackage{graphicx}
-\\usepackage{geometry}
-\\geometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
-
-% 标题信息
-\\title{论文标题}
-\\author{作者姓名}
-\\date{\\today}
-
-\\begin{document}
-
-\\maketitle
-
-\\begin{abstract}
-  这里是摘要内容。
-\\end{abstract}
-
-\\section{引言}
-这里是引言内容...
-
-\\section{方法}
-这里是方法部分...
-
-\\section{结果}
-这里是结果部分...
-
-\\section{结论}
-这里是结论部分...
-
-\\begin{thebibliography}{9}
-  \\bibitem{文献1}
-  \\bibitem{文献2}
-\\end{thebibliography}
-
-\\end{document}`
-  },
-  {
-    id: 'report',
-    name: '技术报告',
-    description: '技术/工程报告模板',
-    category: '学术报告',
-    icon: '📋',
-    content: `\\documentclass[12pt,a4paper]{report}
-
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{amsmath,amsfonts,amssymb}
-\\usepackage{graphicx}
-\\usepackage{geometry}
-\\geometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
-
-\\title{技术报告标题}
-\\author{作者姓名}
-\\date{\\today}
-
-\\begin{document}
-
-\\maketitle
-
-\\tableofcontents
-
-\\chapter{介绍}
-这里是介绍内容...
-
-\\chapter{背景}
-这里是背景内容...
-
-\\chapter{方法}
-这里是方法部分...
-
-\\chapter{结果}
-这里是结果部分...
-
-\\chapter{结论}
-这里是结论部分...
-
-\\end{document}`
-  },
-  {
-    id: 'beamer',
-    name: '演示文稿',
-    description: 'Beamer演示文稿模板',
-    category: '演示文稿',
-    icon: '📊',
-    content: `\\documentclass{beamer}
-
-\\usetheme{Madrid}
-\\usecolortheme{default}
-
-\\title{演示文稿标题}
-\\author{作者姓名}
-\\date{\\today}
-
-\\begin{document}
-
-\\frame{\\titlepage}
-
-\\begin{frame}
-  \\frametitle{目录}
-  \\tableofcontents
-\\end{frame}
-
-\\section{第一部分}
-
-\\begin{frame}
-  \\frametitle{第一张幻灯片}
-  \\begin{itemize}
-    \\item 要点1
-    \\item 要点2
-    \\item 要点3
-  \\end{itemize}
-\\end{frame}
-
-\\end{document}`
-  },
-  {
-    id: 'book',
-    name: '书籍',
-    description: '书籍/教材模板',
-    category: '书籍',
-    icon: '📚',
-    content: `\\documentclass[12pt,a4paper]{book}
-
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{amsmath,amsfonts,amssymb,amsthm}
-\\usepackage{graphicx}
-\\usepackage{geometry}
-\\geometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
-
-\\title{书籍标题}
-\\author{作者姓名}
-\\date{\\today}
-
-\\begin{document}
-
-\\frontmatter
-\\maketitle
-
-\\tableofcontents
-
-\\mainmatter
-\\chapter{第一章}
-这里是第一章内容...
-
-\\chapter{第二章}
-这里是第二章内容...
-
-\\backmatter
-\\begin{thebibliography}{9}
-  \\bibitem{文献1}
-  \\bibitem{文献2}
-\\end{thebibliography}
-
-\\end{document}`
-  },
-  {
-    id: 'letter',
-    name: '信函',
-    description: '正式信函模板',
-    category: '信函',
-    icon: '✉️',
-    content: `\\documentclass[12pt]{letter}
-
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-
-\\signature{发件人姓名}
-\\address{发件人地址}
-\\date{\\today}
-
-\\begin{document}
-
-\\begin{letter}{收件人姓名}
-  这里是信件正文...
-
-  \\vspace{1cm}
-  此致
-
-  敬礼
-\\end{letter}
-
-\\end{document}`
-  },
-  {
-    id: 'memo',
-    name: '备忘录',
-    description: '内部备忘录模板',
-    category: '办公',
-    icon: '📝',
-    content: `\\documentclass[12pt,a4paper]{article}
-
-\\usepackage[utf8]{inputenc}
-\\usepackage{geometry}
-\\geometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
-
-\\title{备忘录}
-\\author{部门名称}
-\\date{\\today}
-
-\\begin{document}
-
-\\section*{主题}
-这里是主题内容...
-
-\\section*{内容}
-这里是详细内容...
-
-\\section*{行动项}
-\\begin{itemize}
-  \\item 行动项1
-  \\item 行动项2
-\\end{itemize}
-
-\\end{document}`
-  },
-  {
-    id: 'resume',
-    name: '简历',
-    description: '简历/CV模板',
-    category: '个人',
-    icon: '👤',
-    content: `\\documentclass[12pt,a4paper]{article}
-
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{geometry}
-\\geometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
-\\usepackage{enumitem}
-
-\\begin{document}
-
-\\begin{center}
-  {\\LARGE \\textbf{姓名}} \\\
-  \\vspace{0.3cm}
-  联系邮箱 | 电话号码 | 网站
-\\end{center}
-
-\\vspace{1cm}
-
-\\section*{教育背景}
-\\begin{itemize}
-  \\item 学位 - 学校名称 (年份)
-  \\item 学位 - 学校名称 (年份)
-\\end{itemize}
-
-\\section*{工作经历}
-\\begin{itemize}
-  \\item 职位 - 公司名称 (年份 - 至今)
-  \\item 职位 - 公司名称 (年份 - 年份)
-\\end{itemize}
-
-\\section*{技能}
-\\begin{itemize}
-  \\item 技能1
-  \\item 技能2
-  \\item 技能3
-\\end{itemize}
-
-\\end{document}`
-  },
-  {
-    id: 'notes',
-    name: '课程笔记',
-    description: '课程笔记模板',
-    category: '教育',
-    icon: '📖',
-    content: `\\documentclass[12pt,a4paper]{article}
-
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\usepackage{amsmath,amsfonts,amssymb}
-\\usepackage{graphicx}
-\\usepackage{geometry}
-\\geometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
-
-\\title{课程名称}
-\\author{学生姓名}
-\\date{学期}
-
-\\begin{document}
-
-\\maketitle
-
-\\tableofcontents
-
-\\section{第一讲：讲义标题}
-这里是课程内容...
-
-\\subsection{要点1}
-详细说明...
-
-\\subsection{要点2}
-详细说明...
-
-\\section{第二讲：讲义标题}
-这里是课程内容...
-
-\\end{document}`
-  }
-]
 
 // ==========================================
 // 模板系统方法和计算属性
@@ -1773,6 +1333,62 @@ const autocomplete = useLatexAutocomplete({
   enabled: ref(true)
 })
 
+// ==========================================
+// Editor Actions (extracted into composable)
+// ==========================================
+const {
+  insertLatexCommand,
+  insertSymbol,
+  insertTableCode,
+  handleSpellReplace,
+  handleSpellGoto,
+  insertTemplateContent,
+  handleQuickInsert,
+  insertFormula,
+  handleFontChange,
+  handleReviewModeToggle,
+  handleReviewInsert,
+  handleInsertCitation,
+  handleInsertMacro,
+  handleInsertImage,
+  handleCheckerFix,
+  handleJumpToLine,
+  handleCommandExecuted,
+  downloadAsTex,
+  convertToMarkdown
+} = useEditorActions(
+  editorContent,
+  editorRef,
+  isModified,
+  showSymbolPalette,
+  showTableGenerator,
+  showTemplates
+)
+
+// 导出处理
+function handleExport(data: any) {
+  const { format, options, filename } = data || {}
+
+  if (import.meta.env.DEV) {
+    console.log('Export:', format, options, filename)
+  }
+
+  // 根据格式执行导出
+  switch (format) {
+    case 'pdf':
+      compileDocument()
+      break
+    case 'latex':
+      downloadAsTex(filename || 'document.tex')
+      break
+    case 'markdown':
+      convertToMarkdown(filename || 'document.md')
+      break
+    default:
+      ElMessage.info(`导出为 ${format?.toUpperCase()} 功能开发中`)
+  }
+}
+
 // Simple editor focus method
 const editorFocus = () => {
   // Focus functionality can be added to LatexEditor component if needed
@@ -2042,273 +1658,6 @@ function cancelCompile() {
   }
 }
 
-function insertLatexCommand(command: string) {
-  if (!editorRef.value) return
-
-  const commands: Record<string, [string, string]> = {
-    textbf: ['\\textbf{', '}'],
-    textit: ['\\textit{', '}'],
-    underline: ['\\underline{', '}'],
-    emph: ['\\emph{', '}'],
-    texttt: ['\\texttt{', '}'],
-    textsf: ['\\textsf{', '}'],
-    textsc: ['\\textsc{', '}'],
-    textsl: ['\\textsl{', '}'],
-    textup: ['\\textup{', '}'],
-    textnormal: ['\\textnormal{', '}']
-  }
-
-  const [before, after] = commands[command] || ['\\' + command + '{', '}']
-
-  // Get current textarea
-  const textarea = editorRef.value.$el?.querySelector('textarea')
-  if (!textarea) return
-
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const content = editorContent.value
-
-  const newContent = content.substring(0, start) + before + after + content.substring(end)
-  editorContent.value = newContent
-
-  // Focus and set cursor position
-  nextTick(() => {
-    textarea.focus()
-    const newCursorPos = start + before.length
-    textarea.selectionStart = newCursorPos
-    textarea.selectionEnd = newCursorPos
-  })
-}
-
-function insertLatexEnvironment(env: string) {
-  if (!editorRef.value) return
-
-  const environments: Record<string, [string, string]> = {
-    itemize: ['\\begin{itemize}\\n  \\item ', '\\n\\end{itemize}'],
-    enumerate: ['\\begin{enumerate}\\n  \\item ', '\\n\\end{enumerate}'],
-    equation: ['\\begin{equation}\\n  ', '\\n\\end{equation}'],
-    equationstar: ['\\begin{equation*}\\n  ', '\\n\\end{equation*}'],
-    align: ['\\begin{align}\\n  ', '\\n\\end{align}'],
-    alignstar: ['\\begin{align*}\\n  ', '\\n\\end{align*}'],
-    figure: ['\\begin{figure}[h]\\n  \\centering\\n  \\includegraphics[width=0.8\\textwidth]{', '}\\n  \\caption{Caption}\\n  \\label{fig:label}\\n\\end{figure}'],
-    table: ['\\begin{table}[h]\\n  \\centering\\n  \\begin{tabular}{', '}\\n    \\hline\\n    % Add your table content here\\n    \\hline\\n  \\end{tabular}\\n  \\caption{Caption}\\n  \\label{tab:label}\\n\\end{table}'],
-    center: ['\\begin{center}\\n  ', '\\n\\end{center}'],
-    flushleft: ['\\begin{flushleft}\\n  ', '\\n\\end{flushleft}'],
-    flushright: ['\\begin{flushright}\\n  ', '\\n\\end{flushright}']
-  }
-
-  const [before, after] = environments[env] || ['\\begin{' + env + '}\\n  ', '\\n\\end{' + env + '}']
-
-  // Get current textarea
-  const textarea = editorRef.value.$el?.querySelector('textarea')
-  if (!textarea) return
-
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const content = editorContent.value
-
-  const newContent = content.substring(0, start) + before + after + content.substring(end)
-  editorContent.value = newContent
-
-  // Focus and set cursor position
-  nextTick(() => {
-    textarea.focus()
-    const newCursorPos = start + before.length
-    textarea.selectionStart = newCursorPos
-    textarea.selectionEnd = newCursorPos
-  })
-}
-
-function insertSymbol(symbol: string) {
-  if (!editorRef.value) return
-
-  if (import.meta.env.DEV) {
-    console.log('Insert symbol:', symbol)
-  }
-
-  // Get current textarea
-  const textarea = editorRef.value.$el?.querySelector('textarea')
-  if (!textarea) return
-
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const content = editorContent.value
-
-  const newContent = content.substring(0, start) + symbol + content.substring(end)
-  editorContent.value = newContent
-
-  // Focus and set cursor position
-  nextTick(() => {
-    textarea.focus()
-    const newCursorPos = start + symbol.length
-    textarea.selectionStart = newCursorPos
-    textarea.selectionEnd = newCursorPos
-  })
-
-  showSymbolPalette.value = false
-}
-
-function insertTableCode(code: string) {
-  if (!editorRef.value) return
-
-  if (import.meta.env.DEV) {
-    console.log('Insert table code:', code)
-  }
-
-  // Get current textarea
-  const textarea = editorRef.value.$el?.querySelector('textarea')
-  if (!textarea) return
-
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const content = editorContent.value
-
-  const newContent = content.substring(0, start) + '\n' + code + '\n' + content.substring(end)
-  editorContent.value = newContent
-
-  // Focus and set cursor position
-  nextTick(() => {
-    textarea.focus()
-    const newCursorPos = start + code.length + 2
-    textarea.selectionStart = newCursorPos
-    textarea.selectionEnd = newCursorPos
-  })
-
-  showTableGenerator.value = false
-  ElMessage.success('表格已插入')
-}
-
-function handleSpellReplace(data: any) {
-  if (!editorRef.value) return
-
-  const { from, to } = data || {}
-  if (!from || !to) return
-
-  const textarea = editorRef.value.$el?.querySelector('textarea')
-  if (!textarea) return
-
-  const content = editorContent.value
-  const newContent = content.split(from).join(to)
-  editorContent.value = newContent
-}
-
-function handleSpellGoto(position: any) {
-  if (!editorRef.value) return
-
-  const line = typeof position === 'number' ? position : position?.line
-  const column = position?.column || 0
-
-  editorRef.value.navigateTo?.({ line, column })
-}
-
-function insertTemplateContent(content: string) {
-  editorContent.value = content
-  showTemplates.value = false
-  ElMessage.success('模板已应用')
-}
-
-function handleFontChange(fontFamily: string) {
-  // Font change is handled by FontSelector component via store
-  if (import.meta.env.DEV) {
-    console.log('Font changed to:', fontFamily)
-  }
-}
-
-// 快速插入处理
-function handleQuickInsert(code: string) {
-  insertLatexCommand(code)
-}
-
-// AI公式识别插入
-function insertFormula(latex: string) {
-  insertLatexCommand(latex)
-}
-
-// 审阅模式切换
-function handleReviewModeToggle(enabled: boolean) {
-  if (import.meta.env.DEV) {
-    console.log('Review mode:', enabled)
-  }
-}
-
-// 审阅模式插入
-function handleReviewInsert(text: string) {
-  insertLatexCommand(text)
-}
-
-// 导出处理
-function handleExport(data: any) {
-  const { format, options, filename } = data || {}
-
-  if (import.meta.env.DEV) {
-    console.log('Export:', format, options, filename)
-  }
-
-  // 根据格式执行导出
-  switch (format) {
-    case 'pdf':
-      compileDocument()
-      break
-    case 'latex':
-      downloadAsTex(filename || 'document.tex')
-      break
-    case 'markdown':
-      convertToMarkdown(filename || 'document.md')
-      break
-    default:
-      ElMessage.info(`导出为 ${format?.toUpperCase()} 功能开发中`)
-  }
-}
-
-// 下载为 .tex 文件
-function downloadAsTex(filename: string) {
-  const blob = new Blob([editorContent.value], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${filename}.tex`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-  ElMessage.success('LaTeX 文件已下载')
-}
-
-// 转换为 Markdown
-function convertToMarkdown(filename: string) {
-  // 简单的 LaTeX 到 Markdown 转换
-  let markdown = editorContent.value
-    .replace(/\\section\{([^}]+)\}/g, '# $1\n')
-    .replace(/\\subsection\{([^}]+)\}/g, '## $1\n')
-    .replace(/\\subsubsection\{([^}]+)\}/g, '### $1\n')
-    .replace(/\\textbf\{([^}]+)\}/g, '**$1**')
-    .replace(/\\textit\{([^}]+)\}/g, '*$1*')
-    .replace(/\\emph\{([^}]+)\}/g, '*$1*')
-    .replace(/\$\$([^$]+)\$\$/g, '\n$$\n$1\n$$\n')
-    .replace(/\$([^$]+)\$/g, '$$$1$$')
-    .replace(/\\begin\{itemize\}[\s\S]*?\\end\{itemize\}/g, (match) => {
-      const items = match.match(/\\item\s+([^\n]+)/g) || []
-      return items.map(item => `- ${item.replace(/\\item\s+/, '')}`).join('\n')
-    })
-    .replace(/\\begin\{enumerate\}[\s\S]*?\\end\{enumerate\}/g, (match) => {
-      const items = match.match(/\\item\s+([^\n]+)/g) || []
-      return items.map((item, i) => `${i + 1}. ${item.replace(/\\item\s+/, '')}`).join('\n')
-    })
-    .replace(/\\[a-zA-Z]+/g, '') // 移除剩余的LaTeX命令
-    .replace(/[{}]/g, '') // 移除花括号
-
-  const blob = new Blob([markdown], { type: 'text/markdown' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${filename}.md`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-  ElMessage.success('Markdown 文件已下载')
-}
-
 function toggleLeftPanel() {
   if (import.meta.env.DEV) {
     console.log('Toggle left panel, project mode:', isProjectMode.value, 'outline:', showOutline.value, 'tree:', showProjectTree.value)
@@ -2525,192 +1874,6 @@ function resetSplit() {
   } catch (e) {
     // Ignore storage errors
   }
-}
-
-// ==========================================
-// Find & Replace Methods
-// ==========================================
-
-function performFind() {
-  if (!findQuery.value) {
-    matches.value = []
-    totalMatches.value = 0
-    currentMatchIndex.value = 0
-    return
-  }
-
-  const content = editorContent.value
-  const foundMatches: Array<{ start: number; end: number; text: string }> = []
-
-  let searchPattern: string | RegExp
-  try {
-    if (findOptions.useRegex) {
-      const flags = findOptions.caseSensitive ? 'g' : 'gi'
-      searchPattern = new RegExp(findQuery.value, flags)
-    } else {
-      searchPattern = findQuery.value
-    }
-
-    let match: RegExpExecArray | null | string
-    if (searchPattern instanceof RegExp) {
-      while ((match = searchPattern.exec(content)) !== null) {
-        if (match.index !== undefined && match[0]) {
-          foundMatches.push({
-            start: match.index,
-            end: match.index + match[0].length,
-            text: match[0]
-          })
-        }
-      }
-    } else {
-      // Simple string search
-      let searchIndex = 0
-      const searchContent = findOptions.caseSensitive ? content : content.toLowerCase()
-      const searchQuery = findOptions.caseSensitive ? searchPattern : (searchPattern as string).toLowerCase()
-
-      while (true) {
-        const index = searchContent.indexOf(searchQuery, searchIndex)
-        if (index === -1) break
-
-        const actualText = content.substring(index, index + (searchPattern as string).length)
-
-        // Check for whole word match
-        if (findOptions.wholeWord) {
-          const before = index > 0 ? content[index - 1] : ' '
-          const after = index + (searchPattern as string).length < content.length
-            ? content[index + (searchPattern as string).length]
-            : ' '
-          if (!/\W/.test(before) || !/\W/.test(after)) {
-            searchIndex = index + 1
-            continue
-          }
-        }
-
-        foundMatches.push({
-          start: index,
-          end: index + (searchPattern as string).length,
-          text: actualText
-        })
-        searchIndex = index + (searchPattern as string).length
-      }
-    }
-  } catch (e) {
-    // Invalid regex pattern
-    console.error('Find error:', e)
-  }
-
-  matches.value = foundMatches
-  totalMatches.value = foundMatches.length
-  currentMatchIndex.value = foundMatches.length > 0 ? 1 : 0
-}
-
-function onFindInput() {
-  performFind()
-}
-
-function findNext() {
-  if (matches.value.length === 0) {
-    performFind()
-    return
-  }
-
-  if (currentMatchIndex.value < matches.value.length) {
-    highlightMatch(currentMatchIndex.value)
-    currentMatchIndex.value++
-  } else {
-    // Wrap around to first match
-    currentMatchIndex.value = 1
-    highlightMatch(0)
-  }
-}
-
-function findPrevious() {
-  if (matches.value.length === 0) {
-    performFind()
-    return
-  }
-
-  if (currentMatchIndex.value > 1) {
-    currentMatchIndex.value--
-    highlightMatch(currentMatchIndex.value - 1)
-  } else {
-    // Wrap around to last match
-    currentMatchIndex.value = matches.value.length
-    highlightMatch(matches.value.length - 1)
-  }
-}
-
-function highlightMatch(matchIndex: number) {
-  const match = matches.value[matchIndex]
-  if (!match || !editorRef.value) return
-
-  const textarea = editorRef.value.$el?.querySelector('textarea')
-  if (!textarea) return
-
-  textarea.focus()
-  textarea.setSelectionRange(match.start, match.end)
-
-  // Scroll to the match position
-  const textBefore = textarea.value.substring(0, match.start)
-  const linesBefore = textBefore.split('\n').length
-  const lineHeight = 24 // Approximate line height
-  textarea.scrollTop = (linesBefore - 10) * lineHeight
-}
-
-function replaceCurrent() {
-  if (matches.value.length === 0 || currentMatchIndex.value === 0) return
-
-  const match = matches.value[currentMatchIndex.value - 1]
-  if (!match) return
-
-  const content = editorContent.value
-  const newContent = content.substring(0, match.start) + replaceQuery.value + content.substring(match.end)
-  editorContent.value = newContent
-  isModified.value = true
-
-  // Re-find after replace
-  performFind()
-
-  // Move to next match
-  if (matches.value.length > 0) {
-    findNext()
-  } else {
-    ElMessage.success('已完成替换')
-  }
-}
-
-function replaceAll() {
-  if (matches.value.length === 0) return
-
-  ElMessageBox.confirm(
-    `确定要替换所有 ${totalMatches.value} 个匹配项吗？`,
-    '全部替换',
-    {
-      confirmButtonText: '替换',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    let content = editorContent.value
-    let replaceCount = 0
-
-    // Process matches in reverse order to maintain indices
-    for (let i = matches.value.length - 1; i >= 0; i--) {
-      const match = matches.value[i]
-      content = content.substring(0, match.start) + replaceQuery.value + content.substring(match.end)
-      replaceCount++
-    }
-
-    editorContent.value = content
-    isModified.value = true
-    matches.value = []
-    totalMatches.value = 0
-    currentMatchIndex.value = 0
-
-    ElMessage.success(`已替换 ${replaceCount} 处`)
-  }).catch(() => {
-    // User cancelled
-  })
 }
 
 // 格式化自动保存时间
@@ -3169,66 +2332,6 @@ function loadRecentDocuments() {
   } finally {
     loadingRecentDocs.value = false
   }
-}
-
-// Batch 2 & 3 component event handlers
-function handleInsertCitation(citationCommand: string) {
-  // 插入BibTeX引用命令
-  const editor = editorRef.value
-  if (editor && editor.insertText) {
-    editor.insertText(citationCommand)
-  } else {
-    editorContent.value += citationCommand
-  }
-  ElMessage.success('引用已插入')
-}
-
-function handleInsertMacro(macroCode: string) {
-  // 插入LaTeX宏
-  const editor = editorRef.value
-  if (editor && editor.insertText) {
-    editor.insertText(macroCode)
-  } else {
-    editorContent.value += macroCode
-  }
-  ElMessage.success('宏已插入')
-}
-
-function handleInsertImage(imageCode: string) {
-  // 插入图片代码
-  const editor = editorRef.value
-  if (editor && editor.insertText) {
-    editor.insertText(imageCode)
-  } else {
-    editorContent.value += imageCode
-  }
-  ElMessage.success('图片已插入')
-}
-
-function handleCheckerFix(fix: { type: string; replacement: string }) {
-  if (fix.replacement) {
-    editorContent.value = fix.replacement
-    ElMessage.success('已自动修复')
-  }
-}
-
-function handleJumpToLine(lineNumber: number) {
-  // 跳转到指定行
-  const editor = editorRef.value
-  if (editor && editor.gotoLine) {
-    editor.gotoLine(lineNumber)
-  }
-  // 如果使用的是Monaco编辑器
-  if ((window as any).monacoEditor) {
-    (window as any).monacoEditor.revealLineInCenter(lineNumber)
-    (window as any).monacoEditor.setPosition({ lineNumber, column: 1 })
-    (window as any).monacoEditor.focus()
-  }
-}
-
-function handleCommandExecuted(command: any) {
-  console.log('Command executed:', command)
-  // 可以根据命令执行特定操作
 }
 
 // Expose methods to template

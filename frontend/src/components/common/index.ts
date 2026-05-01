@@ -22,6 +22,7 @@ import FilterPanel from './FilterPanel.vue'
 import StatusBadge from './StatusBadge.vue'
 import EmptyState from './EmptyState.vue'
 import LoadingSpinner from './LoadingSpinner.vue'
+import ErrorBoundary from './ErrorBoundary.vue'
 
 /**
  * Individual component exports for named imports
@@ -33,7 +34,8 @@ export {
   FilterPanel,
   StatusBadge,
   EmptyState,
-  LoadingSpinner
+  LoadingSpinner,
+  ErrorBoundary
 }
 
 /**
@@ -47,7 +49,8 @@ export default {
   FilterPanel,
   StatusBadge,
   EmptyState,
-  LoadingSpinner
+  LoadingSpinner,
+  ErrorBoundary
 }
 
 /**
@@ -71,6 +74,7 @@ export function registerComponents(app: any) {
   app.component('StatusBadge', StatusBadge)
   app.component('EmptyState', EmptyState)
   app.component('LoadingSpinner', LoadingSpinner)
+  app.component('ErrorBoundary', ErrorBoundary)
 }
 
 /**
