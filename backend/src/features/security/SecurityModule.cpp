@@ -101,9 +101,27 @@ namespace PaperCrawler {
 
 class SecurityModule::Impl {
 public:
-    std::string jwtSecret_{"change-me-in-production"};
+    std::string jwtSecret_;
     std::chrono::seconds defaultExpiry_{3600};
     int bcryptCost_{12};
+
+    Impl() {
+        const char* envSecret = std::getenv("JWT_SECRET");
+        if (envSecret && std::string(envSecret).length() >= 16) {
+            jwtSecret_ = envSecret;
+        } else {
+            spdlog::warn("[Security] JWT_SECRET env var not set or too short (<16 chars). "
+                         "Generating ephemeral secret — tokens will not survive restart.");
+            std::array<unsigned char, 32> buf{};
+            if (RAND_bytes(buf.data(), buf.size()) == 1) {
+                std::ostringstream hex;
+                for (auto c : buf) hex << std::hex << std::setfill('0') << std::setw(2) << (int)c;
+                jwtSecret_ = hex.str();
+            } else {
+                throw std::runtime_error("Failed to generate JWT secret");
+            }
+        }
+    }
 
     SecurityStats stats_{};
 

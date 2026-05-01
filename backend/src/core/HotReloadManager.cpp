@@ -1,7 +1,7 @@
 #include "core/HotReloadManager.hpp"
 #include "core/PluginManager.hpp"
 #include "core/ModuleRegistry.hpp"
-#include <iostream>
+#include <spdlog/spdlog.h>
 #include <filesystem>
 
 #ifdef _WIN32
@@ -45,7 +45,7 @@ ReloadResult HotReloadManager::reloadModule(const std::string& moduleName, const
 
     std::string oldVersion = moduleInfo->version;
 
-    std::cout << "Hot reloading module: " << moduleName << std::endl;
+    spdlog::info("Hot reloading module: {}", moduleName);
 
     // 1. 卸载旧版本
     auto& pluginMgr = PluginManager::getInstance();
@@ -74,16 +74,14 @@ ReloadResult HotReloadManager::reloadModule(const std::string& moduleName, const
     history.success = true;
     addHistory(history);
 
-    std::cout << "Hot reload completed: " << moduleName
-              << " (" << oldVersion << " -> " << newVersion << ")"
-              << " in " << reloadTime.count() << "ms" << std::endl;
+    spdlog::info("Hot reload completed: {} ({} -> {}) in {}ms", moduleName, oldVersion, newVersion, reloadTime.count());
 
     return {true, "Hot reload completed successfully", oldVersion, newVersion, reloadTime};
 }
 
 void HotReloadManager::startFileWatcher(const std::string& modulesDir) {
     if (watching_) {
-        std::cout << "File watcher already running" << std::endl;
+        spdlog::info("File watcher already running");
         return;
     }
 
@@ -91,7 +89,7 @@ void HotReloadManager::startFileWatcher(const std::string& modulesDir) {
     watching_ = true;
     watcherThread_ = std::thread(&HotReloadManager::fileWatcherLoop, this);
 
-    std::cout << "File watcher started for: " << modulesDir << std::endl;
+    spdlog::info("File watcher started for: {}", modulesDir);
 }
 
 void HotReloadManager::stopFileWatcher() {
@@ -104,7 +102,7 @@ void HotReloadManager::stopFileWatcher() {
         watcherThread_.join();
     }
 
-    std::cout << "File watcher stopped" << std::endl;
+    spdlog::info("File watcher stopped");
 }
 
 bool HotReloadManager::rollbackModule(const std::string& moduleName) {
@@ -112,14 +110,14 @@ bool HotReloadManager::rollbackModule(const std::string& moduleName) {
 
     auto it = history_.find(moduleName);
     if (it == history_.end() || it->second.empty()) {
-        std::cerr << "No history found for module: " << moduleName << std::endl;
+        spdlog::error("No history found for module: {}", moduleName);
         return false;
     }
 
     // 找到上一个成功的版本
     for (auto histIt = it->second.rbegin(); histIt != it->second.rend(); ++histIt) {
         if (histIt->success) {
-            std::cout << "Rolling back " << moduleName << " to version " << histIt->fromVersion << std::endl;
+            spdlog::info("Rolling back {} to version {}", moduleName, histIt->fromVersion);
             // 这里需要实现实际的回滚逻辑
             return true;
         }
@@ -178,7 +176,7 @@ void HotReloadManager::fileWatcherLoop() {
                         lastModified[filename] = lastWrite;
                     } else if (it->second != lastWrite) {
                         // 文件已修改
-                        std::cout << "[HotReload] File change detected: " << filename << std::endl;
+                        spdlog::info("[HotReload] File change detected: {}", filename);
 
                         // 提取模块名（去掉扩展名）
                         size_t dotPos = filename.find_last_of('.');
@@ -187,9 +185,9 @@ void HotReloadManager::fileWatcherLoop() {
                         // 尝试重载
                         auto result = reloadModule(moduleName, path.string());
                         if (result.success) {
-                            std::cout << "[HotReload] Reload successful" << std::endl;
+                            spdlog::info("[HotReload] Reload successful");
                         } else {
-                            std::cerr << "[HotReload] Reload failed: " << result.message << std::endl;
+                            spdlog::error("[HotReload] Reload failed: {}", result.message);
                         }
 
                         lastModified[filename] = lastWrite;
@@ -197,7 +195,7 @@ void HotReloadManager::fileWatcherLoop() {
                 }
             }
         } catch (const std::exception& e) {
-            std::cerr << "[HotReload] Error: " << e.what() << std::endl;
+            spdlog::error("[HotReload] Error: {}", e.what());
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(1));

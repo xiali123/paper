@@ -1,7 +1,7 @@
 #include "core/PoolModule.hpp"
 #include "core/MessagePool.hpp"
 #include "core/PoolCoordinator.hpp"
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -16,7 +16,7 @@ PoolModule::PoolModule()
 PoolModule::~PoolModule() = default;
 
 bool PoolModule::initialize() {
-    std::cout << "PoolModule::initialize()" << std::endl;
+    spdlog::info("PoolModule::initialize()");
 
     // 初始化消息池
     MessagePoolConfig msgConfig;
@@ -25,27 +25,27 @@ bool PoolModule::initialize() {
     msgConfig.loadBalanceStrategy = 0;  // 轮询
 
     if (!MessagePool::getInstance().initialize(msgConfig)) {
-        std::cerr << "Failed to initialize MessagePool" << std::endl;
+        spdlog::error("Failed to initialize MessagePool");
         return false;
     }
 
     // 初始化三池协调器
     if (!PoolCoordinator::getInstance().initialize()) {
-        std::cerr << "Failed to initialize PoolCoordinator" << std::endl;
+        spdlog::error("Failed to initialize PoolCoordinator");
         return false;
     }
 
-    std::cout << "PoolModule initialized successfully" << std::endl;
+    spdlog::info("PoolModule initialized successfully");
     return true;
 }
 
 bool PoolModule::start() {
-    std::cout << "PoolModule started" << std::endl;
+    spdlog::info("PoolModule started");
     return true;
 }
 
 bool PoolModule::stop() {
-    std::cout << "PoolModule stopped" << std::endl;
+    spdlog::info("PoolModule stopped");
     return true;
 }
 

@@ -1,4 +1,3 @@
-#include <iostream>
 #include "data/FileStorageModule.hpp"
 #include "features/operations/ResponseHandlerModule.hpp"
 #include <spdlog/spdlog.h>
@@ -43,10 +42,10 @@ public:
     bool initialize(const FileStorageConfig& config) {
         config_ = config;
 
-        std::cout << "[FileStorage] Initializing file storage..." << std::endl;
-        std::cout << "  Base path: " << config.basePath << std::endl;
-        std::cout << "  URL prefix: " << config.urlPrefix << std::endl;
-        std::cout << "  Max file size: " << config.maxFileSize << " bytes" << std::endl;
+        spdlog::info("[FileStorage] Initializing file storage...");
+        spdlog::info("  Base path: {}", config.basePath);
+        spdlog::info("  URL prefix: {}", config.urlPrefix);
+        spdlog::info("  Max file size: {} bytes", config.maxFileSize);
 
         namespace fs = std::filesystem;
 
@@ -54,17 +53,17 @@ public:
         try {
             if (!fs::exists(config.basePath)) {
                 fs::create_directories(config.basePath);
-                std::cout << "[FileStorage] Created base directory: " << config.basePath << std::endl;
+                spdlog::info("[FileStorage] Created base directory: {}", config.basePath);
             }
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Failed to create base directory: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Failed to create base directory: {}", e.what());
             return false;
         }
 
         // 索引现有文件
         indexFiles(config.basePath);
 
-        std::cout << "[FileStorage] Initialized with " << fileIndex_.size() << " files" << std::endl;
+        spdlog::info("[FileStorage] Initialized with {} files", fileIndex_.size());
         return true;
     }
 
@@ -140,7 +139,7 @@ public:
         result.url = info.url;
         result.size = data.size();
 
-        std::cout << "[FileStorage] Saved: " << info.filename << " (" << data.size() << " bytes)" << std::endl;
+        spdlog::info("[FileStorage] Saved: {} ({} bytes)", info.filename, data.size());
 
         return result;
     }
@@ -154,14 +153,14 @@ public:
         std::string fullPath = *resolved;
 
         if (!std::filesystem::exists(fullPath)) {
-            std::cout << "[FileStorage] File not found: " << fullPath << std::endl;
+            spdlog::info("[FileStorage] File not found: {}", fullPath);
             return std::nullopt;
         }
 
         // 读取文件
         std::ifstream file(fullPath, std::ios::binary | std::ios::ate);
         if (!file) {
-            std::cerr << "[FileStorage] Failed to open file: " << fullPath << std::endl;
+            spdlog::error("[FileStorage] Failed to open file: {}", fullPath);
             return std::nullopt;
         }
 
@@ -181,7 +180,7 @@ public:
             }
         }
 
-        std::cout << "[FileStorage] Loaded: " << fullPath << " (" << data.size() << " bytes)" << std::endl;
+        spdlog::info("[FileStorage] Loaded: {} ({} bytes)", fullPath, data.size());
 
         return data;
     }
@@ -205,10 +204,10 @@ public:
             std::lock_guard<std::mutex> lock(mutex_);
             fileIndex_.erase(fullPath);
 
-            std::cout << "[FileStorage] Deleted: " << fullPath << std::endl;
+            spdlog::info("[FileStorage] Deleted: {}", fullPath);
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Failed to delete file: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Failed to delete file: {}", e.what());
             return false;
         }
     }
@@ -292,7 +291,7 @@ public:
                 files.push_back(info);
             }
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Error listing directory: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Error listing directory: {}", e.what());
         }
 
         return files;
@@ -308,10 +307,10 @@ public:
 
         try {
             std::filesystem::create_directories(fullPath);
-            std::cout << "[FileStorage] Created directory: " << fullPath << std::endl;
+            spdlog::info("[FileStorage] Created directory: {}", fullPath);
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Failed to create directory: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Failed to create directory: {}", e.what());
             return false;
         }
     }
@@ -331,10 +330,10 @@ public:
                 std::filesystem::remove(fullPath);
             }
 
-            std::cout << "[FileStorage] Deleted directory: " << fullPath << std::endl;
+            spdlog::info("[FileStorage] Deleted directory: {}", fullPath);
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Failed to delete directory: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Failed to delete directory: {}", e.what());
             return false;
         }
     }
@@ -348,10 +347,10 @@ public:
         if (!srcResolved || !dstResolved) return false;
         try {
             std::filesystem::copy_file(*srcResolved, *dstResolved);
-            std::cout << "[FileStorage] Copied: " << *srcResolved << " -> " << *dstResolved << std::endl;
+            spdlog::info("[FileStorage] Copied: {} -> {}", *srcResolved, *dstResolved);
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Failed to copy file: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Failed to copy file: {}", e.what());
             return false;
         }
     }
@@ -365,10 +364,10 @@ public:
         if (!srcResolved || !dstResolved) return false;
         try {
             std::filesystem::rename(*srcResolved, *dstResolved);
-            std::cout << "[FileStorage] Moved: " << *srcResolved << " -> " << *dstResolved << std::endl;
+            spdlog::info("[FileStorage] Moved: {} -> {}", *srcResolved, *dstResolved);
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Failed to move file: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Failed to move file: {}", e.what());
             return false;
         }
     }
@@ -497,7 +496,7 @@ public:
                 }
             }
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Error searching files: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Error searching files: {}", e.what());
         }
 
         return results;
@@ -529,7 +528,7 @@ public:
                 }
             }
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Error getting stats: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Error getting stats: {}", e.what());
         }
 
         return stats;
@@ -602,7 +601,7 @@ private:
                 }
             }
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Error indexing files: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Error indexing files: {}", e.what());
         }
     }
 
@@ -643,7 +642,7 @@ private:
             std::filesystem::create_directories(path);
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "[FileStorage] Failed to create directories: " << e.what() << std::endl;
+            spdlog::error("[FileStorage] Failed to create directories: {}", e.what());
             return false;
         }
     }
@@ -684,19 +683,19 @@ FileStorageModule::FileStorageModule()
 FileStorageModule::~FileStorageModule() = default;
 
 bool FileStorageModule::initialize() {
-    std::cout << "FileStorageModule::initialize" << std::endl;
+    spdlog::info("FileStorageModule::initialize");
 
     FileStorageConfig defaultConfig;
     return impl_->initialize(defaultConfig);
 }
 
 bool FileStorageModule::start() {
-    std::cout << "FileStorageModule started" << std::endl;
+    spdlog::info("FileStorageModule started");
     return true;
 }
 
 bool FileStorageModule::stop() {
-    std::cout << "FileStorageModule stopped" << std::endl;
+    spdlog::info("FileStorageModule stopped");
     return true;
 }
 
