@@ -121,7 +121,7 @@ export const aiServiceApi = {
    * POST /ai/papers/:id/summary
    */
   async generatePaperSummary(paperId: number, language: 'zh' | 'en' = 'zh', maxLength: number = 500) {
-    return await request.post(`/ai/papers/${paperId}/summary`, {
+    return await request.post(`/api/ai/papers/${paperId}/summary`, {
       language,
       maxLength
     })
@@ -132,7 +132,7 @@ export const aiServiceApi = {
    * POST /ai/papers/batch-summary
    */
   async batchGenerateSummaries(paperIds: number[], language: 'zh' | 'en' = 'zh', maxLength: number = 500) {
-    return await request.post('/ai/papers/batch-summary', {
+    return await request.post('/api/ai/papers/batch-summary', {
       paperIds,
       language,
       maxLength
@@ -144,7 +144,7 @@ export const aiServiceApi = {
    * POST /ai/papers/:id/questions
    */
   async askQuestion(paperId: number, question: string, language: 'zh' | 'en' = 'zh') {
-    return await request.post(`/ai/papers/${paperId}/questions`, {
+    return await request.post(`/api/ai/papers/${paperId}/questions`, {
       question,
       language
     })
@@ -155,7 +155,7 @@ export const aiServiceApi = {
    * GET /ai/papers/:id/keywords
    */
   async extractKeywords(paperId: number, count: number = 10) {
-    return await request.get(`/ai/papers/${paperId}/keywords`, {
+    return await request.get(`/api/ai/papers/${paperId}/keywords`, {
       params: { count }
     })
   },
@@ -165,7 +165,7 @@ export const aiServiceApi = {
    * GET /ai/papers/:id/contributions
    */
   async summarizeContributions(paperId: number) {
-    return await request.get(`/ai/papers/${paperId}/contributions`)
+    return await request.get(`/api/ai/papers/${paperId}/contributions`)
   },
 
   /**
@@ -173,7 +173,7 @@ export const aiServiceApi = {
    * POST /ai/papers/compare
    */
   async comparePapers(paperIds: number[]) {
-    return await request.post('/ai/papers/compare', { paperIds })
+    return await request.post('/api/ai/papers/compare', { paperIds })
   },
 
   /**
@@ -181,7 +181,7 @@ export const aiServiceApi = {
    * GET /ai/stats
    */
   async getStats() {
-    return await request.get('/ai/stats')
+    return await request.get('/api/ai/stats')
   }
 }
 

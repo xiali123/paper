@@ -115,7 +115,7 @@ export const analyticsApi = {
     userId: number,
     timeframe: '6months' | '1year' | 'all' = 'all'
   ): Promise<AcademicImpactMetrics[]> {
-    return await request.get(`/analytics/impact/${userId}`, {
+    return await request.get(`/api/analytics/impact/${userId}`, {
       params: { timeframe }
     })
   },
@@ -125,7 +125,7 @@ export const analyticsApi = {
    * GET /analytics/interests/:userId
    */
   async getResearchInterests(userId: number): Promise<ResearchInterest[]> {
-    return await request.get(`/analytics/interests/${userId}`)
+    return await request.get(`/api/analytics/interests/${userId}`)
   },
 
   /**
@@ -133,7 +133,7 @@ export const analyticsApi = {
    * POST /analytics/briefings/generate
    */
   async generateDailyBriefing(req: DailyBriefingRequest): Promise<DailyBriefing> {
-    return await request.post('/analytics/briefings/generate', req)
+    return await request.post('/api/analytics/briefings/generate', req)
   },
 
   /**
@@ -145,7 +145,7 @@ export const analyticsApi = {
     total: number
     page: number
   }> {
-    return await request.get('/analytics/briefings/history', {
+    return await request.get('/api/analytics/briefings/history', {
       params: { userId, page, limit }
     })
   },
@@ -155,7 +155,7 @@ export const analyticsApi = {
    * GET /analytics/briefings/:userId/:date
    */
   async getBriefing(userId: number, date: string): Promise<DailyBriefing> {
-    return await request.get(`/analytics/briefings/${userId}/${date}`)
+    return await request.get(`/api/analytics/briefings/${userId}/${date}`)
   },
 
   /**
@@ -163,7 +163,7 @@ export const analyticsApi = {
    * GET /analytics/competitors
    */
   async getCompetitorsAnalysis(userId: number, limit = 10): Promise<CompetitorAnalysis> {
-    return await request.get('/analytics/competitors', {
+    return await request.get('/api/analytics/competitors', {
       params: { userId, limit }
     })
   },
@@ -176,7 +176,7 @@ export const analyticsApi = {
     field: string,
     timeframe: '6months' | '1year' | '2years' = '1year'
   ): Promise<TrendingTopics> {
-    return await request.get('/analytics/trends', {
+    return await request.get('/api/analytics/trends', {
       params: { field, timeframe }
     })
   },
@@ -186,7 +186,7 @@ export const analyticsApi = {
    * GET /analytics/citations
    */
   async getCitationAnalysis(paperId: number): Promise<CitationAnalysis> {
-    return await request.get('/analytics/citations', {
+    return await request.get('/api/analytics/citations', {
       params: { paperId }
     })
   },
@@ -196,7 +196,7 @@ export const analyticsApi = {
    * GET /analytics/citations/user/:userId
    */
   async getUserCitationAnalysis(userId: number): Promise<CitationAnalysis> {
-    return await request.get(`/analytics/citations/user/${userId}`)
+    return await request.get(`/api/analytics/citations/user/${userId}`)
   },
 
   /**
@@ -204,7 +204,7 @@ export const analyticsApi = {
    * GET /analytics/network
    */
   async getCollaborationNetwork(userId: number): Promise<CollaborationNetwork> {
-    return await request.get('/analytics/network', {
+    return await request.get('/api/analytics/network', {
       params: { userId }
     })
   },
@@ -214,7 +214,7 @@ export const analyticsApi = {
    * GET /analytics/genealogy/:paperId
    */
   async buildAcademicGenealogy(paperId: number, maxDepth = 3): Promise<AcademicGeneNode[]> {
-    return await request.get(`/analytics/genealogy/${paperId}`, {
+    return await request.get(`/api/analytics/genealogy/${paperId}`, {
       params: { maxDepth }
     })
   },
@@ -230,7 +230,7 @@ export const analyticsApi = {
     confidence: number
     timeframe: string
   }> {
-    return await request.get('/analytics/predictions/impact', {
+    return await request.get('/api/analytics/predictions/impact', {
       params: { userId }
     })
   },
@@ -252,7 +252,7 @@ export const analyticsApi = {
       matchScore: number
     }>
   }> {
-    return await request.get('/analytics/suggestions', {
+    return await request.get('/api/analytics/suggestions', {
       params: { userId }
     })
   },
@@ -275,7 +275,7 @@ export const analyticsApi = {
       analyses: number
     }>
   }> {
-    return await request.get('/analytics/stats')
+    return await request.get('/api/analytics/stats')
   },
 
   /**
@@ -291,7 +291,7 @@ export const analyticsApi = {
     filename: string
     expiresAt: string
   }> {
-    return await request.get(`/analytics/export/${userId}`, {
+    return await request.get(`/api/analytics/export/${userId}`, {
       params: { format, timeframe }
     })
   }
