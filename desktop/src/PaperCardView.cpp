@@ -42,9 +42,10 @@ void PaperCardView::setupUI() {
     scrollArea_->setWidget(scrollContent_);
 
     // Empty state label
-    emptyStateLabel_ = new QLabel("📭\n\n未找到相关论文\n\n请尝试其他关键词或调整搜索条件", this);
+    emptyStateLabel_ = new QLabel("No papers found.\nTry different keywords or adjust filters.", this);
     emptyStateLabel_->setObjectName("emptyState");
     emptyStateLabel_->setAlignment(Qt::AlignCenter);
+    emptyStateLabel_->setStyleSheet("color: palette(mid); font-size: 14px;");
     emptyStateLabel_->setVisible(false);
 
     // Pagination bar
@@ -57,7 +58,7 @@ void PaperCardView::setupUI() {
     paginationLayout->setSpacing(10);
 
     // Page size selector
-    auto* pageSizeLabel = new QLabel("每页", paginationBar_);
+    auto* pageSizeLabel = new QLabel("Per page:", paginationBar_);
     pageSizeLabel->setObjectName("paginationLabel");
 
     pageSizeCombo_ = new QComboBox(paginationBar_);
@@ -71,7 +72,7 @@ void PaperCardView::setupUI() {
     connect(pageSizeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &PaperCardView::onPageSizeChanged);
 
-    auto* pageSizeUnitLabel = new QLabel("条", paginationBar_);
+    auto* pageSizeUnitLabel = new QLabel("", paginationBar_);
     pageSizeUnitLabel->setObjectName("paginationLabel");
 
     // Page info
@@ -154,10 +155,15 @@ void PaperCardView::setupUI() {
     paginationLayout->addWidget(lastPageBtn_);
 
     // Load more button (legacy, keep for compatibility but not used with pagination)
-    loadMoreButton_ = new QPushButton("加载更多", this);
+    loadMoreButton_ = new QPushButton("Load More", this);
     loadMoreButton_->setObjectName("loadMoreButton");
     loadMoreButton_->setVisible(false);
     loadMoreButton_->setCursor(Qt::PointingHandCursor);
+    loadMoreButton_->setStyleSheet(
+        "QPushButton { background: #4f46e5; color: white; border: none; "
+        "border-radius: 8px; padding: 10px 24px; font-weight: bold; }"
+        "QPushButton:hover { background: #4338ca; }"
+    );
     // Not connected - pagination is used instead
 
     mainLayout->addWidget(scrollArea_);
@@ -172,25 +178,25 @@ void PaperCardView::setupStyles() {
         "  background: transparent;"
         "}"
         "QWidget#paginationBar {"
-        "  background: rgba(255, 255, 255, 0.95);"
+        "  background: palette(base);"
         "  border-radius: 12px;"
         "  padding: 12px 24px;"
         "}"
         "QLabel#paginationLabel {"
-        "  color: #6b7280;"
+        "  color: palette(mid);"
         "  font-size: 9pt;"
         "  padding: 6px 8px;"
         "  font-weight: 500;"
         "}"
         "QLabel#pageInfoLabel {"
-        "  color: #4b5563;"
+        "  color: palette(text);"
         "  font-size: 9pt;"
         "  padding: 6px 12px;"
         "  font-weight: 600;"
         "}"
         "QComboBox#pageSizeCombo {"
-        "  background: white;"
-        "  border: 1px solid #e5e7eb;"
+        "  background: palette(base);"
+        "  border: 1px solid palette(mid);"
         "  border-radius: 8px;"
         "  padding: 6px 16px;"
         "  min-width: 90px;"
@@ -200,15 +206,15 @@ void PaperCardView::setupStyles() {
         "}"
         "QComboBox#pageSizeCombo:hover {"
         "  border: 1px solid #6366f1;"
-        "  background: #f9fafb;"
+        "  background: palette(alternate-base);"
         "}"
         "QComboBox#pageSizeCombo::drop-down {"
         "  border: none;"
         "  width: 20px;"
         "}"
         "QPushButton#paginationBtn {"
-        "  background: white;"
-        "  border: 1px solid #e5e7eb;"
+        "  background: palette(base);"
+        "  border: 1px solid palette(mid);"
         "  border-radius: 8px;"
         "  padding: 6px 10px;"
         "  min-width: 32px;"
@@ -216,18 +222,18 @@ void PaperCardView::setupStyles() {
         "  min-height: 32px;"
         "  max-height: 32px;"
         "  font-size: 10pt;"
-        "  color: #4b5563;"
+        "  color: palette(text);"
         "  font-weight: 600;"
         "}"
         "QPushButton#paginationBtn:hover {"
-        "  background: #f9fafb;"
+        "  background: palette(alternate-base);"
         "  border: 1px solid #6366f1;"
         "  color: #6366f1;"
         "}"
         "QPushButton#paginationBtn:disabled {"
-        "  background: #f9fafb;"
-        "  color: #d1d5db;"
-        "  border: 1px solid #f3f4f6;"
+        "  background: palette(alternate-base);"
+        "  color: palette(mid);"
+        "  border: 1px solid palette(mid);"
         "  font-weight: 400;"
         "}"
     );
@@ -421,20 +427,20 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
     // Card styling
     card->setStyleSheet(
         "QWidget#paperCard {"
-        "  background-color: rgba(255, 255, 255, 0.95);"
+        "  background-color: palette(base);"
         "  border-left: 4px solid #667eea;"
-        "  border-bottom: 1px solid #e5e7eb;"
+        "  border-bottom: 1px solid palette(mid);"
         "  padding: 5px;"
         "}"
         "QWidget#paperCard:hover {"
-        "  background-color: #f9fafb;"
+        "  background-color: palette(alternate-base);"
         "  border-left: 5px solid #667eea;"
         "}"
     );
 
     titleLabel->setStyleSheet(
         "QLabel#paperTitle {"
-        "  color: #1f2937;"
+        "  color: palette(text);"
         "  font-size: 12pt;"
         "  font-weight: 600;"
         "  background: transparent;"
@@ -445,7 +451,7 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
 
     journalLabel->setStyleSheet(
         "QLabel#paperMeta {"
-        "  color: #6b7280;"
+        "  color: palette(mid);"
         "  font-size: 9pt;"
         "  background: transparent;"
         "}"
@@ -453,7 +459,7 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
 
     yearLabel->setStyleSheet(
         "QLabel#paperMeta {"
-        "  color: #6b7280;"
+        "  color: palette(mid);"
         "  font-size: 9pt;"
         "  background: transparent;"
         "}"
@@ -461,7 +467,7 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
 
     authorsLabel->setStyleSheet(
         "QLabel#paperAuthors {"
-        "  color: #9ca3af;"
+        "  color: palette(mid);"
         "  font-size: 9pt;"
         "  background: transparent;"
         "}"

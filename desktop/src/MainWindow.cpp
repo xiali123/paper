@@ -33,6 +33,7 @@
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QFile>
 #include <QSettings>
 #include <QApplication>
 #include <QStyleFactory>
@@ -277,7 +278,7 @@ void MainWindow::setupUI() {
     searchLayout->addStretch();
 
     searchScroll->setWidget(searchPage);
-    tabWidget_->addTab(searchScroll, "Search");
+    tabWidget_->addTab(searchScroll, "\xf0\x9f\x94\x8d Search");
 
     // === Tab 2: Favorites ===
     {
@@ -369,7 +370,7 @@ void MainWindow::setupUI() {
             });
         }
 
-        tabWidget_->addTab(page, "Favorites");
+        tabWidget_->addTab(page, "\xe2\xad\x90 Favorites");
     }
 
     // === Tab 3: Crawler ===
@@ -482,24 +483,85 @@ void MainWindow::setupUI() {
         statsRow->addWidget(makeCard("Failed", "0", "#dc2626"));
         layout->addLayout(statsRow);
 
-        auto* taskTable = new QTableWidget(0, 5);
+        auto* taskTable = new QTableWidget(0, 6);
         taskTable->setObjectName("crawlerTaskTable");
-        taskTable->setHorizontalHeaderLabels({"ID", "Source", "URL", "Status", "Created"});
+        taskTable->setHorizontalHeaderLabels({"ID", "Source", "URL", "Status", "Created", "Actions"});
         taskTable->horizontalHeader()->setStretchLastSection(true);
         taskTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
         taskTable->setAlternatingRowColors(true);
         layout->addWidget(taskTable, 1);
 
         connect(apiManager_, &ApiManager::crawlerTasksSuccess, this,
-            [taskTable](const QJsonArray& tasks) {
+            [this, taskTable](const QJsonArray& tasks) {
                 taskTable->setRowCount(tasks.size());
                 for (int i = 0; i < tasks.size(); ++i) {
                     auto t = tasks[i].toObject();
                     taskTable->setItem(i, 0, new QTableWidgetItem(QString::number(t["id"].toInt())));
                     taskTable->setItem(i, 1, new QTableWidgetItem(t["source"].toString()));
                     taskTable->setItem(i, 2, new QTableWidgetItem(t["url"].toString().left(60)));
-                    taskTable->setItem(i, 3, new QTableWidgetItem(t["status"].toString()));
+
+                    // Color-coded status
+                    auto* statusItem = new QTableWidgetItem(t["status"].toString());
+                    QString statusColor = t["status"].toString() == "completed" ? "#059669" :
+                                          t["status"].toString() == "running" ? "#4f46e5" :
+                                          t["status"].toString() == "failed" ? "#dc2626" : "#6b7280";
+                    statusItem->setForeground(QColor(statusColor));
+                    taskTable->setItem(i, 3, statusItem);
+
                     taskTable->setItem(i, 4, new QTableWidgetItem(t["created_at"].toString()));
+
+                    // Action button
+                    auto* actionWidget = new QWidget();
+                    auto* actionLayout = new QHBoxLayout(actionWidget);
+                    actionLayout->setContentsMargins(4, 2, 4, 2);
+                    actionLayout->setSpacing(4);
+
+                    int taskId = t["id"].toInt();
+                    QString status = t["status"].toString();
+
+                    if (status == "pending" || status == "paused") {
+                        auto* startBtn = new QPushButton("Start");
+                        startBtn->setStyleSheet(
+                            "QPushButton { background: #059669; color: white; border: none; "
+                            "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+                        );
+                        connect(startBtn, &QPushButton::clicked, this, [this, taskId]() {
+                            apiManager_->put(apiManager_->createRequest(
+                                QString("/api/crawler/tasks/%1/start").arg(taskId)), "{}");
+                        });
+                        actionLayout->addWidget(startBtn);
+                    }
+                    if (status == "running") {
+                        auto* stopBtn = new QPushButton("Stop");
+                        stopBtn->setStyleSheet(
+                            "QPushButton { background: #d97706; color: white; border: none; "
+                            "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+                        );
+                        connect(stopBtn, &QPushButton::clicked, this, [this, taskId]() {
+                            apiManager_->put(apiManager_->createRequest(
+                                QString("/api/crawler/tasks/%1/stop").arg(taskId)), "{}");
+                        });
+                        actionLayout->addWidget(stopBtn);
+                    }
+
+                    auto* delBtn = new QPushButton("Del");
+                    delBtn->setStyleSheet(
+                        "QPushButton { background: #dc2626; color: white; border: none; "
+                        "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+                    );
+                    connect(delBtn, &QPushButton::clicked, this, [this, taskId]() {
+                        apiManager_->deleteResource(apiManager_->createRequest(
+                            QString("/api/crawler/tasks/%1").arg(taskId)));
+                        // Refresh after delete
+                        QTimer::singleShot(500, this, [this]() {
+                            apiManager_->getCrawlerTasks();
+                            apiManager_->getCrawlerDashboard();
+                        });
+                    });
+                    actionLayout->addWidget(delBtn);
+                    actionLayout->addStretch();
+
+                    taskTable->setCellWidget(i, 5, actionWidget);
                 }
             });
 
@@ -529,7 +591,7 @@ void MainWindow::setupUI() {
                 lastRunningCount_ = running;
             });
 
-        tabWidget_->addTab(page, "Crawler");
+        tabWidget_->addTab(page, "\xf0\x9f\x95\xb7 Crawler");
     }
 
     // === Tab 4: AI Assistant ===
@@ -576,6 +638,45 @@ void MainWindow::setupUI() {
             apiManager_->aiReview(data);
         });
         headerRow->addWidget(reviewBtn);
+
+        // Export chat button
+        auto* exportChatBtn = new QPushButton("Export Chat");
+        exportChatBtn->setStyleSheet(
+            "QPushButton { background: palette(base); color: palette(text); border: 1px solid palette(mid); "
+            "border-radius: 6px; padding: 6px 12px; font-size: 12px; }"
+            "QPushButton:hover { background: palette(alternate-base); }"
+        );
+        connect(exportChatBtn, &QPushButton::clicked, this, [this, page]() {
+            auto* chatDisplay = page->findChild<QTextEdit*>("aiChatDisplay");
+            if (!chatDisplay || chatDisplay->document()->isEmpty()) {
+                QMessageBox::information(this, "Export", "No chat to export.");
+                return;
+            }
+            QString fileName = QFileDialog::getSaveFileName(this,
+                "Export Chat", "ai_chat.txt", "Text Files (*.txt)");
+            if (fileName.isEmpty()) return;
+            QFile file(fileName);
+            if (file.open(QIODevice::WriteOnly)) {
+                file.write(chatDisplay->toPlainText().toUtf8());
+                file.close();
+                statusBar()->showMessage("Chat exported to " + fileName, 3000);
+            }
+        });
+        headerRow->addWidget(exportChatBtn);
+
+        // Clear chat button
+        auto* clearChatBtn = new QPushButton("Clear");
+        clearChatBtn->setStyleSheet(
+            "QPushButton { background: none; border: 1px solid #ef4444; color: #ef4444; "
+            "border-radius: 6px; padding: 6px 12px; font-size: 12px; }"
+            "QPushButton:hover { background: #fef2f2; }"
+        );
+        connect(clearChatBtn, &QPushButton::clicked, this, [page]() {
+            auto* chatDisplay = page->findChild<QTextEdit*>("aiChatDisplay");
+            if (chatDisplay) chatDisplay->clear();
+        });
+        headerRow->addWidget(clearChatBtn);
+
         layout->addLayout(headerRow);
 
         // Quick questions row
@@ -657,7 +758,7 @@ void MainWindow::setupUI() {
             chatDisplay->append("<b>AI Review:</b> " + review);
         });
 
-        tabWidget_->addTab(page, "AI");
+        tabWidget_->addTab(page, "\xf0\x9f\xa4\x96 AI");
     }
 
     // === Tab 5: Statistics ===
@@ -775,7 +876,7 @@ void MainWindow::setupUI() {
                 }
             });
 
-        tabWidget_->addTab(page, "Statistics");
+        tabWidget_->addTab(page, "\xf0\x9f\x93\x8a Statistics");
     }
 }
 
@@ -1128,6 +1229,10 @@ void MainWindow::onSearch(const QString& keyword) {
     resultView_->clear();
     resultView_->setHighlightKeyword(keyword);
     filterPanel_->setVisible(true);
+
+    // Hide hero section when searching
+    if (heroWidget_) heroWidget_->setVisible(false);
+    if (featureCards_) featureCards_->setVisible(false);
 
     // Show loading indicator in status bar
     auto* progressBar = findChild<QProgressBar*>("searchProgress");
