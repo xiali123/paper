@@ -8,10 +8,8 @@
 #include <QDateTime>
 #include <QMutex>
 #include <QReadWriteLock>
+#include "PaperTypes.hpp"
 
-/**
- * @brief 数据库论文结构
- */
 struct DbPaper {
     int id{-1};
     QString doi;
@@ -29,13 +27,36 @@ struct DbPaper {
     QDateTime createdAt;
     QDateTime updatedAt;
     QString syncStatus;
+
+    // Convert from unified Paper type
+    static DbPaper fromPaper(const Paper& p) {
+        DbPaper db;
+        db.id = p.id;
+        db.title = p.title;
+        db.authors = p.authors;
+        db.abstract = p.abstract;
+        db.journal = p.journalFull.isEmpty() ? p.journal : p.journalFull;
+        db.year = p.year;
+        db.doi = p.doiUrl;
+        return db;
+    }
+
+    Paper toPaper() const {
+        Paper p;
+        p.id = id;
+        p.title = title;
+        p.authors = authors;
+        p.abstract = abstract;
+        p.journal = journal;
+        p.journalFull = journal;
+        p.year = year;
+        p.doiUrl = doi;
+        return p;
+    }
 };
 
-/**
- * @brief 数据库搜索结果
- */
 struct DbSearchResult {
-    QList<DbPaper> papers;
+    QList<Paper> papers;
     int totalCount{0};
     int localCount{0};
     int serverCount{0};
@@ -43,16 +64,6 @@ struct DbSearchResult {
     qint64 elapsedMs{0};
 };
 
-/**
- * @brief 本地数据库管理器
- *
- * 功能：
- * - SQLite 数据库管理
- * - 论文 CRUD 操作
- * - 全文搜索
- * - 去重检测
- * - 同步状态管理
- */
 class LocalDatabase : public QObject {
     Q_OBJECT
 
@@ -60,12 +71,10 @@ public:
     explicit LocalDatabase(QObject* parent = nullptr);
     ~LocalDatabase();
 
-    // 初始化
     bool open(const QString& dbPath = "");
     void close();
     bool isOpen() const { return db_.isOpen(); }
 
-    // 论文操作
     int savePaper(const DbPaper& paper);
     bool updatePaper(int paperId, const DbPaper& paper);
     bool deletePaper(int paperId);
@@ -73,23 +82,19 @@ public:
     QList<DbPaper> getAllPapers();
     int getPaperCount();
 
-    // 搜索
     DbSearchResult searchPapers(const QString& keyword,
                                 int offset = 0,
                                 int limit = 50);
 
-    // 去重
     bool existsByDoi(const QString& doi);
     bool existsByTitle(const QString& title);
     int findByTitleHash(const QString& titleHash);
 
-    // 同步管理
     QList<DbPaper> getPendingSync();
     bool updateSyncStatus(int paperId, const QString& status);
     bool markForSync(int paperId);
     QDateTime getLastSyncTime();
 
-    // 数据库维护
     bool vacuum();
     bool backup(const QString& backupPath);
 
@@ -106,6 +111,6 @@ private:
     DbPaper fromQuery(QSqlQuery& query);
 
     QSqlDatabase db_;
-    QReadWriteLock lock_;  // 线程安全
+    QReadWriteLock lock_;
     QString dbPath_;
 };

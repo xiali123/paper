@@ -19,7 +19,7 @@
 #include "SearchHistory.hpp"
 #include "CrawlerDashboardDialog.hpp"
 #include "FavoritesDialog.hpp"
-// #include "database/LocalDatabase.hpp"  // TODO: Re-enable after type system refactoring
+#include "database/LocalDatabase.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QPainter>
@@ -74,13 +74,11 @@ MainWindow::MainWindow(QWidget* parent)
         QMessageBox::warning(this, "导出失败", error);
     });
 
-    // TODO: Re-enable database after type system refactoring
-    // localDb_ = new LocalDatabase(this);
-    // if (!localDb_->open()) {
-    //     QMessageBox::warning(this, "数据库错误",
-    //                        "无法打开本地数据库，某些功能可能不可用");
-    // }
-    localDb_ = nullptr;
+    localDb_ = new LocalDatabase(this);
+    if (!localDb_->open()) {
+        qDebug() << "Local database unavailable";
+        localDb_->close();
+    }
 
     setWindowTitle("📚 PaperCrawler - Academic Paper Search Tool");
     resize(1400, 900);  // Increased from 1200x800 for better display
@@ -460,6 +458,23 @@ void MainWindow::connectSignals() {
             }
         });
     }
+
+    // Tab switch data loading
+    connect(tabWidget_, &QTabWidget::currentChanged, this, [this](int index) {
+        switch (index) {
+            case 1: // Favorites
+                if (localDb_ && localDb_->isOpen()) {
+                    qDebug() << "Favorites tab: local papers:" << localDb_->getPaperCount();
+                }
+                break;
+            case 2: // Crawler
+                apiManager_->getCrawlerDashboard();
+                break;
+            case 4: // Statistics
+                apiManager_->getStats("overview");
+                break;
+        }
+    });
 }
 
 void MainWindow::loadSettings() {
@@ -584,6 +599,15 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
 
     // Cache the results for this page
     paperCache_->insert(currentKeyword_, currentOffset_, currentLimit_, papers, totalResults_);
+
+    // Save to local database
+    if (localDb_ && localDb_->isOpen()) {
+        for (const auto& paper : papers) {
+            if (!localDb_->existsByTitle(paper.title)) {
+                localDb_->savePaper(DbPaper::fromPaper(paper));
+            }
+        }
+    }
 
     // Save to search history (first page only)
     if (currentOffset_ == 0) {
