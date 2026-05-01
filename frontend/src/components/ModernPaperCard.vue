@@ -120,6 +120,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import DOMPurify from 'dompurify'
 import { usePapersStore } from '../stores/papers'
 import type { Paper } from '../types'
 
@@ -167,7 +168,8 @@ const highlightedTitle = computed(() => {
   const title = props.paper.title
   const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${escaped})`, 'gi')
-  return title.replace(regex, '<mark>$1</mark>')
+  const highlighted = title.replace(regex, '<mark>$1</mark>')
+  return DOMPurify.sanitize(highlighted, { ALLOWED_TAGS: ['mark'] })
 })
 
 const citationColor = computed(() => {
