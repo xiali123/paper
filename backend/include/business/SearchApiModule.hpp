@@ -163,16 +163,10 @@ struct SearchStats {
 /**
  * @brief 搜索API模块
  *
- * 架构改进：
- * - 继承BusinessModuleBase获得路由和中间件支持
- * - 集成Meilisearch搜索引擎（通过HttpClient调用HTTP API）
- * - 移除Mock搜索结果，使用真实搜索引擎
- *
- * Meilisearch集成：
- * - 基础搜索：POST /indexes/papers/search
- * - 高级搜索：支持filter、sort、highlight
- * - 索引更新：POST /indexes/papers/documents
- * - 搜索建议：GET /indexes/papers/settings/synonyms
+ * 搜索引擎：MySQL FULLTEXT索引
+ * - 使用MATCH...AGAINST进行全文搜索
+ * - 支持标题、摘要、关键词字段搜索
+ * - 支持过滤、排序、分页
  *
  * 路由：
  * - GET  /api/search              - 基础搜索

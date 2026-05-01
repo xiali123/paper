@@ -49,6 +49,9 @@ private:
                      const std::string& path,
                      std::map<std::string, std::string>& pathParams) const;
 
+    HttpResponse executeHandler(const RouteHandler& handler, const HttpRequest& request);
+    std::string normalizeVersionedPath(const std::string& path) const;
+
     // 🔥 优化后的哈希表存储（替换原来的 routes_）
     // 精确路由：method => { path => handler }
     std::unordered_map<std::string, std::unordered_map<std::string, RouteHandler>> exactRoutes_;
