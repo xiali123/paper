@@ -24,6 +24,12 @@
       </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <el-breadcrumb separator="/" class="page-breadcrumb">
+      <el-breadcrumb-item :to="{ path: '/crawler' }">爬虫</el-breadcrumb-item>
+      <el-breadcrumb-item>分布式爬虫</el-breadcrumb-item>
+    </el-breadcrumb>
+
     <!-- Cluster Overview -->
     <el-row :gutter="16" class="cluster-overview">
       <el-col :xs="12" :sm="6">

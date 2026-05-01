@@ -294,4 +294,21 @@ defineExpose({
   height: 16px;
   margin: 0;
 }
+
+// Dark mode overrides
+[data-theme="dark"] {
+  .editor-status-bar {
+    background: rgba(40, 40, 45, 0.98);
+    border-top-color: rgba(102, 126, 234, 0.3);
+    color: #9ca3af;
+  }
+
+  .status-text {
+    color: #f3f4f6;
+  }
+
+  .status-progress {
+    background: rgba(30, 30, 35, 0.95);
+  }
+}
 </style>

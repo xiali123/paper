@@ -788,4 +788,71 @@ watch(() => props.documentId, () => {
     }
   }
 }
+
+// Dark mode overrides
+[data-theme="dark"] {
+  .bibtex-manager {
+    background: rgba(30, 30, 35, 0.95);
+
+    .manager-toolbar {
+      background: rgba(40, 40, 45, 0.98);
+      border-bottom-color: rgba(102, 126, 234, 0.3);
+    }
+
+    .stats-bar {
+      background: rgba(40, 40, 45, 0.98);
+      border-bottom-color: rgba(102, 126, 234, 0.3);
+    }
+
+    .entries-container {
+      .entry-card {
+        background: rgba(40, 40, 45, 0.98);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+        &:hover {
+          border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        &.is-selected {
+          border-color: var(--el-color-primary);
+          background: rgba(64, 158, 255, 0.1);
+        }
+
+        .entry-header .entry-id {
+          color: #f3f4f6;
+        }
+
+        .entry-content {
+          .entry-title {
+            color: #f3f4f6;
+          }
+
+          .entry-meta {
+            color: #9ca3af;
+          }
+
+          .entry-journal {
+            color: #9ca3af;
+          }
+        }
+      }
+    }
+
+    .duplicates-list {
+      .duplicate-item {
+        border-bottom-color: rgba(102, 126, 234, 0.3);
+
+        .duplicate-info {
+          .duplicate-title {
+            color: #f3f4f6;
+          }
+
+          .duplicate-id {
+            color: #9ca3af;
+          }
+        }
+      }
+    }
+  }
+}
 </style>
