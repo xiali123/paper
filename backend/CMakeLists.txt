@@ -989,6 +989,11 @@ endif()
 add_dynamic_module_with_system(AdminApiModule
     src/business/AdminApiModule.cpp
 )
+
+# DashboardApiModule — 仪表盘聚合API（NEW - 2026-05-02）
+add_dynamic_module_with_system(DashboardApiModule
+    src/business/DashboardApiModule.cpp
+)
 target_include_directories(AdminApiModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
 
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）

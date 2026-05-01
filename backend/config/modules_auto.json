@@ -333,6 +333,34 @@
         }
       ],
       "config": {}
+    },
+    {
+      "name": "DashboardApi",
+      "version": "1.0.0",
+      "description": "Dashboard aggregation API for frontend homepage",
+      "type": "BUSINESS",
+      "author": "PaperCrawler Team",
+      "license": "MIT",
+      "routePrefix": "/api/dashboard",
+      "libraryPath": "./modules/libDashboardApiModule.so",
+      "loadPriority": 95,
+      "endpoints": [
+        "GET /api/dashboard/stats",
+        "GET /api/dashboard/activities",
+        "GET /api/dashboard/recommendations/papers",
+        "GET /api/dashboard/trending/searches",
+        "GET /api/dashboard/todos",
+        "PUT /api/dashboard/todos/:id/status",
+        "GET /api/dashboard/crawler-tasks",
+        "GET /api/dashboard/growth",
+        "GET /api/dashboard/distribution/journals",
+        "GET /api/dashboard/distribution/ccf",
+        "POST /api/dashboard/refresh",
+        "GET /api/dashboard/config",
+        "PUT /api/dashboard/config"
+      ],
+      "dependencies": [],
+      "config": {}
     }
   ]
 }
