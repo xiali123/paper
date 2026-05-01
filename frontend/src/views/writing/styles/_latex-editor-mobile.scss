@@ -1,0 +1,187 @@
+// ==========================================
+// LaTeX Editor Mobile Styles
+// Mobile tabs and responsive media queries
+// ==========================================
+
+// ==========================================
+// 移动端标签栏优化
+// ==========================================
+
+.mobile-tabs {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-light);
+  padding: 8px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+
+  .mobile-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--el-text-color-secondary);
+    font-weight: 500;
+    font-size: 14px;
+    min-height: 40px;
+    position: relative;
+
+    &.active {
+      background: var(--el-color-primary);
+      color: white;
+      box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+    }
+
+    .status-badge {
+      margin-left: 4px;
+    }
+  }
+}
+
+.editor-main.is-mobile {
+  .mobile-tabs {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+// ==========================================
+// 响应式设计
+// ==========================================
+
+@media (max-width: 768px) {
+  .latex-editor-view {
+    // 移动端强制垂直布局
+    .editor-main {
+      flex-direction: column !important;
+
+      &.vertical-split,
+      &.side-by-side {
+        flex-direction: column !important;
+      }
+    }
+
+    // 编辑器和预览面板在移动端始终全宽
+    .editor-panel,
+    .preview-panel {
+      width: 100% !important;
+      flex: 1 !important;
+
+      &.side-by-side,
+      &.vertical-split {
+        width: 100% !important;
+        height: auto !important;
+      }
+    }
+
+    .editor-header {
+      flex-direction: column;
+      gap: 8px;
+      align-items: stretch;
+
+      .document-info {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+
+        .document-actions {
+          width: 100%;
+
+          :deep(.el-button-group) {
+            display: flex;
+            width: 100%;
+
+            .el-button {
+              flex: 1;
+              min-height: 44px; // 触摸目标最小尺寸
+            }
+          }
+        }
+      }
+    }
+
+    .editor-toolbar {
+      padding: 10px 12px;
+      gap: 8px;
+      flex-wrap: wrap;
+
+      :deep(.el-button-group) {
+        margin: 0 4px;
+      }
+
+      // 隐藏工具栏文本以节省空间
+      .toolbar-text {
+        display: none;
+      }
+    }
+
+    .editor-status-bar {
+      padding: 10px 14px;
+      font-size: 11px;
+
+      .status-left,
+      .status-right {
+        gap: 12px;
+      }
+    }
+  }
+
+  .editor-main {
+    flex-direction: column;
+
+    &.is-mobile {
+      flex-direction: column;
+
+      .editor-panel {
+        flex: 1;
+        min-height: 50vh;
+
+        &.mobile-hidden {
+          display: none;
+        }
+      }
+
+      .preview-panel {
+        flex: 1;
+        min-height: 50vh;
+
+        &.mobile-panel {
+          position: relative;
+          z-index: 1;
+        }
+      }
+    }
+
+    .editor-panel {
+      &.with-preview {
+        flex: 1;
+      }
+    }
+
+    .preview-panel {
+      flex: 1;
+      min-height: 300px;
+    }
+  }
+
+  .symbol-palette {
+    .symbol-grid {
+      grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+      gap: 8px;
+      padding: 12px;
+
+      .symbol-item {
+        height: 48px; // 触摸友好的尺寸
+        min-height: 48px;
+      }
+    }
+  }
+}

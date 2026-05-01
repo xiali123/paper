@@ -1,0 +1,228 @@
+// ==========================================
+// LaTeX Editor Panel Styles
+// Editor area, editor panel, editor content,
+// editor wrapper, status bar, compilation status
+// ==========================================
+
+// 优化变量
+$transition-fast: 150ms;
+$transition-base: 200ms;
+$transition-slow: 300ms;
+$easing-out: cubic-bezier(0.4, 0, 0.2, 1);
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+
+// ==========================================
+// 编辑器面板
+// ==========================================
+
+.editor-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--el-bg-color);
+  width: 100%;
+  min-width: 0; // 允许flex子项正确收缩
+
+  // 左右分屏模式：编辑器占60%
+  &.side-by-side.with-preview {
+    flex: 0.6;
+    width: 60%;
+  }
+
+  // 上下分屏模式：编辑器占50%高度
+  &.vertical-split.with-preview {
+    flex: 0.5;
+    height: 50%;
+    width: 100%;
+  }
+
+  .editor-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+    min-width: 0; // 允许flex子项正确收缩
+  }
+
+  .editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    background: linear-gradient(
+      to bottom,
+      var(--el-bg-color-page) 0%,
+      rgba(0, 0, 0, 0.02) 100%
+    );
+
+    :deep(.el-button-group) {
+      position: relative;
+      padding: 0 8px;
+
+      &:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 1px;
+        height: 20px;
+        background: var(--el-border-color-light);
+      }
+
+      &:not(:last-child) {
+        margin-right: 4px;
+      }
+    }
+
+    .compilation-status {
+      :deep(.el-tag) {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-weight: 500;
+        font-size: 12px;
+        transition: all $transition-base $easing-out;
+
+        &.el-tag--success {
+          background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+          border-color: #34d399;
+          color: #065f46;
+        }
+
+        &.el-tag--danger {
+          background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+          border-color: #f87171;
+          color: #991b1b;
+        }
+
+        &.el-tag--warning {
+          background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+          border-color: #fbbf24;
+          color: #92400e;
+        }
+
+        &.el-tag--info {
+          background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+          border-color: #60a5fa;
+          color: #1e40af;
+        }
+
+        &.el-tag--compiling {
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+      }
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .editor-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate; // 创建新的层叠上下文
+
+    // GPU 加速
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+
+    // 确保子元素正确渲染
+    :deep(*) {
+      box-sizing: border-box;
+    }
+  }
+
+  .editor-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 12px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    background: var(--el-fill-color-lighter);
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    min-height: 28px;
+    flex-shrink: 0;
+
+    .status-left {
+      display: flex;
+      gap: 12px;
+    }
+
+    .status-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+
+      .text-warning {
+        color: var(--el-color-warning);
+      }
+
+      // 自动保存状态样式增强
+      .auto-save-saving,
+      .auto-save-unsaved,
+      .auto-save-saved,
+      .auto-save-ready {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+        transition: all $transition-base $easing-out;
+      }
+
+      .auto-save-saving {
+        color: var(--el-color-primary);
+        background-color: var(--el-color-primary-light-9);
+
+        .el-icon {
+          animation: rotating 2s linear infinite;
+        }
+      }
+
+      .auto-save-unsaved {
+        color: var(--el-color-warning);
+        background-color: var(--el-color-warning-light-9);
+      }
+
+      .auto-save-saved {
+        color: var(--el-color-success);
+        background-color: var(--el-color-success-light-9);
+      }
+
+      .auto-save-ready {
+        color: var(--el-text-color-secondary);
+      }
+    }
+  }
+
+  @keyframes rotating {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
