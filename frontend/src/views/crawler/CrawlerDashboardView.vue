@@ -39,7 +39,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ stats.runningTasks || 0 }}</div>
-              <div class="stat-label">活跃任务</div>
+              <div class="stat-label">\{\{ \$t('activeTasks') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -52,7 +52,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ successRate }}%</div>
-              <div class="stat-label">成功率</div>
+              <div class="stat-label">\{\{ \$t('successRate') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -65,7 +65,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ stats.totalPapers || 0 }}</div>
-              <div class="stat-label">论文总数</div>
+              <div class="stat-label">\{\{ \$t('totalPapers') \}\}</div>
             </div>
           </div>
         </el-card>

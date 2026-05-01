@@ -39,7 +39,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ healthyNodesCount }}</div>
-              <div class="stat-label">健康节点</div>
+              <div class="stat-label">\{\{ \$t('healthyNode') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -52,7 +52,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ totalActiveTasks }}</div>
-              <div class="stat-label">活跃任务</div>
+              <div class="stat-label">\{\{ \$t('activeTasks') \}\}</div>
             </div>
           </div>
         </el-card>

@@ -34,7 +34,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.totalNodes }}</div>
-              <div class="stat-label">工作节点</div>
+              <div class="stat-label">\{\{ \$t('workerNodes') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">
@@ -57,7 +57,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.totalTasks }}</div>
-              <div class="stat-label">总任务数</div>
+              <div class="stat-label">\{\{ \$t('totalTasks') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">
@@ -80,7 +80,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.totalPapers }}</div>
-              <div class="stat-label">论文总数</div>
+              <div class="stat-label">\{\{ \$t('totalPapers') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">
@@ -97,7 +97,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.avgResponseTime }}ms</div>
-              <div class="stat-label">平均响应</div>
+              <div class="stat-label">\{\{ \$t('avgResponseTime') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">

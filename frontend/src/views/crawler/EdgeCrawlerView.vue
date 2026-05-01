@@ -33,7 +33,7 @@
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.crawledCount }}</div>
-            <div class="stat-label">已爬取</div>
+            <div class="stat-label">\{\{ \$t('totalCrawled') \}\}</div>
           </div>
         </div>
       </el-col>
@@ -44,7 +44,7 @@
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.syncedCount }}</div>
-            <div class="stat-label">已同步</div>
+            <div class="stat-label">\{\{ \$t('totalSynced') \}\}</div>
           </div>
         </div>
       </el-col>
@@ -55,7 +55,7 @@
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.pendingCount }}</div>
-            <div class="stat-label">待同步</div>
+            <div class="stat-label">\{\{ \$t('pendingSync') \}\}</div>
           </div>
         </div>
       </el-col>
@@ -66,7 +66,7 @@
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ activeCrawlers }}</div>
-            <div class="stat-label">活跃任务</div>
+            <div class="stat-label">\{\{ \$t('activeTasks') \}\}</div>
           </div>
         </div>
       </el-col>

@@ -37,6 +37,26 @@
           <el-icon><RefreshRight /></el-icon>
           刷新
         </el-button>
+        <el-button-group size="small" style="margin-left: 8px">
+          <el-button
+            :type="annotationMode === 'highlight' ? 'primary' : 'default'"
+            @click="annotationMode = annotationMode === 'highlight' ? 'off' : 'highlight'"
+          >
+            Highlight
+          </el-button>
+          <el-button
+            :type="annotationMode === 'note' ? 'primary' : 'default'"
+            @click="annotationMode = annotationMode === 'note' ? 'off' : 'note'"
+          >
+            Note
+          </el-button>
+          <el-button
+            :type="annotationPanelOpen ? 'primary' : 'default'"
+            @click="annotationPanelOpen = !annotationPanelOpen"
+          >
+            Annotations
+          </el-button>
+        </el-button-group>
       </div>
     </div>
 
@@ -58,15 +78,27 @@
         <el-empty description="编译LaTeX以生成PDF预览" :image-size="60" />
       </div>
 
-      <div v-else class="pdf-container" :style="{ transform: `scale(${scale})` }">
-        <canvas ref="canvasRef" class="pdf-canvas"></canvas>
+      <div v-else class="pdf-canvas-wrapper" ref="pdfContainerRef">
+        <div class="pdf-container" :style="{ transform: `scale(${scale})` }">
+          <canvas ref="canvasRef" class="pdf-canvas"></canvas>
+        </div>
+        <div v-if="pdfDocument && annotationMode !== 'off'" class="annotation-overlay">
+          <PdfAnnotationLayer
+            :pdf-document="pdfDocument"
+            :page-count="totalPages"
+            :document-id="annotationDocId"
+            :current-page="currentPage"
+            :scale="scale"
+            :container-rect="containerRect"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted, nextTick, computed } from 'vue'
+import { ref, watch, onUnmounted, onMounted, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   ArrowLeft,
@@ -79,6 +111,7 @@ import {
   CircleCheck
 } from '@element-plus/icons-vue'
 import { pdfStorage } from '@/utils/pdfStorage'
+import PdfAnnotationLayer from './PdfAnnotationLayer.vue'
 
 interface Props {
   pdfUrl?: string
@@ -94,6 +127,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const contentRef = ref<HTMLElement>()
 const canvasRef = ref<HTMLCanvasElement>()
+const pdfContainerRef = ref<HTMLElement>()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const currentPage = ref(1)
@@ -101,8 +135,26 @@ const totalPages = ref(0)
 const scale = ref(props.initialScale)
 const isFromCache = ref(false)
 const currentPdfId = ref<string>()
+const annotationMode = ref<'highlight' | 'note' | 'off'>('off')
+const annotationPanelOpen = ref(false)
+const containerRect = ref<DOMRect | undefined>()
 
-let pdfDocument: any = null
+// Compute a stable documentId from the PDF URL for annotation persistence
+const annotationDocId = computed(() => {
+  if (props.pdfUrl) {
+    // Simple hash of the URL for a stable identifier
+    let hash = 0
+    for (let i = 0; i < props.pdfUrl.length; i++) {
+      const chr = props.pdfUrl.charCodeAt(i)
+      hash = ((hash << 5) - hash) + chr
+      hash |= 0
+    }
+    return `doc-${Math.abs(hash).toString(36)}`
+  }
+  return 'default'
+})
+
+const pdfDocument = ref<any>(null)
 let pageRendering = false
 let objectUrl: string | null = null
 
@@ -142,9 +194,9 @@ async function getPdfJs() {
   }
 }
 async function renderPage(pageNum: number) {
-  if (!pdfDocument || !canvasRef.value || pageRendering) {
+  if (!pdfDocument.value || !canvasRef.value || pageRendering) {
     if (import.meta.env.DEV) {
-      console.log('[PdfViewer] renderPage skipped - pdfDocument:', !!pdfDocument, 'canvasRef:', !!canvasRef.value, 'rendering:', pageRendering)
+      console.log('[PdfViewer] renderPage skipped - pdfDocument:', !!pdfDocument.value, 'canvasRef:', !!canvasRef.value, 'rendering:', pageRendering)
     }
     return
   }
@@ -152,7 +204,7 @@ async function renderPage(pageNum: number) {
   pageRendering = true
 
   try {
-    const page = await pdfDocument.getPage(pageNum)
+    const page = await pdfDocument.value.getPage(pageNum)
     const viewport = page.getViewport({ scale: scale.value })
 
     const canvas = canvasRef.value
@@ -193,7 +245,7 @@ async function renderPage(pageNum: number) {
 
 async function loadPdf(url: string) {
   if (!url) {
-    pdfDocument = null
+    pdfDocument.value = null
     totalPages.value = 0
     currentPage.value = 1
     if (import.meta.env.DEV) {
@@ -291,13 +343,13 @@ async function loadPdf(url: string) {
         'Accept': 'application/pdf,*/*'
       }
     })
-    pdfDocument = await loadingTask.promise
+    pdfDocument.value = await loadingTask.promise
 
     if (import.meta.env.DEV) {
       console.log('[PdfViewer] Using public CMap URL:', cMapUrl)
     }
 
-    totalPages.value = pdfDocument.numPages
+    totalPages.value = pdfDocument.value.numPages
     currentPage.value = 1
 
     if (import.meta.env.DEV) {
@@ -305,7 +357,7 @@ async function loadPdf(url: string) {
         url,
         pdfUrl,
         pages: totalPages.value,
-        numPages: pdfDocument.numPages
+        numPages: pdfDocument.value.numPages
       })
     }
 
@@ -460,7 +512,7 @@ watch(() => props.pdfUrl, (newUrl, oldUrl) => {
 
 // 监听Canvas元素，当它可用时自动渲染
 watch(canvasRef, (newCanvas) => {
-  if (newCanvas && pdfDocument && currentPage.value > 0) {
+  if (newCanvas && pdfDocument.value && currentPage.value > 0) {
     if (import.meta.env.DEV) {
       console.log('[PdfViewer] Canvas became available, rendering page', currentPage.value)
     }
@@ -480,14 +532,40 @@ defineExpose({
 
 onUnmounted(() => {
   // Free PDF.js internal resources before nulling
-  if (pdfDocument) {
-    pdfDocument.destroy()
-    pdfDocument = null
+  if (pdfDocument.value) {
+    pdfDocument.value.destroy()
+    pdfDocument.value = null
   }
   if (objectUrl) {
     URL.revokeObjectURL(objectUrl)
     objectUrl = null
   }
+})
+
+// Track the PDF container bounding rect for annotation coordinate mapping
+let resizeObserver: ResizeObserver | null = null
+
+function updateContainerRect() {
+  if (pdfContainerRef.value) {
+    containerRect.value = pdfContainerRef.value.getBoundingClientRect()
+  }
+}
+
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => updateContainerRect())
+  if (pdfContainerRef.value) {
+    resizeObserver.observe(pdfContainerRef.value)
+  }
+  // Also update on scroll/resize
+  window.addEventListener('resize', updateContainerRect)
+})
+
+onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+  window.removeEventListener('resize', updateContainerRect)
 })
 </script>
 
@@ -542,7 +620,22 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.pdf-container {
+.pdf-canvas-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.annotation-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.pdf-canvas-wrapper > .pdf-container {
   display: inline-block;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   background-color: white;
