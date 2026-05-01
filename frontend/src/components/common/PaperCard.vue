@@ -141,6 +141,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import DOMPurify from 'dompurify'
 
 /**
  * Paper interface representing academic paper data
@@ -229,7 +230,8 @@ const highlightedTitle = computed(() => {
 
   const escaped = props.highlightKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${escaped})`, 'gi')
-  return props.paper.title.replace(regex, '<mark class="paper-card__highlight">$1</mark>')
+  const highlighted = props.paper.title.replace(regex, '<mark class="paper-card__highlight">$1</mark>')
+  return DOMPurify.sanitize(highlighted, { ALLOWED_TAGS: ['mark'] })
 })
 
 /**
