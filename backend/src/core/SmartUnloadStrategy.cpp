@@ -1,6 +1,6 @@
 #include "core/SmartUnloadStrategy.hpp"
 #include "core/PluginManager.hpp"
-#include <iostream>
+#include <spdlog/spdlog.h>
 #include <thread>
 #include <chrono>
 
@@ -52,10 +52,10 @@ bool SmartUnloadStrategy::unload(const std::string& moduleName) {
         case UnloadStrategy::DEPENDENCY_SAFE: {
             auto [canUnload, reason] = this->canUnload(moduleName);
             if (!canUnload) {
-                std::cerr << "Cannot unload module: " << reason << std::endl;
+                spdlog::error("Cannot unload module: {}", reason);
 
                 if (policy_.gracefulShutdown) {
-                    std::cout << "Waiting for graceful shutdown..." << std::endl;
+                    spdlog::info("Waiting for graceful shutdown...");
                     return waitForIdle(moduleName, std::chrono::seconds(policy_.idleTimeoutSeconds));
                 }
                 return false;
@@ -95,12 +95,12 @@ bool SmartUnloadStrategy::waitForIdle(const std::string& moduleName, std::chrono
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    std::cerr << "Timeout waiting for module to idle: " << moduleName << std::endl;
+    spdlog::error("Timeout waiting for module to idle: {}", moduleName);
     return false;
 }
 
 bool SmartUnloadStrategy::forceUnload(const std::string& moduleName) {
-    std::cout << "Force unloading module: " << moduleName << " (dangerous)" << std::endl;
+    spdlog::info("Force unloading module: {} (dangerous)", moduleName);
 
     auto& registry = ModuleRegistry::getInstance();
     auto* moduleInfo = registry.getModuleInfo(moduleName);
@@ -108,7 +108,7 @@ bool SmartUnloadStrategy::forceUnload(const std::string& moduleName) {
     if (moduleInfo) {
         int interruptedRequests = moduleInfo->referenceCount.load();
         if (interruptedRequests > 0) {
-            std::cout << "Warning: Interrupting " << interruptedRequests << " active requests" << std::endl;
+            spdlog::warn("Warning: Interrupting {} active requests", interruptedRequests);
         }
     }
 

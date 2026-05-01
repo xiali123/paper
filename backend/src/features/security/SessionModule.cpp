@@ -1,9 +1,11 @@
 #include "features/security/SessionModule.hpp"
 #include <sstream>
-#include <iostream>
+#include <fstream>
+#include <iomanip>
 #include <random>
 #include <algorithm>
 #include <atomic>
+#include <spdlog/spdlog.h>
 
 namespace PaperCrawler {
 
@@ -33,8 +35,7 @@ public:
         stats_.activeSessions++;
         stats_.sessionsByUser[userId]++;
 
-        std::cout << "[Session] Created: " << session.sessionId
-                  << " (user: " << userId << ", TTL: " << options.ttl.count() << "s)" << std::endl;
+        spdlog::info("[Session] Created: {} (user: {}, TTL: {}s)", session.sessionId, userId, options.ttl.count());
 
         return session.sessionId;
     }
@@ -91,7 +92,7 @@ public:
         sessions_.erase(it);
         stats_.activeSessions--;
 
-        std::cout << "[Session] Deleted: " << sessionId << std::endl;
+        spdlog::info("[Session] Deleted: {}", sessionId);
 
         return true;
     }
@@ -112,7 +113,7 @@ public:
                                it->second.getTimeRemaining() + additionalTTL;
         it->second.lastAccessedAt = std::chrono::system_clock::now();
 
-        std::cout << "[Session] Refreshed: " << sessionId << std::endl;
+        spdlog::info("[Session] Refreshed: {}", sessionId);
 
         return true;
     }
@@ -182,7 +183,7 @@ public:
 
         userSessions_.erase(it);
 
-        std::cout << "[Session] Deleted " << deleted << " sessions for user: " << userId << std::endl;
+        spdlog::info("[Session] Deleted {} sessions for user: {}", deleted, userId);
 
         return deleted;
     }
@@ -206,7 +207,7 @@ public:
 
         if (cleaned > 0) {
             stats_.lastCleanup = std::chrono::system_clock::now();
-            std::cout << "[Session] Cleaned up " << cleaned << " expired sessions" << std::endl;
+            spdlog::info("[Session] Cleaned up {} expired sessions", cleaned);
         }
 
         return cleaned;
@@ -219,7 +220,7 @@ public:
         userSessions_.clear();
         stats_.activeSessions = 0;
 
-        std::cout << "[Session] All sessions cleared" << std::endl;
+        spdlog::info("[Session] All sessions cleared");
     }
 
     SessionStats getStats() const {
@@ -228,13 +229,21 @@ public:
     }
 
     std::string generateSessionId() {
-        static std::atomic<uint64_t> counter{0};
-        static std::random_device rd;
-        static std::mt19937 gen(rd());
-        static std::uniform_int_distribution<> dis(1000, 9999);
-
         std::ostringstream oss;
-        oss << "sess_" << std::time(nullptr) << "_" << counter.fetch_add(1) << "_" << dis(gen);
+        oss << "sess_";
+        std::ifstream urandom("/dev/urandom", std::ios::binary);
+        if (urandom) {
+            unsigned char buf[16];
+            urandom.read(reinterpret_cast<char*>(buf), sizeof(buf));
+            for (unsigned char c : buf) {
+                oss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(c);
+            }
+        } else {
+            std::random_device rd;
+            std::mt19937_64 gen(rd());
+            std::uniform_int_distribution<uint64_t> dist;
+            oss << std::hex << dist(gen) << dist(gen);
+        }
         return oss.str();
     }
 };
@@ -245,19 +254,19 @@ SessionModule::SessionModule()
 SessionModule::~SessionModule() = default;
 
 bool SessionModule::initialize() {
-    std::cout << "SessionModule::initialize" << std::endl;
-    std::cout << "  Storage: " << storageType_ << std::endl;
-    std::cout << "  Default TTL: " << defaultTTL_.count() << "s" << std::endl;
+    spdlog::info("SessionModule::initialize");
+    spdlog::info("  Storage: {}", storageType_);
+    spdlog::info("  Default TTL: {}s", defaultTTL_.count());
     return true;
 }
 
 bool SessionModule::start() {
-    std::cout << "SessionModule started" << std::endl;
+    spdlog::info("SessionModule started");
     return true;
 }
 
 bool SessionModule::stop() {
-    std::cout << "SessionModule stopped" << std::endl;
+    spdlog::info("SessionModule stopped");
     return true;
 }
 
