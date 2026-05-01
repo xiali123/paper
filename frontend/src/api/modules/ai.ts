@@ -25,10 +25,10 @@ export const aiReviewApi = {
    * Generate AI peer review for a paper
    * POST /api/ai-co-pilot/review
    */
-  async generateReview(request: AIReviewRequest): Promise<AIReviewResult> {
+  async generateReview(data: AIReviewRequest): Promise<AIReviewResult> {
     return await request.post<AIReviewResult>(
       '/api/ai/review',
-      request
+      data
     )
   },
 
@@ -67,11 +67,11 @@ export const literatureReviewApi = {
    * POST /api/ai-co-pilot/literature-review/generate
    */
   async generateReview(
-    request: LiteratureReviewRequest
+    data: LiteratureReviewRequest
   ): Promise<LiteratureReviewResult> {
     return await request.post<LiteratureReviewResult>(
       '/api/ai/literature-review/generate',
-      request
+      data
     )
   },
 
@@ -124,10 +124,10 @@ export const researchPlanApi = {
    * Generate research plan
    * POST /api/ai-co-pilot/research-plan/generate
    */
-  async generatePlan(request: ResearchPlanRequest): Promise<ResearchPlanResult> {
+  async generatePlan(data: ResearchPlanRequest): Promise<ResearchPlanResult> {
     return await request.post<ResearchPlanResult>(
       '/api/ai/research-plan/generate',
-      request
+      data
     )
   },
 
