@@ -125,8 +125,8 @@ void StatisticsDialog::loadAuthorStats() {
 QWidget* StatisticsDialog::createStatCard(const QString& title, const QString& value, const QString& color) {
     auto* card = new QWidget();
     card->setStyleSheet(
-        QString("QWidget { background: white; border-radius: 12px; "
-                "border: 1px solid #e2e8f0; }")
+        QString("QWidget { background: palette(base); border-radius: 12px; "
+                "border: 1px solid palette(mid); }")
     );
 
     auto* layout = new QVBoxLayout(card);

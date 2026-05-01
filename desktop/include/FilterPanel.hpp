@@ -5,21 +5,28 @@
 #include <QComboBox>
 #include <QVBoxLayout>
 #include <QGroupBox>
+#include <QList>
+#include <QMap>
 
-/**
- * @brief Filter panel for search results
- */
 class FilterPanel : public QGroupBox {
     Q_OBJECT
 
 public:
     explicit FilterPanel(QWidget* parent = nullptr);
 
+    QString getLevel() const;
+    QString getYear() const;
+
 signals:
-    void filtersChanged();
+    void filterChanged(const QString& level, const QString& year);
+
+private slots:
+    void onLevelToggled(bool checked);
+    void onYearChanged(int index);
 
 private:
     void setupUI();
+    void updateLevelCheckboxes();
 
     QCheckBox* checkAll_{nullptr};
     QCheckBox* checkA_{nullptr};

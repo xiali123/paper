@@ -429,6 +429,11 @@ QWidget* PaperCardView::createPaperCard(const Paper& paper) {
     // Connect click event - override mousePressEvent instead
     card->installEventFilter(this);
 
+    // Tooltip with abstract preview
+    if (!paper.abstract.isEmpty()) {
+        card->setToolTip(paper.abstract.left(300) + (paper.abstract.length() > 300 ? "..." : ""));
+    }
+
     return card;
 }
 

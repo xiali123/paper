@@ -18,6 +18,7 @@
 #include "FavoriteManager.hpp"
 #include "SearchHistory.hpp"
 #include "CrawlerDashboardDialog.hpp"
+#include "FavoritesDialog.hpp"
 // #include "database/LocalDatabase.hpp"  // TODO: Re-enable after type system refactoring
 #include <QTimer>
 #include <QCloseEvent>
@@ -143,11 +144,23 @@ void MainWindow::setupUI() {
     searchWidget_->setSearchHistory(searchHistory);
     mainLayout->addWidget(searchWidget_);
 
+    // Results + Filter layout
+    auto* resultsLayout = new QHBoxLayout();
+    resultsLayout->setSpacing(12);
+
     // Results Section (initially hidden)
     resultView_ = new PaperCardView(this);
     resultView_->setFavoriteManager(favoriteManager);
     resultView_->setVisible(false);
-    mainLayout->addWidget(resultView_);
+    resultsLayout->addWidget(resultView_, 1);
+
+    // Filter Panel (initially hidden)
+    filterPanel_ = new FilterPanel(this);
+    filterPanel_->setMaximumWidth(200);
+    filterPanel_->setVisible(false);
+    resultsLayout->addWidget(filterPanel_);
+
+    mainLayout->addLayout(resultsLayout);
 
     // Add stretch at bottom
     mainLayout->addStretch();
@@ -306,6 +319,18 @@ void MainWindow::createToolBar() {
         QMessageBox::information(this, "Profile", info);
     });
 
+    toolBar->addSeparator();
+
+    auto* favoritesAction = toolBar->addAction("Favorites");
+    connect(favoritesAction, &QAction::triggered, this, [this]() {
+        auto* favMgr = findChild<FavoriteManager*>();
+        if (favMgr) {
+            auto* dlg = new FavoritesDialog(favMgr, this);
+            dlg->exec();
+            dlg->deleteLater();
+        }
+    });
+
     // User label in status bar
     userLabel_ = new QLabel(this);
     statusBar()->addPermanentWidget(userLabel_);
@@ -376,6 +401,17 @@ void MainWindow::connectSignals() {
             this, &MainWindow::onPaperDetailsSuccess);
     connect(apiManager_, &ApiManager::networkError,
             this, &MainWindow::onNetworkError);
+
+    // Filter panel
+    if (filterPanel_) {
+        connect(filterPanel_, &FilterPanel::filterChanged,
+                this, [this](const QString& level, const QString& year) {
+            if (!currentKeyword_.isEmpty()) {
+                currentOffset_ = 0;
+                apiManager_->searchPapers(currentKeyword_, year, level, 0, currentLimit_);
+            }
+        });
+    }
 }
 
 void MainWindow::loadSettings() {
@@ -407,6 +443,7 @@ void MainWindow::onSearch(const QString& keyword) {
     statusBar()->showMessage("正在搜索: " + keyword + "...");
     resultView_->setVisible(true);
     resultView_->clear();
+    filterPanel_->setVisible(true);
 
     // Clear cache for this keyword if starting fresh search
     // (Optional: keep cache for faster access if same keyword searched again)
@@ -513,10 +550,11 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
     resultView_->setPapers(papers, totalResults_, pageNum);
 
     // Update status bar
-    QString message = QString("第 %1 页 - 搜索完成！找到 %2 篇相关论文")
-                         .arg(pageNum).arg(result.total);
+    int totalPages = (totalResults_ + currentLimit_ - 1) / currentLimit_;
+    QString message = QString("Page %1/%2 - Found %3 papers for \"%4\"")
+                         .arg(pageNum).arg(totalPages).arg(result.total).arg(currentKeyword_);
     if (result.durationMs > 0) {
-        message += QString(" (耗时 %1 ms)").arg(result.durationMs, 0, 'f', 2);
+        message += QString(" (%1 ms)").arg(result.durationMs, 0, 'f', 2);
     }
     statusBar()->showMessage(message, 5000);
 
