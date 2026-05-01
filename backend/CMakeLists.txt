@@ -89,6 +89,9 @@ set(CORE_SOURCES
     src/core/EventBusModule.cpp
     src/core/WatchdogModule.cpp
     src/core/ConfigManager.cpp
+    src/core/RateLimitMiddleware.cpp
+    src/core/MiddlewareChain.cpp
+    src/core/ApiVersionManager.cpp
     # main.cpp单独处理
 )
 
@@ -141,6 +144,7 @@ set(PERFORMANCE_SOURCES
 set(SECURITY_SOURCES
     src/features/security/SecurityModule.cpp
     src/features/security/SessionModule.cpp
+    src/features/email/EmailService.cpp
 )
 
 # 功能模块 - 弹性

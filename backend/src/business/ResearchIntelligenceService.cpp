@@ -108,13 +108,36 @@ public:
         std::map<std::string, int> predictions;
         auto now = std::chrono::system_clock::now();
 
+        // 从历史数据计算实际月均增长率
+        double monthlyGrowthRate = 0.0; // 默认无增长
+        if (currentTrend.size() >= 2) {
+            auto it = currentTrend.begin();
+            auto last = currentTrend.rbegin();
+
+            double earliestValue = static_cast<double>(it->second);
+            double latestValue = static_cast<double>(last->second);
+            int yearSpan = last->first - it->first;
+
+            if (earliestValue > 0.0 && yearSpan > 0) {
+                // 复合年增长率 (CAGR) -> 转换为月增长率
+                double cagr = std::pow(latestValue / earliestValue, 1.0 / yearSpan) - 1.0;
+                monthlyGrowthRate = std::pow(1.0 + cagr, 1.0 / 12.0) - 1.0;
+
+                // 限制月增长率在合理范围内 [-0.5, 1.0] 以避免极端预测
+                if (monthlyGrowthRate > 1.0) monthlyGrowthRate = 1.0;
+                if (monthlyGrowthRate < -0.5) monthlyGrowthRate = -0.5;
+            }
+        }
+
         for (int i = 1; i <= 12; ++i) {
             auto futureTime = now + std::chrono::hours(24 * 30 * i);
             auto month = getMonthYear(futureTime);
 
-            // 简化预测：基于过去趋势
+            // 基于历史增长率进行指数预测
             int baseCitations = currentTrend.empty() ? 0 : currentTrend.rbegin()->second;
-            int predicted = static_cast<int>(baseCitations * (1.0 + 0.1 * i));  // 假设每月增长10%
+            double growthFactor = std::pow(1.0 + monthlyGrowthRate, i);
+            int predicted = static_cast<int>(baseCitations * growthFactor);
+            if (predicted < 0) predicted = 0;
 
             predictions[month] = predicted;
         }
@@ -202,25 +225,57 @@ private:
 
     double calculatePercentile(int userId) {
         // 计算用户在同领域中的影响力百分位
-        // （简化实现：基于引用数排名）
+        // 基于引用数排名
 
-        std::ostringstream sql;
-        sql << "SELECT COUNT(*) as rank FROM ("
-             << "SELECT user_id, SUM(citation_count) as total_citations "
-             << "FROM user_papers up "
-             << "JOIN papers p ON up.paper_id = p.id "
-             << "GROUP BY user_id "
-             << ") AS ranked "
-             << "WHERE total_citations > ("
-             << "SELECT SUM(citation_count) FROM user_papers up "
-             << "JOIN papers p ON up.paper_id = p.id "
-             << "WHERE up.user_id = " << userId << ")";
+        if (!database_) {
+            // Fallback: 数据库不可用时返回50百分位
+            return 50.0;
+        }
 
-        // auto results = database_->query(sql.str());
-        // ...
+        try {
+            // 先获取当前用户的总引用数
+            std::ostringstream userSql;
+            userSql << "SELECT COALESCE(SUM(p.citation_count), 0) as user_total "
+                    << "FROM user_papers up "
+                    << "JOIN papers p ON up.paper_id = p.id "
+                    << "WHERE up.user_id = " << userId;
 
-        // 简化实现：返回50百分位
-        return 50.0;
+            auto userRows = database_->query(userSql.str());
+            if (userRows.empty()) {
+                return 50.0; // Fallback
+            }
+            double userTotal = std::stod(userRows[0].at("user_total"));
+
+            // 统计总用户数和引用数低于当前用户的数量
+            std::ostringstream rankSql;
+            rankSql << "SELECT "
+                    << "COUNT(DISTINCT up1.user_id) as total_users, "
+                    << "COALESCE(SUM(CASE WHEN user_total < " << userTotal << " THEN 1 ELSE 0 END), 0) as below_count "
+                    << "FROM ("
+                    << "SELECT up.user_id, SUM(p.citation_count) as user_total "
+                    << "FROM user_papers up "
+                    << "JOIN papers p ON up.paper_id = p.id "
+                    << "GROUP BY up.user_id"
+                    << ") as user_totals "
+                    << "JOIN user_papers up1 ON up1.user_id = user_totals.user_id";
+
+            auto rankRows = database_->query(rankSql.str());
+            if (!rankRows.empty()) {
+                double totalUsers = std::stod(rankRows[0].at("total_users"));
+                double belowCount = std::stod(rankRows[0].at("below_count"));
+
+                if (totalUsers > 0.0) {
+                    // 百分位 = 排名低于该用户的比例 * 100
+                    return (belowCount / totalUsers) * 100.0;
+                }
+            }
+
+            return 50.0; // Fallback
+        } catch (const std::exception& e) {
+            spdlog::get("ResearchIntelligence")->error(
+                "Failed to calculate percentile for user {}: {}", userId, e.what());
+            return 50.0; // Fallback
+        }
     }
 
     std::string getMonthYear(const std::chrono::system_clock::time_point& time) {
