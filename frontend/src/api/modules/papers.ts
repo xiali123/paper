@@ -236,7 +236,7 @@ export const papersApi = {
    * ```
    */
   async getStats(): Promise<PaperStats> {
-    return await request.get('/stats')
+    return await request.get('/api/stats')
   },
 
   /**
@@ -256,7 +256,7 @@ export const papersApi = {
    */
   async search(query: string, params: Pick<PaperQuery, 'page' | 'pageSize'> = {}): Promise<PaperListResponse> {
     const backendParams = transformQueryParams({ keyword: query, ...params })
-    const response = await request.get<{ papers: BackendPaper[], total: number, page: number, pageSize: number }>('/papers/search', {
+    const response = await request.get<{ papers: BackendPaper[], total: number, page: number, pageSize: number }>('/api/papers/search', {
       params: backendParams
     })
 
