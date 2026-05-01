@@ -71,14 +71,19 @@ class UserApiModule::Impl {
 public:
     // 依赖注入：数据库接口
     std::shared_ptr<IDatabase> database_;
+    std::unique_ptr<SecurityModule> securityModule_;
 
     // 默认构造函数：database可以在后续设置
-    Impl() : database_(nullptr) {}
+    Impl() : database_(nullptr), securityModule_(std::make_unique<SecurityModule>()) {
+        // 初始化SecurityModule
+        securityModule_->initialize();
+    }
 
     // 构造函数：接受数据库依赖
     explicit Impl(std::shared_ptr<IDatabase> database)
-        : database_(database) {
-        // 不再加载Mock数据
+        : database_(database), securityModule_(std::make_unique<SecurityModule>()) {
+        // 初始化SecurityModule
+        securityModule_->initialize();
     }
 
     // 从数据库行构建User对象
@@ -588,9 +593,8 @@ bool UserApiModule::verifyPassword(int id, const std::string& password) {
         return false;
     }
 
-    // 简化验证（实际应使用bcrypt）
-    std::string hash = hashPassword(password);
-    return userOpt->passwordHash == hash;
+    // 使用SecurityModule进行安全的密码验证（bcrypt）
+    return impl_->securityModule_->verifyPassword(password, userOpt->passwordHash);
 }
 
 bool UserApiModule::updateLastLogin(int id) {
@@ -685,9 +689,14 @@ bool UserApiModule::isEmailUnique(const std::string& email) {
 }
 
 std::string UserApiModule::hashPassword(const std::string& password) {
-    // Mock实现 - 生产环境应使用bcrypt
-    std::hash<std::string> hasher;
-    return "$2b$12$mock_" + std::to_string(hasher(password));
+    // 使用SecurityModule进行安全的密码哈希（bcrypt）
+    auto result = impl_->securityModule_->hashPassword(password, 12);
+    if (result.success) {
+        return result.hash;
+    }
+    // 降级方案（不应发生）
+    std::cerr << "[UserApi] ERROR: Password hashing failed: " << result.errorMessage << std::endl;
+    throw std::runtime_error("Password hashing failed");
 }
 
 // ============================================================================
