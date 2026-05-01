@@ -361,27 +361,7 @@ SystemUptime StatsApiModule::getUptime() {
 }
 
 std::vector<ModuleInfo> StatsApiModule::getAllModules() {
-    // TODO: 从ModuleRegistry获取所有模块信息
-    std::vector<ModuleInfo> modules;
-
-    // Mock数据
-    ModuleInfo module1;
-    module1.name = "HttpServer";
-    module1.version = "1.0.0";
-    module1.type = ModuleType::SERVER;
-    module1.state = ModuleState::STARTED;
-    module1.loadedAt = std::chrono::system_clock::now() - std::chrono::milliseconds(5000);
-    modules.push_back(module1);
-
-    ModuleInfo module2;
-    module2.name = "PaperApi";
-    module2.version = "1.0.0";
-    module2.type = ModuleType::BUSINESS;
-    module2.state = ModuleState::STARTED;
-    module2.loadedAt = std::chrono::system_clock::now() - std::chrono::milliseconds(3000);
-    modules.push_back(module2);
-
-    return modules;
+    return ModuleRegistry::getInstance().getAllModules();
 }
 
 std::optional<ModuleInfo> StatsApiModule::getModule(const std::string& moduleName) {

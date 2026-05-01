@@ -1151,19 +1151,19 @@ std::string OTOperation::toJSON() const {
 // DLL 导出函数
 // ============================================================================
 
-#define MODULE_EXPORT __attribute__((visibility("default")))
+#include "core/ModuleExports.hpp"
 
 extern "C" {
 
-MODULE_EXPORT void* createModule() {
+PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::CollaborativeWritingModule();
 }
 
-MODULE_EXPORT void destroyModule(void* ptr) {
+PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::CollaborativeWritingModule*>(ptr);
 }
 
-MODULE_EXPORT const char* getModuleVersion() {
+PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
 

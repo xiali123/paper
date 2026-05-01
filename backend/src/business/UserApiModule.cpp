@@ -1056,9 +1056,66 @@ HttpResponse UserApiModule::handleChangePassword(const HttpRequest& req) {
 
 HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
     try {
-        // TODO: 从JWT token获取当前用户ID
-        // 优雅降级：没有认证时返回404
-        return buildJsonResponse(404, "Current user not found (no authentication)");
+        // Extract Bearer token from Authorization header
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) {
+            return buildJsonResponse(401, "Authorization header required");
+        }
+
+        const std::string& authHeader = authIt->second;
+        if (authHeader.substr(0, 7) != "Bearer ") {
+            return buildJsonResponse(401, "Invalid authorization format. Use: Bearer <token>");
+        }
+
+        std::string token = authHeader.substr(7);
+        if (token.empty()) {
+            return buildJsonResponse(401, "Token is empty");
+        }
+
+        // Verify JWT token
+        auto jwtResult = impl_->securityModule_->verifyJWT(token);
+        if (!jwtResult.valid) {
+            return buildJsonResponse(401, "Invalid or expired token");
+        }
+
+        // Extract user ID from claims
+        auto subIt = jwtResult.claims.find("sub");
+        if (subIt == jwtResult.claims.end()) {
+            return buildJsonResponse(401, "Token missing subject claim");
+        }
+
+        int userId = std::stoi(subIt->second);
+
+        // Query user from database
+        if (!impl_->database_) {
+            return buildJsonResponse(503, "Database not available");
+        }
+
+        PreparedStatement stmt(impl_->database_, "SELECT * FROM users WHERE id = ?");
+        stmt.bind(0, userId);
+        auto results = stmt.query();
+
+        if (results.empty()) {
+            return buildJsonResponse(404, "User not found");
+        }
+
+        const auto& row = results[0];
+        nlohmann::json userJson;
+        userJson["id"] = row.at("id");
+        userJson["username"] = row.at("username");
+        userJson["email"] = row.at("email");
+        userJson["full_name"] = row.count("full_name") ? row.at("full_name") : "";
+        userJson["role"] = row.count("role") ? row.at("role") : "user";
+        userJson["is_active"] = row.count("is_active") ? (row.at("is_active") == "1") : true;
+
+        HttpResponse response;
+        response.statusCode = 200;
+        response.headers["Content-Type"] = "application/json";
+        nlohmann::json respJson;
+        respJson["success"] = true;
+        respJson["user"] = userJson;
+        response.body = respJson.dump();
+        return response;
 
     } catch (const std::exception& e) {
         return buildJsonResponse(500, "Exception: " + std::string(e.what()));

@@ -5,7 +5,6 @@
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
 #include <nlohmann/json.hpp>
-#include <iostream>
 #include <sstream>
 #include <algorithm>
 #include <chrono>
@@ -86,16 +85,16 @@ public:
         database_ = database;
         httpClient_ = httpClient;
 
-        std::cout << "[AI] Initializing AI module..." << std::endl;
-        std::cout << "  Provider: " << config.provider << std::endl;
-        std::cout << "  Model: " << config.model << std::endl;
-        std::cout << "  Base URL: " << config.baseUrl << std::endl;
+        spdlog::info("[AI] Initializing AI module...");
+        spdlog::info("  Provider: {}", config.provider);
+        spdlog::info("  Model: {}", config.model);
+        spdlog::info("  Base URL: {}", config.baseUrl);
 
         if (config.apiKey.empty()) {
-            std::cout << "[AI] WARNING: API key not configured, using mock responses" << std::endl;
+            spdlog::warn("[AI] API key not configured, using mock responses");
         }
 
-        std::cout << "[AI] Initialization complete" << std::endl;
+        spdlog::info("[AI] Initialization complete");
         return true;
     }
 
@@ -129,19 +128,30 @@ public:
             return *cached;
         }
 
-        // 如果没有API key，使用mock响应
+        // 如果没有API key，使用mock响应或返回错误
         if (config_.apiKey.empty()) {
-            std::string mockResponse = generateMockSummary(prompt);
-            cacheAiResult(cacheKey, mockResponse, 3600); // 缓存1小时
-            return mockResponse;
+            if (config_.allowMockFallback) {
+                spdlog::warn("[AI] API key not configured - returning MOCK data (not real AI output)");
+                std::string mockResponse = generateMockSummary(prompt);
+                cacheAiResult(cacheKey, mockResponse, 3600); // 缓存1小时
+                return mockResponse;
+            } else {
+                spdlog::error("[AI] API key not configured and mock fallback is disabled");
+                return R"({"success":false,"error":"AI service unavailable: API key not configured","mock":false})";
+            }
         }
 
-        // 如果没有HttpClient，使用mock响应
+        // 如果没有HttpClient，使用mock响应或返回错误
         if (!httpClient_) {
-            std::cout << "[AI] WARNING: HttpClient not available, using mock response" << std::endl;
-            std::string mockResponse = generateMockSummary(prompt);
-            cacheAiResult(cacheKey, mockResponse, 3600);
-            return mockResponse;
+            if (config_.allowMockFallback) {
+                spdlog::warn("[AI] HttpClient not available - returning MOCK data (not real AI output)");
+                std::string mockResponse = generateMockSummary(prompt);
+                cacheAiResult(cacheKey, mockResponse, 3600);
+                return mockResponse;
+            } else {
+                spdlog::error("[AI] HttpClient not available and mock fallback is disabled");
+                return R"({"success":false,"error":"AI service unavailable: HTTP client not initialized","mock":false})";
+            }
         }
 
         try {
@@ -177,17 +187,23 @@ public:
                 cacheAiResult(cacheKey, content, 3600);
                 return content;
             } else {
-                std::cout << "[AI] API request failed with status: " << response.statusCode << std::endl;
-                std::cout << "[AI] Response: " << response.body << std::endl;
+                spdlog::error("[AI] API request failed with status: {}", response.statusCode);
+                spdlog::error("[AI] Response: {}", response.body);
             }
         } catch (const std::exception& e) {
-            std::cout << "[AI] API request exception: " << e.what() << std::endl;
+            spdlog::error("[AI] API request exception: {}", e.what());
         }
 
-        // 降级到mock响应
-        std::string mockResponse = generateMockSummary(prompt);
-        cacheAiResult(cacheKey, mockResponse, 1800); // 缓存30分钟
-        return mockResponse;
+        // 降级到mock响应（API调用失败后）
+        if (config_.allowMockFallback) {
+            spdlog::warn("[AI] API call failed - falling back to MOCK data");
+            std::string mockResponse = generateMockSummary(prompt);
+            cacheAiResult(cacheKey, mockResponse, 1800); // 缓存30分钟
+            return mockResponse;
+        } else {
+            spdlog::error("[AI] API call failed and mock fallback is disabled");
+            return R"({"success":false,"error":"AI service unavailable: API call failed","mock":false})";
+        }
     }
 
     /**
@@ -335,7 +351,7 @@ AiConfig AiApiModule::getConfig() const {
 std::string AiApiModule::generatePaperSummary(const PaperSummaryRequest& request) {
     impl_->totalRequests_++;
 
-    std::cout << "[AI] Generating summary for paper " << request.paperId << std::endl;
+    spdlog::info("[AI] Generating summary for paper {}", request.paperId);
 
     // 从数据库获取论文
     auto paperData = impl_->fetchPaperFromDatabase(request.paperId);
@@ -412,7 +428,7 @@ std::vector<PaperSummaryResult> AiApiModule::generateBatchSummaries(
                 results.push_back(result);
             }
         } catch (const std::exception& e) {
-            std::cout << "[AI] Error processing paper " << paperId << ": " << e.what() << std::endl;
+            spdlog::error("[AI] Error processing paper {}: {}", paperId, e.what());
         }
     }
 
@@ -422,8 +438,8 @@ std::vector<PaperSummaryResult> AiApiModule::generateBatchSummaries(
 std::string AiApiModule::askQuestion(const QuestionRequest& request) {
     impl_->totalRequests_++;
 
-    std::cout << "[AI] Answering question for paper " << request.paperId << std::endl;
-    std::cout << "  Question: " << request.question << std::endl;
+    spdlog::info("[AI] Answering question for paper {}", request.paperId);
+    spdlog::info("  Question: {}", request.question);
 
     // 从数据库获取论文
     auto paperData = impl_->fetchPaperFromDatabase(request.paperId);
@@ -458,7 +474,7 @@ std::string AiApiModule::askQuestion(const QuestionRequest& request) {
 }
 
 std::vector<std::string> AiApiModule::extractKeywords(int paperId, int count) {
-    std::cout << "[AI] Extracting " << count << " keywords for paper " << paperId << std::endl;
+    spdlog::info("[AI] Extracting {} keywords for paper {}", count, paperId);
 
     // 从数据库获取论文
     auto paperData = impl_->fetchPaperFromDatabase(paperId);
@@ -492,7 +508,7 @@ std::vector<std::string> AiApiModule::extractKeywords(int paperId, int count) {
             return keywords;
         }
     } catch (const json::exception& e) {
-        std::cout << "[AI] Failed to parse keywords response: " << e.what() << std::endl;
+        spdlog::warn("[AI] Failed to parse keywords response: {}", e.what());
     }
 
     // 降级到基础关键词
@@ -500,7 +516,7 @@ std::vector<std::string> AiApiModule::extractKeywords(int paperId, int count) {
 }
 
 std::vector<std::string> AiApiModule::summarizeContributions(int paperId) {
-    std::cout << "[AI] Summarizing contributions for paper " << paperId << std::endl;
+    spdlog::info("[AI] Summarizing contributions for paper {}", paperId);
 
     // 从数据库获取论文
     auto paperData = impl_->fetchPaperFromDatabase(paperId);
@@ -534,7 +550,7 @@ std::vector<std::string> AiApiModule::summarizeContributions(int paperId) {
             return contributions;
         }
     } catch (const json::exception& e) {
-        std::cout << "[AI] Failed to parse contributions response: " << e.what() << std::endl;
+        spdlog::warn("[AI] Failed to parse contributions response: {}", e.what());
     }
 
     // 降级到基础贡献
@@ -546,7 +562,7 @@ std::vector<std::string> AiApiModule::summarizeContributions(int paperId) {
 }
 
 std::string AiApiModule::comparePapers(const std::vector<int>& paperIds) {
-    std::cout << "[AI] Comparing " << paperIds.size() << " papers" << std::endl;
+    spdlog::info("[AI] Comparing {} papers", paperIds.size());
 
     if (paperIds.size() < 2) {
         return json{{"success", false}, {"error", "At least 2 papers required for comparison"}}.dump();
@@ -592,7 +608,7 @@ std::string AiApiModule::comparePapers(const std::vector<int>& paperIds) {
         jsonResponse["paperIds"] = paperIds;
         return jsonResponse.dump();
     } catch (const json::exception& e) {
-        std::cout << "[AI] Failed to parse comparison response: " << e.what() << std::endl;
+        spdlog::warn("[AI] Failed to parse comparison response: {}", e.what());
     }
 
     // 降级到基础比较
@@ -720,7 +736,7 @@ PaperSummaryResult AiApiModule::parseSummaryResponse(
             }
         }
     } catch (const json::exception& e) {
-        std::cout << "[AI] Failed to parse summary response: " << e.what() << std::endl;
+        spdlog::warn("[AI] Failed to parse summary response: {}", e.what());
         // 降级到默认值
         result.summary = aiResponse;
         result.keywords = {"keyword1", "keyword2", "keyword3"};
@@ -963,10 +979,16 @@ void AiApiModule::registerRoutes() {
 
             json result;
             result["success"] = true;
-            result["status"] = "available";
+
+            bool apiKeyConfigured = !impl_->config_.apiKey.empty();
+            bool mockMode = !apiKeyConfigured && impl_->config_.allowMockFallback;
+
+            result["status"] = apiKeyConfigured ? "available" : (impl_->config_.allowMockFallback ? "mock" : "unavailable");
             result["provider"] = impl_->config_.provider;
             result["model"] = impl_->config_.model;
-            result["api_key_configured"] = !impl_->config_.apiKey.empty();
+            result["api_key_configured"] = apiKeyConfigured;
+            result["mock_mode"] = mockMode;
+            result["allow_mock_fallback"] = impl_->config_.allowMockFallback;
             result["stats"] = stats;
 
             response.statusCode = 200;
