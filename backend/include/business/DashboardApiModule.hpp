@@ -6,8 +6,19 @@
 #include <memory>
 #include <map>
 #include <vector>
+#include <mutex>
 
 namespace PaperCrawler {
+
+/**
+ * @brief 待办事项数据结构（内存存储）
+ */
+struct DashboardTodoItem {
+    std::string id;
+    std::string title;
+    std::string status;    // "pending" | "completed"
+    std::string createdAt;
+};
 
 class DashboardApiModule : public BusinessModuleBase {
 public:
@@ -24,6 +35,12 @@ public:
 private:
     void registerRoutes() override;
     std::shared_ptr<IDatabase> database_;
+
+    // 内存存储
+    std::vector<DashboardTodoItem> todos_;
+    std::string configJson_;
+    mutable std::mutex storageMutex_;
+    int nextTodoId_ = 1;
 
     // 端点处理
     std::string handleStats();
@@ -43,6 +60,7 @@ private:
     // 辅助
     std::string getQueryParam(const HttpRequest& req, const std::string& key, const std::string& defaultVal) const;
     HttpResponse makeJsonResponse(int status, const std::string& body) const;
+    std::string escapeJson(const std::string& input) const;
 };
 
 } // namespace PaperCrawler

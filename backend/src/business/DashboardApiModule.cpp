@@ -26,6 +26,21 @@ DashboardApiModule::DashboardApiModule()
 DashboardApiModule::DashboardApiModule(std::shared_ptr<IDatabase> database)
     : database_(database) {
     spdlog::info("[DashboardApi] Constructor with database={}", database_ ? "yes" : "no");
+
+    // 初始化默认配置
+    configJson_ = R"({"widgets":[{"id":"stats","type":"stats","visible":true,"position":{"row":0,"col":0}},{"id":"activities","type":"activities","visible":true,"position":{"row":0,"col":1}},{"id":"recommendations","type":"recommendations","visible":true,"position":{"row":1,"col":0}},{"id":"trending","type":"trending","visible":true,"position":{"row":1,"col":1}},{"id":"growth","type":"growth","visible":true,"position":{"row":2,"col":0}},{"id":"distribution","type":"distribution","visible":true,"position":{"row":2,"col":1}}],"layoutMode":"grid","refreshInterval":300})";
+
+    // 初始化种子待办事项
+    auto now = std::chrono::system_clock::now();
+    auto time_t_now = std::chrono::system_clock::to_time_t(now);
+    std::ostringstream ts;
+    ts << std::put_time(std::localtime(&time_t_now), "%Y-%m-%dT%H:%M:%S");
+    std::string timestamp = ts.str();
+
+    todos_.push_back({"1", "Review new papers from last week", "pending", timestamp});
+    todos_.push_back({"2", "Update crawler templates for IEEE Xplore", "pending", timestamp});
+    todos_.push_back({"3", "Export reading list to BibTeX", "completed", timestamp});
+    nextTodoId_ = 4;
 }
 
 DashboardApiModule::~DashboardApiModule() {
@@ -419,7 +434,53 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
 // ============================================================================
 
 std::string DashboardApiModule::handleTodos() {
-    return "[]";
+    // 优先从数据库加载
+    if (database_) {
+        try {
+            auto results = database_->query(
+                "SELECT id, title, status, created_at as createdAt "
+                "FROM dashboard_todos ORDER BY created_at DESC");
+            if (!results.empty()) {
+                std::ostringstream json;
+                json << "[";
+                bool first = true;
+                for (auto& row : results) {
+                    if (!first) json << ",";
+                    std::string title = row.count("title") ? row["title"] : "";
+                    std::string status = row.count("status") ? row["status"] : "pending";
+                    std::string id = row.count("id") ? row["id"] : "0";
+                    std::string createdAt = row.count("createdAt") ? row["createdAt"] : "";
+                    json << "{";
+                    json << "\"id\":\"" << id << "\",";
+                    json << "\"title\":\"" << escapeJson(title) << "\",";
+                    json << "\"status\":\"" << status << "\",";
+                    json << "\"createdAt\":\"" << createdAt << "\"";
+                    json << "}";
+                    first = false;
+                }
+                json << "]";
+                return json.str();
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[DashboardApi] Todos DB query failed, using in-memory: {}", e.what());
+        }
+    }
+
+    // 回退到内存存储
+    std::lock_guard<std::mutex> lock(storageMutex_);
+    std::ostringstream json;
+    json << "[";
+    for (size_t i = 0; i < todos_.size(); ++i) {
+        if (i > 0) json << ",";
+        json << "{";
+        json << "\"id\":\"" << todos_[i].id << "\",";
+        json << "\"title\":\"" << escapeJson(todos_[i].title) << "\",";
+        json << "\"status\":\"" << todos_[i].status << "\",";
+        json << "\"createdAt\":\"" << todos_[i].createdAt << "\"";
+        json << "}";
+    }
+    json << "]";
+    return json.str();
 }
 
 // ============================================================================
@@ -427,7 +488,48 @@ std::string DashboardApiModule::handleTodos() {
 // ============================================================================
 
 std::string DashboardApiModule::handleUpdateTodoStatus(const std::string& id, const std::string& body) {
-    return "{\"success\":true}";
+    // 解析请求体中的 status 字段
+    std::string newStatus;
+    size_t pos = body.find("\"status\"");
+    if (pos != std::string::npos) {
+        size_t colonPos = body.find(':', pos);
+        if (colonPos != std::string::npos) {
+            size_t startQuote = body.find('"', colonPos + 1);
+            if (startQuote != std::string::npos) {
+                size_t endQuote = body.find('"', startQuote + 1);
+                if (endQuote != std::string::npos) {
+                    newStatus = body.substr(startQuote + 1, endQuote - startQuote - 1);
+                }
+            }
+        }
+    }
+
+    if (newStatus.empty()) {
+        return "{\"success\":false,\"message\":\"Missing 'status' field in request body\"}";
+    }
+
+    // 优先更新数据库
+    if (database_) {
+        try {
+            auto results = database_->query(
+                "UPDATE dashboard_todos SET status = '" + newStatus +
+                "' WHERE id = " + id);
+            return "{\"success\":true,\"id\":\"" + id + "\",\"status\":\"" + newStatus + "\"}";
+        } catch (const std::exception& e) {
+            spdlog::warn("[DashboardApi] Todo status DB update failed, using in-memory: {}", e.what());
+        }
+    }
+
+    // 回退到内存存储
+    std::lock_guard<std::mutex> lock(storageMutex_);
+    for (auto& todo : todos_) {
+        if (todo.id == id) {
+            todo.status = newStatus;
+            return "{\"success\":true,\"id\":\"" + id + "\",\"status\":\"" + newStatus + "\"}";
+        }
+    }
+
+    return "{\"success\":false,\"message\":\"Todo item not found\"}";
 }
 
 // ============================================================================
@@ -637,7 +739,22 @@ std::string DashboardApiModule::handleRefresh() {
 // ============================================================================
 
 std::string DashboardApiModule::handleGetConfig() {
-    return R"({"widgets":[{"id":"stats","type":"stats","visible":true,"position":{"row":0,"col":0}},{"id":"activities","type":"activities","visible":true,"position":{"row":0,"col":1}},{"id":"recommendations","type":"recommendations","visible":true,"position":{"row":1,"col":0}},{"id":"trending","type":"trending","visible":true,"position":{"row":1,"col":1}},{"id":"growth","type":"growth","visible":true,"position":{"row":2,"col":0}},{"id":"distribution","type":"distribution","visible":true,"position":{"row":2,"col":1}}],"layoutMode":"grid","refreshInterval":300})";
+    // 优先从数据库加载
+    if (database_) {
+        try {
+            auto results = database_->query(
+                "SELECT config_value as config FROM dashboard_config WHERE config_key = 'layout'");
+            if (!results.empty() && results[0].count("config")) {
+                return results[0].at("config");
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[DashboardApi] Config DB query failed, using in-memory: {}", e.what());
+        }
+    }
+
+    // 回退到内存存储
+    std::lock_guard<std::mutex> lock(storageMutex_);
+    return configJson_;
 }
 
 // ============================================================================
@@ -645,7 +762,57 @@ std::string DashboardApiModule::handleGetConfig() {
 // ============================================================================
 
 std::string DashboardApiModule::handleUpdateConfig(const std::string& body) {
+    if (body.empty()) {
+        return "{\"success\":false,\"message\":\"Empty request body\"}";
+    }
+
+    // 尝试解析JSON验证格式
+    bool validJson = (body.front() == '{' && body.back() == '}');
+    if (!validJson) {
+        return "{\"success\":false,\"message\":\"Invalid JSON format\"}";
+    }
+
+    // 优先持久化到数据库
+    if (database_) {
+        try {
+            database_->execute(
+                "INSERT INTO dashboard_config (config_key, config_value, updated_at) "
+                "VALUES ('layout', '" + body + "', NOW()) "
+                "ON DUPLICATE KEY UPDATE config_value = '" + body + "', updated_at = NOW()");
+            spdlog::info("[DashboardApi] Config saved to database");
+        } catch (const std::exception& e) {
+            spdlog::warn("[DashboardApi] Config DB save failed, using in-memory: {}", e.what());
+        }
+    }
+
+    // 始终更新内存存储
+    {
+        std::lock_guard<std::mutex> lock(storageMutex_);
+        configJson_ = body;
+    }
+
+    spdlog::info("[DashboardApi] Config updated");
     return "{\"success\":true}";
+}
+
+// ============================================================================
+// 辅助方法：JSON字符串转义
+// ============================================================================
+
+std::string DashboardApiModule::escapeJson(const std::string& input) const {
+    std::string output;
+    output.reserve(input.size());
+    for (char c : input) {
+        switch (c) {
+            case '"':  output += "\\\""; break;
+            case '\\': output += "\\\\"; break;
+            case '\n': output += "\\n";  break;
+            case '\r': output += "\\r";  break;
+            case '\t': output += "\\t";  break;
+            default:   output += c;      break;
+        }
+    }
+    return output;
 }
 
 } // namespace PaperCrawler

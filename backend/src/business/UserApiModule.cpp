@@ -582,8 +582,11 @@ bool UserApiModule::suspendUser(int id) {
 }
 
 bool UserApiModule::changePassword(int id, const PasswordChangeRequest& request) {
-    // 使用数据库修改密码（替代原来的内存map操作）
-    // TODO: 应该验证旧密码，这里简化处理
+    // 验证旧密码
+    if (!verifyPassword(id, request.oldPassword)) {
+        spdlog::warn("[UserApi] Password change failed: old password incorrect for user {}", id);
+        return false;
+    }
     bool success = impl_->changePasswordInDatabase(id, request.newPassword);
     if (success) {
         spdlog::info("[UserApi] Password changed for user ID: {}", id);
