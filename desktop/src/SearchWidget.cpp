@@ -181,6 +181,10 @@ void SearchWidget::setPlaceholder(const QString& text) {
     keywordEdit_->setPlaceholderText(text);
 }
 
+void SearchWidget::setText(const QString& text) {
+    keywordEdit_->setText(text);
+}
+
 void SearchWidget::setFocus() {
     keywordEdit_->setFocus();
 }

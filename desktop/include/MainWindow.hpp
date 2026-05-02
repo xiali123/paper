@@ -88,6 +88,18 @@ private:
     void saveSettings();
     void initializeAuthentication();
     void refreshFavoritesTab();
+    void populateRecommendations(const QJsonObject& data);
+    void populateAdminDashboard(const QJsonObject& data);
+    void populateAdminUsers(const QJsonObject& data);
+    void populateAdminModules(const QJsonObject& data);
+    void populateAdminMonitor(const QJsonObject& data);
+    void populatePerformanceMetrics(const QJsonObject& data);
+    void showLoginHistory(const QJsonObject& data);
+    void populateCrawlerSchedules(const QJsonObject& data);
+    void populateCrawlerTemplates(const QJsonObject& data);
+    void populateSavedSearches(const QJsonObject& data);
+    void populateTrendingSearches(const QJsonObject& data);
+    void showStatsDialog(const QString& title, const QJsonObject& data);
 
     // UI Components
     QTabWidget* tabWidget_{nullptr};

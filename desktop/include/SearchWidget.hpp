@@ -18,6 +18,7 @@ public:
     explicit SearchWidget(QWidget* parent = nullptr);
     QString getKeyword() const { return keywordEdit_->text(); }
     void setPlaceholder(const QString& text);
+    void setText(const QString& text);
     void setFocus();
     void setSearchHistory(SearchHistory* history);
 

@@ -26,6 +26,8 @@
 
 #include <QMenuBar>
 #include <QShortcut>
+#include <QComboBox>
+#include <QLineEdit>
 #include <QTextEdit>
 #include <QTableWidget>
 #include <QToolBar>
@@ -44,6 +46,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QDebug>
+#include <functional>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent) {
@@ -108,8 +111,8 @@ MainWindow::MainWindow(QWidget* parent)
     auto* settingsShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma), this);
     connect(settingsShortcut, &QShortcut::activated, this, &MainWindow::onPreferences);
 
-    // Tab switch shortcuts Ctrl+1..5
-    for (int i = 1; i <= 5; ++i) {
+    // Tab switch shortcuts Ctrl+1..7
+    for (int i = 1; i <= 7; ++i) {
         auto* sc = new QShortcut(QKeySequence(Qt::CTRL | (Qt::Key_1 + i - 1)), this);
         connect(sc, &QShortcut::activated, this, [this, i]() {
             if (tabWidget_ && i < tabWidget_->count()) tabWidget_->setCurrentIndex(i);
@@ -275,6 +278,182 @@ void MainWindow::setupUI() {
         recentLayout->addWidget(recentGrid);
 
         searchLayout->addWidget(recentSection);
+    }
+
+    // Add paper button
+    {
+        auto* addPaperBar = new QHBoxLayout();
+        addPaperBar->addStretch();
+        auto* addPaperBtn = new QPushButton("+ Add Paper");
+        addPaperBtn->setObjectName("addPaperBtn");
+        addPaperBtn->setStyleSheet(
+            "QPushButton { background: #059669; color: white; border: none; border-radius: 8px; "
+            "padding: 8px 20px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #047857; }"
+        );
+        connect(addPaperBtn, &QPushButton::clicked, this, [this]() {
+            QDialog dlg(this);
+            dlg.setWindowTitle("Add New Paper");
+            dlg.setMinimumWidth(500);
+            auto* form = new QVBoxLayout(&dlg);
+
+            auto* titleEdit = new QLineEdit();
+            titleEdit->setPlaceholderText("Title *");
+            titleEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(titleEdit);
+
+            auto* authorsEdit = new QLineEdit();
+            authorsEdit->setPlaceholderText("Authors (comma-separated)");
+            authorsEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(authorsEdit);
+
+            auto* journalEdit = new QLineEdit();
+            journalEdit->setPlaceholderText("Journal");
+            journalEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(journalEdit);
+
+            auto* yearEdit = new QLineEdit();
+            yearEdit->setPlaceholderText("Year");
+            yearEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(yearEdit);
+
+            auto* levelCombo = new QComboBox();
+            levelCombo->addItems({"", "A", "B", "C"});
+            levelCombo->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(levelCombo);
+
+            auto* doiEdit = new QLineEdit();
+            doiEdit->setPlaceholderText("DOI URL");
+            doiEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(doiEdit);
+
+            auto* abstractEdit = new QTextEdit();
+            abstractEdit->setPlaceholderText("Abstract");
+            abstractEdit->setMaximumHeight(100);
+            abstractEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(abstractEdit);
+
+            auto* btnRow = new QHBoxLayout();
+            auto* submitBtn = new QPushButton("Submit");
+            submitBtn->setStyleSheet(
+                "QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; "
+                "padding: 8px 24px; font-weight: bold; }"
+            );
+            auto* cancelBtn = new QPushButton("Cancel");
+            cancelBtn->setStyleSheet(
+                "QPushButton { background: palette(button); color: palette(button-text); "
+                "border: 1px solid palette(mid); border-radius: 6px; padding: 8px 24px; }"
+            );
+            btnRow->addStretch();
+            btnRow->addWidget(cancelBtn);
+            btnRow->addWidget(submitBtn);
+            form->addLayout(btnRow);
+
+            connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+            connect(submitBtn, &QPushButton::clicked, this, [this, &dlg, titleEdit, authorsEdit,
+                                                             journalEdit, yearEdit, levelCombo,
+                                                             doiEdit, abstractEdit]() {
+                if (titleEdit->text().trimmed().isEmpty()) {
+                    titleEdit->setStyleSheet("padding: 8px; border: 2px solid #dc2626; border-radius: 6px;");
+                    return;
+                }
+                QJsonObject data;
+                data["title"] = titleEdit->text().trimmed();
+                data["authors"] = authorsEdit->text().trimmed();
+                data["journal"] = journalEdit->text().trimmed();
+                data["year"] = yearEdit->text().trimmed();
+                data["level"] = levelCombo->currentText();
+                data["doi_url"] = doiEdit->text().trimmed();
+                data["abstract"] = abstractEdit->toPlainText().trimmed();
+                apiManager_->createPaper(data);
+                statusBar()->showMessage("Paper created successfully", 5000);
+                dlg.accept();
+            });
+
+            dlg.exec();
+        });
+        addPaperBar->addWidget(addPaperBtn);
+        searchLayout->addLayout(addPaperBar);
+    }
+
+    // Advanced search section (saved searches + trending)
+    {
+        auto* advSection = new QWidget();
+        advSection->setObjectName("advancedSearchSection");
+        auto* advLayout = new QVBoxLayout(advSection);
+        advLayout->setContentsMargins(24, 8, 24, 8);
+        advLayout->setSpacing(8);
+
+        // Saved searches row
+        auto* savedRow = new QHBoxLayout();
+        auto* savedLabel = new QLabel("Saved Searches:");
+        savedLabel->setStyleSheet("font-weight: bold; color: palette(mid); font-size: 12px;");
+        savedRow->addWidget(savedLabel);
+
+        auto* savedList = new QWidget();
+        savedList->setObjectName("savedSearchesList");
+        auto* savedListLayout = new QHBoxLayout(savedList);
+        savedListLayout->setContentsMargins(0, 0, 0, 0);
+        savedListLayout->setSpacing(6);
+        savedListLayout->addStretch();
+        savedRow->addWidget(savedList, 1);
+
+        auto* saveSearchBtn = new QPushButton("Save Current");
+        saveSearchBtn->setObjectName("saveSearchBtn");
+        saveSearchBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; "
+            "padding: 4px 12px; font-size: 11px; font-weight: bold; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        connect(saveSearchBtn, &QPushButton::clicked, this, [this]() {
+            if (currentKeyword_.isEmpty()) {
+                statusBar()->showMessage("Search first before saving", 3000);
+                return;
+            }
+            QJsonObject data;
+            data["query"] = currentKeyword_;
+            data["name"] = currentKeyword_.left(30);
+            apiManager_->saveSearch(data);
+            statusBar()->showMessage("Search saved: " + currentKeyword_, 3000);
+        });
+        savedRow->addWidget(saveSearchBtn);
+
+        auto* loadSavedBtn = new QPushButton("Load");
+        loadSavedBtn->setStyleSheet(
+            "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+            "border-radius: 6px; padding: 4px 12px; font-size: 11px; }"
+            "QPushButton:hover { background: palette(light); }"
+        );
+        connect(loadSavedBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getSavedSearches();
+        });
+        savedRow->addWidget(loadSavedBtn);
+
+        advLayout->addLayout(savedRow);
+
+        // Trending searches row
+        auto* trendingRow = new QHBoxLayout();
+        auto* trendingLabel = new QLabel("Trending:");
+        trendingLabel->setStyleSheet("font-weight: bold; color: palette(mid); font-size: 12px;");
+        trendingRow->addWidget(trendingLabel);
+
+        auto* trendingList = new QWidget();
+        trendingList->setObjectName("trendingSearchesList");
+        auto* trendingListLayout = new QHBoxLayout(trendingList);
+        trendingListLayout->setContentsMargins(0, 0, 0, 0);
+        trendingListLayout->setSpacing(6);
+        trendingListLayout->addStretch();
+        trendingRow->addWidget(trendingList, 1);
+
+        auto* refreshTrendingBtn = new QPushButton("Refresh");
+        refreshTrendingBtn->setStyleSheet(loadSavedBtn->styleSheet());
+        connect(refreshTrendingBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getTrendingSearches();
+        });
+        trendingRow->addWidget(refreshTrendingBtn);
+
+        advLayout->addLayout(trendingRow);
+        searchLayout->addWidget(advSection);
     }
 
     searchLayout->addStretch();
@@ -493,6 +672,178 @@ void MainWindow::setupUI() {
         taskTable->setAlternatingRowColors(true);
         layout->addWidget(taskTable, 1);
 
+        // Templates section
+        auto* tmplHeader = new QLabel("Templates");
+        tmplHeader->setStyleSheet("font-size: 14px; font-weight: bold; color: palette(text); margin-top: 8px;");
+        layout->addWidget(tmplHeader);
+
+        auto* tmplRow = new QHBoxLayout();
+        auto* tmplTable = new QTableWidget(0, 4);
+        tmplTable->setObjectName("crawlerTemplatesTable");
+        tmplTable->setHorizontalHeaderLabels({"Name", "Source", "Pattern", "Actions"});
+        tmplTable->horizontalHeader()->setStretchLastSection(true);
+        tmplTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        tmplTable->setAlternatingRowColors(true);
+        tmplTable->setMaximumHeight(150);
+        tmplTable->setStyleSheet(
+            "QTableWidget { background: palette(base); border: 1px solid palette(mid); border-radius: 8px; }"
+            "QHeaderView::section { background: palette(window); color: palette(text); "
+            "font-weight: bold; padding: 4px; border: none; }"
+            "QTableWidget::item { padding: 2px; color: palette(text); }"
+        );
+
+        auto* newTmplBtn = new QPushButton("+ Template");
+        newTmplBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; "
+            "padding: 6px 14px; font-weight: bold; font-size: 11px; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        connect(newTmplBtn, &QPushButton::clicked, this, [this]() {
+            QDialog dlg(this);
+            dlg.setWindowTitle("New Crawler Template");
+            dlg.setMinimumWidth(400);
+            auto* form = new QVBoxLayout(&dlg);
+            auto* nameEdit = new QLineEdit();
+            nameEdit->setPlaceholderText("Template name");
+            nameEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(nameEdit);
+            auto* sourceCombo = new QComboBox();
+            sourceCombo->addItems({"ieee", "acm", "springer", "arxiv", "elsevier", "custom"});
+            sourceCombo->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(sourceCombo);
+            auto* urlPatternEdit = new QLineEdit();
+            urlPatternEdit->setPlaceholderText("URL pattern");
+            urlPatternEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(urlPatternEdit);
+            auto* btnRow = new QHBoxLayout();
+            auto* okBtn = new QPushButton("Create");
+            okBtn->setStyleSheet("QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; padding: 6px 20px; font-weight: bold; }");
+            auto* cancelBtn = new QPushButton("Cancel");
+            cancelBtn->setStyleSheet("QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); border-radius: 6px; padding: 6px 20px; }");
+            connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+            connect(okBtn, &QPushButton::clicked, this, [this, &dlg, nameEdit, sourceCombo, urlPatternEdit]() {
+                QJsonObject data;
+                data["name"] = nameEdit->text().trimmed();
+                data["source"] = sourceCombo->currentText();
+                data["url_pattern"] = urlPatternEdit->text().trimmed();
+                apiManager_->createCrawlerTemplate(data);
+                dlg.accept();
+                statusBar()->showMessage("Template created", 3000);
+                QTimer::singleShot(500, this, [this]() { apiManager_->getCrawlerTemplates(); });
+            });
+            btnRow->addStretch();
+            btnRow->addWidget(cancelBtn);
+            btnRow->addWidget(okBtn);
+            form->addLayout(btnRow);
+            dlg.exec();
+        });
+
+        auto* refreshTmplBtn = new QPushButton("Refresh");
+        refreshTmplBtn->setStyleSheet(
+            "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+            "border-radius: 6px; padding: 6px 14px; font-size: 11px; }"
+            "QPushButton:hover { background: palette(light); }"
+        );
+        connect(refreshTmplBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getCrawlerTemplates();
+        });
+
+        tmplRow->addWidget(tmplTable, 1);
+        tmplRow->addWidget(newTmplBtn);
+        tmplRow->addWidget(refreshTmplBtn);
+        layout->addLayout(tmplRow);
+
+        // Schedules section
+        auto* schedHeader = new QLabel("Schedules");
+        schedHeader->setStyleSheet("font-size: 14px; font-weight: bold; color: palette(text); margin-top: 4px;");
+        layout->addWidget(schedHeader);
+
+        auto* schedRow = new QHBoxLayout();
+        auto* schedTable = new QTableWidget(0, 4);
+        schedTable->setObjectName("crawlerSchedulesTable");
+        schedTable->setHorizontalHeaderLabels({"ID", "Cron", "Template", "Actions"});
+        schedTable->horizontalHeader()->setStretchLastSection(true);
+        schedTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        schedTable->setAlternatingRowColors(true);
+        schedTable->setMaximumHeight(120);
+        schedTable->setStyleSheet(tmplTable->styleSheet());
+
+        auto* newSchedBtn = new QPushButton("+ Schedule");
+        newSchedBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; "
+            "padding: 6px 14px; font-weight: bold; font-size: 11px; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        connect(newSchedBtn, &QPushButton::clicked, this, [this]() {
+            QDialog dlg(this);
+            dlg.setWindowTitle("New Crawler Schedule");
+            auto* form = new QVBoxLayout(&dlg);
+            auto* cronEdit = new QLineEdit();
+            cronEdit->setPlaceholderText("Cron expression (e.g. 0 */6 * * *)");
+            cronEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(cronEdit);
+            auto* tmplIdEdit = new QLineEdit();
+            tmplIdEdit->setPlaceholderText("Template ID");
+            tmplIdEdit->setStyleSheet("padding: 8px; border: 1px solid palette(mid); border-radius: 6px;");
+            form->addWidget(tmplIdEdit);
+            auto* btnRow = new QHBoxLayout();
+            auto* okBtn = new QPushButton("Create");
+            okBtn->setStyleSheet("QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; padding: 6px 20px; font-weight: bold; }");
+            auto* cancelBtn = new QPushButton("Cancel");
+            cancelBtn->setStyleSheet("QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); border-radius: 6px; padding: 6px 20px; }");
+            connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+            connect(okBtn, &QPushButton::clicked, this, [this, &dlg, cronEdit, tmplIdEdit]() {
+                QJsonObject data;
+                data["cron"] = cronEdit->text().trimmed();
+                data["template_id"] = tmplIdEdit->text().toInt();
+                apiManager_->createCrawlerSchedule(data);
+                dlg.accept();
+                statusBar()->showMessage("Schedule created", 3000);
+                QTimer::singleShot(500, this, [this]() { apiManager_->getCrawlerSchedules(); });
+            });
+            btnRow->addStretch();
+            btnRow->addWidget(cancelBtn);
+            btnRow->addWidget(okBtn);
+            form->addLayout(btnRow);
+            dlg.exec();
+        });
+
+        auto* refreshSchedBtn = new QPushButton("Refresh");
+        refreshSchedBtn->setStyleSheet(refreshTmplBtn->styleSheet());
+        connect(refreshSchedBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getCrawlerSchedules();
+        });
+
+        schedRow->addWidget(schedTable, 1);
+        schedRow->addWidget(newSchedBtn);
+        schedRow->addWidget(refreshSchedBtn);
+        layout->addLayout(schedRow);
+
+        // Connect templates & schedules responses
+        connect(apiManager_, &ApiManager::crawlerTemplatesSuccess, this,
+            [tmplTable](const QJsonArray& templates) {
+                tmplTable->setRowCount(templates.size());
+                for (int i = 0; i < templates.size(); ++i) {
+                    auto t = templates[i].toObject();
+                    tmplTable->setItem(i, 0, new QTableWidgetItem(t["name"].toString()));
+                    tmplTable->setItem(i, 1, new QTableWidgetItem(t["source"].toString()));
+                    tmplTable->setItem(i, 2, new QTableWidgetItem(t["url_pattern"].toString().left(40)));
+
+                    auto* actions = new QWidget();
+                    auto* al = new QHBoxLayout(actions);
+                    al->setContentsMargins(4, 2, 4, 2);
+                    al->setSpacing(4);
+                    int tid = t["id"].toInt();
+
+                    auto* testBtn = new QPushButton("Test");
+                    testBtn->setStyleSheet("QPushButton { background: #0891b2; color: white; border: none; border-radius: 3px; padding: 2px 8px; font-size: 10px; }");
+                    // testBtn would need ApiManager reference - skip for inline, use signal
+                    al->addWidget(testBtn);
+                    al->addStretch();
+                    tmplTable->setCellWidget(i, 3, actions);
+                }
+            });
+
         connect(apiManager_, &ApiManager::crawlerTasksSuccess, this,
             [this, taskTable](const QJsonArray& tasks) {
                 taskTable->setRowCount(tasks.size());
@@ -666,6 +1017,101 @@ void MainWindow::setupUI() {
         });
         headerRow->addWidget(exportChatBtn);
 
+        // AI Advanced buttons
+        auto* summarizeBtn = new QPushButton("Summarize");
+        summarizeBtn->setStyleSheet(
+            "QPushButton { background: #0891b2; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #0e7490; }"
+        );
+        connect(summarizeBtn, &QPushButton::clicked, this, [this, page]() {
+            auto* chatDisplay = page->findChild<QTextEdit*>("aiChatDisplay");
+            if (!chatDisplay || !resultView_ || resultView_->paperCount() == 0) {
+                if (chatDisplay) chatDisplay->append("<i>Search for papers first.</i>");
+                return;
+            }
+            auto papers = resultView_->getPapers();
+            QJsonArray paperArray;
+            for (int i = 0; i < qMin(5, papers.size()); ++i) {
+                QJsonObject p;
+                p["id"] = papers[i].id;
+                p["title"] = papers[i].title;
+                paperArray.append(p);
+            }
+            QJsonObject data;
+            data["papers"] = paperArray;
+            apiManager_->aiSummarize(data);
+            chatDisplay->append("<b>You:</b> Summarize the current search results");
+        });
+        headerRow->addWidget(summarizeBtn);
+
+        auto* compareBtn = new QPushButton("Compare");
+        compareBtn->setStyleSheet(
+            "QPushButton { background: #d97706; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #b45309; }"
+        );
+        connect(compareBtn, &QPushButton::clicked, this, [this, page]() {
+            auto* chatDisplay = page->findChild<QTextEdit*>("aiChatDisplay");
+            if (!chatDisplay || !resultView_ || resultView_->paperCount() < 2) {
+                if (chatDisplay) chatDisplay->append("<i>Need at least 2 papers to compare.</i>");
+                return;
+            }
+            auto papers = resultView_->getPapers();
+            QJsonObject data;
+            data["paper1_id"] = papers[0].id;
+            data["paper2_id"] = papers[1].id;
+            data["paper1_title"] = papers[0].title;
+            data["paper2_title"] = papers[1].title;
+            apiManager_->aiCompare(data);
+            chatDisplay->append("<b>You:</b> Compare the top 2 papers");
+        });
+        headerRow->addWidget(compareBtn);
+
+        auto* keywordsBtn = new QPushButton("Keywords");
+        keywordsBtn->setStyleSheet(
+            "QPushButton { background: #059669; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #047857; }"
+        );
+        connect(keywordsBtn, &QPushButton::clicked, this, [this, page]() {
+            auto* chatDisplay = page->findChild<QTextEdit*>("aiChatDisplay");
+            if (!chatDisplay || !resultView_ || resultView_->paperCount() == 0) {
+                if (chatDisplay) chatDisplay->append("<i>Search for papers first.</i>");
+                return;
+            }
+            auto papers = resultView_->getPapers();
+            QJsonObject data;
+            data["paper_id"] = papers[0].id;
+            data["title"] = papers[0].title;
+            data["abstract"] = papers[0].abstract;
+            apiManager_->aiKeywords(data);
+            chatDisplay->append("<b>You:</b> Extract keywords from top paper");
+        });
+        headerRow->addWidget(keywordsBtn);
+
+        auto* contributionsBtn = new QPushButton("Contributions");
+        contributionsBtn->setStyleSheet(
+            "QPushButton { background: #7c3aed; color: white; border: none; "
+            "border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #6d28d9; }"
+        );
+        connect(contributionsBtn, &QPushButton::clicked, this, [this, page]() {
+            auto* chatDisplay = page->findChild<QTextEdit*>("aiChatDisplay");
+            if (!chatDisplay || !resultView_ || resultView_->paperCount() == 0) {
+                if (chatDisplay) chatDisplay->append("<i>Search for papers first.</i>");
+                return;
+            }
+            auto papers = resultView_->getPapers();
+            QJsonObject data;
+            data["paper_id"] = papers[0].id;
+            data["title"] = papers[0].title;
+            data["abstract"] = papers[0].abstract;
+            apiManager_->aiContributions(data);
+            chatDisplay->append("<b>You:</b> Analyze contributions of top paper");
+        });
+        headerRow->addWidget(contributionsBtn);
+
         // Clear chat button
         auto* clearChatBtn = new QPushButton("Clear");
         clearChatBtn->setStyleSheet(
@@ -833,6 +1279,41 @@ void MainWindow::setupUI() {
         journalTable->setAlternatingRowColors(true);
         layout->addWidget(journalTable, 1);
 
+        // Detailed stats buttons
+        auto* detailStatsBar = new QHBoxLayout();
+        auto* sysStatsBtn = new QPushButton("System Stats");
+        sysStatsBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; "
+            "padding: 6px 14px; font-weight: bold; font-size: 11px; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        connect(sysStatsBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getSystemStats();
+        });
+        auto* resStatsBtn = new QPushButton("Resource Stats");
+        resStatsBtn->setStyleSheet(
+            "QPushButton { background: #0891b2; color: white; border: none; border-radius: 6px; "
+            "padding: 6px 14px; font-weight: bold; font-size: 11px; }"
+            "QPushButton:hover { background: #0e7490; }"
+        );
+        connect(resStatsBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getResourceStats();
+        });
+        auto* perfStatsBtn = new QPushButton("Performance Stats");
+        perfStatsBtn->setStyleSheet(
+            "QPushButton { background: #059669; color: white; border: none; border-radius: 6px; "
+            "padding: 6px 14px; font-weight: bold; font-size: 11px; }"
+            "QPushButton:hover { background: #047857; }"
+        );
+        connect(perfStatsBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getPerformanceStats();
+        });
+        detailStatsBar->addWidget(sysStatsBtn);
+        detailStatsBar->addWidget(resStatsBtn);
+        detailStatsBar->addWidget(perfStatsBtn);
+        detailStatsBar->addStretch();
+        layout->addLayout(detailStatsBar);
+
         connect(apiManager_, &ApiManager::statsSuccess, this,
             [page](const QJsonObject& stats) {
                 // Summary cards
@@ -880,6 +1361,212 @@ void MainWindow::setupUI() {
 
         tabWidget_->addTab(page, "\xf0\x9f\x93\x8a Statistics");
     }
+
+    // === Tab 6: Recommendations ===
+    {
+        auto* page = new QWidget();
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(20, 16, 20, 16);
+        layout->setSpacing(16);
+
+        // Header
+        auto* header = new QLabel("\xf0\x9f\x92\xa1 Recommendations");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: palette(text);");
+        layout->addWidget(header);
+
+        // Recommendations list with scroll
+        auto* scroll = new QScrollArea();
+        scroll->setWidgetResizable(true);
+        scroll->setStyleSheet("QScrollArea { border: none; background: transparent; }");
+        auto* recContainer = new QWidget();
+        recContainer->setObjectName("recContainer");
+        auto* recLayout = new QVBoxLayout(recContainer);
+        recLayout->setSpacing(12);
+        recLayout->setObjectName("recListLayout");
+
+        auto* recLoading = new QLabel("Loading recommendations...");
+        recLoading->setObjectName("recLoadingLabel");
+        recLoading->setAlignment(Qt::AlignCenter);
+        recLoading->setStyleSheet("color: palette(mid); font-size: 13px; padding: 40px;");
+        recLayout->addWidget(recLoading);
+        recLayout->addStretch();
+
+        scroll->setWidget(recContainer);
+        layout->addWidget(scroll, 1);
+
+        // Bottom bar: trending + refresh
+        auto* bottomBar = new QHBoxLayout();
+        auto* trendingBtn = new QPushButton("\xf0\x9f\x94\xa5 Trending Papers");
+        trendingBtn->setObjectName("trendingBtn");
+        trendingBtn->setStyleSheet(
+            "QPushButton { background: #f59e0b; color: white; border: none; border-radius: 8px; "
+            "padding: 8px 20px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #d97706; }"
+        );
+        auto* refreshRecBtn = new QPushButton("\xf0\x9f\x94\x84 Refresh");
+        refreshRecBtn->setObjectName("refreshRecBtn");
+        refreshRecBtn->setStyleSheet(
+            "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+            "border-radius: 8px; padding: 8px 20px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: palette(light); }"
+        );
+        bottomBar->addWidget(trendingBtn);
+        bottomBar->addStretch();
+        bottomBar->addWidget(refreshRecBtn);
+        layout->addLayout(bottomBar);
+
+        // Signals
+        connect(trendingBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getTrendingPapers();
+            statusBar()->showMessage("Loading trending papers...", 3000);
+        });
+        connect(refreshRecBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getPaperRecommendations();
+            statusBar()->showMessage("Refreshing recommendations...", 3000);
+        });
+
+        tabWidget_->addTab(page, "\xf0\x9f\x92\xa1 Recommend");
+    }
+
+    // === Tab 7: Admin ===
+    {
+        auto* page = new QWidget();
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(20, 16, 20, 16);
+        layout->setSpacing(16);
+
+        // Header
+        auto* header = new QLabel("\xf0\x9f\x94\xa7 Admin Panel");
+        header->setStyleSheet("font-size: 20px; font-weight: bold; color: palette(text);");
+        layout->addWidget(header);
+
+        // Summary cards row
+        auto* cardsRow = new QHBoxLayout();
+        cardsRow->setSpacing(12);
+
+        auto makeAdminCard = [](const QString& name, const QString& icon, const QString& color) {
+            auto* card = new QWidget();
+            card->setObjectName(name);
+            card->setStyleSheet(
+                QString("QWidget { background: %1; border-radius: 8px; padding: 16px; }").arg(color)
+            );
+            auto* l = new QVBoxLayout(card);
+            l->setContentsMargins(0, 0, 0, 0);
+            l->setSpacing(4);
+            auto* iconLabel = new QLabel(icon);
+            iconLabel->setStyleSheet("font-size: 20px;");
+            l->addWidget(iconLabel);
+            auto* v = new QLabel("--");
+            v->setObjectName(name + "Value");
+            v->setStyleSheet("font-size: 24px; font-weight: bold; color: white;");
+            l->addWidget(v);
+            auto* t = new QLabel(name);
+            t->setStyleSheet("font-size: 11px; color: rgba(255,255,255,0.8); font-weight: 500;");
+            l->addWidget(t);
+            return card;
+        };
+        cardsRow->addWidget(makeAdminCard("Users", "\xf0\x9f\x91\xa4", "#6366f1"));
+        cardsRow->addWidget(makeAdminCard("Modules", "\xf0\x9f\xa7\xa9", "#0891b2"));
+        cardsRow->addWidget(makeAdminCard("Uptime", "\xe2\x8f\xb1\xef\xb8\x8f", "#059669"));
+        cardsRow->addWidget(makeAdminCard("Requests", "\xf0\x9f\x93\xa1", "#d97706"));
+        layout->addLayout(cardsRow);
+
+        // Users table
+        auto* usersHeader = new QLabel("Users");
+        usersHeader->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
+        layout->addWidget(usersHeader);
+
+        auto* usersTable = new QTableWidget(0, 5);
+        usersTable->setObjectName("adminUsersTable");
+        usersTable->setHorizontalHeaderLabels({"ID", "Username", "Email", "Role", "Status"});
+        usersTable->horizontalHeader()->setStretchLastSection(true);
+        usersTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        usersTable->setAlternatingRowColors(true);
+        usersTable->setMaximumHeight(250);
+        usersTable->setStyleSheet(
+            "QTableWidget { background: palette(base); border: 1px solid palette(mid); border-radius: 8px; }"
+            "QHeaderView::section { background: palette(window); color: palette(text); "
+            "font-weight: bold; padding: 6px; border: none; border-bottom: 1px solid palette(mid); }"
+            "QTableWidget::item { padding: 4px; color: palette(text); }"
+            "QTableWidget::item:alternate { background: palette(alternate-base); }"
+        );
+        layout->addWidget(usersTable);
+
+        // Modules section
+        auto* modulesHeader = new QLabel("Modules");
+        modulesHeader->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
+        layout->addWidget(modulesHeader);
+
+        auto* modulesTable = new QTableWidget(0, 4);
+        modulesTable->setObjectName("adminModulesTable");
+        modulesTable->setHorizontalHeaderLabels({"Name", "Version", "Status", "Action"});
+        modulesTable->horizontalHeader()->setStretchLastSection(true);
+        modulesTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        modulesTable->setAlternatingRowColors(true);
+        modulesTable->setMaximumHeight(200);
+        modulesTable->setStyleSheet(usersTable->styleSheet());
+        layout->addWidget(modulesTable);
+
+        // System monitor section
+        auto* monitorHeader = new QLabel("System Monitor");
+        monitorHeader->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
+        layout->addWidget(monitorHeader);
+
+        auto* monitorInfo = new QLabel("CPU: -- | Memory: -- | Disk: --");
+        monitorInfo->setObjectName("adminMonitorInfo");
+        monitorInfo->setStyleSheet(
+            "padding: 12px; background: palette(base); border: 1px solid palette(mid); "
+            "border-radius: 8px; color: palette(text); font-size: 13px;"
+        );
+        layout->addWidget(monitorInfo);
+
+        // Bottom actions
+        auto* adminActions = new QHBoxLayout();
+        auto* refreshAdminBtn = new QPushButton("\xf0\x9f\x94\x84 Refresh All");
+        refreshAdminBtn->setObjectName("refreshAdminBtn");
+        refreshAdminBtn->setStyleSheet(
+            "QPushButton { background: #6366f1; color: white; border: none; border-radius: 8px; "
+            "padding: 8px 20px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #4f46e5; }"
+        );
+        auto* loginHistoryBtn = new QPushButton("\xf0\x9f\x93\x8b Login History");
+        loginHistoryBtn->setObjectName("loginHistoryBtn");
+        loginHistoryBtn->setStyleSheet(
+            "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+            "border-radius: 8px; padding: 8px 20px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: palette(light); }"
+        );
+        auto* perfMetricsBtn = new QPushButton("\xf0\x9f\x93\x8a Performance");
+        perfMetricsBtn->setObjectName("perfMetricsBtn");
+        perfMetricsBtn->setStyleSheet(loginHistoryBtn->styleSheet());
+        adminActions->addWidget(refreshAdminBtn);
+        adminActions->addStretch();
+        adminActions->addWidget(loginHistoryBtn);
+        adminActions->addWidget(perfMetricsBtn);
+        layout->addLayout(adminActions);
+
+        // Admin button signals
+        connect(refreshAdminBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getAdminDashboard();
+            apiManager_->getAdminUsers();
+            apiManager_->getAdminModules();
+            apiManager_->getSystemMonitor();
+            statusBar()->showMessage("Refreshing admin data...", 3000);
+        });
+        connect(loginHistoryBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getLoginHistory();
+            statusBar()->showMessage("Loading login history...", 3000);
+        });
+        connect(perfMetricsBtn, &QPushButton::clicked, this, [this]() {
+            apiManager_->getPerformanceMetrics();
+            statusBar()->showMessage("Loading performance metrics...", 3000);
+        });
+
+        tabWidget_->addTab(page, "\xf0\x9f\x94\xa7 Admin");
+    }
+
+    // Update tab position to bottom with scroll buttons for 7 tabs
+    tabWidget_->setUsesScrollButtons(true);
 }
 
 void MainWindow::paintEvent(QPaintEvent* event) {
@@ -904,6 +1591,534 @@ void MainWindow::resizeEvent(QResizeEvent* event) {
     if (themeButton_) {
         themeButton_->move(width() - 70, 80);
     }
+}
+
+void MainWindow::populateRecommendations(const QJsonObject& data) {
+    auto* container = findChild<QWidget*>("recContainer");
+    if (!container) return;
+    auto* layout = container->findChild<QVBoxLayout*>("recListLayout");
+    if (!layout) return;
+
+    // Clear old content
+    QLayoutItem* item;
+    while ((item = layout->takeAt(0)) != nullptr) {
+        delete item->widget();
+        delete item;
+    }
+
+    QJsonArray papers = data["papers"].toArray(data["recommendations"].toArray());
+    QString source = data["source"].toString("recommendations");
+
+    if (papers.isEmpty()) {
+        auto* emptyLabel = new QLabel("No recommendations available yet. Try searching for papers first!");
+        emptyLabel->setAlignment(Qt::AlignCenter);
+        emptyLabel->setStyleSheet("color: palette(mid); font-size: 14px; padding: 60px;");
+        layout->addWidget(emptyLabel);
+        layout->addStretch();
+        return;
+    }
+
+    // Source header
+    QString sourceText = source == "trending" ? "\xf0\x9f\x94\xa5 Trending Papers"
+                       : source == "similar" ? "\xf0\x9f\x94\x97 Similar Papers"
+                       : "\xf0\x9f\x92\xa1 Recommended for You";
+    auto* sourceLabel = new QLabel(sourceText);
+    sourceLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text); padding: 8px 0;");
+    layout->addWidget(sourceLabel);
+
+    for (const auto& val : papers) {
+        auto p = val.toObject();
+        auto* card = new QWidget();
+        card->setStyleSheet(
+            "QWidget { background: palette(base); border: 1px solid palette(mid); border-radius: 10px; }"
+        );
+        card->setCursor(Qt::PointingHandCursor);
+
+        auto* cardLayout = new QVBoxLayout(card);
+        cardLayout->setContentsMargins(16, 12, 16, 12);
+        cardLayout->setSpacing(6);
+
+        // Title
+        QString title = p["title"].toString(p["paper_title"].toString());
+        auto* titleLabel = new QLabel(title.left(120));
+        titleLabel->setWordWrap(true);
+        titleLabel->setStyleSheet("font-weight: bold; font-size: 13px; color: palette(text);");
+        cardLayout->addWidget(titleLabel);
+
+        // Meta row
+        auto* metaLayout = new QHBoxLayout();
+        QString journal = p["journal"].toString(p["journal_name"].toString());
+        QString year = p["year"].toString(p["publication_year"].toString());
+        QString score = p["score"].toString(p["relevance_score"].toString());
+
+        auto* metaLabel = new QLabel(journal + (year.isEmpty() ? "" : " | " + year));
+        metaLabel->setStyleSheet("color: palette(mid); font-size: 11px;");
+        metaLayout->addWidget(metaLabel);
+        metaLayout->addStretch();
+
+        if (!score.isEmpty()) {
+            auto* scoreLabel = new QLabel("\xe2\xad\x90 " + score.left(5));
+            scoreLabel->setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 11px;");
+            metaLayout->addWidget(scoreLabel);
+        }
+        cardLayout->addLayout(metaLayout);
+
+        // Authors
+        QString authors = p["authors"].toString();
+        if (!authors.isEmpty()) {
+            auto* authorLabel = new QLabel(authors.left(100));
+            authorLabel->setStyleSheet("color: palette(mid); font-size: 10px;");
+            cardLayout->addWidget(authorLabel);
+        }
+
+        // Action buttons
+        auto* actions = new QHBoxLayout();
+        int paperId = p["id"].toInt(p["paper_id"].toInt(0));
+
+        auto* viewBtn = new QPushButton("View Details");
+        viewBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; border-radius: 6px; "
+            "padding: 4px 12px; font-size: 11px; font-weight: bold; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        connect(viewBtn, &QPushButton::clicked, this, [this, paperId]() {
+            onPaperSelected(paperId);
+        });
+        actions->addWidget(viewBtn);
+
+        auto* similarBtn = new QPushButton("\xf0\x9f\x94\x97 Similar");
+        similarBtn->setStyleSheet(
+            "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+            "border-radius: 6px; padding: 4px 12px; font-size: 11px; }"
+            "QPushButton:hover { background: palette(light); }"
+        );
+        connect(similarBtn, &QPushButton::clicked, this, [this, paperId]() {
+            apiManager_->getSimilarPapers(paperId);
+            statusBar()->showMessage("Finding similar papers...", 3000);
+        });
+        actions->addWidget(similarBtn);
+
+        auto* feedbackBtn = new QPushButton("\xf0\x9f\x91\x8d");
+        feedbackBtn->setStyleSheet(
+            "QPushButton { background: transparent; border: 1px solid palette(mid); border-radius: 6px; "
+            "padding: 4px 8px; font-size: 12px; }"
+            "QPushButton:hover { background: #dcfce7; }"
+        );
+        connect(feedbackBtn, &QPushButton::clicked, this, [this, paperId]() {
+            QJsonObject feedback;
+            feedback["paper_id"] = paperId;
+            feedback["action"] = "positive";
+            apiManager_->submitRecommendationFeedback(feedback);
+        });
+        actions->addWidget(feedbackBtn);
+
+        actions->addStretch();
+        cardLayout->addLayout(actions);
+
+        // Click on card to view details
+        connect(card, &QWidget::mousePressEvent, this, [this, paperId](QMouseEvent*) {
+            onPaperSelected(paperId);
+        });
+
+        layout->addWidget(card);
+    }
+
+    layout->addStretch();
+    int total = data["total"].toInt(papers.size());
+    statusBar()->showMessage(QString("Loaded %1 papers").arg(total), 3000);
+}
+
+void MainWindow::populateAdminDashboard(const QJsonObject& data) {
+    auto updateVal = [this](const QString& name, const QString& val) {
+        auto* label = findChild<QLabel*>(name + "Value");
+        if (label) label->setText(val);
+    };
+    updateVal("Users", QString::number(data["total_users"].toInt(data["user_count"].toInt(0))));
+    updateVal("Modules", QString::number(data["active_modules"].toInt(data["module_count"].toInt(0))));
+    updateVal("Uptime", data["uptime"].toString(data["uptime_human"].toString("--")));
+    updateVal("Requests", QString::number(data["total_requests"].toInt(data["request_count"].toInt(0))));
+}
+
+void MainWindow::populateAdminUsers(const QJsonObject& data) {
+    auto* table = findChild<QTableWidget*>("adminUsersTable");
+    if (!table) return;
+
+    QJsonArray users = data["users"].toArray(data["data"].toArray());
+    table->setRowCount(users.size());
+    for (int i = 0; i < users.size(); ++i) {
+        auto u = users[i].toObject();
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(u["id"].toInt())));
+        table->setItem(i, 1, new QTableWidgetItem(u["username"].toString()));
+        table->setItem(i, 2, new QTableWidgetItem(u["email"].toString()));
+        table->setItem(i, 3, new QTableWidgetItem(u["role"].toString()));
+        table->setItem(i, 4, new QTableWidgetItem(u["status"].toString(u["is_active"].toBool() ? "Active" : "Inactive")));
+    }
+}
+
+void MainWindow::populateAdminModules(const QJsonObject& data) {
+    auto* table = findChild<QTableWidget*>("adminModulesTable");
+    if (!table) return;
+
+    QJsonArray modules = data["modules"].toArray(data["data"].toArray());
+    table->setRowCount(modules.size());
+    for (int i = 0; i < modules.size(); ++i) {
+        auto m = modules[i].toObject();
+        table->setItem(i, 0, new QTableWidgetItem(m["name"].toString()));
+        table->setItem(i, 1, new QTableWidgetItem(m["version"].toString("--")));
+
+        bool enabled = m["enabled"].toBool(m["is_active"].toBool(true));
+        auto* statusItem = new QTableWidgetItem(enabled ? "Enabled" : "Disabled");
+        statusItem->setForeground(enabled ? QBrush(QColor("#059669")) : QBrush(QColor("#dc2626")));
+        table->setItem(i, 2, statusItem);
+
+        // Toggle button
+        auto* toggleBtn = new QPushButton(enabled ? "Disable" : "Enable");
+        toggleBtn->setStyleSheet(
+            enabled
+            ? "QPushButton { background: #dc2626; color: white; border: none; border-radius: 4px; padding: 4px 12px; font-size: 11px; }"
+            : "QPushButton { background: #059669; color: white; border: none; border-radius: 4px; padding: 4px 12px; font-size: 11px; }"
+        );
+        QString modName = m["name"].toString();
+        bool newState = !enabled;
+        connect(toggleBtn, &QPushButton::clicked, this, [this, modName, newState]() {
+            apiManager_->toggleModule(modName, newState);
+            statusBar()->showMessage(QString("Toggling module: %1...").arg(modName), 3000);
+        });
+        table->setCellWidget(i, 3, toggleBtn);
+    }
+}
+
+void MainWindow::populateAdminMonitor(const QJsonObject& data) {
+    auto* label = findChild<QLabel*>("adminMonitorInfo");
+    if (!label) return;
+
+    QString cpu = data["cpu_usage"].toString(data["cpu"].toString("--"));
+    QString mem = data["memory_usage"].toString(data["memory"].toString("--"));
+    QString disk = data["disk_usage"].toString(data["disk"].toString("--"));
+    QString connections = data["active_connections"].toString(data["connections"].toString("--"));
+
+    label->setText(
+        QString("CPU: %1% | Memory: %2% | Disk: %3% | Connections: %4")
+            .arg(cpu, mem, disk, connections)
+    );
+}
+
+void MainWindow::populatePerformanceMetrics(const QJsonObject& data) {
+    // Show as dialog for better visibility
+    QDialog dlg(this);
+    dlg.setWindowTitle("Performance Metrics");
+    dlg.setMinimumSize(600, 400);
+    auto* layout = new QVBoxLayout(&dlg);
+
+    auto* info = new QTextEdit();
+    info->setReadOnly(true);
+    info->setStyleSheet(
+        "QTextEdit { background: palette(base); color: palette(text); border: 1px solid palette(mid); "
+        "border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; }"
+    );
+
+    QStringList lines;
+    lines << "=== Performance Metrics ===";
+    for (auto it = data.begin(); it != data.end(); ++it) {
+        if (it.value().isObject()) {
+            lines << QString("\n%1:").arg(it.key());
+            auto sub = it.value().toObject();
+            for (auto sit = sub.begin(); sit != sub.end(); ++sit) {
+                lines << QString("  %1: %2").arg(sit.key(), sit.value().toVariant().toString());
+            }
+        } else if (it.value().isArray()) {
+            lines << QString("\n%1: [%2 items]").arg(it.key()).arg(it.value().toArray().size());
+        } else {
+            lines << QString("%1: %2").arg(it.key(), it.value().toVariant().toString());
+        }
+    }
+    info->setPlainText(lines.join("\n"));
+    layout->addWidget(info);
+
+    auto* closeBtn = new QPushButton("Close");
+    closeBtn->setStyleSheet(
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+        "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
+    );
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::close);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    dlg.exec();
+}
+
+void MainWindow::showLoginHistory(const QJsonObject& data) {
+    QDialog dlg(this);
+    dlg.setWindowTitle("Login History");
+    dlg.setMinimumSize(600, 400);
+    auto* layout = new QVBoxLayout(&dlg);
+
+    QJsonArray entries = data["logins"].toArray(data["data"].toArray(data["entries"].toArray()));
+    auto* table = new QTableWidget(entries.size(), 4);
+    table->setHorizontalHeaderLabels({"Time", "User", "IP", "Status"});
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+    table->setStyleSheet(
+        "QTableWidget { background: palette(base); border: 1px solid palette(mid); border-radius: 8px; }"
+        "QHeaderView::section { background: palette(window); color: palette(text); "
+        "font-weight: bold; padding: 6px; border: none; }"
+        "QTableWidget::item { padding: 4px; color: palette(text); }"
+    );
+
+    for (int i = 0; i < entries.size(); ++i) {
+        auto e = entries[i].toObject();
+        table->setItem(i, 0, new QTableWidgetItem(e["timestamp"].toString(e["time"].toString())));
+        table->setItem(i, 1, new QTableWidgetItem(e["username"].toString(e["user"].toString())));
+        table->setItem(i, 2, new QTableWidgetItem(e["ip_address"].toString(e["ip"].toString())));
+        table->setItem(i, 3, new QTableWidgetItem(e["status"].toString(e["action"].toString())));
+    }
+    layout->addWidget(table);
+
+    auto* closeBtn = new QPushButton("Close");
+    closeBtn->setStyleSheet(
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+        "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
+    );
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::close);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    dlg.exec();
+}
+
+void MainWindow::populateCrawlerSchedules(const QJsonObject& data) {
+    auto* table = findChild<QTableWidget*>("crawlerSchedulesTable");
+    if (!table) return;
+
+    QJsonArray schedules = data["schedules"].toArray(data["data"].toArray());
+    table->setRowCount(schedules.size());
+    for (int i = 0; i < schedules.size(); ++i) {
+        auto s = schedules[i].toObject();
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(s["id"].toInt())));
+        table->setItem(i, 1, new QTableWidgetItem(s["cron"].toString(s["schedule"].toString())));
+        table->setItem(i, 2, new QTableWidgetItem(
+            s["template_name"].toString(s["template_id"].toString())));
+
+        auto* actions = new QWidget();
+        auto* al = new QHBoxLayout(actions);
+        al->setContentsMargins(4, 2, 4, 2);
+        al->setSpacing(4);
+        int sid = s["id"].toInt();
+
+        auto* triggerBtn = new QPushButton("Run");
+        triggerBtn->setStyleSheet(
+            "QPushButton { background: #059669; color: white; border: none; border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+        );
+        connect(triggerBtn, &QPushButton::clicked, this, [this, sid]() {
+            apiManager_->triggerCrawlerSchedule(sid);
+            statusBar()->showMessage(QString("Triggered schedule %1").arg(sid), 3000);
+        });
+        al->addWidget(triggerBtn);
+        al->addStretch();
+        table->setCellWidget(i, 3, actions);
+    }
+}
+
+void MainWindow::populateCrawlerTemplates(const QJsonObject& data) {
+    auto* table = findChild<QTableWidget*>("crawlerTemplatesTable");
+    if (!table) return;
+
+    QJsonArray templates = data["templates"].toArray(data["data"].toArray());
+    table->setRowCount(templates.size());
+    for (int i = 0; i < templates.size(); ++i) {
+        auto t = templates[i].toObject();
+        table->setItem(i, 0, new QTableWidgetItem(t["name"].toString()));
+        table->setItem(i, 1, new QTableWidgetItem(t["source"].toString()));
+        table->setItem(i, 2, new QTableWidgetItem(t["url_pattern"].toString().left(40)));
+
+        auto* actions = new QWidget();
+        auto* al = new QHBoxLayout(actions);
+        al->setContentsMargins(4, 2, 4, 2);
+        al->setSpacing(4);
+        int tid = t["id"].toInt();
+
+        auto* testBtn = new QPushButton("Test");
+        testBtn->setStyleSheet(
+            "QPushButton { background: #0891b2; color: white; border: none; border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+        );
+        connect(testBtn, &QPushButton::clicked, this, [this, tid]() {
+            apiManager_->testCrawlerTemplate(tid);
+            statusBar()->showMessage(QString("Testing template %1...").arg(tid), 3000);
+        });
+        al->addWidget(testBtn);
+
+        auto* delBtn = new QPushButton("Del");
+        delBtn->setStyleSheet(
+            "QPushButton { background: #dc2626; color: white; border: none; border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+        );
+        connect(delBtn, &QPushButton::clicked, this, [this, tid]() {
+            apiManager_->deleteCrawlerTemplate(tid);
+            QTimer::singleShot(500, this, [this]() { apiManager_->getCrawlerTemplates(); });
+        });
+        al->addWidget(delBtn);
+        al->addStretch();
+        table->setCellWidget(i, 3, actions);
+    }
+}
+
+void MainWindow::populateSavedSearches(const QJsonObject& data) {
+    auto* container = findChild<QWidget*>("savedSearchesList");
+    if (!container) return;
+    auto* layout = container->layout();
+    if (!layout) return;
+
+    // Clear old items (keep the stretch at end)
+    QLayoutItem* item;
+    while (layout->count() > 0) {
+        item = layout->takeAt(0);
+        delete item->widget();
+        delete item;
+    }
+
+    QJsonArray searches = data["searches"].toArray(data["data"].toArray(data["saved_searches"].toArray()));
+    for (const auto& val : searches) {
+        auto s = val.toObject();
+        QString query = s["query"].toString(s["keyword"].toString());
+        QString name = s["name"].toString(query.left(20));
+
+        auto* chip = new QPushButton(name);
+        chip->setStyleSheet(
+            "QPushButton { background: #e0e7ff; color: #4338ca; border: none; border-radius: 12px; "
+            "padding: 4px 12px; font-size: 11px; font-weight: bold; }"
+            "QPushButton:hover { background: #c7d2fe; }"
+        );
+        chip->setCursor(Qt::PointingHandCursor);
+        connect(chip, &QPushButton::clicked, this, [this, query]() {
+            onSearch(query);
+            searchWidget_->setText(query);
+        });
+        layout->addWidget(chip);
+    }
+    layout->addStretch();
+}
+
+void MainWindow::populateTrendingSearches(const QJsonObject& data) {
+    auto* container = findChild<QWidget*>("trendingSearchesList");
+    if (!container) return;
+    auto* layout = container->layout();
+    if (!layout) return;
+
+    QLayoutItem* item;
+    while (layout->count() > 0) {
+        item = layout->takeAt(0);
+        delete item->widget();
+        delete item;
+    }
+
+    QJsonArray trending = data["trending"].toArray(data["data"].toArray(data["trending_searches"].toArray()));
+    for (const auto& val : trending) {
+        QString query;
+        if (val.isObject()) {
+            query = val.toObject()["query"].toString(val.toObject()["keyword"].toString());
+        } else {
+            query = val.toString();
+        }
+        if (query.isEmpty()) continue;
+
+        auto* chip = new QPushButton(query.left(25));
+        chip->setStyleSheet(
+            "QPushButton { background: #fef3c7; color: #92400e; border: none; border-radius: 12px; "
+            "padding: 4px 12px; font-size: 11px; font-weight: bold; }"
+            "QPushButton:hover { background: #fde68a; }"
+        );
+        chip->setCursor(Qt::PointingHandCursor);
+        connect(chip, &QPushButton::clicked, this, [this, query]() {
+            onSearch(query);
+            searchWidget_->setText(query);
+        });
+        layout->addWidget(chip);
+    }
+    layout->addStretch();
+}
+
+void MainWindow::showStatsDialog(const QString& title, const QJsonObject& data) {
+    QDialog dlg(this);
+    dlg.setWindowTitle(title);
+    dlg.setMinimumSize(700, 500);
+    auto* layout = new QVBoxLayout(&dlg);
+
+    // Summary cards at top
+    auto* cardsRow = new QHBoxLayout();
+    cardsRow->setSpacing(12);
+    int cardCount = 0;
+    for (auto it = data.begin(); it != data.end() && cardCount < 4; ++it) {
+        if (it.value().isObject() || it.value().isArray()) continue;
+
+        auto* card = new QWidget();
+        QString bgColors[] = {"#4f46e5", "#0891b2", "#059669", "#d97706"};
+        card->setStyleSheet(
+            QString("QWidget { background: %1; border-radius: 8px; padding: 12px; }")
+                .arg(bgColors[cardCount % 4])
+        );
+        auto* cl = new QVBoxLayout(card);
+        cl->setContentsMargins(8, 6, 8, 6);
+        cl->setSpacing(2);
+
+        auto* valLabel = new QLabel(it.value().toVariant().toString());
+        valLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: white;");
+        cl->addWidget(valLabel);
+
+        auto* nameLabel = new QLabel(it.key().replace("_", " "));
+        nameLabel->setStyleSheet("font-size: 10px; color: rgba(255,255,255,0.8);");
+        cl->addWidget(nameLabel);
+
+        cardsRow->addWidget(card);
+        cardCount++;
+    }
+    layout->addLayout(cardsRow);
+
+    // Detailed table
+    auto* table = new QTableWidget();
+    table->setColumnCount(2);
+    table->setHorizontalHeaderLabels({"Metric", "Value"});
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+    table->setStyleSheet(
+        "QTableWidget { background: palette(base); border: 1px solid palette(mid); border-radius: 8px; }"
+        "QHeaderView::section { background: palette(window); color: palette(text); "
+        "font-weight: bold; padding: 6px; border: none; }"
+        "QTableWidget::item { padding: 4px; color: palette(text); }"
+        "QTableWidget::item:alternate { background: palette(alternate-base); }"
+    );
+
+    // Flatten nested JSON for table display
+    QList<QPair<QString, QString>> flatRows;
+    std::function<void(const QJsonObject&, const QString&)> flatten;
+    flatten = [&flatten, &flatRows](const QJsonObject& obj, const QString& prefix) {
+        for (auto it = obj.begin(); it != obj.end(); ++it) {
+            QString key = prefix.isEmpty() ? it.key() : prefix + " > " + it.key();
+            if (it.value().isObject()) {
+                flatten(it.value().toObject(), key);
+            } else if (it.value().isArray()) {
+                flatRows.append({key, QString("[%1 items]").arg(it.value().toArray().size())});
+            } else {
+                flatRows.append({key, it.value().toVariant().toString()});
+            }
+        }
+    };
+    flatten(data, "");
+
+    table->setRowCount(flatRows.size());
+    for (int i = 0; i < flatRows.size(); ++i) {
+        table->setItem(i, 0, new QTableWidgetItem(flatRows[i].first));
+        table->setItem(i, 1, new QTableWidgetItem(flatRows[i].second));
+    }
+    layout->addWidget(table, 1);
+
+    auto* closeBtn = new QPushButton("Close");
+    closeBtn->setStyleSheet(
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+        "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
+    );
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::close);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    dlg.exec();
 }
 
 void MainWindow::createMenus() {
@@ -1214,9 +2429,20 @@ void MainWindow::connectSignals() {
             case 2: // Crawler - auto-refresh running tasks
                 apiManager_->getCrawlerDashboard();
                 apiManager_->getCrawlerTasks();
+                apiManager_->getCrawlerTemplates();
+                apiManager_->getCrawlerSchedules();
                 break;
             case 4: // Statistics
                 apiManager_->getStats("overview");
+                break;
+            case 5: // Recommendations
+                apiManager_->getPaperRecommendations();
+                break;
+            case 6: // Admin
+                apiManager_->getAdminDashboard();
+                apiManager_->getAdminUsers();
+                apiManager_->getAdminModules();
+                apiManager_->getSystemMonitor();
                 break;
         }
     });
@@ -1230,6 +2456,128 @@ void MainWindow::connectSignals() {
         }
     });
     crawlerRefreshTimer->start(15000);
+
+    // === Recommendations: generic JSON responses ===
+    connect(apiManager_, &ApiManager::jsonResponse, this,
+        [this](const QString& endpoint, const QJsonObject& data) {
+            if (endpoint.contains("recommendations")) {
+                populateRecommendations(data);
+            } else if (endpoint.contains("trending")) {
+                QJsonArray papers = data["papers"].toArray(data["data"].toArray());
+                QJsonObject wrapped;
+                wrapped["papers"] = papers;
+                wrapped["total"] = papers.size();
+                wrapped["source"] = "trending";
+                populateRecommendations(wrapped);
+            } else if (endpoint.contains("similar")) {
+                QJsonArray papers = data["papers"].toArray(data["similar"].toArray());
+                QJsonObject wrapped;
+                wrapped["papers"] = papers;
+                wrapped["total"] = papers.size();
+                wrapped["source"] = "similar";
+                populateRecommendations(wrapped);
+            } else if (endpoint.contains("admin/dashboard")) {
+                populateAdminDashboard(data);
+            } else if (endpoint.contains("admin/users")) {
+                populateAdminUsers(data);
+            } else if (endpoint.contains("admin/modules") || endpoint.contains("modules")) {
+                populateAdminModules(data);
+            } else if (endpoint.contains("monitor")) {
+                populateAdminMonitor(data);
+            } else if (endpoint.contains("performance")) {
+                populatePerformanceMetrics(data);
+            } else if (endpoint.contains("login")) {
+                showLoginHistory(data);
+            } else if (endpoint.contains("recommendation") && endpoint.contains("feedback")) {
+                statusBar()->showMessage("Feedback submitted. Thank you!", 3000);
+            } else if (endpoint.contains("ai/summarize")) {
+                auto* aiChat = findChild<QTextEdit*>("aiChatDisplay");
+                if (aiChat) aiChat->append("<b>AI Summary:</b> " + data["summary"].toString(data["text"].toString("Summary completed.")));
+            } else if (endpoint.contains("ai/compare")) {
+                auto* aiChat = findChild<QTextEdit*>("aiChatDisplay");
+                if (aiChat) aiChat->append("<b>AI Compare:</b> " + data["comparison"].toString(data["text"].toString("Comparison completed.")));
+            } else if (endpoint.contains("ai/keywords")) {
+                auto* aiChat = findChild<QTextEdit*>("aiChatDisplay");
+                QString kws = data["keywords"].toString(data["text"].toString());
+                if (kws.isEmpty() && data.contains("keywords")) {
+                    QJsonArray kwArr = data["keywords"].toArray();
+                    QStringList kwList;
+                    for (const auto& kw : kwArr) kwList << kw.toString();
+                    kws = kwList.join(", ");
+                }
+                if (aiChat) aiChat->append("<b>AI Keywords:</b> " + (kws.isEmpty() ? "Keywords extraction completed." : kws));
+            } else if (endpoint.contains("ai/contributions")) {
+                auto* aiChat = findChild<QTextEdit*>("aiChatDisplay");
+                if (aiChat) aiChat->append("<b>AI Contributions:</b> " + data["contributions"].toString(data["text"].toString("Contributions analysis completed.")));
+            } else if (endpoint.contains("crawler/schedules")) {
+                populateCrawlerSchedules(data);
+            } else if (endpoint.contains("crawler/workers")) {
+                // Workers info - log to status bar
+                int count = data["active_workers"].toInt(data["count"].toInt(0));
+                statusBar()->showMessage(QString("Active crawler workers: %1").arg(count), 3000);
+            } else if (endpoint.contains("crawler/templates")) {
+                populateCrawlerTemplates(data);
+            } else if (endpoint.contains("export/formats")) {
+                statusBar()->showMessage("Export formats loaded", 2000);
+            } else if (endpoint.contains("search/saved")) {
+                populateSavedSearches(data);
+            } else if (endpoint.contains("search/trending")) {
+                populateTrendingSearches(data);
+            } else if (endpoint.contains("stats/system")) {
+                showStatsDialog("System Statistics", data);
+            } else if (endpoint.contains("stats/resource")) {
+                showStatsDialog("Resource Statistics", data);
+            } else if (endpoint.contains("stats/performance")) {
+                showStatsDialog("Performance Statistics", data);
+            }
+        });
+
+    connect(apiManager_, &ApiManager::jsonArrayResponse, this,
+        [this](const QString& endpoint, const QJsonArray& data) {
+            if (endpoint.contains("recommendations")) {
+                QJsonObject wrapped;
+                wrapped["papers"] = data;
+                wrapped["total"] = data.size();
+                wrapped["source"] = "recommendations";
+                populateRecommendations(wrapped);
+            } else if (endpoint.contains("trending")) {
+                QJsonObject wrapped;
+                wrapped["papers"] = data;
+                wrapped["total"] = data.size();
+                wrapped["source"] = "trending";
+                populateRecommendations(wrapped);
+            } else if (endpoint.contains("admin/users")) {
+                QJsonObject wrapped;
+                wrapped["users"] = data;
+                populateAdminUsers(wrapped);
+            } else if (endpoint.contains("admin/modules") || endpoint.contains("modules")) {
+                QJsonObject wrapped;
+                wrapped["modules"] = data;
+                populateAdminModules(wrapped);
+            } else if (endpoint.contains("crawler/schedules")) {
+                QJsonObject wrapped;
+                wrapped["schedules"] = data;
+                populateCrawlerSchedules(wrapped);
+            } else if (endpoint.contains("crawler/templates")) {
+                QJsonObject wrapped;
+                wrapped["templates"] = data;
+                populateCrawlerTemplates(wrapped);
+            } else if (endpoint.contains("search/saved")) {
+                QJsonObject wrapped;
+                wrapped["searches"] = data;
+                populateSavedSearches(wrapped);
+            } else if (endpoint.contains("search/trending")) {
+                QJsonObject wrapped;
+                wrapped["trending"] = data;
+                populateTrendingSearches(wrapped);
+            }
+        });
+
+    connect(apiManager_, &ApiManager::genericError, this,
+        [this](const QString& context, const QString& error) {
+            statusBar()->showMessage(
+                QString("%1 failed: %2").arg(context, error.left(80)), 5000);
+        });
 }
 
 void MainWindow::loadSettings() {
@@ -1661,9 +3009,16 @@ void MainWindow::closeEvent(QCloseEvent* event) {
 
 void MainWindow::onPaperDetailsSuccess(const Paper& paper) {
     auto* favMgr = findChild<FavoriteManager*>();
-    auto* dialog = new PaperDetailDialog(paper, favMgr, this);
+    auto* dialog = new PaperDetailDialog(paper, favMgr, apiManager_, this);
     connect(dialog, &PaperDetailDialog::favoriteToggled, this, [this](int, bool) {
         if (tabWidget_->currentIndex() == 1) refreshFavoritesTab();
+    });
+    connect(dialog, &PaperDetailDialog::paperDeleted, this, [this](int paperId) {
+        statusBar()->showMessage(QString("Paper %1 deleted").arg(paperId), 5000);
+        // Refresh current view
+        if (!currentKeyword_.isEmpty()) {
+            apiManager_->searchPapers(currentKeyword_, "", "", currentOffset_, currentLimit_);
+        }
     });
     dialog->exec();
     dialog->deleteLater();
