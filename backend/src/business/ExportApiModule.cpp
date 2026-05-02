@@ -73,7 +73,7 @@ public:
     std::vector<Paper> getPapersForExport(const std::vector<int>& paperIds) {
         std::vector<Paper> papers;
         if (!database_) {
-            std::cerr << "[ExportAPI] No database connection" << std::endl;
+            spdlog::error("[ExportAPI] No database connection");
             return papers;
         }
 
@@ -105,7 +105,7 @@ public:
                 papers.push_back(paper);
             }
         } catch (const std::exception& e) {
-            std::cerr << "[ExportAPI] Failed to get papers: " << e.what() << std::endl;
+            spdlog::error("[ExportAPI] Failed to get papers: {}", e.what());
         }
         return papers;
     }
@@ -170,8 +170,7 @@ std::string ExportApiModule::createExportTask(const std::string& userId,
     userTasks_[userId].push_back(task.taskId);
     taskQueue_.push_back(task.taskId);
 
-    std::cout << "[ExportApi] Created export task: " << task.taskId
-              << " for user: " << userId << " (" << paperIds.size() << " papers)" << std::endl;
+    spdlog::info("[ExportApi] Created export task: {} for user: {} ({} papers)", task.taskId, userId, paperIds.size());
 
     return task.taskId;
 }
@@ -266,7 +265,7 @@ bool ExportApiModule::deleteExportTask(const std::string& taskId) {
 
     exportTasks_.erase(it);
 
-    std::cout << "[ExportApi] Deleted export task: " << taskId << std::endl;
+    spdlog::info("[ExportApi] Deleted export task: {}", taskId);
 
     return true;
 }
@@ -447,7 +446,7 @@ size_t ExportApiModule::cleanupExpiredExports(std::chrono::hours maxAge) {
         cleaned++;
     }
 
-    std::cout << "[ExportApi] Cleaned up " << cleaned << " expired export tasks" << std::endl;
+    spdlog::info("[ExportApi] Cleaned up {} expired export tasks", cleaned);
 
     return cleaned;
 }

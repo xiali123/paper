@@ -1,4 +1,5 @@
 #include "business/AnalyticsIntelligenceModule.hpp"
+#include "data/PreparedStatement.hpp"
 #include "core/Router.hpp"
 #include "core/EventDrivenIntegration.hpp"
 #include "business/UnifiedAIWorkflow.hpp"
@@ -148,14 +149,15 @@ std::vector<AcademicImpactMetrics> AnalyticsIntelligenceModule::calculateImpactM
     }
 
     // 查询用户的影响力指标
-    std::ostringstream sql;
-    sql << "SELECT metric_type, AVG(metric_value) as avg_value, ";
-    sql << "AVG(comparison_value) as avg_comparison, AVG(percentile) as avg_percentile ";
-    sql << "FROM academic_impact_metrics ";
-    sql << "WHERE user_id = " << userId << " AND " << dateCondition << " ";
-    sql << "GROUP BY metric_type";
+    std::string sql = "SELECT metric_type, AVG(metric_value) as avg_value, "
+        "AVG(comparison_value) as avg_comparison, AVG(percentile) as avg_percentile "
+        "FROM academic_impact_metrics "
+        "WHERE user_id = ? AND " + dateCondition + " "
+        "GROUP BY metric_type";
 
-    auto rows = database_->query(sql.str());
+    PreparedStatement stmt(database_, sql);
+    stmt.bind(0, userId);
+    auto rows = stmt.query();
 
     for (const auto& row : rows) {
         AcademicImpactMetrics metric;
@@ -169,6 +171,7 @@ std::vector<AcademicImpactMetrics> AnalyticsIntelligenceModule::calculateImpactM
         metric.trend = 0.0; // 默认无变化
         try {
             // 构建前一时间窗口的条件
+            bool needAllTimeUserIdBind = false;
             std::string previousDateCondition;
             if (timeframe == "last_6_months") {
                 previousDateCondition = "recorded_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) "
@@ -180,20 +183,26 @@ std::vector<AcademicImpactMetrics> AnalyticsIntelligenceModule::calculateImpactM
                 // all_time: 对比前半段和后半段
                 previousDateCondition = "recorded_at < (SELECT MIN(recorded_at) + "
                                         "INTERVAL TIMESTAMPDIFF(DAY, MIN(recorded_at), MAX(recorded_at)) / 2 DAY "
-                                        "FROM academic_impact_metrics WHERE user_id = " + std::to_string(userId) + ")";
+                                        "FROM academic_impact_metrics WHERE user_id = ?)";
+                needAllTimeUserIdBind = true;
             }
 
             std::string mType = row.at("metric_type");
             std::string escapedMetricType = database_ ? database_->escapeString(mType) : mType;
 
-            std::ostringstream trendSql;
-            trendSql << "SELECT COALESCE(AVG(metric_value), 0) as prev_avg_value "
-                     << "FROM academic_impact_metrics "
-                     << "WHERE user_id = " << userId << " "
-                     << "AND metric_type = '" << escapedMetricType << "' "
-                     << "AND " << previousDateCondition;
+            std::string trendSql = "SELECT COALESCE(AVG(metric_value), 0) as prev_avg_value "
+                     "FROM academic_impact_metrics "
+                     "WHERE user_id = ? "
+                     "AND metric_type = ? "
+                     "AND " + previousDateCondition;
 
-            auto trendRows = database_->query(trendSql.str());
+            PreparedStatement trendStmt(database_, trendSql);
+            trendStmt.bind(0, userId);
+            trendStmt.bind(1, mType);
+            if (needAllTimeUserIdBind) {
+                trendStmt.bind(2, userId);
+            }
+            auto trendRows = trendStmt.query();
             if (!trendRows.empty()) {
                 double prevValue = std::stod(trendRows[0].at("prev_avg_value"));
                 double currentValue = metric.metricValue;
@@ -222,12 +231,10 @@ bool AnalyticsIntelligenceModule::updateImpactMetrics(
 
     try {
         // 获取同行平均值（从peer_comparison_analysis表）
-        std::ostringstream sql;
-        sql << "SELECT AVG(user_value) as peer_avg FROM peer_comparison_analysis ";
-        sql << "WHERE metric_name = '" << metricType << "' ";
-        sql << "AND comparison_group = 'field'";
-
-        auto rows = database_->query(sql.str());
+        PreparedStatement stmt(database_, "SELECT AVG(user_value) as peer_avg FROM peer_comparison_analysis "
+            "WHERE metric_name = ? AND comparison_group = 'field'");
+        stmt.bind(0, metricType);
+        auto rows = stmt.query();
         double peerAverage = value; // 默认值
         if (!rows.empty()) {
             peerAverage = std::stod(rows[0]["peer_avg"]);
@@ -239,15 +246,14 @@ bool AnalyticsIntelligenceModule::updateImpactMetrics(
             std::string escapedMetric = database_->escapeString(metricType);
 
             // 查询同行对比表中排名低于当前用户的比例
-            std::ostringstream percentileSql;
-            percentileSql << "SELECT "
-                          << "COALESCE(COUNT(*), 0) as total_peers, "
-                          << "COALESCE(SUM(CASE WHEN user_value < " << value << " THEN 1 ELSE 0 END), 0) as below_count "
-                          << "FROM peer_comparison_analysis "
-                          << "WHERE metric_name = '" << escapedMetric << "' "
-                          << "AND comparison_group = 'field'";
-
-            auto pctRows = database_->query(percentileSql.str());
+            PreparedStatement pctStmt(database_, "SELECT "
+                          "COALESCE(COUNT(*), 0) as total_peers, "
+                          "COALESCE(SUM(CASE WHEN user_value < ? THEN 1 ELSE 0 END), 0) as below_count "
+                          "FROM peer_comparison_analysis "
+                          "WHERE metric_name = ? AND comparison_group = 'field'");
+            pctStmt.bind(0, value);
+            pctStmt.bind(1, metricType);
+            auto pctRows = pctStmt.query();
             if (!pctRows.empty()) {
                 double totalPeers = std::stod(pctRows[0].at("total_peers"));
                 double belowCount = std::stod(pctRows[0].at("below_count"));
@@ -340,25 +346,22 @@ double AnalyticsIntelligenceModule::calculateTFIDF(const std::string& term, int 
         std::string escapedTerm = database_->escapeString(term);
 
         // TF: 该词在用户研究兴趣中的出现次数
-        std::ostringstream tfSql;
-        tfSql << "SELECT COALESCE(occurrence_count, 0) as term_count "
-              << "FROM research_interest_evolution "
-              << "WHERE user_id = " << userId << " "
-              << "AND interest_keyword = '" << escapedTerm << "'";
-
-        auto tfRows = database_->query(tfSql.str());
+        PreparedStatement tfStmt(database_, "SELECT COALESCE(occurrence_count, 0) as term_count "
+              "FROM research_interest_evolution "
+              "WHERE user_id = ? AND interest_keyword = ?");
+        tfStmt.bind(0, userId);
+        tfStmt.bind(1, term);
+        auto tfRows = tfStmt.query();
         double termCount = 0.0;
         if (!tfRows.empty()) {
             termCount = std::stod(tfRows[0].at("term_count"));
         }
 
         // 用户所有关键词的总出现次数（分母）
-        std::ostringstream totalSql;
-        totalSql << "SELECT COALESCE(SUM(occurrence_count), 0) as total_count "
-                 << "FROM research_interest_evolution "
-                 << "WHERE user_id = " << userId;
-
-        auto totalRows = database_->query(totalSql.str());
+        PreparedStatement totalStmt(database_, "SELECT COALESCE(SUM(occurrence_count), 0) as total_count "
+                 "FROM research_interest_evolution WHERE user_id = ?");
+        totalStmt.bind(0, userId);
+        auto totalRows = totalStmt.query();
         double totalCount = 1.0; // 避免除以0
         if (!totalRows.empty()) {
             double dbTotal = std::stod(totalRows[0].at("total_count"));
@@ -370,13 +373,12 @@ double AnalyticsIntelligenceModule::calculateTFIDF(const std::string& term, int 
         double tf = termCount / totalCount;
 
         // IDF: 总用户数 / 包含该词的用户数
-        std::ostringstream idfSql;
-        idfSql << "SELECT "
-               << "(SELECT COUNT(DISTINCT user_id) FROM research_interest_evolution) as total_users, "
-               << "(SELECT COUNT(DISTINCT user_id) FROM research_interest_evolution "
-               << " WHERE interest_keyword = '" << escapedTerm << "') as term_users";
-
-        auto idfRows = database_->query(idfSql.str());
+        PreparedStatement idfStmt(database_, "SELECT "
+               "(SELECT COUNT(DISTINCT user_id) FROM research_interest_evolution) as total_users, "
+               "(SELECT COUNT(DISTINCT user_id) FROM research_interest_evolution "
+               " WHERE interest_keyword = ?) as term_users");
+        idfStmt.bind(0, term);
+        auto idfRows = idfStmt.query();
         double idf = 1.0; // 默认IDF
         if (!idfRows.empty()) {
             double totalUsers = std::stod(idfRows[0].at("total_users"));
@@ -414,29 +416,27 @@ float AnalyticsIntelligenceModule::calculateTrendScore(const std::string& keywor
         std::string escapedKeyword = database_->escapeString(keyword);
 
         // 最近30天内该关键词的出现次数
-        std::ostringstream recentSql;
-        recentSql << "SELECT COALESCE(SUM(occurrence_count), 0) as cnt "
-                  << "FROM research_interest_evolution "
-                  << "WHERE user_id = " << userId << " "
-                  << "AND interest_keyword = '" << escapedKeyword << "' "
-                  << "AND last_seen_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
-
-        auto recentRows = database_->query(recentSql.str());
+        PreparedStatement recentStmt(database_, "SELECT COALESCE(SUM(occurrence_count), 0) as cnt "
+                  "FROM research_interest_evolution "
+                  "WHERE user_id = ? AND interest_keyword = ? "
+                  "AND last_seen_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+        recentStmt.bind(0, userId);
+        recentStmt.bind(1, keyword);
+        auto recentRows = recentStmt.query();
         double recentCount = 0.0;
         if (!recentRows.empty()) {
             recentCount = std::stod(recentRows[0].at("cnt"));
         }
 
         // 之前30天（30~60天前）该关键词的出现次数
-        std::ostringstream previousSql;
-        previousSql << "SELECT COALESCE(SUM(occurrence_count), 0) as cnt "
-                    << "FROM research_interest_evolution "
-                    << "WHERE user_id = " << userId << " "
-                    << "AND interest_keyword = '" << escapedKeyword << "' "
-                    << "AND last_seen_at >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) "
-                    << "AND last_seen_at < DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
-
-        auto previousRows = database_->query(previousSql.str());
+        PreparedStatement prevStmt(database_, "SELECT COALESCE(SUM(occurrence_count), 0) as cnt "
+                    "FROM research_interest_evolution "
+                    "WHERE user_id = ? AND interest_keyword = ? "
+                    "AND last_seen_at >= DATE_SUB(CURDATE(), INTERVAL 60 DAY) "
+                    "AND last_seen_at < DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+        prevStmt.bind(0, userId);
+        prevStmt.bind(1, keyword);
+        auto previousRows = prevStmt.query();
         double previousCount = 0.0;
         if (!previousRows.empty()) {
             previousCount = std::stod(previousRows[0].at("cnt"));
@@ -611,9 +611,9 @@ std::vector<AcademicGeneNode> AnalyticsIntelligenceModule::buildAcademicGenealog
         if (depth > maxDepth) continue;
 
         // 查询当前论文
-        std::ostringstream sql;
-        sql << "SELECT id, title, authors, year FROM papers WHERE id = " << currentId;
-        auto papers = database_->query(sql.str());
+        PreparedStatement paperStmt(database_, "SELECT id, title, authors, year FROM papers WHERE id = ?");
+        paperStmt.bind(0, currentId);
+        auto papers = paperStmt.query();
 
         if (!papers.empty()) {
             AcademicGeneNode node;
@@ -624,11 +624,10 @@ std::vector<AcademicGeneNode> AnalyticsIntelligenceModule::buildAcademicGenealog
             node.depth = depth;
 
             // 查询引用关系
-            std::ostringstream citationSql;
-            citationSql << "SELECT target_paper_id, relationship_type FROM citation_relationships ";
-            citationSql << "WHERE source_paper_id = " << currentId;
-
-            auto citations = database_->query(citationSql.str());
+            PreparedStatement citationStmt(database_, "SELECT target_paper_id, relationship_type FROM citation_relationships "
+                "WHERE source_paper_id = ?");
+            citationStmt.bind(0, currentId);
+            auto citations = citationStmt.query();
 
             for (const auto& citation : citations) {
                 int targetId = std::stoi(citation["target_paper_id"]);

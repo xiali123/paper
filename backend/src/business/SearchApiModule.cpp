@@ -395,7 +395,7 @@ public:
 
 SearchApiModule::SearchApiModule()
     : SearchApiModule(static_cast<std::shared_ptr<IDatabase>>(nullptr)) {
-    std::cout << "[SearchApi] SearchApiModule default constructor" << std::endl;
+    spdlog::info("[SearchApi] SearchApiModule default constructor");
 }
 
 SearchApiModule::SearchApiModule(HttpClientPtr httpClient)

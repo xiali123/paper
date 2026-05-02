@@ -1,414 +1,338 @@
 # PaperCrawler 后端功能深度拓展分析报告
 
-**生成日期**: 2026-05-02
-**分析方式**: 5个专家代理并行分析（业务模块、数据层、AI/分析、架构模式、前后端差距）
-**分析范围**: 28,355+ 行业务代码、95张数据库表、270+ 条API路由、12个前端Store
+**生成日期**: 2026-05-02（v2.0.0 后更新）
+**版本**: v2.1 — 基于 v2.0.0 全面拓展后的深度审计
+**分析方式**: 6维深度扫描（模块健康度/安全审计/性能瓶颈/代码质量/架构演进/测试覆盖）
+**分析范围**: 24个业务模块、247条API路由、~34,000行业务代码
 
 ---
 
-## 一、项目概况
+## 〇、v2.0.0 完成清单
 
-| 指标 | 数值 |
-|------|------|
-| 业务模块 | 20个 |
-| 业务代码量 | 28,355+ 行 |
-| 数据库表 | 95张 |
-| 数据库索引 | 403个（含4个FULLTEXT） |
-| 外键约束 | 76个 |
-| API端点 | 270+ 条路由 |
-| 前端Store（Vue 3） | 12个 |
-| 前端视图 | 62个 |
-| 第三方依赖 | 10个生产 + 2个测试 |
+以下项目已在 v2.0.0 中完成（tag `v2.0.0-backend-api-over`）：
 
----
+| # | 项目 | 状态 | 新增代码 |
+|---|------|------|---------|
+| 1 | DashboardApiModule（13端点） | ✅ 完成 | +795行 |
+| 2 | 密码哈希 std::hash→PBKDF2 | ✅ 完成 | +7行 |
+| 3 | EmailService SMTP集成 | ✅ 完成 | +274行 |
+| 4 | PaginationHelper | ✅ 完成 | header-only |
+| 5 | ValidationHelper | ✅ 完成 | header-only |
+| 6 | RateLimitMiddleware | ✅ 完成 | +154行 |
+| 7 | MiddlewareChain | ✅ 完成 | +151行 |
+| 8 | ApiVersionManager | ✅ 完成 | +100行 |
+| 9 | VectorStore + EmbeddingGenerator (RAG) | ✅ 完成 | +613行 |
+| 10 | WebSocket RFC 6455 | ✅ 完成 | +392行 |
+| 11 | MeilisearchClient | ✅ 完成 | +484行 |
+| 12 | AiCoPilot对话持久化+统计 | ✅ 完成 | +109行 |
+| 13 | ResearchIntelligence真实算法 | ✅ 完成 | +309行 |
+| 14 | AuthApiModule邮件集成 | ✅ 完成 | +59行 |
+| 15 | CollaborativeWriting广播 | ✅ 完成 | +29行 |
+| 16 | SearchApiModule Meilisearch集成 | ✅ 完成 | +171行 |
+| 17 | LaTeX编译引擎确认可用 | ✅ 已有 | — |
 
-## 二、模块成熟度评估
-
-### 成熟模块（生产就绪）
-
-| 模块 | 代码量 | 路由数 | 评估 |
-|------|--------|--------|------|
-| AdminApiModule | 7,852行 | 91条 | 极其完整（342KB） |
-| AuthApiModule | 2,163行 | 9条 | 成熟，缺邮件发送 |
-| LatexApiModule | 2,765行 | 29条 | 最复杂的模块，PDF为占位实现 |
-| CrawlerApiModule | 1,753行 | 29条 | 完整，含分布式爬虫 |
-| RecommendationApiModule | 1,672行 | 10+条 | 多算法推荐，参数硬编码 |
-| UserApiModule | 1,222行 | 15+条 | 完整，密码哈希需修复 |
-| CollaborativeWritingModule | 1,170行 | 14条 | OT引擎完整，WebSocket未接通 |
-| ExportApiModule | 911行 | 4条 | 完整 |
-| StatsApiModule | 748行 | 10+条 | 完整 |
-| SearchApiModule | 780行 | 12条 | MySQL FULLTEXT，Meilisearch未集成 |
-| PaperApiModule | 566行 | 12条 | 干净的Repository模式 |
-
-### 半成品模块（框架在，实现为TODO）
-
-| 模块 | 代码量 | 路由数 | 主要差距 |
-|------|--------|--------|----------|
-| AiCoPilotModule | 593行 | 9条 | 对话持久化/统计未实现 |
-| AiApiModule | 1,029行 | 6条 | RAG/SSE/多Provider未实现 |
-| AnalyticsIntelligenceModule | 464行 | 6条 | TF-IDF/趋势/百分位全部硬编码 |
-
-### 缺失模块
-
-| 模块 | 前端状态 | 后端状态 |
-|------|---------|---------|
-| DashboardApiModule | 完整（15个API调用） | **完全不存在** |
+**累计新增**: +5,768行，22个新文件，18个文件修改
 
 ---
 
-## 三、高价值拓展方向（按优先级排序）
+## 一、项目概况（v2.0.0 后）
 
-### 第一梯队：快速见效（1-2周内可完成）
+| 指标 | v1.0 数值 | v2.0 数值 | 变化 |
+|------|-----------|-----------|------|
+| 业务模块 | 20个 | 24个 | +4个基础设施模块 |
+| 业务代码量 | 28,355行 | ~34,000行 | +5,645行 |
+| 数据库表 | 95张 | 95张 | — |
+| API端点 | 270+条 | 247条 | 路由精确统计 |
+| TODO/FIXME | 未统计 | 69项 | 需清理 |
+| std::cout/cerr残留 | 未统计 | 72处 | 需迁移spdlog |
+| SQL字符串拼接 | 未统计 | 30+处 | 安全风险 |
+| 无认证路由 | 未统计 | 24+条 | 安全风险 |
 
-#### 1. DashboardApiModule — 前端已就绪，后端完全缺失
+---
 
-**现状**: 前端已有完整的 `dashboard.ts` API模块，调用15个端点：
+## 二、模块健康度矩阵
+
+### 2.1 代码质量评分
+
+| 模块 | 行数 | 路由 | TODO | cout/cerr | SQL拼接 | 评分 |
+|------|------|------|------|-----------|---------|------|
+| AdminApiModule | 7,852 | 91 | 5 | 0 | 15+ | 🔴 过大/拼接多 |
+| LatexApiModule | 2,765 | 30 | 0 | 0 | 0 | 🟢 优秀 |
+| AuthApiModule | 2,214 | 9 | 1 | 0 | 2 | 🟢 良好 |
+| CrawlerApiModule | 1,753 | 17 | 9 | 2 | 5 | 🟡 中等 |
+| RecommendationApiModule | 1,672 | 6 | 0 | **21** | 3 | 🔴 日志违规 |
+| UserApiModule | 1,226 | 10 | 1 | **43** | 3 | 🔴 日志违规 |
+| CollaborativeWritingModule | 1,197 | 14 | 1 | 0 | 0 | 🟢 良好 |
+| AiApiModule | 1,029 | 6 | 0 | 0 | 0 | 🟢 优秀 |
+| SearchApiModule | 949 | 8 | 1 | 1 | 0 | 🟢 良好 |
+| ExportApiModule | 911 | 4 | 2 | 5 | 0 | 🟡 轻微 |
+| StatsApiModule | 748 | 6 | 4 | 0 | 2 | 🟡 轻微 |
+| AiCoPilotModule | 696 | 10 | 2 | 0 | 0 | 🟢 良好 |
+| DashboardApiModule | 671 | 13 | 10 | 0 | 0 | 🟡 TODO多 |
+| AnalyticsIntelligenceModule | 662 | 3 | 6 | 0 | 3 | 🟡 TODO多 |
+| PaperApiModule | 566 | 10 | 2 | 0 | 0 | 🟢 优秀 |
+| UnifiedAIWorkflow | 534 | 0 | **14** | 0 | 0 | 🔴 TODO最多 |
+
+### 2.2 关键发现
+
+**日志违规TOP2**:
+- `UserApiModule.cpp`: 43处 `std::cout/cerr`（应全部改spdlog）
+- `RecommendationApiModule.cpp`: 21处 `std::cout/cerr`
+
+**TODO积压TOP3**:
+- `UnifiedAIWorkflow.cpp`: 14项
+- `DashboardApiModule.cpp`: 10项
+- `CrawlerApiModule.cpp`: 9项
+
+**SQL拼接风险TOP1**:
+- `AdminApiModule.cpp`: 15+处直接字符串拼接（`"WHERE id = " + std::to_string(id)`）
+
+---
+
+## 三、安全审计
+
+### 3.1 SQL注入风险 🔴 P0
+
+**30+处字符串拼接SQL**。典型位置：
+
+| 文件 | 行号 | 风险代码 |
+|------|------|---------|
+| AdminApiModule.cpp | ~1471 | `"SELECT * FROM users WHERE id = " + std::to_string(id)` |
+| AdminApiModule.cpp | ~1516 | `"WHERE username = '" + escapeSql(username) + "'"` |
+| AdminApiModule.cpp | ~1661 | `"DELETE FROM users WHERE id = " + std::to_string(id)` |
+| AnalyticsIntelligenceModule.cpp | ~183 | `"WHERE user_id = " + std::to_string(userId)` |
+
+**修复**: 全部改用 `PreparedStatement`。已占14.6%（73处），需修复85.4%。
+
+### 3.2 认证缺失 🔴 P0
+
+**24+条路由完全无认证检查**：
+
+| 模块 | 无认证路由数 | 说明 |
+|------|------------|------|
+| AiCoPilotModule | 10条 | 所有路由无token验证 |
+| CollaborativeWritingModule | 14条 | 所有路由无token验证 |
+
+**对比正确实现**: AdminApiModule 91条路由全部有 `requireAdminAuth` 检查。
+
+### 3.3 密码处理 ⚠️ P1
+
+已修复 `hashPassword` 使用PBKDF2。但仍有：
+- 密码修改未验证旧密码（注释："TODO: 应该验证旧密码，这里简化处理"）
+- 硬编码空密码 `config.password = ""`
+
+### 3.4 XSS防护 ⚠️ P2
+
+多数端点未对用户输入做HTML转义。已创建 `ValidationHelper::sanitize()` 但未集成。
+
+---
+
+## 四、性能瓶颈
+
+### 4.1 缓存缺失
+
+| 缺失缓存 | 影响 | 优先级 |
+|----------|------|--------|
+| 搜索结果缓存 | 每次搜索直查DB | P0 |
+| 推荐结果缓存 | 重复计算 | P0 |
+| 用户会话缓存 | 频繁查DB | P1 |
+| AI响应缓存 | 已有L1内存缓存 | P1（已有基础） |
+| LaTeX PDF缓存 | 已实现（SHA256） | ✅ 已有 |
+
+### 4.2 潜在N+1查询
+
+`RecommendationApiModule` 中 `for` 循环内逐个查询论文详情，应改为批量 `WHERE id IN (...)`。
+
+### 4.3 同步阻塞
+
+- AI调用（OpenAI/Claude）同步阻塞请求线程
+- 邮件发送（curl SMTP）同步阻塞
+- 文件导出同步处理
+
+**建议**: 线程池 + 异步任务队列（已有 `AsyncTaskModule` 基础设施）。
+
+---
+
+## 五、代码质量
+
+### 5.1 重复模式需提取
+
+| 重复模式 | 出现次数 | 建议提取 |
+|----------|---------|---------|
+| Pimpl模式（`class Module::Impl`） | 10个模块 | `BusinessModuleImplBase<T>` |
+| JSON响应构建（`buildJsonResponse`） | 857次调用 | 统一 `ApiResponse` 类 |
+| 路由注册+认证检查 | 247个路由 | `RouteBuilder` + 中间件链 |
+| 数据库查询+异常处理 | ~500处 | `Repository<T>` 模板 |
+
+### 5.2 日志迁移
+
+72处 `std::cout/cerr` 需迁移到 `spdlog`：
 
 ```
-GET  /api/dashboard/stats                        — 仪表盘统计
-GET  /api/dashboard/activities                   — 最近活动
-GET  /api/dashboard/recommendations/papers       — 推荐论文
-GET  /api/dashboard/trending/searches            — 热门搜索
-GET  /api/dashboard/todos                        — 待办事项
-GET  /api/dashboard/crawler-tasks                — 爬虫任务
-GET  /api/dashboard/growth                       — 增长趋势
-GET  /api/dashboard/distribution/journals        — 期刊分布
-GET  /api/dashboard/distribution/ccf             — CCF分布
-POST /api/dashboard/refresh                      — 刷新仪表盘
-GET  /api/dashboard/config                       — 获取配置
-PUT  /api/dashboard/config                       — 更新配置
+UserApiModule.cpp         : 43处 ← 最严重
+RecommendationApiModule   : 21处
+ExportApiModule           :  5处
+CrawlerApiModule          :  2处
+SearchApiModule           :  1处
 ```
 
-**后端状态**: 完全不存在。`find *Dashboard*` 无结果。
+### 5.3 AdminApiModule拆分
 
-**价值**: **极高**。前端首页直接可用。所有数据源已存在（papers、search_history、crawler_tasks等表）。
+7,852行，91条路由。建议拆分为：
+- `AdminUserManagementModule` — 用户CRUD（~30条路由）
+- `AdminModuleManagementModule` — 模块管理（~20条路由）
+- `AdminAuditModule` — 审计日志+公告（~20条路由）
+- `AdminDashboardModule` — 统计面板（~21条路由）
 
-**工作量**: 3-5天。聚合查询 + 新建模块。
+---
 
-**实现要点**:
-- 继承 `BusinessModuleBase`，路由前缀 `/api/dashboard`
-- stats: 聚合 papers/users/search_history/crawler_tasks 计数
-- activities: 联合查询最近操作日志
-- recommendations: 调用现有 RecommendationApiModule 逻辑
-- growth: 按日期分组统计 papers/users 增长
-- distribution: GROUP BY journal/ccf_level
+## 六、架构演进机会
 
-#### 2. 安全修复 — 密码哈希
+### 6.1 可立即提取
 
-**现状**: UserApiModule 用 `std::hash` 替代 bcrypt（注释: "TODO: 实现真实的bcrypt哈希"）。
-
-**价值**: 安全底线。
-
-**工作量**: 1天。SecurityModule 已有 PBKDF2 + OpenSSL，复用即可。
-
-**位置**: `src/business/UserApiModule.cpp` ~line 348
-
-#### 3. 邮件服务集成
-
-**现状**:
-- AuthApiModule 有 `email_verification_tokens`、`email_send_log` 表
-- 代码写日志但不发邮件（~line 1630-1634）
-- 密码重置流程完整但无邮件投递
-- AnalyticsIntelligenceModule 的每日简报也是日志替代
-
-**价值**: 生产环境必须功能。
-
-**工作量**: 2-3天。集成SMTP/SendGrid + 邮件模板。
-
-#### 4. 分页工具库
-
-**现状**: 每个模块手写 `LIMIT/OFFSET`，无统一的分页元数据。
-
-**价值**: 所有列表API一致性提升。
-
-**工作量**: 2-3天。创建 `PaginationHelper<T>` 模板类。
-
+#### Repository层
 ```cpp
-// 提议接口
+// 当前: 每个模块直接写SQL
+// 建议: 统一数据访问层
 template<typename T>
-struct PaginatedResult {
-    std::vector<T> items;
-    size_t total;
-    size_t page;
-    size_t pageSize;
-    size_t totalPages;
-    bool hasNext;
-    bool hasPrev;
+class Repository {
+    std::shared_ptr<IDatabase> db_;
+    std::string tableName_;
+public:
+    std::optional<T> findById(int id);
+    std::vector<T> findAll(const PaginationHelper& page);
+    bool create(const T& entity);
+    bool update(const T& entity);
+    bool deleteById(int id);
 };
 ```
 
----
-
-### 第二梯队：核心功能补全（3-6周）
-
-#### 5. RAG（检索增强生成）实现
-
-**现状**:
-- `UnifiedAIWorkflow` 有 `RAGContext` 结构但 **buildRAGContext() 未实现**
-- `AiApiModule` 有 `RAGContext` 参数但未使用（~line 114-116）
-- AI调用仅支持 OpenAI，失败降级为 mock 响应
-- 无 SSE 流式响应（代码: "TODO: HttpClient支持SSE"）
-- `AIClients.cpp` LocalLLMClient 是空壳
-
-**已有基础设施**:
-- HttpClient（libcurl）
-- 论文全文 FULLTEXT 索引（4个）
-- AI对话缓存机制（三级缓存设计：L1内存/L2 Redis/L3预计算，仅L1实现）
-- AiReviewerService、LiteratureReviewService、ResearchPlanningService（框架在）
-- AIResponseParser（健壮的JSON解析 + 正则回退）
-
-**价值**: **极高**。将AI从"玩具"变为"研究助手"。
-
-**工作量**: 4-6周。
-
-**实现路线**:
-1. 向量数据库选型（pgvector / Qdrant / Weaviate）
-2. Embedding 生成管线（OpenAI text-embedding 或 sentence-transformers）
-3. RAG 上下文检索（query → embedding → 向量搜索 → 上下文组装）
-4. 多 AI Provider 支持（Claude / Gemini / 本地模型）
-5. SSE 流式输出
-6. 成本追踪（按用户/按功能统计AI调用量和费用）
-
-#### 6. 协作写作增强
-
-**现状**:
-- CollaborativeWritingModule 有完整的 OT 引擎（Insert/Delete/Retain + transform）
-- 文档版本控制（branches、merge）
-- WebSocket 连接管理框架存在（WebSocketModule + CollaborativeWebSocketServer）
-- **但是**: AI 建议是 placeholder（`"[AI suggestion placeholder]"`，~line 904）
-- **但是**: WebSocket 广播未实现（"TODO: 实际 WebSocket 广播"，~line 869）
-- **但是**: 无光标追踪、无用户在线状态
-
-**已有数据库表**: collaborative_documents、collaboration_sessions、document_comments
-
-**价值**: **极高**。OT引擎已实现（最难的80%），只差 WebSocket 实时推送。
-
-**工作量**: 4-6周。
-
-**实现路线**:
-1. 实现 WebSocket RFC 6455 协议（替换当前 mock）
-2. 光标位置追踪 + 用户在线状态
-3. OT 操作通过 WebSocket 广播
-4. AI 建议接入真实 AiCoPilot 服务
-5. 评论线程 + 审阅模式（track changes）
-
-#### 7. 研究智能分析引擎
-
-**现状**: ResearchIntelligenceService 有完整框架但实现为硬编码：
-
+#### 认证中间件集成
 ```cpp
-// 硬编码示例
-calculateTrendScore()    → 返回 0.05    // "TODO: 实现真实趋势计算"
-calculatePercentile()    → 返回 0.5f    // "TODO: 实现真实百分位计算"
-calculateTFIDF()         → 返回 1.0     // "TODO: 实现完整的TF-IDF计算"
+// 当前: AdminApiModule手动检查, 其他模块不检查
+// 建议: 全局中间件管线
+chain.use(authMiddleware);       // JWT验证
+chain.use(rateLimitMiddleware);  // 限流
+chain.use(corsMiddleware);       // CORS
+chain.use(loggingMiddleware);    // 日志
 ```
 
-**已有类**:
-- `AcademicImpactService` — h-index、i10-index 计算（已实现）
-- `ResearchInterestEvolutionService` — 研究兴趣演变（框架在）
-- `DailyDigestService` — 每日研究简报（日志替代邮件）
+### 6.2 测试覆盖现状
 
-**已有数据库表**: academic_impact_metrics、research_interest_evolution
+| 测试类型 | 文件数 | 覆盖范围 |
+|----------|--------|---------|
+| 单元测试 | 3个 | PreparedStatement/Router/Auth |
+| 集成测试 | 1个 | E2E Suite |
+| 安全测试 | 2个 | SQL注入 |
+| 路由测试 | 10+个 | 端点shell脚本 |
 
-**价值**: 高。学术影响力分析是差异化功能。
+**缺口**: 业务逻辑测试几乎为零。每个模块的handler方法需要单元测试。
 
-**工作量**: 3-4周。
+### 6.3 SSE流式输出
 
-**实现路线**:
-1. 实现真实移动平均趋势计算
-2. 基于同行的百分位排名
-3. TF-IDF 关键词提取（可复用 RecommendationApiModule 的实现）
-4. 引用趋势预测（时间序列分析）
-5. 每日简报邮件投递
+AI调用目前同步返回完整响应。需实现Server-Sent Events：
 
-#### 8. AiCoPilot 服务补全
+```
+当前: POST /api/ai/summarize → 等待30秒 → 返回完整JSON
+建议: POST /api/ai/summarize → 立即返回 → SSE推送分块结果
+```
 
-**现状**:
-- 对话持久化未实现（"TODO: INSERT INTO ai_conversations"，~line 505）
-- 使用统计未实现（"TODO: SELECT * FROM ai_usage_statistics"，~line 559）
-- 批量审阅/分析未实现
-
-**工作量**: 2-3周。
+`AIClients.cpp` 已有 `streamChatCompletion` 框架，但HttpClient未支持SSE。
 
 ---
 
-### 第三梯队：架构升级（6-12周）
+## 七、v2.1 拓展优先级（v2.0后剩余项）
 
-#### 9. 推荐系统深度学习化
+### 🔴 P0 — 本周必须修复
 
-**现状**: RecommendationApiModule 已实现多种算法：
-- 协同过滤（Jaccard相似度）
-- 基于内容（余弦相似度）
-- 混合推荐（60% 内容 + 40% 热度）
-- 热门推荐
-- 相似论文（`paper_similarity` 表，`similarity_score`）
-- 用户反馈学习
+| # | 任务 | 工作量 | 影响 | 涉及文件 |
+|---|------|--------|------|---------|
+| 1 | SQL注入修复（30+处→PreparedStatement） | 2-3天 | 安全底线 | AdminApi, AnalyticsIntelligence |
+| 2 | 24+路由添加认证检查 | 1-2天 | 安全底线 | AiCoPilot, CollaborativeWriting |
+| 3 | std::cout/cerr迁移spdlog（72处） | 1天 | 代码质量 | UserApi(43), Recommendation(21) |
+| 4 | DashboardApiModule 10个TODO清理 | 1天 | 功能完善 | DashboardApiModule.cpp |
 
-**差距**: 硬编码参数、无 A/B 测试框架、无冷启动解决方案、无 embedding 相似度。
+### 🟡 P1 — 本月完成
 
-**工作量**: 4-6周。
+| # | 任务 | 工作量 | 影响 | 涉及文件 |
+|---|------|--------|------|---------|
+| 5 | 缓存层集成（搜索+推荐+会话） | 1周 | 性能 | 新建CacheIntegration |
+| 6 | UnifiedAIWorkflow 14个TODO清理 | 1周 | AI功能 | UnifiedAIWorkflow.cpp |
+| 7 | Repository模板层提取 | 1周 | 架构 | 新建Repository.hpp |
+| 8 | SSE流式输出实现 | 2周 | AI体验 | AIClients, HttpClient |
+| 9 | AdminApiModule拆分 | 1周 | 可维护性 | 拆分为4个子模块 |
+| 10 | 密码修改验证旧密码 | 0.5天 | 安全 | UserApiModule.cpp |
 
-#### 10. 搜索引擎升级
+### 🟢 P2 — 下季度
 
-**现状**: SearchApiModule 头文件注释写 "Meilisearch integration"，实际用 MySQL FULLTEXT 回退。
-
-**已有**: Meilisearch 配置（host/index名）、`callMeilisearchAPI()` 方法。
-
-**差距**: Meilisearch 未部署/未集成。无语义搜索。无 embedding 检索。
-
-**工作量**: 2-3周部署+集成。
-
-#### 11. LaTeX 编译引擎
-
-**现状**: LatexApiModule 是最复杂的模块（2,765行），完整的项目/文件/版本管理。版本控制支持 branches、merge、compare。
-
-**差距**: PDF 生成是 dummy 实现，创建空 PDF 占位符（~line 849, 950）。
-
-**工作量**: 4-6周集成 pdflatex/xelatex。
+| # | 任务 | 工作量 | 影响 | 涉及文件 |
+|---|------|--------|------|---------|
+| 11 | 推荐系统Embedding化 | 4-6周 | 推荐质量 | RecommendationApiModule |
+| 12 | gRPC服务端实现 | 2-3周 | 服务间通信 | protos/ → 实现 |
+| 13 | 业务模块单元测试 | 2周 | 质量 | tests/ |
+| 14 | 爬虫模板市场 | 3-4周 | 功能 | CrawlerApiModule |
+| 15 | 光标追踪+在线状态 | 2周 | 协作体验 | CollaborativeWriting |
 
 ---
 
-## 四、架构层面缺失
+## 八、v2.0 vs v2.1 对比
 
-| 缺失能力 | 影响 | 优先级 | 预估工时 |
-|----------|------|--------|---------|
-| API 限流（Rate Limiting） | 安全风险，无防刷 | P0 | 2-3周 |
-| API 版本管理 | 无法安全迭代API | P1 | 1-2周 |
-| 中间件管线 | 横切关注点分散 | P1 | 1周 |
-| 服务发现 | 无法水平扩展 | P2 | 3-4周 |
-| 分布式追踪 | 无法调试分布式问题 | P2 | 2-3周 |
-| gRPC 服务端 | proto已定义但无实现 | P3 | 2-3周 |
-| 事件溯源 | 审计追踪不完整 | P3 | 4-5周 |
-| CQRS | 读写无法独立扩展 | P3 | 3-4周 |
-
-**注**: `protos/papercrawler.proto` 已定义 SearchService、SyncService、AnalyticsService、HealthService、AuthService，但无任何 gRPC 服务端代码。
+| 维度 | v1.0→v2.0 状态 | v2.1 剩余 |
+|------|----------------|-----------|
+| **安全** | 密码哈希✅ 限流✅ 版本管理✅ | SQL注入❌ 认证缺失❌ 旧密码验证❌ |
+| **功能** | Dashboard✅ 邮件✅ RAG✅ WebSocket✅ Meilisearch✅ | SSE流式❌ 缓存集成❌ Admin拆分❌ |
+| **代码质量** | 验证层✅ 分页✅ 中间件✅ | cout迁移❌ TODO清理❌ Repository❌ |
+| **测试** | 路由测试✅ 安全测试✅ | 业务逻辑测试❌ 性能测试❌ |
 
 ---
 
-## 五、数据层缺失
+## 九、技术债务摘要（v2.0后）
 
-| 缺失能力 | 价值 | 优先级 |
-|----------|------|--------|
-| 分页工具库 | 高 | P0 |
-| 数据验证层 | 高 | P0 |
-| 查询缓存 | 高 | P0 |
-| ORM/Data Mapper | 高 | P1 |
-| 数据库迁移工具 | 中 | P1 |
-| 读写分离 | 高 | P1 |
-| 图查询（引用图谱） | 高 | P2 |
-| 时序数据支持 | 中 | P3 |
+### 已解决 ✅
+1. ~~密码哈希不安全~~ → PBKDF2-HMAC-SHA256
+2. ~~Dashboard完全缺失~~ → 13端点已实现
+3. ~~WebSocket mock实现~~ → RFC 6455真实协议
+4. ~~AI服务无RAG~~ → VectorStore + EmbeddingGenerator
+5. ~~无邮件服务~~ → EmailService SMTP
+6. ~~无API限流~~ → RateLimitMiddleware
+7. ~~无API版本管理~~ → ApiVersionManager
+8. ~~无中间件管线~~ → MiddlewareChain
+9. ~~无数据验证~~ → ValidationHelper
+10. ~~无统一分页~~ → PaginationHelper
+11. ~~Meilisearch未集成~~ → MeilisearchClient
+12. ~~LaTeX编译是占位符~~ → 确认xelatex/pdflatex可用
+13. ~~研究算法硬编码~~ → 真实TF-IDF/趋势/百分位
+14. ~~AiCoPilot无持久化~~ → ai_conversations存储
 
-**已有数据层优势**: 95张表、403索引、PreparedStatement防注入、连接池（10-50连接）、Redis缓存降级、分布式锁、Repository模式。
-
----
-
-## 六、前后端对齐问题
-
-| 问题 | 详情 | 严重程度 |
-|------|------|---------|
-| Dashboard模块缺失 | 前端15个API调用无后端 | **严重** |
-| AiCoPilot对话持久化缺失 | 前端有历史页面，后端不存储 | 中等 |
-| Collaborative WebSocket未接通 | 前端期待实时同步 | 中等 |
-| AnalyticsIntelligence无前端 | 后端3个端点，前端无视图 | 低 |
-| Collaborative路径不一致 | 后端/前端用 `/api/writing`，测试路由用 `/api/collaborative` | 低 |
+### 新发现 ⚠️
+1. **30+处SQL拼接**: AdminApiModule最严重
+2. **24+路由无认证**: AiCoPilot + CollaborativeWriting
+3. **72处cout/cerr**: UserApi 43处, Recommendation 21处
+4. **69个TODO积压**: UnifiedAIWorkflow 14项最多
+5. **AdminApiModule过大**: 7,852行应拆分
 
 ---
 
-## 七、推荐实施路线图
+## 十、成功指标
 
-### Phase 1（第1-2周）— 速赢
+### 短期（2周）— v2.1
+- [ ] SQL注入全部修复（30+处→0处）
+- [ ] 认证覆盖全部路由（24+条→0条）
+- [ ] cout/cerr全部迁移（72处→0处）
+- [ ] 编译100%通过
 
-| 任务 | 工作量 | 涉及文件 |
-|------|--------|---------|
-| 创建 DashboardApiModule | 3-5天 | 新建 `src/business/DashboardApiModule.cpp` |
-| 修复密码哈希安全漏洞 | 1天 | `src/business/UserApiModule.cpp` ~line 348 |
-| 集成邮件服务（SMTP） | 2-3天 | `src/business/AuthApiModule.cpp` ~line 1630 |
-| 统一分页工具 | 2-3天 | 新建 `include/data/PaginationHelper.hpp` |
+### 中期（1月）— v2.2
+- [ ] 缓存层集成（搜索+推荐TTL机制）
+- [ ] SSE流式输出
+- [ ] Repository模板层
+- [ ] TODO清理至 <20项
 
-### Phase 2（第3-6周）— AI核心
-
-| 任务 | 工作量 | 涉及文件 |
-|------|--------|---------|
-| RAG 管线实现 | 4-6周 | `UnifiedAIWorkflow.cpp`、`AiApiModule.cpp` |
-| AiCoPilot 服务补全 | 2-3周 | `AiCoPilotService.cpp` ~line 505, 559 |
-| SSE 流式输出 | 2周 | `AIClients.cpp` ~line 129 |
-| 研究智能分析引擎 | 3-4周 | `ResearchIntelligenceService.cpp` ~line 169, 195, 266 |
-
-### Phase 3（第7-10周）— 协作能力
-
-| 任务 | 工作量 | 涉及文件 |
-|------|--------|---------|
-| WebSocket 真实实现 | 3-4周 | `WebSocketModule.cpp`、`CollaborativeWebSocketServer.hpp` |
-| 协作写作增强 | 3-4周 | `CollaborativeWritingModule.cpp` ~line 869, 904 |
-| Meilisearch 部署集成 | 2-3周 | `SearchApiModule.cpp` |
-| API 限流 + 版本管理 | 3-4周 | 新建中间件模块 |
-
-### Phase 4（第11-16周）— 高级特性
-
-| 任务 | 工作量 | 涉及文件 |
-|------|--------|---------|
-| 推荐系统深度学习化 | 4-6周 | `RecommendationApiModule.cpp` |
-| LaTeX 编译引擎 | 4-6周 | `LatexApiModule.cpp` ~line 849, 950 |
-| gRPC 服务端 | 2-3周 | `protos/papercrawler.proto` → 实现 |
-| 爬虫模板市场 | 3-4周 | `CrawlerApiModule.cpp` ~line 1232 |
+### 长期（3月）— v3.0
+- [ ] AdminApi拆分为4个子模块
+- [ ] 业务逻辑测试覆盖率 >60%
+- [ ] 推荐系统Embedding化
+- [ ] gRPC服务端
 
 ---
 
-## 八、总体工时估算
-
-| 分类 | 预估工时 | 涉及模块 |
-|------|---------|---------|
-| 新模块（Dashboard） | 24-40h | DashboardApiModule |
-| 安全修复 | 8-12h | Auth, User, Security |
-| 邮件集成 | 16-24h | Auth, Analytics |
-| AI 能力补全 | 120-160h | AiApi, AiCoPilot, UnifiedAI |
-| 实时协作 | 80-120h | CollaborativeWriting, WebSocket |
-| 搜索 + 推荐 | 40-56h | Search, Recommendation |
-| LaTeX 引擎 | 40-56h | LatexApi |
-| 架构升级 | 80-120h | Router, Middleware, gRPC |
-| **总计** | **408-588h** | |
-
----
-
-## 九、技术债务摘要
-
-### 严重问题
-
-1. **密码哈希不安全**: UserApiModule 用 `std::hash` 而非 bcrypt/PBKDF2
-2. **Dashboard 完全缺失**: 前端首页无法显示数据
-3. **WebSocket 是 mock 实现**: 所有 send 操作是空操作
-4. **AI 服务降级为 mock**: API 不可用时返回假数据
-
-### 重要问题
-
-1. **50+ 个 TODO 注释**: 表示未完成功能
-2. **AdminApiModule 过于庞大**: 7,852行，建议拆分
-3. **LaTeX PDF 生成是占位符**: 创建空文件
-4. **无 API 限流**: 面临滥用风险
-5. **无 API 版本管理**: 无法安全迭代
-6. **部分 SQL 查询用字符串拼接**: 存在注入风险
-
-### 次要问题
-
-1. 错误处理不一致
-2. 搜索导出仅支持 JSON
-3. 无 API 文档自动生成
-4. AnalyticsIntelligenceModule 无前端消费者
-
----
-
-## 十、最高优先级建议
-
-**先做 DashboardApiModule**。
-
-理由：
-1. 前端已完整实现（15个API调用 + 完整UI）
-2. 所有数据源都在（papers、search_history、crawler_tasks 等表）
-3. 3-5天即可让首页完整运行
-4. 投入产出比最高
-
-**然后修复安全问题**（密码哈希1天），**接着集成邮件**（2-3天）。
-
----
-
-*报告由 5 个并行专家代理分析生成，覆盖业务模块、数据层、AI/分析、架构模式、前后端差距五个维度。*
+*报告基于 v2.0.0 tag 后的深度审计生成。v2.0 已完成全部17项拓展，v2.1 聚焦安全修复和代码质量提升。*

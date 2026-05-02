@@ -2,6 +2,7 @@
 #include "core/Router.hpp"
 #include "core/ModuleExports.hpp"
 #include "network/WebSocketModule.hpp"
+#include "features/security/SecurityModule.hpp"
 #include <json.hpp>
 #include <sstream>
 #include <algorithm>
@@ -112,8 +113,33 @@ void CollaborativeWritingModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix();
 
+    // Auth middleware - check Authorization header
+    auto requireAuth = [](const HttpRequest& req) -> bool {
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) return false;
+
+        const std::string& authHeader = authIt->second;
+        if (authHeader.substr(0, 7) != "Bearer ") return false;
+
+        std::string token = authHeader.substr(7);
+        if (token.empty()) return false;
+
+        SecurityModule sec;
+        auto result = sec.verifyJWT(token);
+        return result.valid;
+    };
+
+    auto unauthorizedResp = []() -> HttpResponse {
+        HttpResponse resp;
+        resp.statusCode = 401;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":false,"message":"Unauthorized"})";
+        return resp;
+    };
+
     // POST /api/writing/documents — 创建文档
-    router.post(prefix + "/documents", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             auto json = nlohmann::json::parse(req.body);
             std::string title = json.value<std::string>("title", "Untitled");
@@ -148,7 +174,8 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
     // GET /api/writing/documents — 获取文档列表
-    router.get(prefix + "/documents", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             // 从查询参数获取
             int ownerId = 0;
@@ -201,7 +228,8 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
     // GET /api/writing/documents/:id — 获取文档
-    router.get(prefix + "/documents/:id", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto doc = getDocument(docId);
@@ -231,7 +259,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/documents/:id — 更新文档
-    router.put(prefix + "/documents/:id", [this](const HttpRequest& req) {
+    router.put(prefix + "/documents/:id", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -267,7 +296,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/operations — 应用 OT 操作
-    router.post(prefix + "/documents/:id/operations", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/operations", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -299,7 +329,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/suggestions — 获取 AI 建议
-    router.get(prefix + "/documents/:id/suggestions", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id/suggestions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto suggestions = getWritingSuggestions(docId);
@@ -334,7 +365,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/suggestions/generate — 生成 AI 建议
-    router.post(prefix + "/documents/:id/suggestions/generate", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/suggestions/generate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -368,7 +400,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/versions — 获取版本历史
-    router.get(prefix + "/documents/:id/versions", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id/versions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto versions = getVersions(docId);
@@ -401,7 +434,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/comments — 添加评论
-    router.post(prefix + "/documents/:id/comments", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/comments", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -429,7 +463,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // DELETE /api/writing/documents/:id — 删除文档
-    router.del(prefix + "/documents/:id", [this](const HttpRequest& req) {
+    router.del(prefix + "/documents/:id", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = deleteDocument(docId);
@@ -448,7 +483,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/comments — 获取评论列表
-    router.get(prefix + "/documents/:id/comments", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id/comments", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto comments = getComments(docId);
@@ -492,7 +528,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/versions — 创建版本
-    router.post(prefix + "/documents/:id/versions", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/versions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -523,7 +560,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/suggestions/:id/accept — 接受建议
-    router.put(prefix + "/suggestions/:id/accept", [this](const HttpRequest& req) {
+    router.put(prefix + "/suggestions/:id/accept", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int suggestionId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = acceptSuggestion(suggestionId);
@@ -542,7 +580,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/suggestions/:id/reject — 拒绝建议
-    router.put(prefix + "/suggestions/:id/reject", [this](const HttpRequest& req) {
+    router.put(prefix + "/suggestions/:id/reject", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int suggestionId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = rejectSuggestion(suggestionId);
@@ -561,7 +600,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/comments/:id/resolve — 解决评论
-    router.put(prefix + "/comments/:id/resolve", [this](const HttpRequest& req) {
+    router.put(prefix + "/comments/:id/resolve", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int commentId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = resolveComment(commentId);
