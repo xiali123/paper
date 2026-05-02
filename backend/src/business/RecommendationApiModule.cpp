@@ -5,6 +5,8 @@
 #include "core/Router.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
+#include "features/ai/VectorStore.hpp"
+#include "features/ai/EmbeddingGenerator.hpp"
 #include <sstream>
 #include <algorithm>
 #include <cmath>
@@ -567,6 +569,82 @@ public:
             cleanExpiredCache();
             lastClean = now;
         }
+    }
+
+    /**
+     * @brief 基于嵌入向量的推荐（利用VectorStore和EmbeddingGenerator）
+     *
+     * 算法流程：
+     * 1. 获取用户阅读历史
+     * 2. 将用户历史论文的标题+摘要拼接，生成用户画像嵌入向量
+     * 3. 在VectorStore中搜索与该嵌入最相似的论文
+     * 4. 过滤掉已读和排除列表中的论文
+     */
+    std::vector<RecommendationResult> embeddingBasedRecommendation(
+        int userId, int limit, const std::vector<int>& excludedIds) {
+        if (!database_) return {};
+
+        // 1. 获取用户阅读历史
+        auto history = getUserHistory(userId, 20);
+        if (history.empty()) return {};
+
+        // 2. 将历史论文的标题+摘要拼接成用户画像文本
+        std::string userProfileText;
+        for (int pid : history) {
+            auto paper = fetchPaper(pid);
+            if (paper) {
+                if (paper->count("title")) userProfileText += paper->at("title") + " ";
+                if (paper->count("abstract")) userProfileText += paper->at("abstract") + " ";
+            }
+        }
+
+        if (userProfileText.empty()) return {};
+
+        // 3. 使用EmbeddingGenerator生成用户画像嵌入向量
+        EmbeddingGenerator gen;
+        gen.setProvider("local");
+        auto queryVec = gen.generate(userProfileText);
+
+        if (queryVec.empty()) {
+            spdlog::warn("[Recommendation] Failed to generate embedding for user {}", userId);
+            return {};
+        }
+
+        // 4. 通过VectorStore搜索相似论文
+        VectorStore store;
+        store.setDatabase(database_);
+        auto results = store.search(queryVec, limit * 2, 0.3f);
+
+        // 5. 过滤掉排除列表和已读论文
+        std::set<int> excludeSet(excludedIds.begin(), excludedIds.end());
+        excludeSet.insert(history.begin(), history.end());
+
+        std::vector<RecommendationResult> recommendations;
+        for (const auto& sr : results) {
+            int paperId = std::stoi(sr.id);
+            if (excludeSet.count(paperId)) continue;
+
+            RecommendationResult rr;
+            rr.paperId = paperId;
+            rr.score = sr.score;
+            rr.algorithm = "embedding";
+            rr.reason = "Similar to your reading interests (embedding similarity: " +
+                        std::to_string(static_cast<int>(sr.score * 100)) + "%)";
+
+            // 获取论文详细信息
+            auto paper = fetchPaper(paperId);
+            if (paper) {
+                rr.title = paper->count("title") ? paper->at("title") : "";
+                rr.authors = paper->count("authors") ? paper->at("authors") : "";
+            }
+
+            recommendations.push_back(rr);
+            if (static_cast<int>(recommendations.size()) >= limit) break;
+        }
+
+        spdlog::info("[Recommendation] Embedding-based recommendation for user {}: {} results",
+                     userId, recommendations.size());
+        return recommendations;
     }
 };
 
@@ -1666,7 +1744,61 @@ void RecommendationApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[RecommendationApiModule] Registered 6 routes");
+    // GET /api/recommendations/embedding - 基于嵌入向量的推荐
+    router.get(prefix + "/embedding", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        int userId = 1;
+        int limit = 10;
+
+        auto userIdIt = req.queryParams.find("user_id");
+        if (userIdIt != req.queryParams.end()) {
+            userId = std::stoi(userIdIt->second);
+        }
+
+        auto limitIt = req.queryParams.find("limit");
+        if (limitIt != req.queryParams.end()) {
+            limit = std::min(50, std::max(1, std::stoi(limitIt->second)));
+        }
+
+        try {
+            auto recommendations = impl_->embeddingBasedRecommendation(userId, limit, {});
+
+            json result;
+            result["success"] = true;
+            result["count"] = recommendations.size();
+            result["algorithm"] = "embedding";
+
+            json items = json::array();
+            for (const auto& r : recommendations) {
+                json item;
+                item["paper_id"] = r.paperId;
+                item["title"] = r.title;
+                item["authors"] = r.authors;
+                item["publication"] = r.publication;
+                item["year"] = r.year;
+                item["score"] = r.score;
+                item["reason"] = r.reason;
+                item["algorithm"] = r.algorithm;
+                items.push_back(item);
+            }
+            result["recommendations"] = items;
+
+            response.statusCode = 200;
+            response.body = result.dump();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = json{
+                {"success", false},
+                {"error", std::string(e.what())}
+            }.dump();
+        }
+
+        return response;
+    });
+
+    spdlog::info("[RecommendationApiModule] Registered 7 routes");
 }
 
 } // namespace PaperCrawler

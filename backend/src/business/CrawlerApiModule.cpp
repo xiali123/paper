@@ -148,6 +148,335 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // 模板市场接口
+    // ========================================================================
+
+    // POST /api/crawler/marketplace/publish - 发布模板到市场
+    router.post(prefix + "/marketplace/publish", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        // 检查认证
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            auto jsonOpt = JsonUtils::parse(req.body);
+            if (!jsonOpt.has_value()) {
+                return buildJsonResponse(400, "Invalid JSON format");
+            }
+
+            auto jsonObj = jsonOpt.value();
+            std::string templateId = JsonUtils::getValue<std::string>(jsonObj, "templateId").value_or("");
+            std::string description = JsonUtils::getValue<std::string>(jsonObj, "description").value_or("");
+            std::string tags = JsonUtils::getValue<std::string>(jsonObj, "tags").value_or("");
+
+            if (templateId.empty()) {
+                return buildJsonResponse(400, "Missing templateId");
+            }
+
+            // 尝试数据库操作
+            if (database_) {
+                // 将模板标记为公开发布
+                PreparedStatement updateStmt(database_,
+                    "UPDATE crawler_templates SET is_public = 1, marketplace_description = ?, "
+                    "marketplace_tags = ?, published_at = datetime('now') WHERE template_id = ?");
+                updateStmt.bind(0, description);
+                updateStmt.bind(1, tags);
+                updateStmt.bind(2, templateId);
+                updateStmt.execute();
+
+                nlohmann::json data;
+                data["templateId"] = templateId;
+                data["published"] = true;
+                data["publishedAt"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+                return buildJsonResponse(true, "Template published to marketplace", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templateId"] = templateId;
+            data["published"] = true;
+            data["publishedAt"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            return buildJsonResponse(true, "Template published to marketplace (stub mode)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // GET /api/crawler/marketplace/templates - 浏览市场模板
+    router.get(prefix + "/marketplace/templates", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+            int offset = req.queryParams.count("offset") ? std::stoi(req.queryParams.at("offset")) : 0;
+            std::string sortBy = req.queryParams.count("sort") ? req.queryParams.at("sort") : "downloads";
+
+            if (database_) {
+                std::string orderClause = "ORDER BY download_count DESC";
+                if (sortBy == "rating") {
+                    orderClause = "ORDER BY rating DESC";
+                } else if (sortBy == "newest") {
+                    orderClause = "ORDER BY published_at DESC";
+                }
+
+                PreparedStatement stmt(database_,
+                    "SELECT template_id, name, description, base_url, "
+                    "download_count, rating, rating_count, published_at "
+                    "FROM crawler_templates WHERE is_public = 1 "
+                    + orderClause + " LIMIT ? OFFSET ?");
+                stmt.bind(0, limit);
+                stmt.bind(1, offset);
+                auto rows = stmt.query();
+
+                nlohmann::json templates = nlohmann::json::array();
+                for (const auto& row : rows) {
+                    nlohmann::json tmpl;
+                    tmpl["templateId"] = row.at("template_id");
+                    tmpl["name"] = row.at("name");
+                    tmpl["description"] = row.count("description") ? row.at("description") : "";
+                    tmpl["baseUrl"] = row.count("base_url") ? row.at("base_url") : "";
+                    tmpl["downloadCount"] = row.count("download_count") ? std::stoi(row.at("download_count")) : 0;
+                    tmpl["rating"] = row.count("rating") ? std::stod(row.at("rating")) : 0.0;
+                    tmpl["ratingCount"] = row.count("rating_count") ? std::stoi(row.at("rating_count")) : 0;
+                    tmpl["publishedAt"] = row.count("published_at") ? row.at("published_at") : "";
+                    templates.push_back(tmpl);
+                }
+
+                nlohmann::json data;
+                data["templates"] = templates;
+                data["total"] = templates.size();
+                data["limit"] = limit;
+                data["offset"] = offset;
+                return buildJsonResponse(true, "Marketplace templates retrieved", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templates"] = nlohmann::json::array();
+            data["total"] = 0;
+            data["limit"] = limit;
+            data["offset"] = offset;
+            return buildJsonResponse(true, "Marketplace templates retrieved (no database)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // POST /api/crawler/marketplace/templates/:id/install - 安装市场模板
+    router.post(prefix + "/marketplace/templates/:id/install", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end()) {
+                return buildJsonResponse(400, "Missing template ID");
+            }
+            std::string templateId = idIt->second;
+
+            if (database_) {
+                // 增加下载计数
+                PreparedStatement updateStmt(database_,
+                    "UPDATE crawler_templates SET download_count = download_count + 1 "
+                    "WHERE template_id = ? AND is_public = 1");
+                updateStmt.bind(0, templateId);
+                updateStmt.execute();
+
+                // 获取模板详情
+                PreparedStatement stmt(database_,
+                    "SELECT template_id, name, description, base_url, url_template, "
+                    "method, requires_js_rendering "
+                    "FROM crawler_templates WHERE template_id = ? AND is_public = 1");
+                stmt.bind(0, templateId);
+                auto rows = stmt.query();
+
+                if (rows.empty()) {
+                    return buildJsonResponse(404, "Template not found in marketplace");
+                }
+
+                auto& row = rows[0];
+                nlohmann::json data;
+                data["templateId"] = row.at("template_id");
+                data["name"] = row.at("name");
+                data["installed"] = true;
+                data["message"] = "Template installed successfully";
+                return buildJsonResponse(true, "Template installed", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templateId"] = templateId;
+            data["installed"] = true;
+            data["message"] = "Template installed (stub mode)";
+            return buildJsonResponse(true, "Template installed (stub mode)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // POST /api/crawler/marketplace/templates/:id/rate - 评分
+    router.post(prefix + "/marketplace/templates/:id/rate", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end()) {
+                return buildJsonResponse(400, "Missing template ID");
+            }
+            std::string templateId = idIt->second;
+
+            auto jsonOpt = JsonUtils::parse(req.body);
+            if (!jsonOpt.has_value()) {
+                return buildJsonResponse(400, "Invalid JSON format");
+            }
+
+            auto jsonObj = jsonOpt.value();
+            int rating = JsonUtils::getValue<int>(jsonObj, "rating").value_or(0);
+
+            if (rating < 1 || rating > 5) {
+                return buildJsonResponse(400, "Rating must be between 1 and 5");
+            }
+
+            if (database_) {
+                // 更新评分（简单平均）
+                PreparedStatement updateStmt(database_,
+                    "UPDATE crawler_templates SET "
+                    "rating = (rating * rating_count + ?) / (rating_count + 1), "
+                    "rating_count = rating_count + 1 "
+                    "WHERE template_id = ? AND is_public = 1");
+                updateStmt.bind(0, rating);
+                updateStmt.bind(1, templateId);
+                updateStmt.execute();
+
+                nlohmann::json data;
+                data["templateId"] = templateId;
+                data["rating"] = rating;
+                data["message"] = "Rating submitted";
+                return buildJsonResponse(true, "Rating submitted", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templateId"] = templateId;
+            data["rating"] = rating;
+            data["message"] = "Rating submitted (stub mode)";
+            return buildJsonResponse(true, "Rating submitted (stub mode)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // GET /api/crawler/marketplace/search - 搜索市场模板
+    router.get(prefix + "/marketplace/search", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            std::string query = req.queryParams.count("q") ? req.queryParams.at("q") : "";
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+            std::string tag = req.queryParams.count("tag") ? req.queryParams.at("tag") : "";
+
+            if (database_) {
+                std::string sql = "SELECT template_id, name, description, base_url, "
+                                  "download_count, rating, rating_count, published_at "
+                                  "FROM crawler_templates WHERE is_public = 1";
+                std::string whereClause;
+
+                if (!query.empty()) {
+                    whereClause += " AND (name LIKE ? OR description LIKE ? OR marketplace_tags LIKE ?)";
+                }
+                if (!tag.empty()) {
+                    whereClause += " AND marketplace_tags LIKE ?";
+                }
+
+                sql += whereClause + " ORDER BY download_count DESC LIMIT ?";
+
+                PreparedStatement stmt(database_, sql);
+                int bindIdx = 0;
+                if (!query.empty()) {
+                    std::string likeQuery = "%" + query + "%";
+                    stmt.bind(bindIdx++, likeQuery);
+                    stmt.bind(bindIdx++, likeQuery);
+                    stmt.bind(bindIdx++, likeQuery);
+                }
+                if (!tag.empty()) {
+                    stmt.bind(bindIdx++, "%" + tag + "%");
+                }
+                stmt.bind(bindIdx, limit);
+
+                auto rows = stmt.query();
+
+                nlohmann::json templates = nlohmann::json::array();
+                for (const auto& row : rows) {
+                    nlohmann::json tmpl;
+                    tmpl["templateId"] = row.at("template_id");
+                    tmpl["name"] = row.at("name");
+                    tmpl["description"] = row.count("description") ? row.at("description") : "";
+                    tmpl["downloadCount"] = row.count("download_count") ? std::stoi(row.at("download_count")) : 0;
+                    tmpl["rating"] = row.count("rating") ? std::stod(row.at("rating")) : 0.0;
+                    templates.push_back(tmpl);
+                }
+
+                nlohmann::json data;
+                data["templates"] = templates;
+                data["total"] = templates.size();
+                data["query"] = query;
+                return buildJsonResponse(true, "Marketplace search results", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templates"] = nlohmann::json::array();
+            data["total"] = 0;
+            data["query"] = query;
+            return buildJsonResponse(true, "Marketplace search (no database)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // ========================================================================
     // 任务管理接口
     // ========================================================================
 
