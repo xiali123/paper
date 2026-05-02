@@ -75,12 +75,12 @@ QWidget* FeatureCards::createFeatureCard(const QString& icon, const QString& tit
     // Apply styling
     card->setStyleSheet(
         "QWidget#featureCard {"
-        "  background-color: rgba(255, 255, 255, 0.95);"
+        "  background-color: palette(base);"
         "  border-radius: 15px;"
         "  border: none;"
         "}"
         "QWidget#featureCard:hover {"
-        "  background-color: rgba(255, 255, 255, 1.0);"
+        "  background-color: palette(alternate-base);"
         "}"
     );
 
@@ -100,7 +100,7 @@ QWidget* FeatureCards::createFeatureCard(const QString& icon, const QString& tit
 
     titleLabel->setStyleSheet(
         "QLabel#featureTitle {"
-        "  color: #333333;"
+        "  color: palette(text);"
         "  font-size: 14pt;"
         "  font-weight: 600;"
         "  background: transparent;"
@@ -109,7 +109,7 @@ QWidget* FeatureCards::createFeatureCard(const QString& icon, const QString& tit
 
     descLabel->setStyleSheet(
         "QLabel#featureDesc {"
-        "  color: #666666;"
+        "  color: palette(mid);"
         "  font-size: 10pt;"
         "  background: transparent;"
         "}"

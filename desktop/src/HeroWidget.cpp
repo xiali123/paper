@@ -82,7 +82,7 @@ void HeroWidget::setupStyles() {
         "QLabel#statusLabel {"
         "  font-size: 10pt;"
         "  font-weight: 600;"
-        "  color: #6b7280;"
+        "  color: palette(text);"
         "  background: transparent;"
         "}"
     );

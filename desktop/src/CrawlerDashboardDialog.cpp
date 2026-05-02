@@ -31,9 +31,9 @@ void CrawlerDashboardDialog::setupUI() {
 
     auto* closeBtn = new QPushButton("Close");
     closeBtn->setStyleSheet(
-        "QPushButton { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; "
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
         "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
-        "QPushButton:hover { background: #e2e8f0; }"
+        "QPushButton:hover { background: palette(light); }"
     );
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
     layout->addWidget(closeBtn, 0, Qt::AlignRight);
@@ -44,19 +44,19 @@ QWidget* CrawlerDashboardDialog::createDashboardTab() {
     auto* layout = new QVBoxLayout(widget);
 
     auto* titleLabel = new QLabel("Crawler Dashboard");
-    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #1e293b;");
+    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: palette(text);");
     layout->addWidget(titleLabel);
 
     auto* desc = new QLabel(
         "Monitor crawler tasks, manage templates, and view statistics.\n\n"
-        "Features coming soon:\n"
+        "Features:\n"
         "- Real-time task monitoring\n"
         "- Template management (arXiv, PubMed, Scholar, IEEE, ACM)\n"
         "- Task scheduling and retry\n"
         "- Node management\n"
         "- Distributed crawler support"
     );
-    desc->setStyleSheet("color: #64748b; font-size: 14px; line-height: 1.6;");
+    desc->setStyleSheet("color: palette(mid); font-size: 14px; line-height: 1.6;");
     layout->addWidget(desc);
     layout->addStretch();
 
@@ -81,11 +81,11 @@ QWidget* CrawlerDashboardDialog::createTemplatesTab() {
     auto* layout = new QVBoxLayout(widget);
 
     auto* label = new QLabel("Crawler Templates");
-    label->setStyleSheet("font-size: 16px; font-weight: bold; color: #1e293b;");
+    label->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
     layout->addWidget(label);
 
     auto* desc = new QLabel("Manage crawler templates for different data sources.");
-    desc->setStyleSheet("color: #64748b;");
+    desc->setStyleSheet("color: palette(mid);");
     layout->addWidget(desc);
     layout->addStretch();
 
@@ -123,9 +123,9 @@ void AIDialog::setupUI() {
 
     auto* closeBtn = new QPushButton("Close");
     closeBtn->setStyleSheet(
-        "QPushButton { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; "
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
         "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
-        "QPushButton:hover { background: #e2e8f0; }"
+        "QPushButton:hover { background: palette(light); }"
     );
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
     layout->addWidget(closeBtn, 0, Qt::AlignRight);
@@ -136,18 +136,18 @@ QWidget* AIDialog::createReviewTab() {
     auto* layout = new QVBoxLayout(widget);
 
     auto* titleLabel = new QLabel("AI Paper Review");
-    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #1e293b;");
+    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: palette(text);");
     layout->addWidget(titleLabel);
 
     auto* desc = new QLabel(
         "AI-powered paper review and analysis.\n\n"
-        "Features coming soon:\n"
+        "Features:\n"
         "- Quick review / Detailed review / Peer review\n"
         "- Literature review generation\n"
         "- Research plan generation\n"
         "- Review history and statistics"
     );
-    desc->setStyleSheet("color: #64748b; font-size: 14px; line-height: 1.6;");
+    desc->setStyleSheet("color: palette(mid); font-size: 14px; line-height: 1.6;");
     layout->addWidget(desc);
     layout->addStretch();
 
@@ -159,11 +159,11 @@ QWidget* AIDialog::createChatTab() {
     auto* layout = new QVBoxLayout(widget);
 
     auto* label = new QLabel("AI Chat Assistant");
-    label->setStyleSheet("font-size: 16px; font-weight: bold; color: #1e293b;");
+    label->setStyleSheet("font-size: 16px; font-weight: bold; color: palette(text);");
     layout->addWidget(label);
 
     auto* desc = new QLabel("Chat with AI about papers, research topics, and more.");
-    desc->setStyleSheet("color: #64748b;");
+    desc->setStyleSheet("color: palette(mid);");
     layout->addWidget(desc);
     layout->addStretch();
 

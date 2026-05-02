@@ -21,11 +21,11 @@ void FavoritesDialog::setupUI() {
     // Header
     auto* headerLayout = new QHBoxLayout();
     auto* titleLabel = new QLabel("My Favorites");
-    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #1e293b;");
+    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: palette(text);");
     headerLayout->addWidget(titleLabel);
 
     countLabel_ = new QLabel("0 papers");
-    countLabel_->setStyleSheet("color: #64748b; font-size: 14px;");
+    countLabel_->setStyleSheet("color: palette(mid); font-size: 14px;");
     headerLayout->addWidget(countLabel_);
     headerLayout->addStretch();
     mainLayout->addLayout(headerLayout);
@@ -34,11 +34,10 @@ void FavoritesDialog::setupUI() {
     searchEdit_ = new QLineEdit();
     searchEdit_->setPlaceholderText("Search favorites...");
     searchEdit_->setStyleSheet(
-        "QLineEdit { padding: 8px 16px; border: 1px solid #e2e8f0; "
+        "QLineEdit { padding: 8px 16px; border: 1px solid palette(mid); "
         "border-radius: 8px; font-size: 13px; }"
     );
     connect(searchEdit_, &QLineEdit::textChanged, this, [this](const QString& text) {
-        // Reload with filter
         Q_UNUSED(text);
         loadFavorites();
     });
@@ -60,9 +59,9 @@ void FavoritesDialog::setupUI() {
     // Close button
     auto* closeBtn = new QPushButton("Close");
     closeBtn->setStyleSheet(
-        "QPushButton { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; "
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
         "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
-        "QPushButton:hover { background: #e2e8f0; }"
+        "QPushButton:hover { background: palette(light); }"
     );
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
     mainLayout->addWidget(closeBtn, 0, Qt::AlignRight);
@@ -115,16 +114,16 @@ QWidget* FavoritesDialog::createFavoriteItem(const QString& title, const QString
     layout->setSpacing(4);
 
     auto* titleLabel = new QLabel(title);
-    titleLabel->setStyleSheet("font-weight: bold; color: #1e293b; font-size: 14px;");
+    titleLabel->setStyleSheet("font-weight: bold; color: palette(text); font-size: 14px;");
     titleLabel->setWordWrap(true);
     layout->addWidget(titleLabel);
 
     auto* metaLayout = new QHBoxLayout();
     auto* journalLabel = new QLabel(journal);
-    journalLabel->setStyleSheet("color: #64748b; font-size: 12px;");
+    journalLabel->setStyleSheet("color: palette(mid); font-size: 12px;");
 
     auto* yearLabel = new QLabel(year);
-    yearLabel->setStyleSheet("color: #64748b; font-size: 12px;");
+    yearLabel->setStyleSheet("color: palette(mid); font-size: 12px;");
 
     metaLayout->addWidget(journalLabel);
     metaLayout->addWidget(yearLabel);
