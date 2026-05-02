@@ -1162,6 +1162,37 @@ void MainWindow::connectSignals() {
         }
     });
 
+    // Handle API failure signals
+    connect(apiManager_, &ApiManager::healthCheckFailed, this, [this](const QString& error) {
+        auto* healthLabel = findChild<QLabel*>("healthIndicator");
+        if (!healthLabel) {
+            healthLabel = new QLabel(this);
+            healthLabel->setObjectName("healthIndicator");
+            statusBar()->addPermanentWidget(healthLabel);
+        }
+        healthLabel->setStyleSheet(
+            "padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; "
+            "color: #dc2626; background: #fee2e2;"
+        );
+        healthLabel->setText("Offline");
+        setWindowTitle("PaperCrawler - Offline");
+    });
+
+    connect(apiManager_, &ApiManager::paperDetailsFailed, this, [this](const QString& error) {
+        statusBar()->showMessage("Failed to load paper details: " + error.left(50), 5000);
+    });
+
+    connect(apiManager_, &ApiManager::statsFailed, this, [this](const QString& error) {
+        auto* statsContent = findChild<QLabel*>("statsContent");
+        if (statsContent) {
+            statsContent->setText("<p style='color: #dc2626;'>Failed to load statistics. Server may be offline.</p>");
+        }
+    });
+
+    connect(apiManager_, &ApiManager::apiError, this, [this](const QString& error) {
+        statusBar()->showMessage("API error: " + error.left(50), 5000);
+    });
+
     // Filter panel
     if (filterPanel_) {
         connect(filterPanel_, &FilterPanel::filterChanged,
