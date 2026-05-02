@@ -2,6 +2,7 @@
 #include "business/StatsApiModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/IDatabase.hpp"
+#include "data/QueryCache.hpp"
 #include "core/ModuleRegistry.hpp"
 #include "core/Router.hpp"
 #include "core/MessageBus.hpp"
@@ -554,6 +555,14 @@ void StatsApiModule::registerRoutes() {
 }
 
 std::string StatsApiModule::handleStats() {
+    // 查询缓存
+    std::string cacheKey = CacheKeys::stats("overview");
+    auto cached = QueryCache::instance().get(cacheKey);
+    if (cached) {
+        spdlog::debug("[StatsApiModule] Stats overview cache HIT");
+        return *cached;
+    }
+
     try {
         size_t totalPapers = 0;
         size_t totalJournals = 0;
@@ -593,7 +602,9 @@ std::string StatsApiModule::handleStats() {
         json << "  }\n";
         json << "}";
 
-        return json.str();
+        std::string responseBody = json.str();
+        QueryCache::instance().put(cacheKey, responseBody, CacheTTL::STATS);
+        return responseBody;
     } catch (const std::exception& e) {
         spdlog::error("[StatsApiModule] Error in handleStats: {}", e.what());
         std::ostringstream json;

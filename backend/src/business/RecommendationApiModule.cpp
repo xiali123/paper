@@ -1,6 +1,7 @@
 #include "business/RecommendationApiModule.hpp"
 #include "data/PreparedStatement.hpp"
 #include "data/DatabaseModule.hpp"
+#include "data/QueryCache.hpp"
 #include "core/Router.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
@@ -1400,6 +1401,17 @@ void RecommendationApiModule::registerRoutes() {
             }
         }
 
+        // 查询缓存
+        std::string cacheKey = CacheKeys::recommendations(userId, limit);
+        auto cached = QueryCache::instance().get(cacheKey);
+        if (cached) {
+            spdlog::debug("[RecommendationApi] Papers cache HIT for user={}, limit={}", userId, limit);
+            response.statusCode = 200;
+            response.headers["X-Cache"] = "HIT";
+            response.body = *cached;
+            return response;
+        }
+
         try {
             RecommendationRequest request;
             request.userId = userId;
@@ -1430,6 +1442,7 @@ void RecommendationApiModule::registerRoutes() {
 
             response.statusCode = 200;
             response.body = result.dump();
+            QueryCache::instance().put(cacheKey, response.body, CacheTTL::RECOMMENDATIONS);
         } catch (const std::exception& e) {
             response.statusCode = 500;
             response.body = json{
@@ -1566,6 +1579,10 @@ void RecommendationApiModule::registerRoutes() {
             if (rating > 5) rating = 5;
 
             bool success = recordFeedback(userId, paperId, liked, rating);
+
+            // 反馈后失效该用户的推荐缓存
+            QueryCache::instance().invalidatePattern("rec:" + std::to_string(userId) + ":");
+            spdlog::debug("[RecommendationApi] Cache invalidated for user {} after feedback", userId);
 
             response.statusCode = success ? 200 : 500;
             response.body = json{

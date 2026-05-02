@@ -1,6 +1,7 @@
 #include "business/DashboardApiModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/IDatabase.hpp"
+#include "data/QueryCache.hpp"
 #include "core/ModuleRegistry.hpp"
 #include "core/Router.hpp"
 #include "core/MessageBus.hpp"
@@ -190,6 +191,14 @@ void DashboardApiModule::registerRoutes() {
 // ============================================================================
 
 std::string DashboardApiModule::handleStats() {
+    // 查询缓存
+    std::string cacheKey = CacheKeys::dashboard("stats");
+    auto cached = QueryCache::instance().get(cacheKey);
+    if (cached) {
+        spdlog::debug("[DashboardApi] Stats cache HIT");
+        return *cached;
+    }
+
     std::ostringstream json;
     json << "{";
 
@@ -197,7 +206,9 @@ std::string DashboardApiModule::handleStats() {
         json << "\"totalPapers\":0,\"weeklyNewPapers\":0,\"favoriteCount\":0,"
              << "\"exportCount\":0,\"pendingTasks\":0,\"toReadCount\":0";
         json << "}";
-        return json.str();
+        std::string responseBody = json.str();
+        QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+        return responseBody;
     }
 
     try {
@@ -241,7 +252,9 @@ std::string DashboardApiModule::handleStats() {
     }
 
     json << "}";
-    return json.str();
+    std::string responseBody = json.str();
+    QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+    return responseBody;
 }
 
 // ============================================================================
@@ -376,12 +389,22 @@ std::string DashboardApiModule::handleRecommendations(int limit) {
 // ============================================================================
 
 std::string DashboardApiModule::handleTrendingSearches(int limit) {
+    // 查询缓存
+    std::string cacheKey = CacheKeys::trending(limit);
+    auto cached = QueryCache::instance().get(cacheKey);
+    if (cached) {
+        spdlog::debug("[DashboardApi] Trending searches cache HIT");
+        return *cached;
+    }
+
     std::ostringstream json;
     json << "[";
 
     if (!database_) {
         json << "]";
-        return json.str();
+        std::string responseBody = json.str();
+        QueryCache::instance().put(cacheKey, responseBody, CacheTTL::TRENDING);
+        return responseBody;
     }
 
     try {
@@ -426,7 +449,9 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
     }
 
     json << "]";
-    return json.str();
+    std::string responseBody = json.str();
+    QueryCache::instance().put(cacheKey, responseBody, CacheTTL::TRENDING);
+    return responseBody;
 }
 
 // ============================================================================
@@ -585,12 +610,22 @@ std::string DashboardApiModule::handleCrawlerTasks() {
 // ============================================================================
 
 std::string DashboardApiModule::handleGrowth(int days) {
+    // 查询缓存
+    std::string cacheKey = CacheKeys::dashboard("growth");
+    auto cached = QueryCache::instance().get(cacheKey);
+    if (cached) {
+        spdlog::debug("[DashboardApi] Growth cache HIT");
+        return *cached;
+    }
+
     std::ostringstream json;
     json << "[";
 
     if (!database_) {
         json << "]";
-        return json.str();
+        std::string responseBody = json.str();
+        QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+        return responseBody;
     }
 
     try {
@@ -617,7 +652,9 @@ std::string DashboardApiModule::handleGrowth(int days) {
     }
 
     json << "]";
-    return json.str();
+    std::string responseBody = json.str();
+    QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+    return responseBody;
 }
 
 // ============================================================================
@@ -625,12 +662,22 @@ std::string DashboardApiModule::handleGrowth(int days) {
 // ============================================================================
 
 std::string DashboardApiModule::handleDistributionJournals() {
+    // 查询缓存
+    std::string cacheKey = CacheKeys::dashboard("dist_journals");
+    auto cached = QueryCache::instance().get(cacheKey);
+    if (cached) {
+        spdlog::debug("[DashboardApi] Distribution journals cache HIT");
+        return *cached;
+    }
+
     std::ostringstream json;
     json << "[";
 
     if (!database_) {
         json << "]";
-        return json.str();
+        std::string responseBody = json.str();
+        QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+        return responseBody;
     }
 
     try {
@@ -667,7 +714,9 @@ std::string DashboardApiModule::handleDistributionJournals() {
     }
 
     json << "]";
-    return json.str();
+    std::string responseBody = json.str();
+    QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+    return responseBody;
 }
 
 // ============================================================================
@@ -675,12 +724,22 @@ std::string DashboardApiModule::handleDistributionJournals() {
 // ============================================================================
 
 std::string DashboardApiModule::handleDistributionCcf() {
+    // 查询缓存
+    std::string cacheKey = CacheKeys::dashboard("dist_ccf");
+    auto cached = QueryCache::instance().get(cacheKey);
+    if (cached) {
+        spdlog::debug("[DashboardApi] Distribution CCF cache HIT");
+        return *cached;
+    }
+
     std::ostringstream json;
     json << "[";
 
     if (!database_) {
         json << "]";
-        return json.str();
+        std::string responseBody = json.str();
+        QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+        return responseBody;
     }
 
     try {
@@ -716,7 +775,9 @@ std::string DashboardApiModule::handleDistributionCcf() {
     }
 
     json << "]";
-    return json.str();
+    std::string responseBody = json.str();
+    QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
+    return responseBody;
 }
 
 // ============================================================================
@@ -724,6 +785,11 @@ std::string DashboardApiModule::handleDistributionCcf() {
 // ============================================================================
 
 std::string DashboardApiModule::handleRefresh() {
+    // 失效所有仪表盘和趋势缓存
+    QueryCache::instance().invalidatePattern("dashboard:");
+    QueryCache::instance().invalidatePattern("trending:");
+    spdlog::info("[DashboardApi] Cache invalidated for dashboard and trending");
+
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
     std::ostringstream ts;

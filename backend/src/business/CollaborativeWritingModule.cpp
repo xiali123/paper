@@ -618,6 +618,112 @@ void CollaborativeWritingModule::registerRoutes() {
             return buildErrorResponse(500, e.what());
         }
     });
+
+    // PUT /api/writing/documents/:id/cursor — 光标位置更新
+    router.put(prefix + "/documents/:id/cursor", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
+        try {
+            std::string docIdStr = getParam(req.pathParams, "id", "0");
+            auto json = nlohmann::json::parse(req.body);
+
+            int userId = json.value<int>("user_id", 0);
+            std::string username = json.value<std::string>("username", "");
+            int line = json.value<int>("line", 0);
+            int column = json.value<int>("column", 0);
+
+            if (userId == 0) {
+                return buildErrorResponse(400, "Missing user_id");
+            }
+
+            // 存储光标位置
+            {
+                std::lock_guard<std::mutex> lock(cursorsMutex_);
+                CursorPosition pos;
+                pos.userId = userId;
+                pos.username = username;
+                pos.line = line;
+                pos.column = column;
+                pos.lastActive = std::chrono::steady_clock::now();
+                documentCursors_[docIdStr][userId] = std::move(pos);
+            }
+
+            // 通过 WebSocket 广播光标更新
+            if (wsModule_) {
+                std::string message = "{\"type\":\"cursor_update\","
+                    "\"document_id\":" + docIdStr + ","
+                    "\"user_id\":" + std::to_string(userId) + ","
+                    "\"username\":\"" + escapeJson(username) + "\","
+                    "\"line\":" + std::to_string(line) + ","
+                    "\"column\":" + std::to_string(column) + "}";
+
+                auto it = impl_->documentSessions_.find(std::stoi(docIdStr));
+                if (it != impl_->documentSessions_.end()) {
+                    for (const auto& socketId : it->second) {
+                        wsModule_->send(socketId, message);
+                    }
+                }
+            }
+
+            spdlog::debug("[Writing] Cursor updated: doc={}, user={}, line={}, col={}",
+                          docIdStr, userId, line, column);
+
+            HttpResponse resp;
+            resp.statusCode = 200;
+            resp.headers["Content-Type"] = "application/json";
+            resp.body = buildJsonResponse(true, "Cursor updated");
+            return resp;
+        } catch (const nlohmann::json::parse_error&) {
+            return buildErrorResponse(400, "Invalid JSON format");
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] cursor update error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // GET /api/writing/documents/:id/presence — 获取在线用户
+    router.get(prefix + "/documents/:id/presence", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
+        try {
+            std::string docIdStr = getParam(req.pathParams, "id", "0");
+
+            nlohmann::json data;
+            nlohmann::json users = nlohmann::json::array();
+            auto now = std::chrono::steady_clock::now();
+
+            {
+                std::lock_guard<std::mutex> lock(cursorsMutex_);
+                auto docIt = documentCursors_.find(docIdStr);
+                if (docIt != documentCursors_.end()) {
+                    for (const auto& [uid, pos] : docIt->second) {
+                        // 只返回最近60秒内活跃的用户
+                        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - pos.lastActive);
+                        if (elapsed.count() < 60) {
+                            nlohmann::json user;
+                            user["user_id"] = pos.userId;
+                            user["username"] = pos.username;
+                            user["line"] = pos.line;
+                            user["column"] = pos.column;
+                            user["last_active_seconds_ago"] = static_cast<int>(elapsed.count());
+                            users.push_back(user);
+                        }
+                    }
+                }
+            }
+
+            data["document_id"] = std::stoi(docIdStr);
+            data["online_users"] = users;
+            data["count"] = users.size();
+
+            HttpResponse resp;
+            resp.statusCode = 200;
+            resp.headers["Content-Type"] = "application/json";
+            resp.body = buildJsonResponse(true, "", data);
+            return resp;
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] presence error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
 }
 
 // ============================================================================
