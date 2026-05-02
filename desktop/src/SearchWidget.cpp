@@ -103,17 +103,17 @@ void SearchWidget::setupStyles() {
     // Search Input Styling
     keywordEdit_->setStyleSheet(
         "QLineEdit#searchInput {"
-        "  background-color: rgba(255, 255, 255, 0.95);"
-        "  border: 2px solid #e5e7eb;"
+        "  background-color: palette(base);"
+        "  border: 2px solid palette(mid);"
         "  border-radius: 12px;"
         "  padding: 12px 20px;"
         "  font-size: 11pt;"
-        "  color: #111827;"
+        "  color: palette(text);"
         "  font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;"
         "}"
         "QLineEdit#searchInput:focus {"
         "  border: 2px solid #6366f1;"
-        "  background-color: rgba(255, 255, 255, 1.0);"
+        "  background-color: palette(base);"
         "}"
     );
 
@@ -141,10 +141,10 @@ void SearchWidget::setupStyles() {
     // Status Label Styling
     statusLabel_->setStyleSheet(
         "QLabel#statusLabel {"
-        "  color: #6b7280;"
+        "  color: palette(mid);"
         "  font-size: 10pt;"
         "  padding: 8px 16px;"
-        "  background: rgba(255, 255, 255, 0.8);"
+        "  background: palette(base);"
         "  border-radius: 8px;"
         "}"
     );
@@ -152,7 +152,7 @@ void SearchWidget::setupStyles() {
     // Suggestions Label Styling
     suggestionsLabel_->setStyleSheet(
         "QLabel#suggestionsLabel {"
-        "  color: rgba(255, 255, 255, 0.9);"
+        "  color: palette(text);"
         "  font-size: 10pt;"
         "  background: transparent;"
         "}"

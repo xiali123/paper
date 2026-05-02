@@ -1150,7 +1150,7 @@ void MainWindow::connectSignals() {
                 (paper.journalShort.isEmpty() ? paper.journalFull : paper.journalShort)
                 + " | " + paper.year
             );
-            meta->setStyleSheet("font-size: 10px; color: #64748b;");
+            meta->setStyleSheet("font-size: 10px; color: palette(mid);");
             layout->addWidget(meta);
 
             int pid = paper.id;

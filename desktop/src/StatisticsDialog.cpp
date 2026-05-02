@@ -57,9 +57,9 @@ void StatisticsDialog::setupUI() {
     // Close button
     auto* closeBtn = new QPushButton("Close");
     closeBtn->setStyleSheet(
-        "QPushButton { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; "
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
         "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
-        "QPushButton:hover { background: #e2e8f0; }"
+        "QPushButton:hover { background: palette(light); }"
     );
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::close);
     layout->addWidget(closeBtn, 0, Qt::AlignRight);
@@ -138,7 +138,7 @@ QWidget* StatisticsDialog::createStatCard(const QString& title, const QString& v
     );
 
     auto* titleLabel = new QLabel(title);
-    titleLabel->setStyleSheet("font-size: 13px; color: #64748b; font-weight: 500;");
+    titleLabel->setStyleSheet("font-size: 13px; color: palette(mid); font-weight: 500;");
 
     layout->addWidget(valueLabel);
     layout->addWidget(titleLabel);
