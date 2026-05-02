@@ -5,6 +5,10 @@
 #include "LatexSnippetManager.hpp"
 #include "LatexFindReplaceBar.hpp"
 #include "LatexTemplateDialog.hpp"
+#include "LatexBibtexManager.hpp"
+#include "LatexDocumentOutline.hpp"
+#include "LatexSymbolPalette.hpp"
+#include "LatexWordCounter.hpp"
 #include "ApiManager.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -15,6 +19,7 @@
 #include <QShortcut>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QDockWidget>
 
 LatexEditorWidget::LatexEditorWidget(ApiManager* apiManager, QWidget* parent)
     : QWidget(parent)
@@ -110,7 +115,56 @@ void LatexEditorWidget::setupUI() {
     mainSplitter_->setSizes({200, 800});
     snippetManager_->hide(); // hidden by default
 
-    mainLayout->addWidget(mainSplitter_, 1);
+    // Document outline (collapsible left panel)
+    documentOutline_ = new LatexDocumentOutline();
+    connect(documentOutline_, &LatexDocumentOutline::navigateToLine, this, [this](int line) {
+        QTextBlock block = codeEditor_->document()->findBlockByNumber(line - 1);
+        if (block.isValid()) {
+            QTextCursor cursor(block);
+            codeEditor_->setTextCursor(cursor);
+            codeEditor_->setFocus();
+        }
+    });
+
+    // Word counter (right panel)
+    wordCounter_ = new LatexWordCounter();
+
+    // Symbol palette (bottom panel)
+    symbolPalette_ = new LatexSymbolPalette();
+    connect(symbolPalette_, &LatexSymbolPalette::symbolInsert, this, [this](const QString& latex) {
+        codeEditor_->insertPlainText(latex);
+        codeEditor_->setFocus();
+    });
+
+    // BibTeX manager (dialog on demand)
+    bibtexManager_ = new LatexBibtexManager();
+    connect(bibtexManager_, &LatexBibtexManager::insertCitation, this, [this](const QString& key) {
+        codeEditor_->insertPlainText(QString("\\cite{%1}").arg(key));
+        codeEditor_->setFocus();
+    });
+
+    // Full layout: Outline | Snippets | Editor | WordCounter
+    auto* fullSplitter = new QSplitter(Qt::Horizontal);
+    fullSplitter->addWidget(documentOutline_);
+    fullSplitter->addWidget(mainSplitter_);
+    fullSplitter->addWidget(wordCounter_);
+    fullSplitter->setStretchFactor(0, 0);
+    fullSplitter->setStretchFactor(1, 1);
+    fullSplitter->setStretchFactor(2, 0);
+    fullSplitter->setSizes({180, 700, 200});
+    documentOutline_->hide();
+    wordCounter_->hide();
+
+    // Vertical: editor row + symbol palette
+    auto* outerSplitter = new QSplitter(Qt::Vertical);
+    outerSplitter->addWidget(fullSplitter);
+    outerSplitter->addWidget(symbolPalette_);
+    outerSplitter->setStretchFactor(0, 1);
+    outerSplitter->setStretchFactor(1, 0);
+    outerSplitter->setSizes({500, 180});
+    symbolPalette_->hide();
+
+    mainLayout->addWidget(outerSplitter, 1);
 
     // Status bar
     setupStatusBar();
@@ -234,6 +288,53 @@ void LatexEditorWidget::setupToolbar() {
     connect(findBtn, &QAction::triggered, this, [this]() {
         findReplaceBar_->activateFind();
     });
+
+    toolbar_->addSeparator();
+
+    auto* outlineBtn = toolbar_->addAction("Outline");
+    outlineBtn->setToolTip("Toggle document outline");
+    connect(outlineBtn, &QAction::triggered, this, [this]() {
+        documentOutline_->setVisible(!documentOutline_->isVisible());
+        if (documentOutline_->isVisible()) {
+            documentOutline_->parseDocument(codeEditor_->toPlainText());
+        }
+    });
+
+    auto* symbolBtn = toolbar_->addAction("Symbols");
+    symbolBtn->setToolTip("Toggle symbol palette");
+    connect(symbolBtn, &QAction::triggered, this, [this]() {
+        symbolPalette_->setVisible(!symbolPalette_->isVisible());
+    });
+
+    auto* bibtexBtn = toolbar_->addAction("BibTeX");
+    bibtexBtn->setToolTip("BibTeX reference manager");
+    connect(bibtexBtn, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("BibTeX Manager");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* mgr = new LatexBibtexManager();
+        mgr->loadBibtex(bibtexManager_->exportBibtex());
+        connect(mgr, &LatexBibtexManager::insertCitation, this, [this, dlg](const QString& key) {
+            codeEditor_->insertPlainText(QString("\\cite{%1}").arg(key));
+            dlg->accept();
+        });
+        connect(mgr, &LatexBibtexManager::bibtexChanged, this, [this](const QString& content) {
+            bibtexManager_->loadBibtex(content);
+        });
+        layout->addWidget(mgr);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* statsBtn = toolbar_->addAction("Stats");
+    statsBtn->setToolTip("Toggle document statistics");
+    connect(statsBtn, &QAction::triggered, this, [this]() {
+        wordCounter_->setVisible(!wordCounter_->isVisible());
+        if (wordCounter_->isVisible()) {
+            wordCounter_->updateCount(codeEditor_->toPlainText());
+        }
+    });
 }
 
 void LatexEditorWidget::setupStatusBar() {
@@ -313,6 +414,7 @@ void LatexEditorWidget::setDarkMode(bool dark) {
     darkMode_ = dark;
     if (highlighter_) highlighter_->setDarkMode(dark);
     if (previewWidget_) previewWidget_->setDarkMode(dark);
+    if (wordCounter_) wordCounter_->setDarkMode(dark);
 }
 
 void LatexEditorWidget::onSave() {
@@ -371,11 +473,22 @@ void LatexEditorWidget::onTextChanged() {
     statusLabel_->setText("Modified");
     statusLabel_->setStyleSheet("color: #f59e0b; font-size: 11px;");
 
-    // Update preview
-    previewWidget_->setContent(codeEditor_->toPlainText());
-
-    // Word count
     QString text = codeEditor_->toPlainText();
+
+    // Update preview
+    previewWidget_->setContent(text);
+
+    // Update outline
+    if (documentOutline_->isVisible()) {
+        documentOutline_->parseDocument(text);
+    }
+
+    // Update word counter
+    if (wordCounter_->isVisible()) {
+        wordCounter_->updateCount(text);
+    }
+
+    // Word count (status bar)
     int chars = text.size();
     int words = text.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).size();
     int lines = codeEditor_->document()->blockCount();
