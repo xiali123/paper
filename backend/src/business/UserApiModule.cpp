@@ -15,6 +15,7 @@
 #include <chrono>
 #include <spdlog/spdlog.h>
 #include "data/PreparedStatement.hpp"
+#include "data/ValidationHelper.hpp"
 
 namespace PaperCrawler {
 
@@ -853,10 +854,10 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
         }
 
         auto jsonObj = jsonOpt.value();
-        std::string username = JsonUtils::getValue<std::string>(jsonObj, "username").value_or("");
-        std::string email = JsonUtils::getValue<std::string>(jsonObj, "email").value_or("");
+        std::string username = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "username").value_or(""));
+        std::string email = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "email").value_or(""));
         std::string password = JsonUtils::getValue<std::string>(jsonObj, "password").value_or("");
-        std::string fullName = JsonUtils::getValue<std::string>(jsonObj, "fullName").value_or("");
+        std::string fullName = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "fullName").value_or(""));
 
         if (username.empty() || email.empty() || password.empty()) {
             return buildJsonResponse(400, "Missing required fields: username, email, password");
@@ -917,10 +918,10 @@ HttpResponse UserApiModule::handleUpdateUser(const HttpRequest& req) {
 
         auto jsonObj = jsonOpt.value();
         UserUpdateRequest request;
-        request.email = JsonUtils::getValue<std::string>(jsonObj, "email");
-        request.fullName = JsonUtils::getValue<std::string>(jsonObj, "fullName");
-        request.bio = JsonUtils::getValue<std::string>(jsonObj, "bio");
-        request.avatarUrl = JsonUtils::getValue<std::string>(jsonObj, "avatarUrl");
+        request.email = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "email").value_or(""));
+        request.fullName = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "fullName").value_or(""));
+        request.bio = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "bio").value_or(""));
+        request.avatarUrl = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "avatarUrl").value_or(""));
 
         bool success = updateUser(userId, request);
         if (!success) {

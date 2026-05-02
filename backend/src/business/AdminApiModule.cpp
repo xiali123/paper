@@ -19,6 +19,7 @@
 #include <random>
 #include <filesystem>
 #include <chrono>
+#include "data/ValidationHelper.hpp"
 
 namespace PaperCrawler {
 
@@ -2288,9 +2289,9 @@ std::string AdminApiModule::handleCreateUser(const std::string& body) {
         }
 
         AdminUser newUser;
-        newUser.username = jsonBody["username"].get<std::string>();
-        newUser.email = jsonBody["email"].get<std::string>();
-        newUser.fullName = jsonBody.value("full_name", "");
+        newUser.username = ValidationHelper::sanitize(jsonBody["username"].get<std::string>());
+        newUser.email = ValidationHelper::sanitize(jsonBody["email"].get<std::string>());
+        newUser.fullName = ValidationHelper::sanitize(jsonBody.value("full_name", ""));
         newUser.avatar = jsonBody.value("avatar", "");
         newUser.role = AdminUser::fromString(jsonBody.value("role", "user"));
 
@@ -2340,8 +2341,8 @@ std::string AdminApiModule::handleUpdateUser(const std::map<std::string, std::st
 
         AdminUser user;
         user.id = id;
-        user.email = jsonBody.value("email", "");
-        user.fullName = jsonBody.value("full_name", "");
+        user.email = ValidationHelper::sanitize(jsonBody.value("email", ""));
+        user.fullName = ValidationHelper::sanitize(jsonBody.value("full_name", ""));
         user.avatar = jsonBody.value("avatar", "");
         user.role = AdminUser::fromString(jsonBody.value("role", "user"));
 
@@ -3099,9 +3100,9 @@ std::string AdminApiModule::handleCreateAnnouncement(const std::string& body) {
             return buildJsonResponse(400, false, "Missing required fields: title and content are required");
         }
 
-        std::string title = jsonBody["title"].get<std::string>();
-        std::string content = jsonBody["content"].get<std::string>();
-        std::string type = jsonBody.value("type", "info");
+        std::string title = ValidationHelper::sanitize(jsonBody["title"].get<std::string>());
+        std::string content = ValidationHelper::sanitize(jsonBody["content"].get<std::string>());
+        std::string type = ValidationHelper::sanitize(jsonBody.value("type", "info"));
         std::string targetRole = jsonBody.value("target_role", "all");
         int createdBy = jsonBody.value("created_by", 0);
         std::string expiresAt = jsonBody.value("expires_at", "");
@@ -3180,19 +3181,19 @@ std::string AdminApiModule::handleUpdateAnnouncement(const std::map<std::string,
 
         if (jsonBody.contains("title")) {
             setClauses.push_back("title = ?");
-            titleVal = jsonBody["title"].get<std::string>();
+            titleVal = ValidationHelper::sanitize(jsonBody["title"].get<std::string>());
         }
         if (jsonBody.contains("content")) {
             setClauses.push_back("content = ?");
-            contentVal = jsonBody["content"].get<std::string>();
+            contentVal = ValidationHelper::sanitize(jsonBody["content"].get<std::string>());
         }
         if (jsonBody.contains("type")) {
             setClauses.push_back("type = ?");
-            typeVal = jsonBody["type"].get<std::string>();
+            typeVal = ValidationHelper::sanitize(jsonBody["type"].get<std::string>());
         }
         if (jsonBody.contains("target_role")) {
             setClauses.push_back("target_role = ?");
-            targetRoleVal = jsonBody["target_role"].get<std::string>();
+            targetRoleVal = ValidationHelper::sanitize(jsonBody["target_role"].get<std::string>());
         }
         if (hasExpiresAt) {
             expiresAtVal = jsonBody["expires_at"].get<std::string>();
@@ -4134,7 +4135,7 @@ std::string AdminApiModule::handleAddIpBlacklist(const std::map<std::string, std
     try {
         auto jsonBody = nlohmann::json::parse(body);
         std::string ipAddress = jsonBody.value("ip_address", "");
-        std::string reason = jsonBody.value("reason", "");
+        std::string reason = ValidationHelper::sanitize(jsonBody.value("reason", ""));
         std::string threatLevel = jsonBody.value("threat_level", "medium");
         std::string expiresAt = jsonBody.value("expires_at", "");
 
@@ -4299,7 +4300,7 @@ std::string AdminApiModule::handleLockUserAccount(const std::map<std::string, st
         auto jsonBody = nlohmann::json::parse(body);
         int userId = jsonBody.value("user_id", 0);
         int lockMinutes = jsonBody.value("lock_minutes", 30);
-        std::string reason = jsonBody.value("reason", "Admin action");
+        std::string reason = ValidationHelper::sanitize(jsonBody.value("reason", "Admin action"));
         std::string ipAddress = jsonBody.value("ip_address", "");
 
         if (userId == 0) {
@@ -4518,8 +4519,8 @@ std::string AdminApiModule::handleUpdateConfig(const std::map<std::string, std::
     try {
         auto jsonBody = nlohmann::json::parse(body);
         std::string key = jsonBody.value("key", "");
-        std::string value = jsonBody.value("value", "");
-        std::string reason = jsonBody.value("reason", "Configuration update");
+        std::string value = ValidationHelper::sanitize(jsonBody.value("value", ""));
+        std::string reason = ValidationHelper::sanitize(jsonBody.value("reason", "Configuration update"));
         int updatedBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (key.empty() || value.empty()) {
@@ -4744,7 +4745,7 @@ std::string AdminApiModule::handleCreateBackupJob(const std::map<std::string, st
 
     try {
         auto jsonBody = nlohmann::json::parse(body);
-        std::string name = jsonBody.value("name", "");
+        std::string name = ValidationHelper::sanitize(jsonBody.value("name", ""));
         std::string jobType = jsonBody.value("job_type", "full");
         std::string scheduleCron = jsonBody.value("schedule_cron", "");
         std::string backupPath = jsonBody.value("backup_path", "/backups");
@@ -5167,9 +5168,9 @@ std::string AdminApiModule::handleCreateRole(const std::map<std::string, std::st
 
     try {
         auto jsonBody = nlohmann::json::parse(body);
-        std::string name = jsonBody.value("name", "");
-        std::string displayName = jsonBody.value("displayName", "");
-        std::string description = jsonBody.value("description", "");
+        std::string name = ValidationHelper::sanitize(jsonBody.value("name", ""));
+        std::string displayName = ValidationHelper::sanitize(jsonBody.value("displayName", ""));
+        std::string description = ValidationHelper::sanitize(jsonBody.value("description", ""));
         int level = jsonBody.value("level", 10);
         int createdBy = jsonBody.value("createdBy", 1);
 
@@ -5204,8 +5205,8 @@ std::string AdminApiModule::handleUpdateRole(const std::map<std::string, std::st
         int roleId = std::stoi(idIt->second);
 
         auto jsonBody = nlohmann::json::parse(body);
-        std::string displayName = jsonBody.value("displayName", "");
-        std::string description = jsonBody.value("description", "");
+        std::string displayName = ValidationHelper::sanitize(jsonBody.value("displayName", ""));
+        std::string description = ValidationHelper::sanitize(jsonBody.value("description", ""));
         int level = jsonBody.value("level", 10);
 
         if (updateRole(roleId, displayName, description, level)) {
@@ -5392,7 +5393,7 @@ std::string AdminApiModule::handleAssignUserRole(const std::map<std::string, std
 
         auto jsonBody = nlohmann::json::parse(body);
         int roleId = jsonBody.value("roleId", 0);
-        std::string reason = jsonBody.value("reason", "");
+        std::string reason = ValidationHelper::sanitize(jsonBody.value("reason", ""));
         int assignedBy = jsonBody.value("assignedBy", 1);
         std::string expiresAt = jsonBody.value("expiresAt", "");
 
@@ -5504,11 +5505,11 @@ std::string AdminApiModule::handleCreateNotificationTemplate(const std::map<std:
 
     try {
         auto jsonBody = nlohmann::json::parse(body);
-        std::string name = jsonBody.value("name", "");
-        std::string titleTemplate = jsonBody.value("titleTemplate", "");
-        std::string contentTemplate = jsonBody.value("contentTemplate", "");
+        std::string name = ValidationHelper::sanitize(jsonBody.value("name", ""));
+        std::string titleTemplate = ValidationHelper::sanitize(jsonBody.value("titleTemplate", ""));
+        std::string contentTemplate = ValidationHelper::sanitize(jsonBody.value("contentTemplate", ""));
         std::string channel = jsonBody.value("channel", "inapp");
-        std::string description = jsonBody.value("description", "");
+        std::string description = ValidationHelper::sanitize(jsonBody.value("description", ""));
         std::string language = jsonBody.value("language", "zh-CN");
         int createdBy = jsonBody.value("createdBy", 1);
 
@@ -5539,9 +5540,9 @@ std::string AdminApiModule::handleUpdateNotificationTemplate(const std::map<std:
         int id = std::stoi(idIt->second);
 
         auto jsonBody = nlohmann::json::parse(body);
-        std::string titleTemplate = jsonBody.value("titleTemplate", "");
-        std::string contentTemplate = jsonBody.value("contentTemplate", "");
-        std::string description = jsonBody.value("description", "");
+        std::string titleTemplate = ValidationHelper::sanitize(jsonBody.value("titleTemplate", ""));
+        std::string contentTemplate = ValidationHelper::sanitize(jsonBody.value("contentTemplate", ""));
+        std::string description = ValidationHelper::sanitize(jsonBody.value("description", ""));
 
         if (updateNotificationTemplate(id, titleTemplate, contentTemplate, description)) {
             return buildJsonResponse(true, "Notification template updated");
@@ -5628,8 +5629,8 @@ std::string AdminApiModule::handleSendNotification(const std::map<std::string, s
     try {
         auto jsonBody = nlohmann::json::parse(body);
         int templateId = jsonBody.value("templateId", 0);
-        std::string title = jsonBody.value("title", "");
-        std::string content = jsonBody.value("content", "");
+        std::string title = ValidationHelper::sanitize(jsonBody.value("title", ""));
+        std::string content = ValidationHelper::sanitize(jsonBody.value("content", ""));
         std::string channel = jsonBody.value("channel", "inapp");
         std::string targetRole = jsonBody.value("targetRole", "all");
         std::string targetUsers = jsonBody.value("targetUsers", "");
@@ -5751,10 +5752,10 @@ std::string AdminApiModule::handleCreateCleanupTask(const std::map<std::string, 
 
     try {
         auto jsonBody = nlohmann::json::parse(body);
-        std::string name = jsonBody.value("name", "");
-        std::string displayName = jsonBody.value("displayName", "");
+        std::string name = ValidationHelper::sanitize(jsonBody.value("name", ""));
+        std::string displayName = ValidationHelper::sanitize(jsonBody.value("displayName", ""));
         std::string taskType = jsonBody.value("taskType", "");
-        std::string description = jsonBody.value("description", "");
+        std::string description = ValidationHelper::sanitize(jsonBody.value("description", ""));
         std::string cleanupConfig = jsonBody.value("cleanupConfig", "{}");
         std::string scheduleCron = jsonBody.value("scheduleCron", "");
         bool isSystem = jsonBody.value("isSystem", false);
@@ -5787,8 +5788,8 @@ std::string AdminApiModule::handleUpdateCleanupTask(const std::map<std::string, 
         int id = std::stoi(idIt->second);
 
         auto jsonBody = nlohmann::json::parse(body);
-        std::string displayName = jsonBody.value("displayName", "");
-        std::string description = jsonBody.value("description", "");
+        std::string displayName = ValidationHelper::sanitize(jsonBody.value("displayName", ""));
+        std::string description = ValidationHelper::sanitize(jsonBody.value("description", ""));
         std::string cleanupConfig = jsonBody.value("cleanupConfig", "{}");
         std::string scheduleCron = jsonBody.value("scheduleCron", "");
         bool isEnabled = jsonBody.value("isEnabled", true);
@@ -6040,7 +6041,7 @@ std::string AdminApiModule::handleRejectPaper(const std::map<std::string, std::s
 
         auto jsonBody = nlohmann::json::parse(body);
         int moderatorId = jsonBody.value("moderatorId", 1);
-        std::string reason = jsonBody.value("reason", "");
+        std::string reason = ValidationHelper::sanitize(jsonBody.value("reason", ""));
 
         if (rejectPaper(paperId, moderatorId, reason)) {
             return buildJsonResponse(true, "Paper rejected successfully");
@@ -6109,7 +6110,7 @@ std::string AdminApiModule::handleResolveReport(const std::map<std::string, std:
 
         auto jsonBody = nlohmann::json::parse(body);
         int reviewerId = jsonBody.value("reviewerId", 1);
-        std::string resolution = jsonBody.value("resolution", "");
+        std::string resolution = ValidationHelper::sanitize(jsonBody.value("resolution", ""));
         std::string status = jsonBody.value("status", "resolved");
 
         if (resolveReport(reportId, reviewerId, resolution, status)) {
@@ -6159,11 +6160,11 @@ std::string AdminApiModule::handleCreateSensitiveWord(const std::map<std::string
 
     try {
         auto jsonBody = nlohmann::json::parse(body);
-        std::string word = jsonBody.value("word", "");
+        std::string word = ValidationHelper::sanitize(jsonBody.value("word", ""));
         std::string category = jsonBody.value("category", "other");
         std::string severity = jsonBody.value("severity", "medium");
         bool isRegex = jsonBody.value("isRegex", false);
-        std::string replacement = jsonBody.value("replacement", "");
+        std::string replacement = ValidationHelper::sanitize(jsonBody.value("replacement", ""));
         int createdBy = jsonBody.value("createdBy", 1);
 
         int wordId = createSensitiveWord(word, category, severity, isRegex, replacement, createdBy);
@@ -6210,7 +6211,7 @@ std::string AdminApiModule::handleCheckSensitiveWords(const std::map<std::string
 
     try {
         auto jsonBody = nlohmann::json::parse(body);
-        std::string text = jsonBody.value("text", "");
+        std::string text = ValidationHelper::sanitize(jsonBody.value("text", ""));
 
         auto matches = checkSensitiveWords(text);
         nlohmann::json data = nlohmann::json::array();
@@ -6303,7 +6304,7 @@ std::string AdminApiModule::handleCreateApiKey(const std::map<std::string, std::
     try {
         auto jsonBody = nlohmann::json::parse(body);
         int userId = jsonBody.value("userId", 0);
-        std::string name = jsonBody.value("name", "");
+        std::string name = ValidationHelper::sanitize(jsonBody.value("name", ""));
         std::string scopes = jsonBody.value("scopes", "[]");
         int rateLimitPerHour = jsonBody.value("rateLimitPerHour", 1000);
         std::string expiresAt = jsonBody.value("expiresAt", "");

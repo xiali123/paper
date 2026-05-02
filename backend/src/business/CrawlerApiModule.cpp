@@ -11,6 +11,7 @@
 #include "messages/DatabaseConnectionMessage.hpp"
 #include "features/infrastructure/LoggingModule.hpp"
 #include "common/JsonUtils.hpp"
+#include "data/ValidationHelper.hpp"
 #include <iostream>
 #include <sstream>
 #include <regex>
@@ -172,8 +173,8 @@ void CrawlerApiModule::registerRoutes() {
 
             auto jsonObj = jsonOpt.value();
             std::string templateId = JsonUtils::getValue<std::string>(jsonObj, "templateId").value_or("");
-            std::string description = JsonUtils::getValue<std::string>(jsonObj, "description").value_or("");
-            std::string tags = JsonUtils::getValue<std::string>(jsonObj, "tags").value_or("");
+            std::string description = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "description").value_or(""));
+            std::string tags = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "tags").value_or(""));
 
             if (templateId.empty()) {
                 return buildJsonResponse(400, "Missing templateId");
@@ -579,9 +580,9 @@ HttpResponse CrawlerApiModule::handleCreateTemplate(const HttpRequest& req) {
         auto jsonObj = jsonOpt.value();
 
         // 提取模板信息
-        std::string name = JsonUtils::getValue<std::string>(jsonObj, "name").value_or("");
+        std::string name = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "name").value_or(""));
         std::string baseUrl = JsonUtils::getValue<std::string>(jsonObj, "baseUrl").value_or("");
-        std::string description = JsonUtils::getValue<std::string>(jsonObj, "description").value_or("");
+        std::string description = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "description").value_or(""));
         std::string method = JsonUtils::getValue<std::string>(jsonObj, "method").value_or("GET");
         bool requiresJsRendering = JsonUtils::getValue<bool>(jsonObj, "requiresJsRendering").value_or(false);
 
@@ -1584,7 +1585,7 @@ HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
         }
 
         auto jsonObj = jsonOpt.value();
-        std::string name = JsonUtils::getValue<std::string>(jsonObj, "name").value_or("");
+        std::string name = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "name").value_or(""));
         std::string templateId = JsonUtils::getValue<std::string>(jsonObj, "templateId").value_or("");
         std::string cronExpression = JsonUtils::getValue<std::string>(jsonObj, "cronExpression").value_or("");
         std::string parameters = JsonUtils::getValue<std::string>(jsonObj, "parameters").value_or("{}");

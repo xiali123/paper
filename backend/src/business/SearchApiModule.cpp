@@ -2,6 +2,7 @@
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
 #include "data/QueryCache.hpp"
+#include "data/ValidationHelper.hpp"
 #include "business/SearchApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "network/HttpClient.hpp"
@@ -741,7 +742,7 @@ void SearchApiModule::registerRoutes() {
         AdvancedSearchQuery query;
         try {
             auto j = nlohmann::json::parse(req.body);
-            if (j.contains("query")) query.query = j["query"];
+            if (j.contains("query")) query.query = ValidationHelper::sanitize(j["query"].get<std::string>());
             if (j.contains("page")) query.page = j["page"];
             if (j.contains("limit")) query.limit = j["limit"];
         } catch (...) {}
@@ -855,8 +856,8 @@ void SearchApiModule::registerRoutes() {
         try {
             auto j = nlohmann::json::parse(req.body);
             int userId = j.value("user_id", 0);
-            std::string query = j.value("query", "");
-            std::string name = j.value("name", "");
+            std::string query = ValidationHelper::sanitize(j.value("query", ""));
+            std::string name = ValidationHelper::sanitize(j.value("name", ""));
 
             bool success = saveSearch(userId, query, name);
 

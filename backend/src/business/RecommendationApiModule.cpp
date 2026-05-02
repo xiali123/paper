@@ -1032,11 +1032,20 @@ std::vector<RecommendationResult> RecommendationApiModule::collaborativeFilterin
     // 找到相似用户（基于共同阅读的论文）
     std::unordered_map<int, int> similarUsers; // user_id -> common_paper_count
 
-    for (int paperId : userHistory) {
-        PreparedStatement stmt(impl_->database_, "SELECT user_id FROM user_reading_history "
-                         "WHERE paper_id = ? AND user_id != ?");
-        stmt.bind(0, paperId);
-        stmt.bind(1, userId);
+    // Batch query: collect all paper IDs, then single query with IN clause
+    {
+        std::string placeholders;
+        for (size_t i = 0; i < userHistory.size(); ++i) {
+            if (i > 0) placeholders += ",";
+            placeholders += "?";
+        }
+        std::string sql = "SELECT user_id, paper_id FROM user_reading_history "
+                          "WHERE paper_id IN (" + placeholders + ") AND user_id != ?";
+        PreparedStatement stmt(impl_->database_, sql);
+        for (size_t i = 0; i < userHistory.size(); ++i) {
+            stmt.bind(static_cast<int>(i), userHistory[i]);
+        }
+        stmt.bind(static_cast<int>(userHistory.size()), userId);
         auto results = stmt.query();
         for (const auto& row : results) {
             int otherUserId = std::stoi(row.at("user_id"));
@@ -1061,18 +1070,32 @@ std::vector<RecommendationResult> RecommendationApiModule::collaborativeFilterin
     std::unordered_set<int> userReadSet(userHistory.begin(), userHistory.end());
     std::unordered_set<int> excludedSet(excludedIds.begin(), excludedIds.end());
 
-    for (const auto& [otherUserId, similarity] : sortedSimilarUsers) {
-        PreparedStatement stmt(impl_->database_, "SELECT paper_id FROM user_reading_history "
-                         "WHERE user_id = ?");
-        stmt.bind(0, otherUserId);
+    // Batch query: collect all similar user IDs, then single query with IN clause
+    if (!sortedSimilarUsers.empty()) {
+        std::string placeholders;
+        for (size_t i = 0; i < sortedSimilarUsers.size(); ++i) {
+            if (i > 0) placeholders += ",";
+            placeholders += "?";
+        }
+        std::string sql = "SELECT user_id, paper_id FROM user_reading_history "
+                          "WHERE user_id IN (" + placeholders + ")";
+        PreparedStatement stmt(impl_->database_, sql);
+
+        // Build a map from user_id to similarity for quick lookup
+        std::unordered_map<int, int> userIdToSimilarity;
+        for (size_t i = 0; i < sortedSimilarUsers.size(); ++i) {
+            stmt.bind(static_cast<int>(i), sortedSimilarUsers[i].first);
+            userIdToSimilarity[sortedSimilarUsers[i].first] = sortedSimilarUsers[i].second;
+        }
         auto results = stmt.query();
         for (const auto& row : results) {
+            int otherUserId = std::stoi(row.at("user_id"));
             int paperId = std::stoi(row.at("paper_id"));
 
             // 排除用户已读的和被排除的论文
             if (userReadSet.find(paperId) == userReadSet.end() &&
                 excludedSet.find(paperId) == excludedSet.end()) {
-                paperScores[paperId] += similarity;
+                paperScores[paperId] += userIdToSimilarity[otherUserId];
             }
         }
     }

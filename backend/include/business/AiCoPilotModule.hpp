@@ -6,11 +6,14 @@
 #include "business/UnifiedAIWorkflow.hpp"
 #include "prompts/AIPromptTemplates.hpp"
 #include "business/AIResponseParser.hpp"
+#include "network/SseConnection.hpp"
 #include <string>
 #include <vector>
 #include <map>
 #include <memory>
 #include <optional>
+#include <thread>
+#include <atomic>
 
 namespace PaperCrawler {
 
@@ -205,6 +208,11 @@ private:
     std::shared_ptr<IDatabase> database_;
     std::shared_ptr<UnifiedAIWorkflow> aiWorkflow_;
 
+    // SSE streaming support
+    SseBroadcaster sseBroadcaster_;
+    std::atomic<uint64_t> activeStreamCount_{0};
+    std::atomic<uint64_t> totalStreamedRequests_{0};
+
     void registerRoutes() override;
 
     // HTTP处理器
@@ -214,6 +222,15 @@ private:
     std::string handleChat(const std::string& body);
     std::string handleGetRecommendations(const std::map<std::string, std::string>& params);
     std::string handleGetStats(const std::map<std::string, std::string>& params);
+
+    // SSE streaming handlers
+    HttpResponse handleStreamRequest(const HttpRequest& req);
+    HttpResponse handleStreamStatus(const HttpRequest& req);
+
+    // SSE helper: chunk a full AI response into SSE event fragments written to sseBody
+    void streamAiResponseInto(const std::string& connectionId,
+                              const std::string& fullResponse,
+                              std::ostringstream& sseBody);
 
     // 辅助方法
     std::string buildReviewPrompt(const AIReviewRequest& request, const std::map<std::string, std::string>& paperData);

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <spdlog/spdlog.h>
+#include "data/ValidationHelper.hpp"
 
 namespace PaperCrawler {
 
@@ -142,7 +143,7 @@ void CollaborativeWritingModule::registerRoutes() {
         if (!requireAuth(req)) return unauthorizedResp();
         try {
             auto json = nlohmann::json::parse(req.body);
-            std::string title = json.value<std::string>("title", "Untitled");
+            std::string title = ValidationHelper::sanitize(json.value<std::string>("title", "Untitled"));
             std::string docType = json.value<std::string>("document_type", "paper");
             int ownerId = json.value<int>("owner_id", 0);
             int templateId = json.value<int>("template_id", 0);
@@ -264,8 +265,8 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
-            std::string content = json.value<std::string>("content", "");
-            std::string title = json.value<std::string>("title", "");
+            std::string content = ValidationHelper::sanitize(json.value<std::string>("content", ""));
+            std::string title = ValidationHelper::sanitize(json.value<std::string>("title", ""));
             std::string status = json.value<std::string>("status", "");
 
             bool ok = updateDocument(docId, content, title, status);
@@ -306,7 +307,7 @@ void CollaborativeWritingModule::registerRoutes() {
             op.type = static_cast<OTOperationType>(json.value<int>("type", 0));
             op.position = json.value<int>("position", 0);
             op.length = json.value<int>("length", 0);
-            op.content = json.value<std::string>("content", "");
+            op.content = ValidationHelper::sanitize(json.value<std::string>("content", ""));
             op.clientId = json.value<int>("client_id", 0);
             op.timestamp = json.value<int>("timestamp", 0);
 
@@ -370,7 +371,7 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
-            std::string sugType = json.value<std::string>("suggestion_type", "content");
+            std::string sugType = ValidationHelper::sanitize(json.value<std::string>("suggestion_type", "content"));
             int userId = json.value<int>("user_id", 0);
             int posStart = json.value<int>("position_start", 0);
             int posEnd = json.value<int>("position_end", 0);
@@ -440,7 +441,7 @@ void CollaborativeWritingModule::registerRoutes() {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
             int userId = json.value<int>("user_id", 0);
-            std::string content = json.value<std::string>("content", "");
+            std::string content = ValidationHelper::sanitize(json.value<std::string>("content", ""));
             int posStart = json.value<int>("position_start", -1);
             int posEnd = json.value<int>("position_end", -1);
             int parentId = json.value<int>("parent_id", 0);
@@ -533,7 +534,7 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
-            std::string summary = json.value<std::string>("summary", "");
+            std::string summary = ValidationHelper::sanitize(json.value<std::string>("summary", ""));
 
             // 获取文档的owner_id作为created_by
             auto docOpt = getDocument(docId);
@@ -627,7 +628,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto json = nlohmann::json::parse(req.body);
 
             int userId = json.value<int>("user_id", 0);
-            std::string username = json.value<std::string>("username", "");
+            std::string username = ValidationHelper::sanitize(json.value<std::string>("username", ""));
             int line = json.value<int>("line", 0);
             int column = json.value<int>("column", 0);
 

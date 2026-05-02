@@ -10,6 +10,7 @@
 #include <sstream>
 #include <iomanip>
 #include <random>
+#include <cstdint>
 
 namespace PaperCrawler {
 
@@ -136,6 +137,18 @@ void AiCoPilotModule::registerRoutes() {
     router.get(prefix + "/stats", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
         if (!requireAuth(req)) return unauthorizedResp();
         return handleRequest(req);
+    });
+
+    // 7. SSE streaming endpoint — streams AI response as SSE events
+    router.get(prefix + "/stream", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
+        return handleStreamRequest(req);
+    });
+
+    // 8. SSE stream status endpoint
+    router.get(prefix + "/stream-status", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
+        return handleStreamStatus(req);
     });
 }
 
@@ -747,6 +760,174 @@ std::string AiCoPilotModule::escapeJson(const std::string& str) {
         }
     }
     return escaped;
+}
+
+// ============================================================================
+// 5. SSE Streaming 实现
+// ============================================================================
+
+HttpResponse AiCoPilotModule::handleStreamRequest(const HttpRequest& req) {
+    // Extract prompt from query params
+    std::string prompt = req.getQuery("prompt", "");
+    if (prompt.empty()) {
+        HttpResponse resp;
+        resp.statusCode = 400;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":false,"message":"Missing 'prompt' query parameter"})";
+        return resp;
+    }
+
+    spdlog::info("[AiCoPilot] SSE stream request received, prompt length: {}",
+                 prompt.size());
+
+    // Generate a unique connection ID
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint64_t> dis(1, UINT64_MAX);
+    std::string connectionId = "sse_" + std::to_string(dis(gen));
+
+    // Build the HttpResponse with SSE headers.
+    // The body will contain all SSE events concatenated because the underlying
+    // HTTP infrastructure is synchronous (no chunked transfer).  We simulate
+    // streaming by chunking the full AI response into discrete SSE events
+    // written into the response body.
+    HttpResponse resp;
+    resp.statusCode = 200;
+    resp.headers["Content-Type"] = "text/event-stream";
+    resp.headers["Cache-Control"] = "no-cache";
+    resp.headers["Connection"] = "keep-alive";
+    resp.headers["X-Accel-Buffering"] = "no";  // Disable nginx buffering
+
+    // ---- Obtain the full AI response synchronously ----
+    std::string aiFullResponse;
+    bool aiSuccess = false;
+
+    try {
+        if (impl_->aiWorkflow_) {
+            // Determine user id from query (default 0 for anonymous)
+            int userId = 0;
+            std::string userIdStr = req.getQuery("userId", "0");
+            try { userId = std::stoi(userIdStr); } catch (...) {}
+
+            // Determine model type (default GPT_4_MINI for streaming chat)
+            RAGContext ragContext = impl_->aiWorkflow_->buildRAGContext(prompt, userId);
+
+            auto aiResult = impl_->aiWorkflow_->executeAIRequest(
+                prompt,
+                AIModelType::GPT_4_MINI,
+                ragContext,
+                userId
+            );
+
+            if (aiResult.success) {
+                aiFullResponse = aiResult.content;
+                aiSuccess = true;
+            }
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[AiCoPilot] SSE stream AI call failed: {}", e.what());
+        aiFullResponse = "Error generating AI response: " + std::string(e.what());
+    }
+
+    if (!aiSuccess && aiFullResponse.empty()) {
+        aiFullResponse = "Sorry, I could not generate a response at this time.";
+    }
+
+    // ---- Chunk the response and write SSE events into body ----
+    activeStreamCount_++;
+    totalStreamedRequests_++;
+
+    // Use a string stream to build all SSE events
+    std::ostringstream sseBody;
+
+    // 1. Send an initial "connected" event
+    {
+        SseEvent connectedEvent;
+        connectedEvent.id = "0";
+        connectedEvent.event = "connected";
+        connectedEvent.data = "{\"connectionId\":\"" + connectionId + "\"}";
+        sseBody << connectedEvent.format();
+    }
+
+    // 2. Chunk the AI response into word-level SSE events
+    streamAiResponseInto(connectionId, aiFullResponse, sseBody);
+
+    // 3. Send the [DONE] sentinel event
+    {
+        SseEvent doneEvent;
+        doneEvent.id = "done";
+        doneEvent.event = "done";
+        doneEvent.data = "[DONE]";
+        sseBody << doneEvent.format();
+    }
+
+    resp.body = sseBody.str();
+
+    activeStreamCount_--;
+
+    spdlog::info("[AiCoPilot] SSE stream completed for connection {}, body size: {} bytes",
+                 connectionId, resp.body.size());
+
+    return resp;
+}
+
+void AiCoPilotModule::streamAiResponseInto(
+    const std::string& connectionId,
+    const std::string& fullResponse,
+    std::ostringstream& sseBody) {
+
+    // Chunk the response into segments of approximately chunkSize characters,
+    // splitting at word boundaries to avoid breaking mid-word.
+    const size_t chunkSize = 20;  // characters per chunk
+    size_t pos = 0;
+    int eventId = 1;
+
+    while (pos < fullResponse.size()) {
+        size_t end = std::min(pos + chunkSize, fullResponse.size());
+
+        // Try to extend to the next space or newline to avoid splitting mid-word
+        if (end < fullResponse.size()) {
+            size_t spacePos = fullResponse.find_first_of(" \n\r\t", end);
+            if (spacePos != std::string::npos && spacePos <= end + 15) {
+                end = spacePos + 1;
+            }
+        }
+
+        std::string chunk = fullResponse.substr(pos, end - pos);
+
+        // Build a JSON payload for each chunk
+        std::string jsonData = "{\"content\":\"" + escapeJson(chunk) + "\"}";
+
+        SseEvent chunkEvent;
+        chunkEvent.id = std::to_string(eventId++);
+        chunkEvent.event = "delta";
+        chunkEvent.data = jsonData;
+        sseBody << chunkEvent.format();
+
+        pos = end;
+    }
+}
+
+HttpResponse AiCoPilotModule::handleStreamStatus(const HttpRequest& req) {
+    HttpResponse resp;
+    resp.statusCode = 200;
+    resp.headers["Content-Type"] = "application/json";
+
+    std::ostringstream json;
+    json << "{";
+    json << "\"success\":true,";
+    json << "\"activeStreamCount\":" << activeStreamCount_.load() << ",";
+    json << "\"totalStreamedRequests\":" << totalStreamedRequests_.load() << ",";
+    json << "\"activeSseConnections\":" << sseBroadcaster_.connectionCount();
+    json << "}";
+
+    resp.body = json.str();
+
+    spdlog::debug("[AiCoPilot] Stream status queried: active={}, total={}, connections={}",
+                  activeStreamCount_.load(), totalStreamedRequests_.load(),
+                  sseBroadcaster_.connectionCount());
+
+    return resp;
 }
 
 } // namespace PaperCrawler

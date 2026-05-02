@@ -12,6 +12,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include "data/ValidationHelper.hpp"
 
 namespace PaperCrawler {
 
@@ -532,6 +533,8 @@ std::string DashboardApiModule::handleUpdateTodoStatus(const std::string& id, co
     if (newStatus.empty()) {
         return "{\"success\":false,\"message\":\"Missing 'status' field in request body\"}";
     }
+
+    newStatus = ValidationHelper::sanitize(newStatus);
 
     // 优先更新数据库
     if (database_) {

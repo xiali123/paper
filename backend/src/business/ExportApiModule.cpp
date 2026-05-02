@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
+#include "data/ValidationHelper.hpp"
 #include <spdlog/spdlog.h>
 
 using json = nlohmann::json;
@@ -734,7 +735,7 @@ void ExportApiModule::registerRoutes() {
             }
 
             if (j.contains("format") && j["format"].is_string()) {
-                formatStr = j["format"].get<std::string>();
+                formatStr = ValidationHelper::sanitize(j["format"].get<std::string>());
                 // Convert to lowercase for matching
                 std::string lower = formatStr;
                 std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);

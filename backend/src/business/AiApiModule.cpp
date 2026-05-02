@@ -13,6 +13,7 @@
 #include <spdlog/spdlog.h>
 #include <unordered_map>
 #include <mutex>
+#include "data/ValidationHelper.hpp"
 
 namespace PaperCrawler {
 
@@ -821,7 +822,7 @@ void AiApiModule::registerRoutes() {
 
             PaperSummaryRequest summaryReq;
             summaryReq.paperId = body["paper_id"];
-            summaryReq.language = body.value("language", "zh");
+            summaryReq.language = ValidationHelper::sanitize(body.value("language", "zh"));
             summaryReq.maxLength = body.value("max_length", 200);
 
             std::string result = generatePaperSummary(summaryReq);
@@ -848,8 +849,8 @@ void AiApiModule::registerRoutes() {
             auto body = json::parse(req.body);
 
             int paperId = body.value("paper_id", 0);
-            std::string question = body["question"];
-            std::string language = body.value("language", "zh");
+            std::string question = ValidationHelper::sanitize(body["question"].get<std::string>());
+            std::string language = ValidationHelper::sanitize(body.value("language", "zh"));
 
             if (paperId > 0) {
                 // 基于论文回答

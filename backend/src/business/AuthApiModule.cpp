@@ -6,6 +6,7 @@
 #include "data/DatabaseModule.hpp"
 
 #include "data/PreparedStatement.hpp"
+#include "data/ValidationHelper.hpp"
 #include "core/MessageBus.hpp"
 #include "core/ConfigManager.hpp"
 // 移除SharedBroadcastQueue，改用DatabaseModule::getConnection()
@@ -624,6 +625,9 @@ void AuthApiModule::registerRoutes() {
             std::string email = json["email"].get<std::string>();
             std::string password = json["password"].get<std::string>();
 
+            username = ValidationHelper::sanitize(username);
+            email = ValidationHelper::sanitize(email);
+
             // 验证邮箱格式
             if (!isValidEmail(email)) {
                 HttpResponse response;
@@ -746,6 +750,8 @@ void AuthApiModule::registerRoutes() {
 
             std::string username = json["username"].get<std::string>();
             std::string password = json["password"].get<std::string>();
+
+            username = ValidationHelper::sanitize(username);
 
             // ✅ 支持邮箱或用户名登录
             auto userOpt = impl_->getUserByUsernameOrEmail(username);
@@ -1112,6 +1118,7 @@ void AuthApiModule::registerRoutes() {
             }
 
             std::string email = json["email"];
+            email = ValidationHelper::sanitize(email);
 
             initiatePasswordReset(email);
             // Always return same response to prevent user enumeration

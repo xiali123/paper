@@ -12,6 +12,7 @@
 #include <random>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
+#include "data/ValidationHelper.hpp"
 
 namespace PaperCrawler {
 
@@ -1101,7 +1102,7 @@ std::string LatexApiModule::handleCreateDocument(const std::string& body) {
 
         LatexDocument doc;
         doc.id = 0;
-        doc.title = jsonBody.value("title", "Untitled");
+        doc.title = ValidationHelper::sanitize(jsonBody.value("title", "Untitled"));
         doc.content = jsonBody.value("content", getLatexTemplate());
         doc.ownerId = jsonBody.value("owner_id", "default");
         doc.isCollaborative = jsonBody.value("is_collaborative", false);
@@ -1134,7 +1135,7 @@ std::string LatexApiModule::handleUpdateDocument(const std::map<std::string, std
 
         LatexDocument doc;
         doc.id = id;
-        doc.title = jsonBody.value("title", "Untitled");
+        doc.title = ValidationHelper::sanitize(jsonBody.value("title", "Untitled"));
         doc.content = jsonBody.value("content", "");
 
         if (updateDocument(id, doc)) {
@@ -1346,8 +1347,8 @@ std::string LatexApiModule::handleCreateProject(const std::string& body) {
 
         LatexProject project;
         project.id = 0;
-        project.name = jsonBody.value("name", "Untitled Project");
-        project.description = jsonBody.value("description", "");
+        project.name = ValidationHelper::sanitize(jsonBody.value("name", "Untitled Project"));
+        project.description = ValidationHelper::sanitize(jsonBody.value("description", ""));
         project.ownerId = jsonBody.value("owner_id", "default");
         project.mainFile = jsonBody.value("main_file", "main");
         project.isPublic = jsonBody.value("is_public", false);
@@ -1381,7 +1382,7 @@ std::string LatexApiModule::handleAddProjectFile(const std::string& body) {
         auto jsonBody = nlohmann::json::parse(body);
 
         int projectId = jsonBody.value("project_id", 0);
-        std::string name = jsonBody.value("name", "");
+        std::string name = ValidationHelper::sanitize(jsonBody.value("name", ""));
         std::string path = jsonBody.value("path", "");
         std::string content = jsonBody.value("content", "");
         std::string type = jsonBody.value("type", "other");
@@ -1432,7 +1433,7 @@ std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, 
         int fileId = std::stoi(idIt->second);
         auto jsonBody = nlohmann::json::parse(body);
         std::string content = jsonBody.value("content", "");
-        std::string name = jsonBody.value("name", "");
+        std::string name = ValidationHelper::sanitize(jsonBody.value("name", ""));
         std::string path = jsonBody.value("path", "");
         std::string userId = jsonBody.value("user_id", "default");
         bool createVersion = jsonBody.value("create_version", true);
@@ -1595,7 +1596,7 @@ std::string LatexApiModule::handleUploadProjectFile(const std::map<std::string, 
         // This implementation accepts JSON with base64-encoded file content
         auto jsonBody = nlohmann::json::parse(body);
 
-        std::string filename = jsonBody.value("filename", "");
+        std::string filename = ValidationHelper::sanitize(jsonBody.value("filename", ""));
         std::string path = jsonBody.value("path", "");
         std::string contentBase64 = jsonBody.value("content", "");
         std::string fileType = jsonBody.value("type", "other");
