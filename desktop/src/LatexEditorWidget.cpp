@@ -2,6 +2,9 @@
 #include "LatexCodeEditor.hpp"
 #include "LatexPreviewWidget.hpp"
 #include "LatexSyntaxHighlighter.hpp"
+#include "LatexSnippetManager.hpp"
+#include "LatexFindReplaceBar.hpp"
+#include "LatexTemplateDialog.hpp"
 #include "ApiManager.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -80,7 +83,34 @@ void LatexEditorWidget::setupUI() {
     splitter_->setStretchFactor(1, 2);
     splitter_->setSizes({600, 400});
 
-    mainLayout->addWidget(splitter_, 1);
+    // Snippet manager (collapsible left panel)
+    snippetManager_ = new LatexSnippetManager();
+    connect(snippetManager_, &LatexSnippetManager::snippetInsert, this,
+            [this](const QString& before, const QString& after) {
+        codeEditor_->insertSnippet(before, after);
+        codeEditor_->setFocus();
+    });
+
+    // Find/Replace bar
+    findReplaceBar_ = new LatexFindReplaceBar(codeEditor_);
+
+    // Main layout: snippets | editor splitter, with find bar
+    auto* editorContainer = new QWidget();
+    auto* editorLayout = new QVBoxLayout(editorContainer);
+    editorLayout->setContentsMargins(0, 0, 0, 0);
+    editorLayout->setSpacing(0);
+    editorLayout->addWidget(splitter_, 1);
+    editorLayout->addWidget(findReplaceBar_);
+
+    mainSplitter_ = new QSplitter(Qt::Horizontal);
+    mainSplitter_->addWidget(snippetManager_);
+    mainSplitter_->addWidget(editorContainer);
+    mainSplitter_->setStretchFactor(0, 0);
+    mainSplitter_->setStretchFactor(1, 1);
+    mainSplitter_->setSizes({200, 800});
+    snippetManager_->hide(); // hidden by default
+
+    mainLayout->addWidget(mainSplitter_, 1);
 
     // Status bar
     setupStatusBar();
@@ -137,8 +167,17 @@ void LatexEditorWidget::setupToolbar() {
 
     auto* templateBtn = toolbar_->addAction("Templates");
     connect(templateBtn, &QAction::triggered, this, [this]() {
-        apiManager_->listLatexTemplates();
-        statusBar()->showMessage("Loading templates...", 3000);
+        auto* dlg = new LatexTemplateDialog(apiManager_, this);
+        connect(dlg, &LatexTemplateDialog::templateApplied, this, [this](const QString& content) {
+            codeEditor_->setPlainText(content);
+            currentDocumentId_ = 0;
+            documentCombo_->setCurrentIndex(0);
+            unsavedChanges_ = true;
+            statusLabel_->setText("Template applied");
+            statusLabel_->setStyleSheet("color: #059669; font-size: 11px;");
+        });
+        dlg->exec();
+        dlg->deleteLater();
     });
 
     toolbar_->addSeparator();
@@ -181,6 +220,20 @@ void LatexEditorWidget::setupToolbar() {
     connect(openDocsBtn, &QAction::triggered, this, [this]() {
         apiManager_->listLatexDocuments();
     });
+
+    toolbar_->addSeparator();
+
+    auto* snippetBtn = toolbar_->addAction("Snippets");
+    snippetBtn->setToolTip("Toggle snippet panel");
+    connect(snippetBtn, &QAction::triggered, this, [this]() {
+        snippetManager_->setVisible(!snippetManager_->isVisible());
+    });
+
+    auto* findBtn = toolbar_->addAction("Find");
+    findBtn->setToolTip("Ctrl+F — Find & Replace");
+    connect(findBtn, &QAction::triggered, this, [this]() {
+        findReplaceBar_->activateFind();
+    });
 }
 
 void LatexEditorWidget::setupStatusBar() {
@@ -205,7 +258,10 @@ void LatexEditorWidget::setupShortcuts() {
     connect(commentSc, &QShortcut::activated, this, [this]() { codeEditor_->toggleComment(); });
 
     auto* findSc = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_F), this);
-    connect(findSc, &QShortcut::activated, this, [this]() { codeEditor_->setFocus(); });
+    connect(findSc, &QShortcut::activated, this, [this]() { findReplaceBar_->activateFind(); });
+
+    auto* replaceSc = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_H), this);
+    connect(replaceSc, &QShortcut::activated, this, [this]() { findReplaceBar_->activateReplace(); });
 }
 
 void LatexEditorWidget::loadDefaultTemplate() {

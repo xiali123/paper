@@ -9,6 +9,8 @@
 class LatexCodeEditor;
 class LatexPreviewWidget;
 class LatexSyntaxHighlighter;
+class LatexSnippetManager;
+class LatexFindReplaceBar;
 class ApiManager;
 class QToolBar;
 class QLineEdit;
@@ -49,7 +51,10 @@ private:
     LatexCodeEditor* codeEditor_{nullptr};
     LatexPreviewWidget* previewWidget_{nullptr};
     LatexSyntaxHighlighter* highlighter_{nullptr};
+    LatexSnippetManager* snippetManager_{nullptr};
+    LatexFindReplaceBar* findReplaceBar_{nullptr};
     QSplitter* splitter_{nullptr};
+    QSplitter* mainSplitter_{nullptr};
     QToolBar* toolbar_{nullptr};
     QComboBox* documentCombo_{nullptr};
     QLabel* statusLabel_{nullptr};
