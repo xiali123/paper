@@ -121,6 +121,22 @@ public:
     void getPerformanceMetrics();
     void getLoginHistory();
 
+    // === LaTeX API ===
+    void listLatexDocuments(int page = 1, int limit = 20);
+    void getLatexDocument(int id);
+    void createLatexDocument(const QJsonObject& data);
+    void updateLatexDocument(int id, const QJsonObject& data);
+    void deleteLatexDocument(int id);
+    void compileLatexDocument(int id);
+    void autoSaveLatexDocument(int id, const QString& content);
+    void listLatexTemplates(const QString& category = "");
+    void getLatexTemplate(int id);
+    void createFromTemplate(int templateId, const QString& title);
+    void getLatexStats();
+    void listLatexProjects(int page = 1, int limit = 20);
+    void createLatexProject(const QJsonObject& data);
+    void compileLatexProject(int id);
+
 signals:
     // Core signals
     void healthCheckSuccess(bool healthy, const QString& message);

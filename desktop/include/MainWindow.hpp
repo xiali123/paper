@@ -34,6 +34,7 @@ class QMenu;
 class QToolBar;
 class QCloseEvent;
 class QPushButton;
+class LatexEditorWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -106,6 +107,7 @@ private:
     void showSearchHistoryDialog(const QJsonObject& data);
     void showAllPapersDialog(const QJsonObject& data);
     void showRecommendationExplanationDialog(const QJsonObject& data);
+    void showLatexTemplatesDialog(const QJsonObject& data);
 
     // UI Components
     QTabWidget* tabWidget_{nullptr};
@@ -140,6 +142,7 @@ private:
     QAction* themeAction_{nullptr};
     QPushButton* themeButton_{nullptr};
     QSystemTrayIcon* trayIcon_{nullptr};
+    LatexEditorWidget* latexEditor_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 

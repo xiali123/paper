@@ -1,5 +1,7 @@
 #include "MainWindow.hpp"
 #include "SearchWidget.hpp"
+#include "LatexEditorWidget.hpp"
+#include "LatexPreviewWidget.hpp"
 #include "ResultView.hpp"
 #include "ProgressView.hpp"
 #include "FilterPanel.hpp"
@@ -112,8 +114,8 @@ MainWindow::MainWindow(QWidget* parent)
     auto* settingsShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma), this);
     connect(settingsShortcut, &QShortcut::activated, this, &MainWindow::onPreferences);
 
-    // Tab switch shortcuts Ctrl+1..7
-    for (int i = 1; i <= 7; ++i) {
+    // Tab switch shortcuts Ctrl+1..8
+    for (int i = 1; i <= 8; ++i) {
         auto* sc = new QShortcut(QKeySequence(Qt::CTRL | (Qt::Key_1 + i - 1)), this);
         connect(sc, &QShortcut::activated, this, [this, i]() {
             if (tabWidget_ && i < tabWidget_->count()) tabWidget_->setCurrentIndex(i);
@@ -1726,7 +1728,25 @@ void MainWindow::setupUI() {
         tabWidget_->addTab(page, "\xf0\x9f\x94\xa7 Admin");
     }
 
-    // Update tab position to bottom with scroll buttons for 7 tabs
+    // === Tab 8: LaTeX Editor ===
+    {
+        auto* page = new QWidget();
+        page->setObjectName("latexEditorPage");
+        auto* layout = new QVBoxLayout(page);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
+
+        latexEditor_ = new LatexEditorWidget(apiManager_, this);
+        layout->addWidget(latexEditor_);
+
+        connect(latexEditor_, &LatexEditorWidget::statusMessage, this, [this](const QString& msg) {
+            statusBar()->showMessage(msg, 3000);
+        });
+
+        tabWidget_->addTab(page, "\xf0\x9f\x93\x9d LaTeX");
+    }
+
+    // Update tab position to bottom with scroll buttons for 8 tabs
     tabWidget_->setUsesScrollButtons(true);
 }
 
@@ -2583,6 +2603,69 @@ void MainWindow::showRecommendationExplanationDialog(const QJsonObject& data) {
     dlg.exec();
 }
 
+void MainWindow::showLatexTemplatesDialog(const QJsonObject& data) {
+    QDialog dlg(this);
+    dlg.setWindowTitle("LaTeX Templates");
+    dlg.setMinimumSize(600, 450);
+    auto* layout = new QVBoxLayout(&dlg);
+
+    QJsonArray templates = data["templates"].toArray(data["data"].toArray());
+    if (templates.isEmpty()) {
+        auto* emptyLabel = new QLabel("No templates available.\nCreate documents from scratch or add templates on the server.");
+        emptyLabel->setAlignment(Qt::AlignCenter);
+        emptyLabel->setStyleSheet("color: palette(mid); font-size: 14px; padding: 40px;");
+        layout->addWidget(emptyLabel);
+        auto* closeBtn = new QPushButton("Close");
+        closeBtn->setStyleSheet("QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); border-radius: 6px; padding: 8px 24px; font-weight: bold; }");
+        connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::close);
+        layout->addWidget(closeBtn, 0, Qt::AlignRight);
+        dlg.exec();
+        return;
+    }
+
+    auto* table = new QTableWidget(templates.size(), 3);
+    table->setHorizontalHeaderLabels({"Name", "Category", "Action"});
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
+    table->setStyleSheet(
+        "QTableWidget { background: palette(base); border: 1px solid palette(mid); border-radius: 8px; }"
+        "QHeaderView::section { background: palette(window); color: palette(text); font-weight: bold; padding: 6px; border: none; }"
+        "QTableWidget::item { padding: 4px; color: palette(text); }"
+    );
+
+    for (int i = 0; i < templates.size(); ++i) {
+        auto t = templates[i].toObject();
+        table->setItem(i, 0, new QTableWidgetItem(t["name"].toString()));
+        table->setItem(i, 1, new QTableWidgetItem(t["category"].toString()));
+
+        auto* applyBtn = new QPushButton("Apply");
+        applyBtn->setStyleSheet(
+            "QPushButton { background: #4f46e5; color: white; border: none; border-radius: 4px; padding: 4px 12px; font-size: 11px; }"
+            "QPushButton:hover { background: #4338ca; }"
+        );
+        QString content = t["content"].toString(t["template"].toString());
+        connect(applyBtn, &QPushButton::clicked, this, [this, &dlg, content]() {
+            if (latexEditor_) {
+                latexEditor_->loadContent(content);
+            }
+            dlg.accept();
+            statusBar()->showMessage("Template applied", 3000);
+        });
+        table->setCellWidget(i, 2, applyBtn);
+    }
+    layout->addWidget(table, 1);
+
+    auto* closeBtn = new QPushButton("Close");
+    closeBtn->setStyleSheet(
+        "QPushButton { background: palette(button); color: palette(button-text); border: 1px solid palette(mid); "
+        "border-radius: 6px; padding: 8px 24px; font-weight: bold; }"
+    );
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::close);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+    dlg.exec();
+}
+
 void MainWindow::createMenus() {
     // File menu
     QMenu* fileMenu = menuBar()->addMenu("&File");
@@ -2906,6 +2989,10 @@ void MainWindow::connectSignals() {
                 apiManager_->getAdminModules();
                 apiManager_->getSystemMonitor();
                 break;
+            case 7: // LaTeX Editor
+                apiManager_->listLatexDocuments();
+                apiManager_->listLatexTemplates();
+                break;
         }
     });
 
@@ -3018,6 +3105,36 @@ void MainWindow::connectSignals() {
                 showStatsDialog("Resource Statistics", data);
             } else if (endpoint.contains("stats/performance")) {
                 showStatsDialog("Performance Statistics", data);
+            } else if (endpoint.contains("latex/documents") && endpoint.contains("create")) {
+                // New document created
+                int docId = data["id"].toInt(0);
+                if (docId > 0 && latexEditor_) {
+                    statusBar()->showMessage(QString("Document created (ID: %1)").arg(docId), 5000);
+                    apiManager_->listLatexDocuments();
+                }
+            } else if (endpoint.contains("latex/documents/update")) {
+                statusBar()->showMessage("Document saved", 2000);
+            } else if (endpoint.contains("latex/documents/delete")) {
+                statusBar()->showMessage("Document deleted", 3000);
+                apiManager_->listLatexDocuments();
+            } else if (endpoint.contains("latex/compile")) {
+                if (latexEditor_) {
+                    bool ok = data["success"].toBool();
+                    QString pdf = data["pdfPath"].toString(data["pdf_path"].toString());
+                    QString err = data["error"].toString(data["errorMessage"].toString());
+                    auto* preview = latexEditor_->findChild<LatexPreviewWidget*>();
+                    if (preview) preview->showCompileResult(ok, pdf, err);
+                }
+                statusBar()->showMessage(data["success"].toBool() ? "Compilation successful" : "Compilation failed", 5000);
+            } else if (endpoint.contains("latex/autosave")) {
+                // Silent auto-save
+            } else if (endpoint.contains("latex/templates")) {
+                showLatexTemplatesDialog(data);
+            } else if (endpoint.contains("latex/document") && !endpoint.contains("create") && !endpoint.contains("update") && !endpoint.contains("delete")) {
+                // Single document loaded
+                if (latexEditor_) {
+                    latexEditor_->loadContent(data["content"].toString());
+                }
             }
         });
 
@@ -3059,6 +3176,21 @@ void MainWindow::connectSignals() {
                 QJsonObject wrapped;
                 wrapped["trending"] = data;
                 populateTrendingSearches(wrapped);
+            } else if (endpoint.contains("latex/documents")) {
+                // Document list (array) — populate combo
+                if (latexEditor_) {
+                    auto* combo = latexEditor_->findChild<QComboBox*>();
+                    if (combo) {
+                        combo->clear();
+                        combo->addItem("New Document", 0);
+                        for (const auto& val : data) {
+                            auto d = val.toObject();
+                            combo->addItem(d["title"].toString(d["name"].toString()), d["id"].toInt());
+                        }
+                    }
+                }
+            } else if (endpoint.contains("latex/templates")) {
+                showLatexTemplatesDialog(data);
             }
         });
 
@@ -3514,6 +3646,11 @@ void MainWindow::onToggleTheme() {
 
         // Trigger repaint for gradient update
         update();
+
+        // Update LaTeX editor dark mode
+        if (latexEditor_) {
+            latexEditor_->setDarkMode(themeManager_->currentTheme() == ThemeManager::ThemeMode::Dark);
+        }
     }
 }
 

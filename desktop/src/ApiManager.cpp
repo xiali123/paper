@@ -835,3 +835,70 @@ void ApiManager::retrySearch(const QString& query, const QString& year,
     connect(searchReply_, &QNetworkReply::finished, this, &ApiManager::onSearchReply);
     connect(searchReply_, &QNetworkReply::errorOccurred, this, &ApiManager::handleNetworkError);
 }
+
+// ============================================================================
+// LaTeX API
+// ============================================================================
+
+void ApiManager::listLatexDocuments(int page, int limit) {
+    sendGetRequest(QString("/api/latex/documents?page=%1&limit=%2").arg(page).arg(limit), "latex/documents");
+}
+
+void ApiManager::getLatexDocument(int id) {
+    sendGetRequest(QString("/api/latex/documents/%1").arg(id), "latex/document");
+}
+
+void ApiManager::createLatexDocument(const QJsonObject& data) {
+    sendPostRequest("/api/latex/documents", data, "latex/documents/create");
+}
+
+void ApiManager::updateLatexDocument(int id, const QJsonObject& data) {
+    sendPutRequest(QString("/api/latex/documents/%1").arg(id), data, "latex/documents/update");
+}
+
+void ApiManager::deleteLatexDocument(int id) {
+    sendDeleteRequest(QString("/api/latex/documents/%1").arg(id), "latex/documents/delete");
+}
+
+void ApiManager::compileLatexDocument(int id) {
+    sendPostRequest(QString("/api/latex/documents/%1/compile").arg(id), QJsonObject(), "latex/compile", 30000);
+}
+
+void ApiManager::autoSaveLatexDocument(int id, const QString& content) {
+    QJsonObject data;
+    data["content"] = content;
+    sendPostRequest(QString("/api/latex/documents/%1/autosave").arg(id), data, "latex/autosave");
+}
+
+void ApiManager::listLatexTemplates(const QString& category) {
+    QString endpoint = "/api/latex/templates";
+    if (!category.isEmpty()) endpoint += QString("?category=%1").arg(category);
+    sendGetRequest(endpoint, "latex/templates");
+}
+
+void ApiManager::getLatexTemplate(int id) {
+    sendGetRequest(QString("/api/latex/templates/%1").arg(id), "latex/template");
+}
+
+void ApiManager::createFromTemplate(int templateId, const QString& title) {
+    QJsonObject data;
+    data["template_id"] = templateId;
+    data["title"] = title;
+    sendPostRequest("/api/latex/templates/create", data, "latex/templates/create");
+}
+
+void ApiManager::getLatexStats() {
+    sendGetRequest("/api/latex/stats", "latex/stats");
+}
+
+void ApiManager::listLatexProjects(int page, int limit) {
+    sendGetRequest(QString("/api/latex/projects?page=%1&limit=%2").arg(page).arg(limit), "latex/projects");
+}
+
+void ApiManager::createLatexProject(const QJsonObject& data) {
+    sendPostRequest("/api/latex/projects", data, "latex/projects/create");
+}
+
+void ApiManager::compileLatexProject(int id) {
+    sendPostRequest(QString("/api/latex/projects/%1/compile").arg(id), QJsonObject(), "latex/compile", 30000);
+}
