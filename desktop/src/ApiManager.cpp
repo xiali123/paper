@@ -449,6 +449,345 @@ void ApiManager::onAiChatReply() {
 }
 
 // ============================================================================
+// Generic fire-and-forget request methods
+// ============================================================================
+
+void ApiManager::sendGetRequest(const QString& endpoint, const QString& context, int timeoutMs) {
+    QNetworkRequest request = createRequest(endpoint);
+    QNetworkReply* reply = networkManager_->get(request);
+    setupRequestTimeout(reply, timeoutMs);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, context]() {
+        handleGenericReply(reply, context);
+    });
+}
+
+void ApiManager::sendPostRequest(const QString& endpoint, const QJsonObject& data,
+                                  const QString& context, int timeoutMs) {
+    QNetworkRequest request = createRequest(endpoint);
+    QNetworkReply* reply = networkManager_->post(request, QJsonDocument(data).toJson());
+    setupRequestTimeout(reply, timeoutMs);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, context]() {
+        handleGenericReply(reply, context);
+    });
+}
+
+void ApiManager::sendPutRequest(const QString& endpoint, const QJsonObject& data,
+                                 const QString& context) {
+    QNetworkRequest request = createRequest(endpoint);
+    QNetworkReply* reply = networkManager_->put(request, QJsonDocument(data).toJson());
+    setupRequestTimeout(reply, 10000);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, context]() {
+        handleGenericReply(reply, context);
+    });
+}
+
+void ApiManager::sendDeleteRequest(const QString& endpoint, const QString& context) {
+    QNetworkRequest request = createRequest(endpoint);
+    QNetworkReply* reply = networkManager_->deleteResource(request);
+    setupRequestTimeout(reply, 10000);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, context]() {
+        handleGenericReply(reply, context);
+    });
+}
+
+void ApiManager::handleGenericReply(QNetworkReply* reply, const QString& context) {
+    if (!reply) return;
+    reply->deleteLater();
+
+    if (reply->error() == QNetworkReply::NoError) {
+        QByteArray data = reply->readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+
+        if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            // Unwrap if wrapped in data/response field
+            if (obj.contains("data") && obj["data"].isObject()) {
+                emit jsonResponse(context, obj["data"].toObject());
+            } else {
+                emit jsonResponse(context, obj);
+            }
+        } else if (doc.isArray()) {
+            emit jsonArrayResponse(context, doc.array());
+        } else {
+            QJsonObject wrapper;
+            wrapper["raw"] = QString::fromUtf8(data);
+            emit jsonResponse(context, wrapper);
+        }
+    } else {
+        emit genericError(context, reply->errorString());
+    }
+}
+
+// ============================================================================
+// Advanced Search
+// ============================================================================
+
+void ApiManager::advancedSearch(const QJsonObject& criteria) {
+    sendPostRequest("/api/search/advanced", criteria, "search/advanced", 60000);
+}
+
+void ApiManager::getSearchSuggestions(const QString& prefix) {
+    sendGetRequest(QString("/api/search/suggest?q=%1").arg(prefix), "search/suggest");
+}
+
+void ApiManager::getSearchHistory() {
+    sendGetRequest("/api/search/history", "search/history");
+}
+
+void ApiManager::getSavedSearches() {
+    sendGetRequest("/api/search/saved", "search/saved");
+}
+
+void ApiManager::saveSearch(const QJsonObject& data) {
+    sendPostRequest("/api/search/save", data, "search/save");
+}
+
+void ApiManager::getTrendingSearches() {
+    sendGetRequest("/api/search/trending", "search/trending");
+}
+
+// ============================================================================
+// Paper CRUD
+// ============================================================================
+
+void ApiManager::createPaper(const QJsonObject& data) {
+    sendPostRequest("/api/papers", data, "papers/create");
+}
+
+void ApiManager::updatePaper(int paperId, const QJsonObject& data) {
+    sendPutRequest(QString("/api/papers/%1").arg(paperId), data, "papers/update");
+}
+
+void ApiManager::deletePaper(int paperId) {
+    sendDeleteRequest(QString("/api/papers/%1").arg(paperId), "papers/delete");
+}
+
+void ApiManager::getAllPapers(int page, int limit) {
+    sendGetRequest(QString("/api/papers?page=%1&limit=%2").arg(page).arg(limit), "papers/list");
+}
+
+void ApiManager::togglePaperFavorite(int paperId, bool favorite) {
+    QJsonObject data;
+    data["favorite"] = favorite;
+    sendPostRequest(QString("/api/papers/%1/favorite").arg(paperId), data, "papers/favorite");
+}
+
+void ApiManager::markPaperRead(int paperId) {
+    sendPostRequest(QString("/api/papers/%1/read").arg(paperId), QJsonObject(), "papers/read");
+}
+
+void ApiManager::addPaperTags(int paperId, const QStringList& tags) {
+    QJsonObject data;
+    QJsonArray arr;
+    for (const auto& t : tags) arr.append(t);
+    data["tags"] = arr;
+    sendPostRequest(QString("/api/papers/%1/tags").arg(paperId), data, "papers/tags");
+}
+
+void ApiManager::removePaperTag(int paperId, const QString& tag) {
+    sendDeleteRequest(QString("/api/papers/%1/tags/%2").arg(paperId).arg(tag), "papers/tag-remove");
+}
+
+// ============================================================================
+// Detailed Stats
+// ============================================================================
+
+void ApiManager::getSystemStats() {
+    sendGetRequest("/api/stats/system", "stats/system");
+}
+
+void ApiManager::getResourceStats() {
+    sendGetRequest("/api/stats/resources", "stats/resources");
+}
+
+void ApiManager::getPerformanceStats() {
+    sendGetRequest("/api/stats/performance", "stats/performance");
+}
+
+// ============================================================================
+// Crawler Advanced
+// ============================================================================
+
+void ApiManager::getCrawlerTaskDetails(int taskId) {
+    sendGetRequest(QString("/api/crawler/tasks/%1").arg(taskId), "crawler/task-details");
+}
+
+void ApiManager::retryCrawlerTask(int taskId) {
+    sendPostRequest(QString("/api/crawler/tasks/%1/retry").arg(taskId), QJsonObject(), "crawler/retry");
+}
+
+void ApiManager::createCrawlerTemplate(const QJsonObject& data) {
+    sendPostRequest("/api/crawler/templates", data, "crawler/template-create");
+}
+
+void ApiManager::updateCrawlerTemplate(int id, const QJsonObject& data) {
+    sendPutRequest(QString("/api/crawler/templates/%1").arg(id), data, "crawler/template-update");
+}
+
+void ApiManager::deleteCrawlerTemplate(int id) {
+    sendDeleteRequest(QString("/api/crawler/templates/%1").arg(id), "crawler/template-delete");
+}
+
+void ApiManager::testCrawlerTemplate(int id) {
+    sendPostRequest(QString("/api/crawler/templates/%1/test").arg(id), QJsonObject(), "crawler/template-test", 30000);
+}
+
+void ApiManager::getCrawlerSchedules() {
+    sendGetRequest("/api/crawler/schedules", "crawler/schedules");
+}
+
+void ApiManager::createCrawlerSchedule(const QJsonObject& data) {
+    sendPostRequest("/api/crawler/schedules", data, "crawler/schedule-create");
+}
+
+void ApiManager::triggerCrawlerSchedule(int id) {
+    sendPostRequest(QString("/api/crawler/schedules/%1/trigger").arg(id), QJsonObject(), "crawler/schedule-trigger");
+}
+
+void ApiManager::getCrawlerStatistics() {
+    sendGetRequest("/api/crawler/statistics", "crawler/statistics");
+}
+
+void ApiManager::getCrawlerWorkers() {
+    sendGetRequest("/api/crawler/workers", "crawler/workers");
+}
+
+// ============================================================================
+// AI Advanced
+// ============================================================================
+
+void ApiManager::aiCompare(const QJsonObject& data) {
+    sendPostRequest("/api/ai/compare", data, "ai/compare", 60000);
+}
+
+void ApiManager::aiSummarize(const QJsonObject& data) {
+    sendPostRequest("/api/ai/summarize", data, "ai/summarize", 60000);
+}
+
+void ApiManager::aiContributions(const QJsonObject& data) {
+    sendPostRequest("/api/ai/contributions", data, "ai/contributions", 60000);
+}
+
+void ApiManager::aiKeywords(const QJsonObject& data) {
+    sendPostRequest("/api/ai/keywords", data, "ai/keywords");
+}
+
+void ApiManager::getAiStatus() {
+    sendGetRequest("/api/ai/status", "ai/status");
+}
+
+// ============================================================================
+// AI Copilot
+// ============================================================================
+
+void ApiManager::aiCopilotReview(const QJsonObject& data) {
+    sendPostRequest("/api/ai/copilot/review", data, "ai/copilot/review", 60000);
+}
+
+void ApiManager::aiCopilotReviews(int userId) {
+    sendGetRequest(QString("/api/ai/copilot/reviews/%1").arg(userId), "ai/copilot/reviews");
+}
+
+void ApiManager::generateLiteratureReview(const QJsonObject& data) {
+    sendPostRequest("/api/ai/copilot/literature-review/generate", data, "ai/copilot/literature-review", 60000);
+}
+
+void ApiManager::getLiteratureReviews() {
+    sendGetRequest("/api/ai/copilot/literature-reviews", "ai/copilot/literature-reviews");
+}
+
+void ApiManager::generateResearchPlan(const QJsonObject& data) {
+    sendPostRequest("/api/ai/copilot/research-plan/generate", data, "ai/copilot/research-plan", 60000);
+}
+
+void ApiManager::getResearchPlans() {
+    sendGetRequest("/api/ai/copilot/research-plans", "ai/copilot/research-plans");
+}
+
+void ApiManager::getAiCopilotRecommendations() {
+    sendGetRequest("/api/ai/copilot/recommendations", "ai/copilot/recommendations");
+}
+
+void ApiManager::getAiCopilotStats() {
+    sendGetRequest("/api/ai/copilot/stats", "ai/copilot/stats");
+}
+
+// ============================================================================
+// Recommendations
+// ============================================================================
+
+void ApiManager::getPaperRecommendations(int page, int limit) {
+    sendGetRequest(QString("/api/recommendations/papers?page=%1&limit=%2").arg(page).arg(limit), "recommendations/papers");
+}
+
+void ApiManager::getSimilarPapers(int paperId) {
+    sendGetRequest(QString("/api/recommendations/similar/%1").arg(paperId), "recommendations/similar");
+}
+
+void ApiManager::getRecommendationExplanation(int paperId) {
+    sendGetRequest(QString("/api/recommendations/explain/%1").arg(paperId), "recommendations/explain");
+}
+
+void ApiManager::submitRecommendationFeedback(const QJsonObject& data) {
+    sendPostRequest("/api/recommendations/feedback", data, "recommendations/feedback");
+}
+
+void ApiManager::getTrendingPapers() {
+    sendGetRequest("/api/recommendations/trending", "recommendations/trending");
+}
+
+// ============================================================================
+// Export API
+// ============================================================================
+
+void ApiManager::getExportFormats() {
+    sendGetRequest("/api/export/formats", "export/formats");
+}
+
+void ApiManager::exportData(const QJsonObject& params) {
+    sendPostRequest("/api/export", params, "export/data", 60000);
+}
+
+// ============================================================================
+// Admin API
+// ============================================================================
+
+void ApiManager::getAdminDashboard() {
+    sendGetRequest("/api/admin/dashboard", "admin/dashboard");
+}
+
+void ApiManager::getAdminUsers(int page, int limit) {
+    sendGetRequest(QString("/api/admin/users?page=%1&limit=%2").arg(page).arg(limit), "admin/users");
+}
+
+void ApiManager::getAdminModules() {
+    sendGetRequest("/api/admin/modules", "admin/modules");
+}
+
+void ApiManager::toggleModule(const QString& name, bool enable) {
+    QString endpoint = enable
+        ? QString("/api/admin/modules/%1/enable").arg(name)
+        : QString("/api/admin/modules/%1/disable").arg(name);
+    sendPostRequest(endpoint, QJsonObject(), "admin/module-toggle");
+}
+
+void ApiManager::getSystemMonitor() {
+    sendGetRequest("/api/admin/monitor/system", "admin/monitor/system");
+}
+
+void ApiManager::getServiceMonitor() {
+    sendGetRequest("/api/admin/monitor/services", "admin/monitor/services");
+}
+
+void ApiManager::getPerformanceMetrics() {
+    sendGetRequest("/api/admin/performance/metrics", "admin/performance");
+}
+
+void ApiManager::getLoginHistory() {
+    sendGetRequest("/api/admin/security/login-history", "admin/login-history");
+}
+
+// ============================================================================
 // Request dedup
 // ============================================================================
 
