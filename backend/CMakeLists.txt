@@ -1003,16 +1003,32 @@ elseif(UNIX)
     # 如果需要自定义路径，可以在这里添加
 endif()
 
-# 阶段12：AdminApiModule动态化（NEW - 2026-04-22）
-add_dynamic_module_with_system(AdminApiModule
-    src/business/AdminApiModule.cpp
+# 阶段12：AdminApiModule拆分为4个独立模块（2026-05-02）
+# 原始AdminApiModule保留在源码中但不再编译
+add_dynamic_module_with_system(AdminUserManagementModule
+    src/business/AdminUserManagementModule.cpp
 )
+target_include_directories(AdminUserManagementModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
+add_dynamic_module_with_system(AdminSystemModule
+    src/business/AdminSystemModule.cpp
+)
+target_include_directories(AdminSystemModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
+add_dynamic_module_with_system(AdminAuditModule
+    src/business/AdminAuditModule.cpp
+)
+target_include_directories(AdminAuditModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
+add_dynamic_module_with_system(AdminConfigModule
+    src/business/AdminConfigModule.cpp
+)
+target_include_directories(AdminConfigModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
 
 # DashboardApiModule — 仪表盘聚合API（NEW - 2026-05-02）
 add_dynamic_module_with_system(DashboardApiModule
     src/business/DashboardApiModule.cpp
 )
-target_include_directories(AdminApiModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
 
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）
 # ============================================================================
