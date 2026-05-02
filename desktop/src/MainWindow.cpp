@@ -19,6 +19,10 @@
 #include "FavoriteManager.hpp"
 #include "SearchHistory.hpp"
 #include "database/LocalDatabase.hpp"
+#include "ToastWidget.hpp"
+#include "PaperNotesDialog.hpp"
+#include "ReadingListManager.hpp"
+#include "AdvancedSearchDialog.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -2704,6 +2708,28 @@ void MainWindow::createMenus() {
     preferencesAction->setShortcut(QKeySequence("Ctrl+P"));
     connect(preferencesAction, &QAction::triggered, this, &MainWindow::onPreferences);
 
+    editMenu->addSeparator();
+
+    auto* advSearchAction = editMenu->addAction("&Advanced Search");
+    advSearchAction->setShortcut(QKeySequence("Ctrl+Shift+F"));
+    connect(advSearchAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new AdvancedSearchDialog(this);
+        connect(dlg, &AdvancedSearchDialog::searchRequested, this, [this](const AdvancedSearchDialog::SearchCriteria& c) {
+            QString query = c.query;
+            if (!c.title.isEmpty()) query += QString(" title:\"%1\"").arg(c.title);
+            if (!c.author.isEmpty()) query += QString(" author:\"%1\"").arg(c.author);
+            if (!c.venue.isEmpty()) query += QString(" venue:\"%1\"").arg(c.venue);
+            if (!c.yearFrom.isEmpty()) query += QString(" year:>=%1").arg(c.yearFrom);
+            if (!c.yearTo.isEmpty()) query += QString(" year:<=%1").arg(c.yearTo);
+            if (!c.level.isEmpty()) query += QString(" level:%1").arg(c.level);
+            onSearch(query.trimmed());
+            tabWidget_->setCurrentIndex(0);
+            ToastWidget::showInfo("Searching...");
+        });
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // View menu
     QMenu* viewMenu = menuBar()->addMenu("&View");
 
@@ -2729,6 +2755,20 @@ void MainWindow::createMenus() {
     QAction* aiAction = toolsMenu->addAction("&AI Assistant");
     connect(aiAction, &QAction::triggered, this, [this]() {
         tabWidget_->setCurrentIndex(3);
+    });
+
+    toolsMenu->addSeparator();
+
+    auto* readingListAction = toolsMenu->addAction("&Reading Lists");
+    connect(readingListAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Lists");
+        dlg->resize(700, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* mgr = new ReadingListManager(apiManager_);
+        layout->addWidget(mgr);
+        dlg->exec();
+        dlg->deleteLater();
     });
 
     // Help menu
@@ -3424,6 +3464,8 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
     qDebug() << "Cache statistics for" << currentKeyword_ << ":"
              << "Cached pages:" << paperCache_->getCacheCount(currentKeyword_)
              << "Total cache size:" << paperCache_->getCacheSize();
+
+    ToastWidget::showSuccess(QString("Found %1 results for \"%2\"").arg(totalResults_).arg(currentKeyword_));
 }
 
 void MainWindow::onSearchFailed(const QString& error) {
@@ -3727,10 +3769,13 @@ void MainWindow::onPaperDetailsSuccess(const Paper& paper) {
     });
     connect(dialog, &PaperDetailDialog::paperDeleted, this, [this](int paperId) {
         statusBar()->showMessage(QString("Paper %1 deleted").arg(paperId), 5000);
-        // Refresh current view
+        ToastWidget::showInfo(QString("Paper %1 deleted").arg(paperId));
         if (!currentKeyword_.isEmpty()) {
             apiManager_->searchPapers(currentKeyword_, "", "", currentOffset_, currentLimit_);
         }
+    });
+    connect(dialog, &PaperDetailDialog::tagsChanged, this, [](const QStringList&) {
+        ToastWidget::showSuccess("Tags updated");
     });
     dialog->exec();
     dialog->deleteLater();
@@ -3786,12 +3831,14 @@ void MainWindow::onLoginSuccess(const DesktopUser& user) {
     qDebug() << "Login successful:" << user.username;
     apiManager_->setAuthToken(authManager_->getAccessToken());
     updateAuthUI();
+    ToastWidget::showSuccess(QString("Welcome, %1!").arg(user.username));
 }
 
 void MainWindow::onLogoutSuccess() {
     qDebug() << "Logout successful";
     apiManager_->clearAuthToken();
     updateAuthUI();
+    ToastWidget::showInfo("Logged out");
 }
 
 void MainWindow::onAuthenticationChanged(bool authenticated) {

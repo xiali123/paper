@@ -35,6 +35,8 @@ class QToolBar;
 class QCloseEvent;
 class QPushButton;
 class LatexEditorWidget;
+class ReadingListManager;
+class AdvancedSearchDialog;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -143,6 +145,7 @@ private:
     QPushButton* themeButton_{nullptr};
     QSystemTrayIcon* trayIcon_{nullptr};
     LatexEditorWidget* latexEditor_{nullptr};
+    ReadingListManager* readingListMgr_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 
