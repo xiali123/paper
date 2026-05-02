@@ -23,6 +23,10 @@
 #include "PaperNotesDialog.hpp"
 #include "ReadingListManager.hpp"
 #include "AdvancedSearchDialog.hpp"
+#include "OfflineCacheManager.hpp"
+#include "PaperCompareDialog.hpp"
+#include "RecentHistoryWidget.hpp"
+#include "BatchOperationsBar.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -2771,6 +2775,35 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* cacheAction = toolsMenu->addAction("&Offline Cache");
+    connect(cacheAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Offline Cache Manager");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* mgr = new OfflineCacheManager(localDb_);
+        mgr->refreshPapers();
+        layout->addWidget(mgr);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* historyAction = toolsMenu->addAction("Recent &History");
+    historyAction->setShortcut(QKeySequence("Ctrl+H"));
+    connect(historyAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Recently Viewed Papers");
+        dlg->resize(400, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* hist = new RecentHistoryWidget();
+        connect(hist, &RecentHistoryWidget::openPaperRequested, this, [this](int paperId) {
+            apiManager_->getPaperDetails(paperId);
+        });
+        layout->addWidget(hist);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -2889,6 +2922,35 @@ void MainWindow::createThemeButton() {
 void MainWindow::connectSignals() {
     connect(searchWidget_, &SearchWidget::searchRequested,
             this, &MainWindow::onSearch);
+
+    // Recent history
+    recentHistory_ = new RecentHistoryWidget(this);
+
+    // Batch operations bar
+    batchBar_ = new BatchOperationsBar(this);
+    connect(batchBar_, &BatchOperationsBar::batchFavorite, this, [this](const QList<int>& ids, bool fav) {
+        for (int id : ids) apiManager_->togglePaperFavorite(id, fav);
+        ToastWidget::showSuccess(QString("%1 %2 papers").arg(fav ? "Favorited" : "Unfavorited").arg(ids.size()));
+        batchBar_->clearSelection();
+    });
+    connect(batchBar_, &BatchOperationsBar::batchExport, this, [this](const QList<int>& ids) {
+        Q_UNUSED(ids);
+        onExport();
+        batchBar_->clearSelection();
+    });
+    connect(batchBar_, &BatchOperationsBar::batchDelete, this, [this](const QList<int>& ids) {
+        for (int id : ids) apiManager_->deletePaper(id);
+        ToastWidget::showSuccess(QString("Deleted %1 papers").arg(ids.size()));
+        batchBar_->clearSelection();
+        if (!currentKeyword_.isEmpty()) {
+            apiManager_->searchPapers(currentKeyword_, "", "", currentOffset_, currentLimit_);
+        }
+    });
+    connect(batchBar_, &BatchOperationsBar::batchAddTags, this, [this](const QList<int>& ids, const QStringList& tags) {
+        for (int id : ids) apiManager_->addPaperTags(id, tags);
+        ToastWidget::showSuccess(QString("Added tags to %1 papers").arg(ids.size()));
+        batchBar_->clearSelection();
+    });
 
     if (resultView_) {
         connect(resultView_, &PaperCardView::paperSelected,
@@ -3777,6 +3839,12 @@ void MainWindow::onPaperDetailsSuccess(const Paper& paper) {
     connect(dialog, &PaperDetailDialog::tagsChanged, this, [](const QStringList&) {
         ToastWidget::showSuccess("Tags updated");
     });
+
+    // Record in recent history
+    if (recentHistory_) {
+        recentHistory_->addEntry(paper.id, paper.title, paper.authors, paper.year);
+    }
+
     dialog->exec();
     dialog->deleteLater();
 }

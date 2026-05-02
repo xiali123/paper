@@ -37,6 +37,9 @@ class QPushButton;
 class LatexEditorWidget;
 class ReadingListManager;
 class AdvancedSearchDialog;
+class OfflineCacheManager;
+class RecentHistoryWidget;
+class BatchOperationsBar;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -146,6 +149,9 @@ private:
     QSystemTrayIcon* trayIcon_{nullptr};
     LatexEditorWidget* latexEditor_{nullptr};
     ReadingListManager* readingListMgr_{nullptr};
+    OfflineCacheManager* cacheManager_{nullptr};
+    RecentHistoryWidget* recentHistory_{nullptr};
+    BatchOperationsBar* batchBar_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 
