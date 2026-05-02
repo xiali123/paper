@@ -100,6 +100,12 @@ private:
     void populateSavedSearches(const QJsonObject& data);
     void populateTrendingSearches(const QJsonObject& data);
     void showStatsDialog(const QString& title, const QJsonObject& data);
+    void showAiStatusDialog(const QJsonObject& data);
+    void showCrawlerWorkersDialog(const QJsonObject& data);
+    void showCrawlerStatisticsDialog(const QJsonObject& data);
+    void showSearchHistoryDialog(const QJsonObject& data);
+    void showAllPapersDialog(const QJsonObject& data);
+    void showRecommendationExplanationDialog(const QJsonObject& data);
 
     // UI Components
     QTabWidget* tabWidget_{nullptr};
