@@ -124,7 +124,7 @@ public:
             }
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to query user: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to query user: {}", e.what());
             return std::nullopt;
         }
     }
@@ -140,7 +140,7 @@ public:
             }
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to query user by username: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to query user by username: {}", e.what());
             return std::nullopt;
         }
     }
@@ -156,7 +156,7 @@ public:
             }
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to query user by email: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to query user by email: {}", e.what());
             return std::nullopt;
         }
     }
@@ -214,14 +214,14 @@ public:
             stmt.bind(paramIndex++, query.limit);
             stmt.bind(paramIndex++, offset);
 
-            std::cout << "[UserApi] Executing query: " << stmt.getSQL() << std::endl;
+            spdlog::info("[UserApi] Executing query: {}", stmt.getSQL());
             auto results = stmt.query();
-            std::cout << "[UserApi] Query returned " << results.size() << " rows" << std::endl;
+            spdlog::info("[UserApi] Query returned {} rows", results.size());
             for (const auto& row : results) {
                 users.push_back(userFromDbRow(row));
             }
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to list users: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to list users: {}", e.what());
         }
         return users;
     }
@@ -257,7 +257,7 @@ public:
 
             return std::nullopt;
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to create user: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to create user: {}", e.what());
             return std::nullopt;
         }
     }
@@ -326,7 +326,7 @@ public:
 
             return stmt.execute();
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to update user: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to update user: {}", e.what());
             return false;
         }
     }
@@ -338,7 +338,7 @@ public:
             stmt.bind(0, id);
             return stmt.execute();
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to delete user: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to delete user: {}", e.what());
             return false;
         }
     }
@@ -361,7 +361,7 @@ public:
             stmt.bind(0, id);
             return stmt.execute();
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to activate user: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to activate user: {}", e.what());
             return false;
         }
     }
@@ -374,7 +374,7 @@ public:
             stmt.bind(0, id);
             return stmt.execute();
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to suspend user: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to suspend user: {}", e.what());
             return false;
         }
     }
@@ -389,7 +389,7 @@ public:
             stmt.bind(1, id);
             return stmt.execute();
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] Failed to change password: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Failed to change password: {}", e.what());
             return false;
         }
     }
@@ -401,7 +401,7 @@ public:
 
 UserApiModule::UserApiModule()
     : UserApiModule(nullptr) {
-    std::cout << "[UserApi] UserApiModule default constructor (database=nullptr)" << std::endl;
+    spdlog::info("[UserApi] UserApiModule default constructor (database=nullptr)");
 }
 
 UserApiModule::UserApiModule(std::shared_ptr<IDatabase> database)
@@ -414,9 +414,9 @@ void UserApiModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix();  // 使用getRoutePrefix()获取动态前缀
 
-    std::cout << "UserApiModule registering routes..." << std::endl;
-    std::cout << "UserApiModule route prefix: [" << prefix << "]" << std::endl;
-    std::cout << "UserApiModule router address: [" << (void*)&router << "]" << std::endl;
+    spdlog::info("UserApiModule registering routes...");
+    spdlog::info("UserApiModule route prefix: [{}]", prefix);
+    spdlog::info("UserApiModule router address: [{}]", (void*)&router);
 
     // 🔔 优先级1：使用ModuleLoader注入的数据库连接
     impl_->database_ = getDatabase();
@@ -441,7 +441,7 @@ void UserApiModule::registerRoutes() {
 
     // 🔔 优先级3：回退到MessageBus（保留原有逻辑，虽然不会成功）
     if (!impl_->database_ && !g_databaseInitialized) {
-        std::cout << "[UserApi] Subscribing to database connection messages..." << std::endl;
+        spdlog::info("[UserApi] Subscribing to database connection messages...");
 
         try {
             auto& messageBus = MessageBus::getInstance();
@@ -453,9 +453,9 @@ void UserApiModule::registerRoutes() {
                     auto dbMsg = std::dynamic_pointer_cast<Messages::DatabaseConnectionMessage>(msg);
                     if (dbMsg && dbMsg->isSuccess()) {
                         database_ = dbMsg->getConnection();
-                        std::cout << "[UserApi] ✅ Received database connection from MessageBus!" << std::endl;
+                        spdlog::info("[UserApi] Received database connection from MessageBus!");
                     } else {
-                        std::cout << "[UserApi] ⚠️ Database connection message invalid or failed" << std::endl;
+                        spdlog::warn("[UserApi] Database connection message invalid or failed");
                     }
 
                     // 返回确认消息
@@ -467,20 +467,20 @@ void UserApiModule::registerRoutes() {
                 "UserApi"
             );
 
-            std::cout << "[UserApi] Successfully subscribed to database connection messages" << std::endl;
+            spdlog::info("[UserApi] Successfully subscribed to database connection messages");
             g_databaseInitialized = true;
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] ❌ Exception subscribing to database messages: " << e.what() << std::endl;
-            std::cout << "[UserApi] ⚠️ Will continue with stub mode" << std::endl;
+            spdlog::error("[UserApi] Exception subscribing to database messages: {}", e.what());
+            spdlog::warn("[UserApi] Will continue with stub mode");
             g_databaseInitialized = true;
         }
     }
 
     // 用户列表（分页）
     std::string listPath = prefix;
-    std::cout << "About to call router.get() with path: [" << listPath << "]" << std::endl;
+    spdlog::info("About to call router.get() with path: [{}]", listPath);
     router.get(listPath, [this](const HttpRequest& req) {
-        std::cout << "UserApi: handleListUsers called" << std::endl;
+        spdlog::info("UserApi: handleListUsers called");
         return handleListUsers(req);
     });
 
@@ -529,7 +529,7 @@ void UserApiModule::registerRoutes() {
         return handleGetStats(req);
     });
 
-    std::cout << "UserApiModule routes registered" << std::endl;
+    spdlog::info("UserApiModule routes registered");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {
@@ -566,7 +566,7 @@ bool UserApiModule::deleteUser(int id) {
     // 使用数据库删除用户（替代原来的内存map操作）
     bool success = impl_->deleteUserFromDatabase(id);
     if (success) {
-        std::cout << "[UserApi] Deleted user ID: " << id << std::endl;
+        spdlog::info("[UserApi] Deleted user ID: {}", id);
     }
     return success;
 }
@@ -582,11 +582,14 @@ bool UserApiModule::suspendUser(int id) {
 }
 
 bool UserApiModule::changePassword(int id, const PasswordChangeRequest& request) {
-    // 使用数据库修改密码（替代原来的内存map操作）
-    // TODO: 应该验证旧密码，这里简化处理
+    // 验证旧密码
+    if (!verifyPassword(id, request.oldPassword)) {
+        spdlog::warn("[UserApi] Password change failed: old password incorrect for user {}", id);
+        return false;
+    }
     bool success = impl_->changePasswordInDatabase(id, request.newPassword);
     if (success) {
-        std::cout << "[UserApi] Password changed for user ID: " << id << std::endl;
+        spdlog::info("[UserApi] Password changed for user ID: {}", id);
     }
     return success;
 }
@@ -609,7 +612,7 @@ bool UserApiModule::updateLastLogin(int id) {
         stmt.execute();
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "[UserApi] Failed to update last login: " << e.what() << std::endl;
+        spdlog::error("[UserApi] Failed to update last login: {}", e.what());
         return false;
     }
 }
@@ -647,7 +650,7 @@ UserStats UserApiModule::getStats() {
             stats.guestCount = std::stoi(row.at("guests"));
         }
     } catch (const std::exception& e) {
-        std::cerr << "[UserApi] Failed to query stats: " << e.what() << std::endl;
+        spdlog::error("[UserApi] Failed to query stats: {}", e.what());
     }
 
     return stats;
@@ -677,7 +680,7 @@ std::vector<User> UserApiModule::importUsers(const std::vector<UserCreateRequest
         }
     }
 
-    std::cout << "[UserApi] Imported " << imported.size() << " users" << std::endl;
+    spdlog::info("[UserApi] Imported {} users", imported.size());
 
     return imported;
 }
@@ -699,7 +702,7 @@ std::string UserApiModule::hashPassword(const std::string& password) {
         return result.hash;
     }
     // 降级方案（不应发生）
-    std::cerr << "[UserApi] ERROR: Password hashing failed: " << result.errorMessage << std::endl;
+    spdlog::error("[UserApi] Password hashing failed: {}", result.errorMessage);
     throw std::runtime_error("Password hashing failed");
 }
 
@@ -710,7 +713,7 @@ std::string UserApiModule::hashPassword(const std::string& password) {
 // 辅助函数：确保数据库连接可用（懒加载模式）
 void UserApiModule::ensureDatabaseConnection() {
     if (!database_) {
-        std::cout << "[UserApi] Lazy loading database connection..." << std::endl;
+        spdlog::info("[UserApi] Lazy loading database connection...");
 
         // 方案：创建一个临时DatabaseModule并初始化它
         // 注意：这不是最优方案，会创建多个连接池实例
@@ -743,17 +746,17 @@ void UserApiModule::ensureDatabaseConnection() {
                         delete ptr;
                     });
                     impl_ = std::make_unique<Impl>(database_);
-                    std::cout << "[UserApi] ✅ Database connection acquired (lazy)!" << std::endl;
+                    spdlog::info("[UserApi] Database connection acquired (lazy)!");
                 } else {
-                    std::cout << "[UserApi] ⚠️ testConnection() failed" << std::endl;
+                    spdlog::warn("[UserApi] testConnection() failed");
                     delete tempDb.release();  // 清理
                 }
             } else {
-                std::cout << "[UserApi] ⚠️ DatabaseModule initialization failed" << std::endl;
+                spdlog::warn("[UserApi] DatabaseModule initialization failed");
                 delete tempDb.release();  // 清理
             }
         } catch (const std::exception& e) {
-            std::cerr << "[UserApi] ❌ Exception in ensureDatabaseConnection: " << e.what() << std::endl;
+            spdlog::error("[UserApi] Exception in ensureDatabaseConnection: {}", e.what());
         }
     }
 }
@@ -762,20 +765,20 @@ HttpResponse UserApiModule::handleListUsers(const HttpRequest& req) {
     // 首次调用时尝试获取数据库连接
     ensureDatabaseConnection();
 
-    std::cout << "[UserApi] handleListUsers: Starting..." << std::endl;
+    spdlog::info("[UserApi] handleListUsers: Starting...");
     try {
         // 优雅降级：没有数据库时返回空列表
         if (!database_) {
-            std::cout << "[UserApi] handleListUsers: No database, returning empty list" << std::endl;
+            spdlog::info("[UserApi] handleListUsers: No database, returning empty list");
             nlohmann::json response;
             response["users"] = nlohmann::json::array();
             response["total"] = 0;
             response["page"] = 1;
             response["limit"] = 20;
 
-            std::cout << "[UserApi] handleListUsers: Calling buildJsonResponse with statusCode 200..." << std::endl;
+            spdlog::info("[UserApi] handleListUsers: Calling buildJsonResponse with statusCode 200...");
             auto result = buildJsonResponse(200, "Users retrieved (no database)", response);
-            std::cout << "[UserApi] handleListUsers: Built response statusCode=" << result.statusCode << " statusText=" << result.statusText << std::endl;
+            spdlog::info("[UserApi] handleListUsers: Built response statusCode={} statusText={}", result.statusCode, result.statusText);
             return result;
         }
 
@@ -840,12 +843,12 @@ HttpResponse UserApiModule::handleGetUser(const HttpRequest& req) {
 }
 
 HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
-    std::cout << "[UserApi] handleCreateUser: Starting..." << std::endl;
+    spdlog::info("[UserApi] handleCreateUser: Starting...");
     try {
-        std::cout << "[UserApi] handleCreateUser: Parsing JSON body..." << std::endl;
+        spdlog::info("[UserApi] handleCreateUser: Parsing JSON body...");
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            std::cout << "[UserApi] handleCreateUser: Invalid JSON format" << std::endl;
+            spdlog::info("[UserApi] handleCreateUser: Invalid JSON format");
             return buildJsonResponse(400, "Invalid JSON format");
         }
 

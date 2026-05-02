@@ -1,8 +1,12 @@
 #include "business/RecommendationApiModule.hpp"
+#include "data/PreparedStatement.hpp"
 #include "data/DatabaseModule.hpp"
+#include "data/QueryCache.hpp"
 #include "core/Router.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
+#include "features/ai/VectorStore.hpp"
+#include "features/ai/EmbeddingGenerator.hpp"
 #include <sstream>
 #include <algorithm>
 #include <cmath>
@@ -82,27 +86,27 @@ public:
         config_ = config;
         database_ = database;
 
-        std::cout << "[Recommendation] Initializing recommendation module..." << std::endl;
-        std::cout << "  Algorithm: ";
+        spdlog::info("[Recommendation] Initializing recommendation module...");
 
+        std::string algoName;
         switch (config_.algorithm) {
             case RecommendationAlgorithm::COLLABORATIVE_FILTERING:
-                std::cout << "Collaborative Filtering"; break;
+                algoName = "Collaborative Filtering"; break;
             case RecommendationAlgorithm::CONTENT_BASED:
-                std::cout << "Content-Based"; break;
+                algoName = "Content-Based"; break;
             case RecommendationAlgorithm::HYBRID:
-                std::cout << "Hybrid"; break;
+                algoName = "Hybrid"; break;
             case RecommendationAlgorithm::POPULARITY:
-                std::cout << "Popularity"; break;
+                algoName = "Popularity"; break;
             case RecommendationAlgorithm::SIMILARITY:
-                std::cout << "Similarity"; break;
+                algoName = "Similarity"; break;
         }
 
-        std::cout << std::endl;
-        std::cout << "  Max recommendations: " << config_.maxRecommendations << std::endl;
-        std::cout << "  Min similarity: " << config_.minSimilarity << std::endl;
+        spdlog::info("  Algorithm: {}", algoName);
+        spdlog::info("  Max recommendations: {}", config_.maxRecommendations);
+        spdlog::info("  Min similarity: {}", config_.minSimilarity);
 
-        std::cout << "[Recommendation] Initialization complete" << std::endl;
+        spdlog::info("[Recommendation] Initialization complete");
         return true;
     }
 
@@ -114,11 +118,10 @@ public:
             return std::nullopt;
         }
 
-        std::string sql = "SELECT id, title, authors, abstract, category, keywords, "
-                         "citation_count, publication_year "
-                         "FROM papers WHERE id = " + std::to_string(paperId);
-
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT id, title, authors, abstract, category, keywords, "
+                         "citation_count, publication_year FROM papers WHERE id = ?");
+        stmt.bind(0, paperId);
+        auto results = stmt.query();
         if (results.empty()) {
             return std::nullopt;
         }
@@ -134,11 +137,11 @@ public:
             return {};
         }
 
-        std::string sql = "SELECT paper_id FROM user_reading_history "
-                         "WHERE user_id = " + std::to_string(userId) + " "
-                         "ORDER BY last_accessed_at DESC LIMIT " + std::to_string(limit);
-
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT paper_id FROM user_reading_history "
+                         "WHERE user_id = ? ORDER BY last_accessed_at DESC LIMIT ?");
+        stmt.bind(0, userId);
+        stmt.bind(1, limit);
+        auto results = stmt.query();
         std::vector<int> history;
 
         for (const auto& row : results) {
@@ -274,14 +277,19 @@ public:
             "ps.similarity_score "
             "FROM papers p "
             "JOIN paper_similarity ps ON (ps.paper_id1 = p.id OR ps.paper_id2 = p.id) "
-            "WHERE (ps.paper_id1 = " + std::to_string(paperId) +
-            " OR ps.paper_id2 = " + std::to_string(paperId) + ") "
-            "AND p.id != " + std::to_string(paperId) + " "
-            "AND ps.similarity_score >= " + std::to_string(config_.minSimilarity) + " "
+            "WHERE (ps.paper_id1 = ? OR ps.paper_id2 = ?) "
+            "AND p.id != ? "
+            "AND ps.similarity_score >= ? "
             "ORDER BY ps.similarity_score DESC, p.citation_count DESC "
-            "LIMIT " + std::to_string(limit);
+            "LIMIT ?";
 
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, sql);
+        stmt.bind(0, paperId);
+        stmt.bind(1, paperId);
+        stmt.bind(2, paperId);
+        stmt.bind(3, config_.minSimilarity);
+        stmt.bind(4, limit);
+        auto results = stmt.query();
         std::vector<RecommendationResult> recommendations;
 
         for (const auto& row : results) {
@@ -322,10 +330,10 @@ public:
         }
 
         // 尝试调用存储过程
-        std::string sql = "CALL get_trending_papers(" + std::to_string(limit) +
-                         ", " + std::to_string(days) + ")";
-
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "CALL get_trending_papers(?, ?)");
+        stmt.bind(0, limit);
+        stmt.bind(1, days);
+        auto results = stmt.query();
         std::vector<RecommendationResult> recommendations;
 
         for (const auto& row : results) {
@@ -343,13 +351,10 @@ public:
 
         // 如果存储过程不存在，使用降级方案
         if (recommendations.empty()) {
-            sql = "SELECT id, title, authors, publication, year, citation_count, abstract, keywords "
-                  "FROM papers "
-                  "WHERE citation_count > 0 "
-                  "ORDER BY citation_count DESC "
-                  "LIMIT " + std::to_string(limit);
-
-            results = database_->query(sql);
+            PreparedStatement fallbackStmt(database_, "SELECT id, title, authors, publication, year, citation_count, abstract, keywords "
+                  "FROM papers WHERE citation_count > 0 ORDER BY citation_count DESC LIMIT ?");
+            fallbackStmt.bind(0, limit);
+            results = fallbackStmt.query();
             recommendations.clear();
 
             for (const auto& row : results) {
@@ -378,10 +383,10 @@ public:
         }
 
         // 尝试调用存储过程
-        std::string sql = "CALL recommend_by_collaborative_filtering(" +
-                         std::to_string(userId) + ", " + std::to_string(limit) + ")";
-
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "CALL recommend_by_collaborative_filtering(?, ?)");
+        stmt.bind(0, userId);
+        stmt.bind(1, limit);
+        auto results = stmt.query();
         std::vector<RecommendationResult> recommendations;
 
         for (const auto& row : results) {
@@ -409,10 +414,10 @@ public:
         }
 
         // 尝试调用存储过程
-        std::string sql = "CALL recommend_by_content(" +
-                         std::to_string(userId) + ", " + std::to_string(limit) + ")";
-
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "CALL recommend_by_content(?, ?)");
+        stmt.bind(0, userId);
+        stmt.bind(1, limit);
+        auto results = stmt.query();
         std::vector<RecommendationResult> recommendations;
 
         for (const auto& row : results) {
@@ -439,14 +444,14 @@ public:
             return false;
         }
 
-        std::string sql = "INSERT INTO recommendation_feedback "
+        PreparedStatement stmt(database_, "INSERT INTO recommendation_feedback "
                          "(user_id, paper_id, liked, rating, algorithm, created_at) "
-                         "VALUES (" + std::to_string(userId) + ", " +
-                         std::to_string(paperId) + ", " +
-                         (liked ? "1" : "0") + ", " +
-                         std::to_string(rating) + ", 'hybrid', NOW())";
-
-        return database_->execute(sql);
+                         "VALUES (?, ?, ?, ?, 'hybrid', NOW())");
+        stmt.bind(0, userId);
+        stmt.bind(1, paperId);
+        stmt.bind(2, liked ? 1 : 0);
+        stmt.bind(3, rating);
+        return stmt.execute();
     }
 
     /**
@@ -457,12 +462,10 @@ public:
             return {};
         }
 
-        std::string sql = "SELECT interest_keyword, weight, last_seen_at "
-                         "FROM research_interest_evolution "
-                         "WHERE user_id = " + std::to_string(userId) + " "
-                         "ORDER BY weight DESC LIMIT 10";
-
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT interest_keyword, weight, last_seen_at "
+                         "FROM research_interest_evolution WHERE user_id = ? ORDER BY weight DESC LIMIT 10");
+        stmt.bind(0, userId);
+        auto results = stmt.query();
         std::vector<UserInterest> interests;
 
         for (const auto& row : results) {
@@ -484,8 +487,9 @@ public:
         }
 
         // 获取论文的关键词
-        std::string sql = "SELECT keywords FROM papers WHERE id = " + std::to_string(paperId);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT keywords FROM papers WHERE id = ?");
+        stmt.bind(0, paperId);
+        auto results = stmt.query();
 
         if (results.empty()) {
             return false;
@@ -496,17 +500,18 @@ public:
 
         // 更新或插入每个关键词的权重
         for (const auto& keyword : keywordSet) {
-            std::string updateSql =
+            double weightDelta = liked ? 0.2 : 0.05;
+            PreparedStatement updateStmt(database_,
                 "INSERT INTO research_interest_evolution "
                 "(user_id, interest_keyword, weight, first_seen_at, last_seen_at) "
-                "VALUES (" + std::to_string(userId) + ", '" +
-                escapeSqlString(keyword) + "', " +
-                (liked ? "0.2" : "0.05") + ", NOW(), NOW()) "
+                "VALUES (?, ?, ?, NOW(), NOW()) "
                 "ON DUPLICATE KEY UPDATE "
-                "weight = weight + " + (liked ? "0.2" : "0.05") + ", "
-                "last_seen_at = NOW()";
-
-            database_->execute(updateSql);
+                "weight = weight + ?, last_seen_at = NOW()");
+            updateStmt.bind(0, userId);
+            updateStmt.bind(1, keyword);
+            updateStmt.bind(2, weightDelta);
+            updateStmt.bind(3, weightDelta);
+            updateStmt.execute();
         }
 
         return true;
@@ -522,15 +527,15 @@ public:
         }
 
         for (const auto& r : results) {
-            std::string sql = "INSERT INTO user_recommendation_history "
+            PreparedStatement stmt(database_, "INSERT INTO user_recommendation_history "
                              "(user_id, paper_id, algorithm, score, reason, created_at) "
-                             "VALUES (" + std::to_string(userId) + ", " +
-                             std::to_string(r.paperId) + ", '" +
-                             escapeSqlString(algorithm) + "', " +
-                             std::to_string(r.score) + ", '" +
-                             escapeSqlString(r.reason) + "', NOW())";
-
-            database_->execute(sql);
+                             "VALUES (?, ?, ?, ?, ?, NOW())");
+            stmt.bind(0, userId);
+            stmt.bind(1, r.paperId);
+            stmt.bind(2, algorithm);
+            stmt.bind(3, r.score);
+            stmt.bind(4, r.reason);
+            stmt.execute();
         }
 
         return true;
@@ -564,6 +569,82 @@ public:
             cleanExpiredCache();
             lastClean = now;
         }
+    }
+
+    /**
+     * @brief 基于嵌入向量的推荐（利用VectorStore和EmbeddingGenerator）
+     *
+     * 算法流程：
+     * 1. 获取用户阅读历史
+     * 2. 将用户历史论文的标题+摘要拼接，生成用户画像嵌入向量
+     * 3. 在VectorStore中搜索与该嵌入最相似的论文
+     * 4. 过滤掉已读和排除列表中的论文
+     */
+    std::vector<RecommendationResult> embeddingBasedRecommendation(
+        int userId, int limit, const std::vector<int>& excludedIds) {
+        if (!database_) return {};
+
+        // 1. 获取用户阅读历史
+        auto history = getUserHistory(userId, 20);
+        if (history.empty()) return {};
+
+        // 2. 将历史论文的标题+摘要拼接成用户画像文本
+        std::string userProfileText;
+        for (int pid : history) {
+            auto paper = fetchPaper(pid);
+            if (paper) {
+                if (paper->count("title")) userProfileText += paper->at("title") + " ";
+                if (paper->count("abstract")) userProfileText += paper->at("abstract") + " ";
+            }
+        }
+
+        if (userProfileText.empty()) return {};
+
+        // 3. 使用EmbeddingGenerator生成用户画像嵌入向量
+        EmbeddingGenerator gen;
+        gen.setProvider("local");
+        auto queryVec = gen.generate(userProfileText);
+
+        if (queryVec.empty()) {
+            spdlog::warn("[Recommendation] Failed to generate embedding for user {}", userId);
+            return {};
+        }
+
+        // 4. 通过VectorStore搜索相似论文
+        VectorStore store;
+        store.setDatabase(database_);
+        auto results = store.search(queryVec, limit * 2, 0.3f);
+
+        // 5. 过滤掉排除列表和已读论文
+        std::set<int> excludeSet(excludedIds.begin(), excludedIds.end());
+        excludeSet.insert(history.begin(), history.end());
+
+        std::vector<RecommendationResult> recommendations;
+        for (const auto& sr : results) {
+            int paperId = std::stoi(sr.id);
+            if (excludeSet.count(paperId)) continue;
+
+            RecommendationResult rr;
+            rr.paperId = paperId;
+            rr.score = sr.score;
+            rr.algorithm = "embedding";
+            rr.reason = "Similar to your reading interests (embedding similarity: " +
+                        std::to_string(static_cast<int>(sr.score * 100)) + "%)";
+
+            // 获取论文详细信息
+            auto paper = fetchPaper(paperId);
+            if (paper) {
+                rr.title = paper->count("title") ? paper->at("title") : "";
+                rr.authors = paper->count("authors") ? paper->at("authors") : "";
+            }
+
+            recommendations.push_back(rr);
+            if (static_cast<int>(recommendations.size()) >= limit) break;
+        }
+
+        spdlog::info("[Recommendation] Embedding-based recommendation for user {}: {} results",
+                     userId, recommendations.size());
+        return recommendations;
     }
 };
 
@@ -599,7 +680,7 @@ std::vector<RecommendationResult> RecommendationApiModule::getRecommendations(
 
     impl_->totalRecommendations_++;
 
-    std::cout << "[Recommendation] Generating recommendations for user " << request.userId << std::endl;
+    spdlog::info("[Recommendation] Generating recommendations for user {}", request.userId);
 
     // 定期清理缓存
     impl_->maybeCleanCache();
@@ -612,7 +693,7 @@ std::vector<RecommendationResult> RecommendationApiModule::getRecommendations(
     auto cached = getCachedRecommendations(cacheKey);
     if (cached.has_value()) {
         impl_->cacheHits_++;
-        std::cout << "[Recommendation] Cache hit for user " << request.userId << std::endl;
+        spdlog::info("[Recommendation] Cache hit for user {}", request.userId);
         auto results = *cached;
 
         // 过滤排除的论文
@@ -707,7 +788,7 @@ std::vector<RecommendationResult> RecommendationApiModule::getSimilarPapers(
     int limit,
     const std::string& category) {
 
-    std::cout << "[Recommendation] Finding similar papers for paper " << paperId << std::endl;
+    spdlog::info("[Recommendation] Finding similar papers for paper {}", paperId);
 
     // 首先尝试从数据库查询预计算的相似度
     auto dbResults = impl_->fetchSimilarPapersFromDb(paperId, limit);
@@ -728,13 +809,18 @@ std::vector<RecommendationResult> RecommendationApiModule::getSimilarPapers(
     // 获取其他论文
     std::string sql = "SELECT id, title, authors, abstract, keywords, "
                      "citation_count, publication, year "
-                     "FROM papers WHERE id != " + std::to_string(paperId);
+                     "FROM papers WHERE id != ?";
     if (!category.empty()) {
-        sql += " AND category = '" + escapeSqlString(category) + "'";
+        sql += " AND category = ?";
     }
-    sql += " LIMIT 500"; // 限制计算范围
+    sql += " LIMIT 500";
 
-    auto allPapers = impl_->database_->query(sql);
+    PreparedStatement stmt(impl_->database_, sql);
+    stmt.bind(0, paperId);
+    if (!category.empty()) {
+        stmt.bind(1, category);
+    }
+    auto allPapers = stmt.query();
 
     // 计算相似度并排序
     std::vector<std::pair<double, std::map<std::string, std::string>>> scoredPapers;
@@ -779,14 +865,13 @@ std::vector<RecommendationResult> RecommendationApiModule::getTrendingPapers(
     int limit,
     const std::string& timeWindow) {
 
-    std::cout << "[Recommendation] Getting trending papers (time window: " << timeWindow << ")" << std::endl;
+    spdlog::info("[Recommendation] Getting trending papers (time window: {})", timeWindow);
 
     return impl_->fetchTrendingPapersFromDb(limit, timeWindow);
 }
 
 std::string RecommendationApiModule::explainRecommendation(int userId, int paperId) {
-    std::cout << "[Recommendation] Explaining recommendation for user " << userId
-              << ", paper " << paperId << std::endl;
+    spdlog::info("[Recommendation] Explaining recommendation for user {}, paper {}", userId, paperId);
 
     json explanation;
     explanation["userId"] = userId;
@@ -879,8 +964,7 @@ std::string RecommendationApiModule::explainRecommendation(int userId, int paper
 }
 
 bool RecommendationApiModule::recordFeedback(int userId, int paperId, bool liked, int rating) {
-    std::cout << "[Recommendation] Recording feedback: user=" << userId
-              << ", paper=" << paperId << ", liked=" << liked << ", rating=" << rating << std::endl;
+    spdlog::info("[Recommendation] Recording feedback: user={}, paper={}, liked={}, rating={}", userId, paperId, liked, rating);
 
     // 保存反馈到数据库
     bool saved = impl_->saveFeedbackToDb(userId, paperId, liked, rating);
@@ -892,7 +976,7 @@ bool RecommendationApiModule::recordFeedback(int userId, int paperId, bool liked
 }
 
 std::map<std::string, double> RecommendationApiModule::getUserProfile(int userId) {
-    std::cout << "[Recommendation] Getting user profile for user " << userId << std::endl;
+    spdlog::info("[Recommendation] Getting user profile for user {}", userId);
 
     // 获取用户兴趣
     auto interests = getUserInterests(userId);
@@ -930,7 +1014,7 @@ std::vector<RecommendationResult> RecommendationApiModule::collaborativeFilterin
     int limit,
     const std::vector<int>& excludedIds) {
 
-    std::cout << "[Recommendation] Using collaborative filtering" << std::endl;
+    spdlog::info("[Recommendation] Using collaborative filtering");
 
     // 首先尝试从数据库获取
     auto dbResults = impl_->fetchCollaborativeFilteringFromDb(userId, limit);
@@ -949,11 +1033,11 @@ std::vector<RecommendationResult> RecommendationApiModule::collaborativeFilterin
     std::unordered_map<int, int> similarUsers; // user_id -> common_paper_count
 
     for (int paperId : userHistory) {
-        std::string sql = "SELECT user_id FROM user_reading_history "
-                         "WHERE paper_id = " + std::to_string(paperId) +
-                         " AND user_id != " + std::to_string(userId);
-
-        auto results = impl_->database_->query(sql);
+        PreparedStatement stmt(impl_->database_, "SELECT user_id FROM user_reading_history "
+                         "WHERE paper_id = ? AND user_id != ?");
+        stmt.bind(0, paperId);
+        stmt.bind(1, userId);
+        auto results = stmt.query();
         for (const auto& row : results) {
             int otherUserId = std::stoi(row.at("user_id"));
             similarUsers[otherUserId]++;
@@ -978,10 +1062,10 @@ std::vector<RecommendationResult> RecommendationApiModule::collaborativeFilterin
     std::unordered_set<int> excludedSet(excludedIds.begin(), excludedIds.end());
 
     for (const auto& [otherUserId, similarity] : sortedSimilarUsers) {
-        std::string sql = "SELECT paper_id FROM user_reading_history "
-                         "WHERE user_id = " + std::to_string(otherUserId);
-
-        auto results = impl_->database_->query(sql);
+        PreparedStatement stmt(impl_->database_, "SELECT paper_id FROM user_reading_history "
+                         "WHERE user_id = ?");
+        stmt.bind(0, otherUserId);
+        auto results = stmt.query();
         for (const auto& row : results) {
             int paperId = std::stoi(row.at("paper_id"));
 
@@ -1027,7 +1111,7 @@ std::vector<RecommendationResult> RecommendationApiModule::contentBasedRecommend
     int limit,
     const std::vector<int>& excludedIds) {
 
-    std::cout << "[Recommendation] Using content-based recommendation" << std::endl;
+    spdlog::info("[Recommendation] Using content-based recommendation");
 
     // 首先尝试从数据库获取
     auto dbResults = impl_->fetchContentBasedFromDb(userId, limit);
@@ -1132,7 +1216,7 @@ std::vector<RecommendationResult> RecommendationApiModule::hybridRecommendation(
     int limit,
     const std::vector<int>& excludedIds) {
 
-    std::cout << "[Recommendation] Using hybrid recommendation" << std::endl;
+    spdlog::info("[Recommendation] Using hybrid recommendation");
 
     // 混合策略：60% 基于内容 + 40% 热门
     int cbLimit = static_cast<int>(limit * 0.6);
@@ -1395,6 +1479,17 @@ void RecommendationApiModule::registerRoutes() {
             }
         }
 
+        // 查询缓存
+        std::string cacheKey = CacheKeys::recommendations(userId, limit);
+        auto cached = QueryCache::instance().get(cacheKey);
+        if (cached) {
+            spdlog::debug("[RecommendationApi] Papers cache HIT for user={}, limit={}", userId, limit);
+            response.statusCode = 200;
+            response.headers["X-Cache"] = "HIT";
+            response.body = *cached;
+            return response;
+        }
+
         try {
             RecommendationRequest request;
             request.userId = userId;
@@ -1425,6 +1520,7 @@ void RecommendationApiModule::registerRoutes() {
 
             response.statusCode = 200;
             response.body = result.dump();
+            QueryCache::instance().put(cacheKey, response.body, CacheTTL::RECOMMENDATIONS);
         } catch (const std::exception& e) {
             response.statusCode = 500;
             response.body = json{
@@ -1562,6 +1658,10 @@ void RecommendationApiModule::registerRoutes() {
 
             bool success = recordFeedback(userId, paperId, liked, rating);
 
+            // 反馈后失效该用户的推荐缓存
+            QueryCache::instance().invalidatePattern("rec:" + std::to_string(userId) + ":");
+            spdlog::debug("[RecommendationApi] Cache invalidated for user {} after feedback", userId);
+
             response.statusCode = success ? 200 : 500;
             response.body = json{
                 {"success", success},
@@ -1644,7 +1744,61 @@ void RecommendationApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[RecommendationApiModule] Registered 6 routes");
+    // GET /api/recommendations/embedding - 基于嵌入向量的推荐
+    router.get(prefix + "/embedding", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        int userId = 1;
+        int limit = 10;
+
+        auto userIdIt = req.queryParams.find("user_id");
+        if (userIdIt != req.queryParams.end()) {
+            userId = std::stoi(userIdIt->second);
+        }
+
+        auto limitIt = req.queryParams.find("limit");
+        if (limitIt != req.queryParams.end()) {
+            limit = std::min(50, std::max(1, std::stoi(limitIt->second)));
+        }
+
+        try {
+            auto recommendations = impl_->embeddingBasedRecommendation(userId, limit, {});
+
+            json result;
+            result["success"] = true;
+            result["count"] = recommendations.size();
+            result["algorithm"] = "embedding";
+
+            json items = json::array();
+            for (const auto& r : recommendations) {
+                json item;
+                item["paper_id"] = r.paperId;
+                item["title"] = r.title;
+                item["authors"] = r.authors;
+                item["publication"] = r.publication;
+                item["year"] = r.year;
+                item["score"] = r.score;
+                item["reason"] = r.reason;
+                item["algorithm"] = r.algorithm;
+                items.push_back(item);
+            }
+            result["recommendations"] = items;
+
+            response.statusCode = 200;
+            response.body = result.dump();
+        } catch (const std::exception& e) {
+            response.statusCode = 500;
+            response.body = json{
+                {"success", false},
+                {"error", std::string(e.what())}
+            }.dump();
+        }
+
+        return response;
+    });
+
+    spdlog::info("[RecommendationApiModule] Registered 7 routes");
 }
 
 } // namespace PaperCrawler

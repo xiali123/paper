@@ -2,6 +2,7 @@
 #include "core/Router.hpp"
 #include "core/ModuleExports.hpp"
 #include "network/WebSocketModule.hpp"
+#include "features/security/SecurityModule.hpp"
 #include <json.hpp>
 #include <sstream>
 #include <algorithm>
@@ -112,8 +113,33 @@ void CollaborativeWritingModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix();
 
+    // Auth middleware - check Authorization header
+    auto requireAuth = [](const HttpRequest& req) -> bool {
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) return false;
+
+        const std::string& authHeader = authIt->second;
+        if (authHeader.substr(0, 7) != "Bearer ") return false;
+
+        std::string token = authHeader.substr(7);
+        if (token.empty()) return false;
+
+        SecurityModule sec;
+        auto result = sec.verifyJWT(token);
+        return result.valid;
+    };
+
+    auto unauthorizedResp = []() -> HttpResponse {
+        HttpResponse resp;
+        resp.statusCode = 401;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":false,"message":"Unauthorized"})";
+        return resp;
+    };
+
     // POST /api/writing/documents — 创建文档
-    router.post(prefix + "/documents", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             auto json = nlohmann::json::parse(req.body);
             std::string title = json.value<std::string>("title", "Untitled");
@@ -148,7 +174,8 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
     // GET /api/writing/documents — 获取文档列表
-    router.get(prefix + "/documents", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             // 从查询参数获取
             int ownerId = 0;
@@ -201,7 +228,8 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
     // GET /api/writing/documents/:id — 获取文档
-    router.get(prefix + "/documents/:id", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto doc = getDocument(docId);
@@ -231,7 +259,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/documents/:id — 更新文档
-    router.put(prefix + "/documents/:id", [this](const HttpRequest& req) {
+    router.put(prefix + "/documents/:id", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -267,7 +296,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/operations — 应用 OT 操作
-    router.post(prefix + "/documents/:id/operations", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/operations", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -299,7 +329,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/suggestions — 获取 AI 建议
-    router.get(prefix + "/documents/:id/suggestions", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id/suggestions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto suggestions = getWritingSuggestions(docId);
@@ -334,7 +365,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/suggestions/generate — 生成 AI 建议
-    router.post(prefix + "/documents/:id/suggestions/generate", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/suggestions/generate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -368,7 +400,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/versions — 获取版本历史
-    router.get(prefix + "/documents/:id/versions", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id/versions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto versions = getVersions(docId);
@@ -401,7 +434,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/comments — 添加评论
-    router.post(prefix + "/documents/:id/comments", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/comments", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -429,7 +463,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // DELETE /api/writing/documents/:id — 删除文档
-    router.del(prefix + "/documents/:id", [this](const HttpRequest& req) {
+    router.del(prefix + "/documents/:id", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = deleteDocument(docId);
@@ -448,7 +483,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/comments — 获取评论列表
-    router.get(prefix + "/documents/:id/comments", [this](const HttpRequest& req) {
+    router.get(prefix + "/documents/:id/comments", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto comments = getComments(docId);
@@ -492,7 +528,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/versions — 创建版本
-    router.post(prefix + "/documents/:id/versions", [this](const HttpRequest& req) {
+    router.post(prefix + "/documents/:id/versions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int docId = std::stoi(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
@@ -523,7 +560,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/suggestions/:id/accept — 接受建议
-    router.put(prefix + "/suggestions/:id/accept", [this](const HttpRequest& req) {
+    router.put(prefix + "/suggestions/:id/accept", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int suggestionId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = acceptSuggestion(suggestionId);
@@ -542,7 +580,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/suggestions/:id/reject — 拒绝建议
-    router.put(prefix + "/suggestions/:id/reject", [this](const HttpRequest& req) {
+    router.put(prefix + "/suggestions/:id/reject", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int suggestionId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = rejectSuggestion(suggestionId);
@@ -561,7 +600,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/comments/:id/resolve — 解决评论
-    router.put(prefix + "/comments/:id/resolve", [this](const HttpRequest& req) {
+    router.put(prefix + "/comments/:id/resolve", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             int commentId = std::stoi(getParam(req.pathParams, "id", "0"));
             bool ok = resolveComment(commentId);
@@ -575,6 +615,112 @@ void CollaborativeWritingModule::registerRoutes() {
             return buildErrorResponse(404, "Comment not found");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] resolveComment error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // PUT /api/writing/documents/:id/cursor — 光标位置更新
+    router.put(prefix + "/documents/:id/cursor", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
+        try {
+            std::string docIdStr = getParam(req.pathParams, "id", "0");
+            auto json = nlohmann::json::parse(req.body);
+
+            int userId = json.value<int>("user_id", 0);
+            std::string username = json.value<std::string>("username", "");
+            int line = json.value<int>("line", 0);
+            int column = json.value<int>("column", 0);
+
+            if (userId == 0) {
+                return buildErrorResponse(400, "Missing user_id");
+            }
+
+            // 存储光标位置
+            {
+                std::lock_guard<std::mutex> lock(cursorsMutex_);
+                CursorPosition pos;
+                pos.userId = userId;
+                pos.username = username;
+                pos.line = line;
+                pos.column = column;
+                pos.lastActive = std::chrono::steady_clock::now();
+                documentCursors_[docIdStr][userId] = std::move(pos);
+            }
+
+            // 通过 WebSocket 广播光标更新
+            if (wsModule_) {
+                std::string message = "{\"type\":\"cursor_update\","
+                    "\"document_id\":" + docIdStr + ","
+                    "\"user_id\":" + std::to_string(userId) + ","
+                    "\"username\":\"" + escapeJson(username) + "\","
+                    "\"line\":" + std::to_string(line) + ","
+                    "\"column\":" + std::to_string(column) + "}";
+
+                auto it = impl_->documentSessions_.find(std::stoi(docIdStr));
+                if (it != impl_->documentSessions_.end()) {
+                    for (const auto& socketId : it->second) {
+                        wsModule_->send(socketId, message);
+                    }
+                }
+            }
+
+            spdlog::debug("[Writing] Cursor updated: doc={}, user={}, line={}, col={}",
+                          docIdStr, userId, line, column);
+
+            HttpResponse resp;
+            resp.statusCode = 200;
+            resp.headers["Content-Type"] = "application/json";
+            resp.body = buildJsonResponse(true, "Cursor updated");
+            return resp;
+        } catch (const nlohmann::json::parse_error&) {
+            return buildErrorResponse(400, "Invalid JSON format");
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] cursor update error: {}", e.what());
+            return buildErrorResponse(500, e.what());
+        }
+    });
+
+    // GET /api/writing/documents/:id/presence — 获取在线用户
+    router.get(prefix + "/documents/:id/presence", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
+        try {
+            std::string docIdStr = getParam(req.pathParams, "id", "0");
+
+            nlohmann::json data;
+            nlohmann::json users = nlohmann::json::array();
+            auto now = std::chrono::steady_clock::now();
+
+            {
+                std::lock_guard<std::mutex> lock(cursorsMutex_);
+                auto docIt = documentCursors_.find(docIdStr);
+                if (docIt != documentCursors_.end()) {
+                    for (const auto& [uid, pos] : docIt->second) {
+                        // 只返回最近60秒内活跃的用户
+                        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - pos.lastActive);
+                        if (elapsed.count() < 60) {
+                            nlohmann::json user;
+                            user["user_id"] = pos.userId;
+                            user["username"] = pos.username;
+                            user["line"] = pos.line;
+                            user["column"] = pos.column;
+                            user["last_active_seconds_ago"] = static_cast<int>(elapsed.count());
+                            users.push_back(user);
+                        }
+                    }
+                }
+            }
+
+            data["document_id"] = std::stoi(docIdStr);
+            data["online_users"] = users;
+            data["count"] = users.size();
+
+            HttpResponse resp;
+            resp.statusCode = 200;
+            resp.headers["Content-Type"] = "application/json";
+            resp.body = buildJsonResponse(true, "", data);
+            return resp;
+        } catch (const std::exception& e) {
+            spdlog::error("[Writing] presence error: {}", e.what());
             return buildErrorResponse(500, e.what());
         }
     });

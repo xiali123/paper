@@ -4,6 +4,7 @@
 #include "core/ModuleLoader.hpp"
 #include "core/ModuleMetadata.hpp"
 #include "features/security/SecurityModule.hpp"
+#include "data/PreparedStatement.hpp"
 #include "../../core/external/nlohmann/json.hpp"
 #include <spdlog/spdlog.h>
 #include <sstream>
@@ -1371,14 +1372,25 @@ PaginatedResponse<AdminUser> AdminApiModule::listUsers(int page, int limit, cons
 
         // 构建SQL查询
         std::string sql = "SELECT * FROM users";
-        std::vector<std::string> conditions;
-
-        // 搜索过滤
-        if (!search.empty()) {
-            conditions.push_back("(username LIKE '%" + escapeSql(search) + "%' OR email LIKE '%" + escapeSql(search) + "%')");
+        // Build WHERE clause using PreparedStatement to prevent SQL injection
+        std::string whereClause;
+        if (!search.empty() && roleFilter != UserRole::USER) {
+            whereClause = " WHERE (username LIKE ? OR email LIKE ?) AND role = ?";
+        } else if (!search.empty()) {
+            whereClause = " WHERE (username LIKE ? OR email LIKE ?)";
+        } else if (roleFilter != UserRole::USER) {
+            whereClause = " WHERE role = ?";
         }
 
-        // 角色过滤
+        sql += whereClause + " LIMIT ? OFFSET ?";
+
+        spdlog::info("[AdminApiModule] Executing prepared SQL for user list");
+        PreparedStatement stmt(database_, sql);
+        int bindIdx = 0;
+        if (!search.empty()) {
+            stmt.bind(bindIdx++, std::string("%" + search + "%"));
+            stmt.bind(bindIdx++, std::string("%" + search + "%"));
+        }
         if (roleFilter != UserRole::USER) {
             std::string roleStr;
             switch (roleFilter) {
@@ -1387,35 +1399,31 @@ PaginatedResponse<AdminUser> AdminApiModule::listUsers(int page, int limit, cons
                 case UserRole::SUPERADMIN: roleStr = "superadmin"; break;
                 default: roleStr = "user"; break;
             }
-            conditions.push_back("role = '" + roleStr + "'");
+            stmt.bind(bindIdx++, roleStr);
         }
-
-        // 添加WHERE条件
-        if (!conditions.empty()) {
-            sql += " WHERE ";
-            for (size_t i = 0; i < conditions.size(); i++) {
-                if (i > 0) sql += " AND ";
-                sql += conditions[i];
-            }
-        }
-
-        // 添加分页
-        sql += " LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string((page - 1) * limit);
-
-        spdlog::info("[AdminApiModule] Executing SQL: {}", sql);
-        auto results = database_->query(sql);
+        stmt.bind(bindIdx++, limit);
+        stmt.bind(bindIdx, (page - 1) * limit);
+        auto results = stmt.query();
 
         // 查询总数
-        std::string countSql = "SELECT COUNT(*) as total FROM users";
-        if (!conditions.empty()) {
-            countSql += " WHERE ";
-            for (size_t i = 0; i < conditions.size(); i++) {
-                if (i > 0) countSql += " AND ";
-                countSql += conditions[i];
-            }
+        std::string countSql = "SELECT COUNT(*) as total FROM users" + whereClause;
+        PreparedStatement countStmt(database_, countSql);
+        bindIdx = 0;
+        if (!search.empty()) {
+            countStmt.bind(bindIdx++, std::string("%" + search + "%"));
+            countStmt.bind(bindIdx++, std::string("%" + search + "%"));
         }
-
-        auto countResults = database_->query(countSql);
+        if (roleFilter != UserRole::USER) {
+            std::string roleStr;
+            switch (roleFilter) {
+                case UserRole::PREMIUM: roleStr = "premium"; break;
+                case UserRole::ADMIN: roleStr = "admin"; break;
+                case UserRole::SUPERADMIN: roleStr = "superadmin"; break;
+                default: roleStr = "user"; break;
+            }
+            countStmt.bind(bindIdx++, roleStr);
+        }
+        auto countResults = countStmt.query();
         if (!countResults.empty()) {
             response.total = std::stoi(countResults[0]["total"]);
         }
@@ -1468,8 +1476,9 @@ std::optional<AdminUser> AdminApiModule::getUser(int id) {
             return std::nullopt;
         }
 
-        std::string sql = "SELECT * FROM users WHERE id = " + std::to_string(id);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM users WHERE id = ?");
+        stmt.bind(0, id);
+        auto results = stmt.query();
 
         if (!results.empty()) {
             AdminUser user;
@@ -1513,8 +1522,9 @@ std::optional<AdminUser> AdminApiModule::getUserByUsername(const std::string& us
             return std::nullopt;
         }
 
-        std::string sql = "SELECT * FROM users WHERE username = '" + escapeSql(username) + "'";
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM users WHERE username = ?");
+        stmt.bind(0, username);
+        auto results = stmt.query();
 
         if (!results.empty()) {
             AdminUser user;
@@ -1623,14 +1633,19 @@ std::optional<AdminUser> AdminApiModule::updateUser(int id, const AdminUser& use
             default: roleStr = "user"; break;
         }
 
-        std::string sql = "UPDATE users SET "
-                         "email = '" + escapeSql(user.email) + "', "
-                         "full_name = '" + escapeSql(user.fullName) + "', "
-                         "avatar = '" + escapeSql(user.avatar) + "', "
-                         "role = '" + roleStr + "' "
-                         "WHERE id = " + std::to_string(id);
+        PreparedStatement stmt(database_, "UPDATE users SET "
+                         "email = ?, "
+                         "full_name = ?, "
+                         "avatar = ?, "
+                         "role = ? "
+                         "WHERE id = ?");
+        stmt.bind(0, user.email);
+        stmt.bind(1, user.fullName);
+        stmt.bind(2, user.avatar);
+        stmt.bind(3, roleStr);
+        stmt.bind(4, id);
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             // 记录审计日志
             addAuditLog("user_updated", "user", id, "system", 0,
                         "Updated user: " + user.username, "127.0.0.1");
@@ -1658,9 +1673,10 @@ bool AdminApiModule::deleteUser(int id) {
         auto user = getUser(id);
         std::string username = user ? user->username : "unknown";
 
-        std::string sql = "DELETE FROM users WHERE id = " + std::to_string(id);
+        PreparedStatement stmt(database_, "DELETE FROM users WHERE id = ?");
+        stmt.bind(0, id);
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             // 记录审计日志
             addAuditLog("user_deleted", "user", id, "system", 0,
                         "Deleted user: " + username, "127.0.0.1");
@@ -1684,9 +1700,10 @@ std::optional<AdminUser> AdminApiModule::activateUser(int id) {
             return std::nullopt;
         }
 
-        std::string sql = "UPDATE users SET is_active = 1 WHERE id = " + std::to_string(id);
+        PreparedStatement stmt(database_, "UPDATE users SET is_active = 1 WHERE id = ?");
+        stmt.bind(0, id);
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             // 获取用户名用于审计日志
             auto user = getUser(id);
             if (user) {
@@ -1712,9 +1729,10 @@ std::optional<AdminUser> AdminApiModule::deactivateUser(int id) {
             return std::nullopt;
         }
 
-        std::string sql = "UPDATE users SET is_active = 0 WHERE id = " + std::to_string(id);
+        PreparedStatement stmt(database_, "UPDATE users SET is_active = 0 WHERE id = ?");
+        stmt.bind(0, id);
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             // 获取用户名用于审计日志
             auto user = getUser(id);
             if (user) {
@@ -1739,18 +1757,18 @@ std::optional<AdminUser> AdminApiModule::createUser(const AdminUser& user) {
         }
 
         // 检查用户名是否已存在（不持有mutex，使用直接查询）
-        auto usernameResults = database_->query(
-            "SELECT id FROM users WHERE username = '" + escapeSql(user.username) + "'"
-        );
+        PreparedStatement checkUserStmt(database_, "SELECT id FROM users WHERE username = ?");
+        checkUserStmt.bind(0, user.username);
+        auto usernameResults = checkUserStmt.query();
         if (!usernameResults.empty()) {
             spdlog::warn("[AdminApiModule] Username already exists: {}", user.username);
             return std::nullopt;
         }
 
         // 检查邮箱是否已存在
-        auto emailResults = database_->query(
-            "SELECT id FROM users WHERE email = '" + escapeSql(user.email) + "'"
-        );
+        PreparedStatement checkEmailStmt(database_, "SELECT id FROM users WHERE email = ?");
+        checkEmailStmt.bind(0, user.email);
+        auto emailResults = checkEmailStmt.query();
         if (!emailResults.empty()) {
             spdlog::warn("[AdminApiModule] Email already exists: {}", user.email);
             return std::nullopt;
@@ -1779,21 +1797,19 @@ std::optional<AdminUser> AdminApiModule::createUser(const AdminUser& user) {
         std::string datetimeStr(datetimeBuffer);
 
         // 插入新用户
-        std::string sql = "INSERT INTO users (username, email, password_hash, full_name, role, is_active, created_at, is_verified) VALUES (";
-        sql += "'" + escapeSql(user.username) + "', ";
-        sql += "'" + escapeSql(user.email) + "', ";
-        sql += "'" + passwordHash + "', ";
-        sql += "'" + escapeSql(user.fullName) + "', ";
-        sql += "'" + roleStr + "', ";
-        sql += "1, ";  // 默认激活
-        sql += "'" + datetimeStr + "', ";  // 使用datetime格式
-        sql += "1)";  // 默认已验证
+        PreparedStatement insertStmt(database_, "INSERT INTO users (username, email, password_hash, full_name, role, is_active, created_at, is_verified) VALUES (?, ?, ?, ?, ?, 1, ?, 1)");
+        insertStmt.bind(0, user.username);
+        insertStmt.bind(1, user.email);
+        insertStmt.bind(2, passwordHash);
+        insertStmt.bind(3, user.fullName);
+        insertStmt.bind(4, roleStr);
+        insertStmt.bind(5, datetimeStr);
 
-        if (database_->execute(sql)) {
+        if (insertStmt.execute()) {
             // 获取新创建的用户完整信息
-            auto newResults = database_->query(
-                "SELECT * FROM users WHERE username = '" + escapeSql(user.username) + "'"
-            );
+            PreparedStatement fetchNewStmt(database_, "SELECT * FROM users WHERE username = ?");
+            fetchNewStmt.bind(0, user.username);
+            auto newResults = fetchNewStmt.query();
 
             if (!newResults.empty()) {
                 AdminUser newUser;
@@ -2864,15 +2880,16 @@ std::string AdminApiModule::handleGetUserHistory(const std::map<std::string, std
         int offset = (page - 1) * limit;
 
         // Query login history
-        std::string sql = "SELECT * FROM login_history WHERE user_id = " + std::to_string(userId)
-                        + " ORDER BY login_time DESC LIMIT " + std::to_string(limit)
-                        + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM login_history WHERE user_id = ? ORDER BY login_time DESC LIMIT ? OFFSET ?");
+        stmt.bind(0, userId);
+        stmt.bind(1, limit);
+        stmt.bind(2, offset);
+        auto results = stmt.query();
 
         // Count total
-        std::string countSql = "SELECT COUNT(*) as total FROM login_history WHERE user_id = "
-                             + std::to_string(userId);
-        auto countResults = database_->query(countSql);
+        PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM login_history WHERE user_id = ?");
+        countStmt.bind(0, userId);
+        auto countResults = countStmt.query();
         int total = 0;
         if (!countResults.empty()) {
             total = std::stoi(cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
@@ -2924,9 +2941,9 @@ std::string AdminApiModule::handleGetUserSessions(const std::map<std::string, st
         int userId = std::stoi(idIt->second);
 
         // Query active sessions (not expired)
-        std::string sql = "SELECT * FROM user_sessions WHERE user_id = " + std::to_string(userId)
-                        + " AND expires_at > NOW() ORDER BY created_at DESC";
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM user_sessions WHERE user_id = ? AND expires_at > NOW() ORDER BY created_at DESC");
+        stmt.bind(0, userId);
+        auto results = stmt.query();
 
         // Build JSON array
         std::ostringstream itemsJson;
@@ -2969,10 +2986,11 @@ std::string AdminApiModule::handleKickUserSession(const std::map<std::string, st
         int userId = std::stoi(idIt->second);
         int sessionId = std::stoi(sidIt->second);
 
-        std::string sql = "DELETE FROM user_sessions WHERE id = " + std::to_string(sessionId)
-                        + " AND user_id = " + std::to_string(userId);
+        PreparedStatement stmt(database_, "DELETE FROM user_sessions WHERE id = ? AND user_id = ?");
+        stmt.bind(0, sessionId);
+        stmt.bind(1, userId);
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             addAuditLog("session_kicked", "user", userId, "admin", 0,
                         "Kicked session " + std::to_string(sessionId) + " for user " + std::to_string(userId), "127.0.0.1");
             return buildJsonResponse(true, "Session kicked successfully");
@@ -3004,22 +3022,30 @@ std::string AdminApiModule::handleListAnnouncements(const std::map<std::string, 
 
         int offset = (page - 1) * limit;
 
-        // Build query with optional search filter
-        std::string sql = "SELECT * FROM announcements";
+        // Build query with optional search filter using PreparedStatement
+        std::vector<std::map<std::string, std::string>> results;
+        std::vector<std::map<std::string, std::string>> countResults;
         if (!search.empty()) {
-            sql += " WHERE title LIKE '%" + escapeSql(search) + "%' OR content LIKE '%" + escapeSql(search) + "%'";
-        }
-        sql += " ORDER BY created_at DESC LIMIT " + std::to_string(limit)
-             + " OFFSET " + std::to_string(offset);
+            PreparedStatement annStmt(database_, "SELECT * FROM announcements WHERE title LIKE ? OR content LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            annStmt.bind(0, std::string("%" + search + "%"));
+            annStmt.bind(1, std::string("%" + search + "%"));
+            annStmt.bind(2, limit);
+            annStmt.bind(3, offset);
+            results = annStmt.query();
 
-        auto results = database_->query(sql);
+            PreparedStatement countAnnStmt(database_, "SELECT COUNT(*) as total FROM announcements WHERE title LIKE ? OR content LIKE ?");
+            countAnnStmt.bind(0, std::string("%" + search + "%"));
+            countAnnStmt.bind(1, std::string("%" + search + "%"));
+            countResults = countAnnStmt.query();
+        } else {
+            PreparedStatement annStmt(database_, "SELECT * FROM announcements ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            annStmt.bind(0, limit);
+            annStmt.bind(1, offset);
+            results = annStmt.query();
 
-        // Count total
-        std::string countSql = "SELECT COUNT(*) as total FROM announcements";
-        if (!search.empty()) {
-            countSql += " WHERE title LIKE '%" + escapeSql(search) + "%' OR content LIKE '%" + escapeSql(search) + "%'";
+            PreparedStatement countAnnStmt(database_, "SELECT COUNT(*) as total FROM announcements");
+            countResults = countAnnStmt.query();
         }
-        auto countResults = database_->query(countSql);
         int total = 0;
         if (!countResults.empty()) {
             total = std::stoi(cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
@@ -3080,21 +3106,21 @@ std::string AdminApiModule::handleCreateAnnouncement(const std::string& body) {
         int createdBy = jsonBody.value("created_by", 0);
         std::string expiresAt = jsonBody.value("expires_at", "");
 
-        // Build INSERT statement
-        std::string sql = "INSERT INTO announcements (title, content, type, target_role, created_by, is_active, expires_at) VALUES (";
-        sql += "'" + escapeSql(title) + "', ";
-        sql += "'" + escapeSql(content) + "', ";
-        sql += "'" + escapeSql(type) + "', ";
-        sql += "'" + escapeSql(targetRole) + "', ";
-        sql += std::to_string(createdBy) + ", ";
-        sql += "1, ";  // is_active defaults to true
-        if (expiresAt.empty()) {
-            sql += "NULL)";
-        } else {
-            sql += "'" + escapeSql(expiresAt) + "')";
+        // Build INSERT statement using PreparedStatement
+        bool hasExpiry = !expiresAt.empty();
+        std::string sqlStr = "INSERT INTO announcements (title, content, type, target_role, created_by, is_active, expires_at) VALUES (?, ?, ?, ?, ?, 1, " +
+                             std::string(hasExpiry ? "?" : "NULL") + ")";
+        PreparedStatement stmt(database_, sqlStr);
+        stmt.bind(0, title);
+        stmt.bind(1, content);
+        stmt.bind(2, type);
+        stmt.bind(3, targetRole);
+        stmt.bind(4, createdBy);
+        if (hasExpiry) {
+            stmt.bind(5, expiresAt);
         }
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             // Get the newly created announcement
             auto newResults = database_->query(
                 "SELECT * FROM announcements ORDER BY id DESC LIMIT 1");
@@ -3143,41 +3169,60 @@ std::string AdminApiModule::handleUpdateAnnouncement(const std::map<std::string,
         int annId = std::stoi(idIt->second);
         auto jsonBody = nlohmann::json::parse(body);
 
-        // Build UPDATE with provided fields
-        std::vector<std::string> updates;
+        // Build UPDATE with provided fields using PreparedStatement
+        std::string sqlStr = "UPDATE announcements SET ";
+        std::vector<std::string> setClauses;
+        int bindIdx = 0;
+
+        std::string titleVal, contentVal, typeVal, targetRoleVal, expiresAtVal;
+        bool hasExpiresAt = jsonBody.contains("expires_at");
+        bool expiresAtIsNull = false;
+
         if (jsonBody.contains("title")) {
-            updates.push_back("title = '" + escapeSql(jsonBody["title"].get<std::string>()) + "'");
+            setClauses.push_back("title = ?");
+            titleVal = jsonBody["title"].get<std::string>();
         }
         if (jsonBody.contains("content")) {
-            updates.push_back("content = '" + escapeSql(jsonBody["content"].get<std::string>()) + "'");
+            setClauses.push_back("content = ?");
+            contentVal = jsonBody["content"].get<std::string>();
         }
         if (jsonBody.contains("type")) {
-            updates.push_back("type = '" + escapeSql(jsonBody["type"].get<std::string>()) + "'");
+            setClauses.push_back("type = ?");
+            typeVal = jsonBody["type"].get<std::string>();
         }
         if (jsonBody.contains("target_role")) {
-            updates.push_back("target_role = '" + escapeSql(jsonBody["target_role"].get<std::string>()) + "'");
+            setClauses.push_back("target_role = ?");
+            targetRoleVal = jsonBody["target_role"].get<std::string>();
         }
-        if (jsonBody.contains("expires_at")) {
-            std::string expiresAt = jsonBody["expires_at"].get<std::string>();
-            if (expiresAt.empty()) {
-                updates.push_back("expires_at = NULL");
+        if (hasExpiresAt) {
+            expiresAtVal = jsonBody["expires_at"].get<std::string>();
+            if (expiresAtVal.empty()) {
+                setClauses.push_back("expires_at = NULL");
+                expiresAtIsNull = true;
             } else {
-                updates.push_back("expires_at = '" + escapeSql(expiresAt) + "'");
+                setClauses.push_back("expires_at = ?");
             }
         }
 
-        if (updates.empty()) {
+        if (setClauses.empty()) {
             return buildJsonResponse(400, false, "No fields to update");
         }
 
-        std::string sql = "UPDATE announcements SET ";
-        for (size_t i = 0; i < updates.size(); i++) {
-            if (i > 0) sql += ", ";
-            sql += updates[i];
+        for (size_t i = 0; i < setClauses.size(); i++) {
+            if (i > 0) sqlStr += ", ";
+            sqlStr += setClauses[i];
         }
-        sql += " WHERE id = " + std::to_string(annId);
+        sqlStr += " WHERE id = ?";
 
-        if (database_->execute(sql)) {
+        PreparedStatement stmt(database_, sqlStr);
+        if (jsonBody.contains("title")) stmt.bind(bindIdx++, titleVal);
+        if (jsonBody.contains("content")) stmt.bind(bindIdx++, contentVal);
+        if (jsonBody.contains("type")) stmt.bind(bindIdx++, typeVal);
+        if (jsonBody.contains("target_role")) stmt.bind(bindIdx++, targetRoleVal);
+        if (hasExpiresAt && !expiresAtIsNull) stmt.bind(bindIdx++, expiresAtVal);
+        stmt.bind(bindIdx, annId);
+
+        if (stmt.execute()) {
             addAuditLog("announcement_updated", "announcement", annId,
                         "admin", 0, "Updated announcement ID: " + std::to_string(annId), "127.0.0.1");
             return buildJsonResponse(true, "Announcement updated");
@@ -3201,9 +3246,10 @@ std::string AdminApiModule::handleDeleteAnnouncement(const std::map<std::string,
         if (!database_) return buildJsonResponse(500, false, "No database");
 
         int annId = std::stoi(idIt->second);
-        std::string sql = "DELETE FROM announcements WHERE id = " + std::to_string(annId);
+        PreparedStatement stmt(database_, "DELETE FROM announcements WHERE id = ?");
+        stmt.bind(0, annId);
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             addAuditLog("announcement_deleted", "announcement", annId,
                         "admin", 0, "Deleted announcement ID: " + std::to_string(annId), "127.0.0.1");
             return buildJsonResponse(true, "Announcement deleted");
@@ -3227,13 +3273,14 @@ std::string AdminApiModule::handleToggleAnnouncement(const std::map<std::string,
         int annId = std::stoi(idIt->second);
 
         // Toggle is_active: if 1 set to 0, if 0 set to 1
-        std::string sql = "UPDATE announcements SET is_active = NOT is_active WHERE id = "
-                        + std::to_string(annId);
+        PreparedStatement toggleStmt(database_, "UPDATE announcements SET is_active = NOT is_active WHERE id = ?");
+        toggleStmt.bind(0, annId);
 
-        if (database_->execute(sql)) {
+        if (toggleStmt.execute()) {
             // Fetch the updated state
-            auto results = database_->query(
-                "SELECT is_active FROM announcements WHERE id = " + std::to_string(annId));
+            PreparedStatement fetchStmt(database_, "SELECT is_active FROM announcements WHERE id = ?");
+            fetchStmt.bind(0, annId);
+            auto results = fetchStmt.query();
 
             bool newState = false;
             if (!results.empty()) {
@@ -3271,14 +3318,17 @@ std::string AdminApiModule::handleExportUsers(const std::map<std::string, std::s
         auto searchIt = params.find("search");
         if (searchIt != params.end()) search = searchIt->second;
 
-        // Build query with optional search filter
-        std::string sql = "SELECT * FROM users";
+        // Build query with optional search filter using PreparedStatement
+        std::vector<std::map<std::string, std::string>> results;
         if (!search.empty()) {
-            sql += " WHERE (username LIKE '%" + escapeSql(search) + "%' OR email LIKE '%" + escapeSql(search) + "%')";
+            PreparedStatement stmt(database_, "SELECT * FROM users WHERE (username LIKE ? OR email LIKE ?) ORDER BY id ASC");
+            stmt.bind(0, std::string("%" + search + "%"));
+            stmt.bind(1, std::string("%" + search + "%"));
+            results = stmt.query();
+        } else {
+            PreparedStatement stmt(database_, "SELECT * FROM users ORDER BY id ASC");
+            results = stmt.query();
         }
-        sql += " ORDER BY id ASC";
-
-        auto results = database_->query(sql);
 
         // Build CSV string
         std::ostringstream csv;
@@ -3460,28 +3510,38 @@ std::string AdminApiModule::handleGetSystemLogs(const std::map<std::string, std:
         int total = 0;
 
         if (database_) {
-            // 构建WHERE条件
+            // 构建WHERE条件 using PreparedStatement
+            std::string logCountSql = "SELECT COUNT(*) as total FROM system_logs";
+            std::string logListSql = "SELECT * FROM system_logs";
             std::string whereClause;
+            int bindIdx = 0;
+
             if (!levelFilter.empty() && !moduleFilter.empty()) {
-                whereClause = " WHERE level = '" + escapeSql(levelFilter) + "' AND module = '" + escapeSql(moduleFilter) + "'";
+                whereClause = " WHERE level = ? AND module = ?";
             } else if (!levelFilter.empty()) {
-                whereClause = " WHERE level = '" + escapeSql(levelFilter) + "'";
+                whereClause = " WHERE level = ?";
             } else if (!moduleFilter.empty()) {
-                whereClause = " WHERE module = '" + escapeSql(moduleFilter) + "'";
+                whereClause = " WHERE module = ?";
             }
 
             // 获取总数
-            std::string countSql = "SELECT COUNT(*) as total FROM system_logs" + whereClause;
-            auto countResults = database_->query(countSql);
+            PreparedStatement countStmt(database_, logCountSql + whereClause);
+            if (!levelFilter.empty()) countStmt.bind(bindIdx++, levelFilter);
+            if (!moduleFilter.empty()) countStmt.bind(bindIdx++, moduleFilter);
+            auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
                 total = std::stoi(cleanDbString(countResults[0].at("total")));
             }
 
             // 获取日志列表
-            std::string sql = "SELECT * FROM system_logs" + whereClause +
-                             " ORDER BY created_at DESC LIMIT " + std::to_string(pageSize) +
-                             " OFFSET " + std::to_string(offset);
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, logListSql + whereClause +
+                             " ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            bindIdx = 0;
+            if (!levelFilter.empty()) stmt.bind(bindIdx++, levelFilter);
+            if (!moduleFilter.empty()) stmt.bind(bindIdx++, moduleFilter);
+            stmt.bind(bindIdx++, pageSize);
+            stmt.bind(bindIdx, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json log;
@@ -3583,8 +3643,9 @@ std::string AdminApiModule::handleCleanLogs(const std::map<std::string, std::str
         std::string date = dateIt->second;
 
         if (database_) {
-            std::string sql = "DELETE FROM system_logs WHERE created_at < '" + escapeSql(date) + "'";
-            database_->execute(sql);
+            PreparedStatement stmt(database_, "DELETE FROM system_logs WHERE created_at < ?");
+            stmt.bind(0, date);
+            stmt.execute();
 
             addAuditLog("logs_cleaned", "system_logs", 0, "superadmin", 0,
                        "Cleaned logs before " + date, "127.0.0.1");
@@ -3666,8 +3727,9 @@ std::string AdminApiModule::handleGetSlowQueries(const std::map<std::string, std
         nlohmann::json queries = nlohmann::json::array();
 
         if (database_) {
-            std::string sql = "SELECT * FROM slow_queries ORDER BY execution_time_ms DESC LIMIT " + std::to_string(limit);
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, "SELECT * FROM slow_queries ORDER BY execution_time_ms DESC LIMIT ?");
+            stmt.bind(0, limit);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json query;
@@ -3823,24 +3885,28 @@ std::string AdminApiModule::handleGetLoginHistory(const std::map<std::string, st
         int total = 0;
 
         if (database_) {
-            // 构建WHERE条件
+            // 构建WHERE条件 using PreparedStatement
             std::string whereClause;
             if (!usernameFilter.empty()) {
-                whereClause = " WHERE username = '" + escapeSql(usernameFilter) + "'";
+                whereClause = " WHERE username = ?";
             }
 
             // 获取总数
-            std::string countSql = "SELECT COUNT(*) as total FROM login_attempts" + whereClause;
-            auto countResults = database_->query(countSql);
+            PreparedStatement countStmt(database_, std::string("SELECT COUNT(*) as total FROM login_attempts") + whereClause);
+            if (!usernameFilter.empty()) countStmt.bind(0, usernameFilter);
+            auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
                 total = std::stoi(cleanDbString(countResults[0].at("total")));
             }
 
             // 获取登录历史
-            std::string sql = "SELECT * FROM login_attempts" + whereClause +
-                             " ORDER BY created_at DESC LIMIT " + std::to_string(limit) +
-                             " OFFSET " + std::to_string(offset);
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, std::string("SELECT * FROM login_attempts") + whereClause +
+                             " ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            int bindIdx = 0;
+            if (!usernameFilter.empty()) stmt.bind(bindIdx++, usernameFilter);
+            stmt.bind(bindIdx++, limit);
+            stmt.bind(bindIdx, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json attempt;
@@ -3883,8 +3949,9 @@ std::string AdminApiModule::handleGetLoginStats(const std::map<std::string, std:
         nlohmann::json stats = nlohmann::json::array();
 
         if (database_) {
-            std::string sql = "SELECT * FROM v_login_stats LIMIT " + std::to_string(days);
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, "SELECT * FROM v_login_stats LIMIT ?");
+            stmt.bind(0, days);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json stat;
@@ -3938,26 +4005,30 @@ std::string AdminApiModule::handleGetSuspiciousLogins(const std::map<std::string
         int total = 0;
 
         if (database_) {
-            // 构建WHERE条件
+            // 构建WHERE条件 using PreparedStatement
             std::string whereClause;
             if (!statusFilter.empty()) {
-                whereClause = " WHERE status = '" + escapeSql(statusFilter) + "'";
+                whereClause = " WHERE s.status = ?";
             }
 
             // 获取总数
-            std::string countSql = "SELECT COUNT(*) as total FROM suspicious_logins" + whereClause;
-            auto countResults = database_->query(countSql);
+            PreparedStatement countStmt(database_, std::string("SELECT COUNT(*) as total FROM suspicious_logins s") + whereClause);
+            if (!statusFilter.empty()) countStmt.bind(0, statusFilter);
+            auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
                 total = std::stoi(cleanDbString(countResults[0].at("total")));
             }
 
             // 获取可疑登录列表
-            std::string sql = "SELECT s.*, u.username as reviewed_by_username FROM suspicious_logins s "
-                             "LEFT JOIN users u ON s.reviewed_by = u.id" +
+            PreparedStatement stmt(database_, std::string("SELECT s.*, u.username as reviewed_by_username FROM suspicious_logins s "
+                             "LEFT JOIN users u ON s.reviewed_by = u.id") +
                              whereClause +
-                             " ORDER BY s.created_at DESC LIMIT " + std::to_string(limit) +
-                             " OFFSET " + std::to_string(offset);
-            auto results = database_->query(sql);
+                             " ORDER BY s.created_at DESC LIMIT ? OFFSET ?");
+            int bindIdx = 0;
+            if (!statusFilter.empty()) stmt.bind(bindIdx++, statusFilter);
+            stmt.bind(bindIdx++, limit);
+            stmt.bind(bindIdx, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json item;
@@ -4020,12 +4091,13 @@ std::string AdminApiModule::handleGetIpBlacklist(const std::map<std::string, std
             }
 
             // 获取黑名单列表
-            std::string sql = "SELECT b.*, u.username as created_by_username FROM ip_blacklist b "
+            PreparedStatement stmt(database_, "SELECT b.*, u.username as created_by_username FROM ip_blacklist b "
                              "LEFT JOIN users u ON b.created_by = u.id "
                              "WHERE b.is_active = 1 "
-                             "ORDER BY b.created_at DESC LIMIT " + std::to_string(limit) +
-                             " OFFSET " + std::to_string(offset);
-            auto results = database_->query(sql);
+                             "ORDER BY b.created_at DESC LIMIT ? OFFSET ?");
+            stmt.bind(0, limit);
+            stmt.bind(1, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json entry;
@@ -4072,21 +4144,37 @@ std::string AdminApiModule::handleAddIpBlacklist(const std::map<std::string, std
 
         if (database_) {
             // 检查是否已存在
-            std::string checkSql = "SELECT id FROM ip_blacklist WHERE ip_address = '" + escapeSql(ipAddress) + "'";
-            auto checkResults = database_->query(checkSql);
+            PreparedStatement checkStmt(database_, "SELECT id FROM ip_blacklist WHERE ip_address = ?");
+            checkStmt.bind(0, ipAddress);
+            auto checkResults = checkStmt.query();
             if (!checkResults.empty()) {
                 // 更新现有记录
-                std::string updateSql = "UPDATE ip_blacklist SET is_active = 1, reason = '" + escapeSql(reason) + "', "
-                                       "threat_level = '" + escapeSql(threatLevel) + "', expires_at = " +
-                                       (expiresAt.empty() ? "NULL" : "'" + escapeSql(expiresAt) + "'") +
-                                       " WHERE ip_address = '" + escapeSql(ipAddress) + "'";
-                database_->execute(updateSql);
+                std::string updateSqlStr = expiresAt.empty()
+                    ? "UPDATE ip_blacklist SET is_active = 1, reason = ?, threat_level = ?, expires_at = NULL WHERE ip_address = ?"
+                    : "UPDATE ip_blacklist SET is_active = 1, reason = ?, threat_level = ?, expires_at = ? WHERE ip_address = ?";
+                PreparedStatement updateStmt(database_, updateSqlStr);
+                updateStmt.bind(0, reason);
+                updateStmt.bind(1, threatLevel);
+                if (expiresAt.empty()) {
+                    updateStmt.bind(2, ipAddress);
+                } else {
+                    updateStmt.bind(2, expiresAt);
+                    updateStmt.bind(3, ipAddress);
+                }
+                updateStmt.execute();
             } else {
                 // 插入新记录
-                std::string insertSql = "INSERT INTO ip_blacklist (ip_address, reason, threat_level, created_by, expires_at) "
-                                       "VALUES ('" + escapeSql(ipAddress) + "', '" + escapeSql(reason) + "', '" + escapeSql(threatLevel) + "', 1, " +
-                                       (expiresAt.empty() ? "NULL" : "'" + escapeSql(expiresAt) + "'") + ")";
-                database_->execute(insertSql);
+                std::string insertSqlStr = expiresAt.empty()
+                    ? "INSERT INTO ip_blacklist (ip_address, reason, threat_level, created_by, expires_at) VALUES (?, ?, ?, 1, NULL)"
+                    : "INSERT INTO ip_blacklist (ip_address, reason, threat_level, created_by, expires_at) VALUES (?, ?, ?, 1, ?)";
+                PreparedStatement insertStmt(database_, insertSqlStr);
+                insertStmt.bind(0, ipAddress);
+                insertStmt.bind(1, reason);
+                insertStmt.bind(2, threatLevel);
+                if (!expiresAt.empty()) {
+                    insertStmt.bind(3, expiresAt);
+                }
+                insertStmt.execute();
             }
 
             addAuditLog("ip_blacklisted", "ip_blacklist", 0, "superadmin", 0,
@@ -4117,8 +4205,9 @@ std::string AdminApiModule::handleRemoveIpBlacklist(const std::map<std::string, 
 
         if (database_) {
             // 软删除：设置为inactive
-            std::string sql = "UPDATE ip_blacklist SET is_active = 0 WHERE id = " + std::to_string(id);
-            database_->execute(sql);
+            PreparedStatement stmt(database_, "UPDATE ip_blacklist SET is_active = 0 WHERE id = ?");
+            stmt.bind(0, id);
+            stmt.execute();
 
             addAuditLog("ip_whitelisted", "ip_blacklist", id, "superadmin", 0,
                        "Removed IP from blacklist (ID: " + std::to_string(id) + ")", "127.0.0.1");
@@ -4166,12 +4255,13 @@ std::string AdminApiModule::handleGetAccountLockouts(const std::map<std::string,
             }
 
             // 获取锁定列表
-            std::string sql = "SELECT l.*, u.username FROM account_lockouts l "
+            PreparedStatement stmt(database_, "SELECT l.*, u.username FROM account_lockouts l "
                              "JOIN users u ON l.user_id = u.id "
                              "WHERE l.locked_until > NOW() "
-                             "ORDER BY l.created_at DESC LIMIT " + std::to_string(limit) +
-                             " OFFSET " + std::to_string(offset);
-            auto results = database_->query(sql);
+                             "ORDER BY l.created_at DESC LIMIT ? OFFSET ?");
+            stmt.bind(0, limit);
+            stmt.bind(1, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json lockout;
@@ -4218,8 +4308,9 @@ std::string AdminApiModule::handleLockUserAccount(const std::map<std::string, st
 
         if (database_) {
             // 检查用户是否存在
-            std::string checkSql = "SELECT username FROM users WHERE id = " + std::to_string(userId);
-            auto checkResults = database_->query(checkSql);
+            PreparedStatement checkStmt(database_, "SELECT username FROM users WHERE id = ?");
+            checkStmt.bind(0, userId);
+            auto checkResults = checkStmt.query();
             if (checkResults.empty()) {
                 return buildJsonResponse(404, false, "User not found");
             }
@@ -4228,14 +4319,20 @@ std::string AdminApiModule::handleLockUserAccount(const std::map<std::string, st
             std::string lockUntilSql = "DATE_ADD(NOW(), INTERVAL " + std::to_string(lockMinutes) + " MINUTE)";
 
             // 插入或更新锁定记录
-            std::string sql = "INSERT INTO account_lockouts (user_id, locked_until, lockout_reason, ip_address) "
-                             "VALUES (" + std::to_string(userId) + ", " + lockUntilSql + ", '" + escapeSql(reason) + "', '" + escapeSql(ipAddress) + "') "
+            PreparedStatement stmt(database_, "INSERT INTO account_lockouts (user_id, locked_until, lockout_reason, ip_address) "
+                             "VALUES (?, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?, ?) "
                              "ON DUPLICATE KEY UPDATE "
-                             "locked_until = " + lockUntilSql + ", "
-                             "lockout_reason = '" + escapeSql(reason) + "', "
-                             "ip_address = '" + escapeSql(ipAddress) + "'";
-
-            database_->execute(sql);
+                             "locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE), "
+                             "lockout_reason = ?, "
+                             "ip_address = ?");
+            stmt.bind(0, userId);
+            stmt.bind(1, lockMinutes);
+            stmt.bind(2, reason);
+            stmt.bind(3, ipAddress);
+            stmt.bind(4, lockMinutes);
+            stmt.bind(5, reason);
+            stmt.bind(6, ipAddress);
+            stmt.execute();
 
             addAuditLog("user_locked", "users", userId, "superadmin", 0,
                        "Locked user account for " + std::to_string(lockMinutes) + " minutes: " + reason, "127.0.0.1");
@@ -4265,8 +4362,9 @@ std::string AdminApiModule::handleUnlockUserAccount(const std::map<std::string, 
 
         if (database_) {
             // 删除锁定记录
-            std::string sql = "DELETE FROM account_lockouts WHERE user_id = " + std::to_string(userId);
-            database_->execute(sql);
+            PreparedStatement stmt(database_, "DELETE FROM account_lockouts WHERE user_id = ?");
+            stmt.bind(0, userId);
+            stmt.execute();
 
             addAuditLog("user_unlocked", "users", userId, "superadmin", 0,
                        "Unlocked user account", "127.0.0.1");
@@ -4305,11 +4403,14 @@ std::string AdminApiModule::handleHandleSuspiciousLogin(const std::map<std::stri
 
         if (database_) {
             // 更新可疑登录记录状态
-            std::string sql = "UPDATE suspicious_logins SET status = '" + escapeSql(action) + "', "
-                             "reviewed_by = " + std::to_string(reviewedBy) + ", "
+            PreparedStatement stmt(database_, "UPDATE suspicious_logins SET status = ?, "
+                             "reviewed_by = ?, "
                              "reviewed_at = NOW() "
-                             "WHERE id = " + std::to_string(id);
-            database_->execute(sql);
+                             "WHERE id = ?");
+            stmt.bind(0, action);
+            stmt.bind(1, reviewedBy);
+            stmt.bind(2, id);
+            stmt.execute();
 
             addAuditLog("suspicious_login_handled", "suspicious_logins", id, "superadmin", reviewedBy,
                        "Marked suspicious login as: " + action, "127.0.0.1");
@@ -4370,16 +4471,17 @@ std::string AdminApiModule::handleGetConfigs(const std::map<std::string, std::st
         nlohmann::json configs = nlohmann::json::array();
 
         if (database_) {
-            std::string sql = "SELECT c.*, u.username as updated_by_username FROM system_configs c "
-                             "LEFT JOIN users u ON c.updated_by = u.id";
-
+            std::vector<std::map<std::string, std::string>> results;
             if (!category.empty()) {
-                sql += " WHERE c.category = '" + escapeSql(category) + "'";
+                PreparedStatement cfgStmt(database_, "SELECT c.*, u.username as updated_by_username FROM system_configs c "
+                                 "LEFT JOIN users u ON c.updated_by = u.id WHERE c.category = ? ORDER BY c.category, c.`key`");
+                cfgStmt.bind(0, category);
+                results = cfgStmt.query();
+            } else {
+                PreparedStatement cfgStmt(database_, "SELECT c.*, u.username as updated_by_username FROM system_configs c "
+                                 "LEFT JOIN users u ON c.updated_by = u.id ORDER BY c.category, c.`key`");
+                results = cfgStmt.query();
             }
-
-            sql += " ORDER BY c.category, c.`key`";
-
-            auto results = database_->query(sql);
 
             for (const auto& row : results) {
                 nlohmann::json config;
@@ -4426,24 +4528,31 @@ std::string AdminApiModule::handleUpdateConfig(const std::map<std::string, std::
 
         if (database_) {
             // 获取当前值
-            std::string selectSql = "SELECT * FROM system_configs WHERE `key` = '" + escapeSql(key) + "'";
-            auto selectResults = database_->query(selectSql);
+            PreparedStatement selectStmt(database_, "SELECT * FROM system_configs WHERE `key` = ?");
+            selectStmt.bind(0, key);
+            auto selectResults = selectStmt.query();
 
             if (!selectResults.empty()) {
                 std::string oldValue = cleanDbString(selectResults[0].count("value") ? selectResults[0].at("value") : "");
                 int configId = std::stoi(cleanDbString(selectResults[0].at("id")));
 
                 // 更新配置
-                std::string updateSql = "UPDATE system_configs SET value = '" + escapeSql(value) + "', "
-                                       "updated_by = " + std::to_string(updatedBy) + " "
-                                       "WHERE `key` = '" + escapeSql(key) + "'";
-                database_->execute(updateSql);
+                PreparedStatement updateStmt(database_, "UPDATE system_configs SET value = ?, updated_by = ? WHERE `key` = ?");
+                updateStmt.bind(0, value);
+                updateStmt.bind(1, updatedBy);
+                updateStmt.bind(2, key);
+                updateStmt.execute();
 
                 // 记录历史
-                std::string historySql = "INSERT INTO config_history (config_id, config_key, old_value, new_value, changed_by, change_reason, change_type) "
-                                       "VALUES (" + std::to_string(configId) + ", '" + escapeSql(key) + "', '" + escapeSql(oldValue) + "', '" + escapeSql(value) + "', "
-                                       + std::to_string(updatedBy) + ", '" + escapeSql(reason) + "', 'update')";
-                database_->execute(historySql);
+                PreparedStatement historyStmt(database_, "INSERT INTO config_history (config_id, config_key, old_value, new_value, changed_by, change_reason, change_type) "
+                                       "VALUES (?, ?, ?, ?, ?, ?, 'update')");
+                historyStmt.bind(0, configId);
+                historyStmt.bind(1, key);
+                historyStmt.bind(2, oldValue);
+                historyStmt.bind(3, value);
+                historyStmt.bind(4, updatedBy);
+                historyStmt.bind(5, reason);
+                historyStmt.execute();
 
                 addAuditLog("config_updated", "system_configs", configId, "superadmin", updatedBy,
                            "Updated config " + key + ": " + reason, "127.0.0.1");
@@ -4492,26 +4601,30 @@ std::string AdminApiModule::handleGetConfigHistory(const std::map<std::string, s
         int total = 0;
 
         if (database_) {
-            // 构建WHERE条件
+            // 获取总数
+            std::string countSqlStr = "SELECT COUNT(*) as total FROM config_history h";
+            std::string listSqlStr = "SELECT h.*, u.username as changed_by_username FROM config_history h "
+                             "LEFT JOIN users u ON h.changed_by = u.id";
             std::string whereClause;
             if (!configKeyFilter.empty()) {
-                whereClause = " WHERE h.config_key = '" + escapeSql(configKeyFilter) + "'";
+                whereClause = " WHERE h.config_key = ?";
             }
 
-            // 获取总数
-            std::string countSql = "SELECT COUNT(*) as total FROM config_history h" + whereClause;
-            auto countResults = database_->query(countSql);
+            PreparedStatement countStmt(database_, countSqlStr + whereClause);
+            if (!configKeyFilter.empty()) countStmt.bind(0, configKeyFilter);
+            auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
                 total = std::stoi(cleanDbString(countResults[0].at("total")));
             }
 
             // 获取历史记录
-            std::string sql = "SELECT h.*, u.username as changed_by_username FROM config_history h "
-                             "LEFT JOIN users u ON h.changed_by = u.id" +
-                             whereClause +
-                             " ORDER BY h.created_at DESC LIMIT " + std::to_string(limit) +
-                             " OFFSET " + std::to_string(offset);
-            auto results = database_->query(sql);
+            PreparedStatement stmt(database_, listSqlStr + whereClause +
+                             " ORDER BY h.created_at DESC LIMIT ? OFFSET ?");
+            int bindIdx = 0;
+            if (!configKeyFilter.empty()) stmt.bind(bindIdx++, configKeyFilter);
+            stmt.bind(bindIdx++, limit);
+            stmt.bind(bindIdx, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json entry;
@@ -4643,10 +4756,15 @@ std::string AdminApiModule::handleCreateBackupJob(const std::map<std::string, st
         }
 
         if (database_) {
-            std::string sql = "INSERT INTO backup_jobs (name, job_type, schedule_cron, backup_path, retention_days, created_by) "
-                             "VALUES ('" + escapeSql(name) + "', '" + escapeSql(jobType) + "', '" + escapeSql(scheduleCron) + "', '" + escapeSql(backupPath) + "', "
-                             + std::to_string(retentionDays) + ", " + std::to_string(createdBy) + ")";
-            database_->execute(sql);
+            PreparedStatement stmt(database_, "INSERT INTO backup_jobs (name, job_type, schedule_cron, backup_path, retention_days, created_by) "
+                             "VALUES (?, ?, ?, ?, ?, ?)");
+            stmt.bind(0, name);
+            stmt.bind(1, jobType);
+            stmt.bind(2, scheduleCron);
+            stmt.bind(3, backupPath);
+            stmt.bind(4, retentionDays);
+            stmt.bind(5, createdBy);
+            stmt.execute();
 
             addAuditLog("backup_job_created", "backup_jobs", 0, "superadmin", createdBy,
                        "Created backup job: " + name, "127.0.0.1");
@@ -4680,11 +4798,15 @@ std::string AdminApiModule::handleUpdateBackupJob(const std::map<std::string, st
         bool isEnabled = jsonBody.value("is_enabled", true);
 
         if (database_) {
-            std::string sql = "UPDATE backup_jobs SET schedule_cron = '" + escapeSql(scheduleCron) + "', "
-                             "retention_days = " + std::to_string(retentionDays) + ", "
-                             "is_enabled = " + (isEnabled ? "1" : "0") + " "
-                             "WHERE id = " + std::to_string(id);
-            database_->execute(sql);
+            PreparedStatement stmt(database_, "UPDATE backup_jobs SET schedule_cron = ?, "
+                             "retention_days = ?, "
+                             "is_enabled = ? "
+                             "WHERE id = ?");
+            stmt.bind(0, scheduleCron);
+            stmt.bind(1, retentionDays);
+            stmt.bind(2, isEnabled ? 1 : 0);
+            stmt.bind(3, id);
+            stmt.execute();
 
             addAuditLog("backup_job_updated", "backup_jobs", id, "superadmin", 0,
                        "Updated backup job ID: " + std::to_string(id), "127.0.0.1");
@@ -4713,8 +4835,9 @@ std::string AdminApiModule::handleDeleteBackupJob(const std::map<std::string, st
         int id = std::stoi(idIt->second);
 
         if (database_) {
-            std::string sql = "DELETE FROM backup_jobs WHERE id = " + std::to_string(id);
-            database_->execute(sql);
+            PreparedStatement stmt(database_, "DELETE FROM backup_jobs WHERE id = ?");
+            stmt.bind(0, id);
+            stmt.execute();
 
             addAuditLog("backup_job_deleted", "backup_jobs", id, "superadmin", 0,
                        "Deleted backup job ID: " + std::to_string(id), "127.0.0.1");
@@ -4745,8 +4868,9 @@ std::string AdminApiModule::handleTriggerBackup(const std::map<std::string, std:
 
         if (database_) {
             // 获取备份任务信息
-            std::string selectSql = "SELECT * FROM backup_jobs WHERE id = " + std::to_string(jobId);
-            auto jobResults = database_->query(selectSql);
+            PreparedStatement selectStmt(database_, "SELECT * FROM backup_jobs WHERE id = ?");
+            selectStmt.bind(0, jobId);
+            auto jobResults = selectStmt.query();
 
             if (jobResults.empty()) {
                 return buildJsonResponse(404, false, "Backup job not found");
@@ -4767,10 +4891,14 @@ std::string AdminApiModule::handleTriggerBackup(const std::map<std::string, std:
             std::string fullPath = backupPath + "/" + filename;
 
             // 创建备份记录
-            std::string insertRecordSql = "INSERT INTO backup_records (job_id, filename, file_path, backup_type, status, created_by) "
-                                        "VALUES (" + std::to_string(jobId) + ", '" + escapeSql(filename) + "', '" + escapeSql(fullPath) + "', '" + escapeSql(jobType) + "', 'in_progress', "
-                                        + std::to_string(createdBy) + ")";
-            database_->execute(insertRecordSql);
+            PreparedStatement insertStmt(database_, "INSERT INTO backup_records (job_id, filename, file_path, backup_type, status, created_by) "
+                                        "VALUES (?, ?, ?, ?, 'in_progress', ?)");
+            insertStmt.bind(0, jobId);
+            insertStmt.bind(1, filename);
+            insertStmt.bind(2, fullPath);
+            insertStmt.bind(3, jobType);
+            insertStmt.bind(4, createdBy);
+            insertStmt.execute();
 
             // Get last insert ID
             auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
@@ -4784,14 +4912,16 @@ std::string AdminApiModule::handleTriggerBackup(const std::map<std::string, std:
             // system(command.c_str());
 
             // 模拟备份成功
-            std::string updateRecordSql = "UPDATE backup_records SET status = 'success', completed_at = NOW(), duration_seconds = 30, "
-                                        "tables_backed_up = 20, rows_backed_up = 5000 WHERE id = " + std::to_string(recordId);
-            database_->execute(updateRecordSql);
+            PreparedStatement updateRecStmt(database_, "UPDATE backup_records SET status = 'success', completed_at = NOW(), duration_seconds = 30, "
+                                        "tables_backed_up = 20, rows_backed_up = 5000 WHERE id = ?");
+            updateRecStmt.bind(0, static_cast<int>(recordId));
+            updateRecStmt.execute();
 
             // 更新任务的最后运行状态
-            std::string updateJobSql = "UPDATE backup_jobs SET last_run_at = NOW(), last_run_status = 'success', "
-                                     "last_run_message = 'Backup completed successfully' WHERE id = " + std::to_string(jobId);
-            database_->execute(updateJobSql);
+            PreparedStatement updateJobStmt(database_, "UPDATE backup_jobs SET last_run_at = NOW(), last_run_status = 'success', "
+                                     "last_run_message = 'Backup completed successfully' WHERE id = ?");
+            updateJobStmt.bind(0, jobId);
+            updateJobStmt.execute();
 
             addAuditLog("backup_triggered", "backup_records", recordId, "superadmin", createdBy,
                        "Triggered backup job: " + jobName, "127.0.0.1");
@@ -4845,23 +4975,27 @@ std::string AdminApiModule::handleGetBackupRecords(const std::map<std::string, s
             // 构建WHERE条件
             std::string whereClause;
             if (jobIdFilter > 0) {
-                whereClause = " WHERE r.job_id = " + std::to_string(jobIdFilter);
+                whereClause = " WHERE r.job_id = ?";
             }
 
             // 获取总数
-            std::string countSql = "SELECT COUNT(*) as total FROM backup_records r" + whereClause;
-            auto countResults = database_->query(countSql);
+            PreparedStatement countStmt(database_, std::string("SELECT COUNT(*) as total FROM backup_records r") + whereClause);
+            if (jobIdFilter > 0) countStmt.bind(0, jobIdFilter);
+            auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
                 total = std::stoi(cleanDbString(countResults[0].at("total")));
             }
 
             // 获取备份记录
-            std::string sql = "SELECT r.*, j.name as job_name FROM backup_records r "
-                             "LEFT JOIN backup_jobs j ON r.job_id = j.id" +
+            PreparedStatement stmt(database_, std::string("SELECT r.*, j.name as job_name FROM backup_records r "
+                             "LEFT JOIN backup_jobs j ON r.job_id = j.id") +
                              whereClause +
-                             " ORDER BY r.started_at DESC LIMIT " + std::to_string(limit) +
-                             " OFFSET " + std::to_string(offset);
-            auto results = database_->query(sql);
+                             " ORDER BY r.started_at DESC LIMIT ? OFFSET ?");
+            int bindIdx = 0;
+            if (jobIdFilter > 0) stmt.bind(bindIdx++, jobIdFilter);
+            stmt.bind(bindIdx++, limit);
+            stmt.bind(bindIdx, offset);
+            auto results = stmt.query();
 
             for (const auto& row : results) {
                 nlohmann::json record;
@@ -4909,8 +5043,9 @@ std::string AdminApiModule::handleDeleteBackupFile(const std::map<std::string, s
 
         if (database_) {
             // 获取备份记录
-            std::string selectSql = "SELECT * FROM backup_records WHERE id = " + std::to_string(id);
-            auto results = database_->query(selectSql);
+            PreparedStatement selectStmt(database_, "SELECT * FROM backup_records WHERE id = ?");
+            selectStmt.bind(0, id);
+            auto results = selectStmt.query();
 
             if (!results.empty()) {
                 std::string filePath = cleanDbString(results[0].count("file_path") ? results[0].at("file_path") : "");
@@ -4919,8 +5054,9 @@ std::string AdminApiModule::handleDeleteBackupFile(const std::map<std::string, s
                 // std::remove(filePath.c_str());
 
                 // 更新记录状态为deleted
-                std::string updateSql = "UPDATE backup_records SET status = 'deleted' WHERE id = " + std::to_string(id);
-                database_->execute(updateSql);
+                PreparedStatement updateStmt(database_, "UPDATE backup_records SET status = 'deleted' WHERE id = ?");
+                updateStmt.bind(0, id);
+                updateStmt.execute();
 
                 addAuditLog("backup_deleted", "backup_records", id, "superadmin", 0,
                            "Deleted backup file: " + filePath, "127.0.0.1");
@@ -6352,10 +6488,14 @@ int AdminApiModule::createRole(const std::string& name, const std::string& displ
     }
 
     try {
-        std::string sql = "INSERT INTO roles (name, display_name, description, level, is_system, is_default, created_by) "
-                        "VALUES ('" + escapeSql(name) + "', '" + escapeSql(displayName) + "', '" + escapeSql(description) + "', "
-                        + std::to_string(level) + ", 0, 0, " + std::to_string(createdBy) + ")";
-        database_->execute(sql);
+        PreparedStatement stmt(database_, "INSERT INTO roles (name, display_name, description, level, is_system, is_default, created_by) "
+                        "VALUES (?, ?, ?, ?, 0, 0, ?)");
+        stmt.bind(0, name);
+        stmt.bind(1, displayName);
+        stmt.bind(2, description);
+        stmt.bind(3, level);
+        stmt.bind(4, createdBy);
+        stmt.execute();
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
         if (!lastIdResults.empty() && lastIdResults[0].count("id")) {
@@ -6374,10 +6514,13 @@ bool AdminApiModule::updateRole(int roleId, const std::string& displayName, cons
     }
 
     try {
-        std::string sql = "UPDATE roles SET display_name = '" + escapeSql(displayName) + "', "
-                        "description = '" + escapeSql(description) + "', level = " + std::to_string(level) + " "
-                        "WHERE id = " + std::to_string(roleId) + " AND is_system = 0";
-        database_->execute(sql);
+        PreparedStatement stmt(database_, "UPDATE roles SET display_name = ?, description = ?, level = ? "
+                        "WHERE id = ? AND is_system = 0");
+        stmt.bind(0, displayName);
+        stmt.bind(1, description);
+        stmt.bind(2, level);
+        stmt.bind(3, roleId);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update role: {}", e.what());
@@ -6592,18 +6735,25 @@ bool AdminApiModule::assignUserRole(int userId, int roleId, const std::string& r
     }
 
     try {
-        std::string sql = "INSERT INTO user_roles (user_id, role_id, reason, assigned_by";
+        // Use PreparedStatement to prevent SQL injection
         if (!expiresAt.empty()) {
-            sql += ", expires_at";
+            PreparedStatement stmt(database_, "INSERT INTO user_roles (user_id, role_id, reason, assigned_by, expires_at) "
+                "VALUES (?, ?, ?, ?, ?)");
+            stmt.bind(0, userId);
+            stmt.bind(1, roleId);
+            stmt.bind(2, reason);
+            stmt.bind(3, assignedBy);
+            stmt.bind(4, expiresAt);
+            stmt.execute();
+        } else {
+            PreparedStatement stmt(database_, "INSERT INTO user_roles (user_id, role_id, reason, assigned_by) "
+                "VALUES (?, ?, ?, ?)");
+            stmt.bind(0, userId);
+            stmt.bind(1, roleId);
+            stmt.bind(2, reason);
+            stmt.bind(3, assignedBy);
+            stmt.execute();
         }
-        sql += ") VALUES (" + std::to_string(userId) + ", " + std::to_string(roleId) + ", '"
-               + escapeSql(reason) + "', " + std::to_string(assignedBy);
-        if (!expiresAt.empty()) {
-            sql += ", '" + escapeSql(expiresAt) + "'";
-        }
-        sql += ")";
-
-        database_->execute(sql);
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to assign user role: {}", e.what());
@@ -6636,8 +6786,7 @@ bool AdminApiModule::checkUserPermission(int userId, const std::string& resource
         // Use the view v_user_permissions
         std::string sql = "SELECT COUNT(*) as count FROM v_user_permissions "
                         "WHERE user_id = " + std::to_string(userId) + " "
-                        "AND resource = '" + escapeSql(resource) + "' "
-                        "AND action = '" + escapeSql(action) + "'";
+                        "AND resource = ? AND action = ?";
         auto results = database_->query(sql);
 
         if (!results.empty()) {
@@ -6695,9 +6844,16 @@ int AdminApiModule::createNotificationTemplate(const std::string& name, const st
 
     try {
         std::string sql = "INSERT INTO notification_templates (name, title_template, content_template, channel, description, language, created_by) "
-                        "VALUES ('" + escapeSql(name) + "', '" + escapeSql(titleTemplate) + "', '" + escapeSql(contentTemplate) + "', "
-                        "'" + escapeSql(channel) + "', '" + escapeSql(description) + "', '" + escapeSql(language) + "', " + std::to_string(createdBy) + ")";
-        database_->execute(sql);
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        PreparedStatement stmt(database_, sql);
+        stmt.bind(0, name);
+        stmt.bind(1, titleTemplate);
+        stmt.bind(2, contentTemplate);
+        stmt.bind(3, channel);
+        stmt.bind(4, description);
+        stmt.bind(5, language);
+        stmt.bind(6, createdBy);
+        stmt.execute();
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
         if (!lastIdResults.empty() && lastIdResults[0].count("id")) {
@@ -6716,11 +6872,13 @@ bool AdminApiModule::updateNotificationTemplate(int id, const std::string& title
     }
 
     try {
-        std::string sql = "UPDATE notification_templates SET title_template = '" + escapeSql(titleTemplate) + "', "
-                        "content_template = '" + escapeSql(contentTemplate) + "', "
-                        "description = '" + escapeSql(description) + "' "
-                        "WHERE id = " + std::to_string(id);
-        database_->execute(sql);
+        PreparedStatement stmt(database_, "UPDATE notification_templates SET title_template = ?, "
+                        "content_template = ?, description = ? WHERE id = ?");
+        stmt.bind(0, titleTemplate);
+        stmt.bind(1, contentTemplate);
+        stmt.bind(2, description);
+        stmt.bind(3, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update notification template: {}", e.what());
@@ -6757,7 +6915,7 @@ PaginatedResponse<SystemNotification> AdminApiModule::getSystemNotifications(int
         // Get total count
         std::string countSql = "SELECT COUNT(*) as total FROM system_notifications";
         if (!status.empty()) {
-            countSql += " WHERE status = '" + escapeSql(status) + "'";
+            countSql += " WHERE status = ?";
         }
         auto countResults = database_->query(countSql);
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
@@ -6767,7 +6925,7 @@ PaginatedResponse<SystemNotification> AdminApiModule::getSystemNotifications(int
         std::string sql = "SELECT sn.*, u.username as created_by_username FROM system_notifications sn "
                          "LEFT JOIN users u ON sn.created_by = u.id";
         if (!status.empty()) {
-            sql += " WHERE sn.status = '" + escapeSql(status) + "'";
+            sql += " WHERE sn.status = ?";
         }
         sql += " ORDER BY sn.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
 
@@ -6815,24 +6973,40 @@ int64_t AdminApiModule::sendNotification(int templateId, const std::string& titl
         } else {
             std::string countSql = "SELECT COUNT(*) as total FROM user_roles ur "
                                   "JOIN roles r ON ur.role_id = r.id "
-                                  "WHERE r.name = '" + escapeSql(targetRole) + "'";
+                                  "WHERE r.name = ?";
             auto countResults = database_->query(countSql);
             totalRecipients = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
         }
 
-        std::string sql = "INSERT INTO system_notifications (template_id, title, content, channel, target_role, target_users, total_recipients, created_by";
+        // Use PreparedStatement to prevent SQL injection
         if (!scheduledAt.empty()) {
-            sql += ", scheduled_at";
+            PreparedStatement stmt(database_, "INSERT INTO system_notifications "
+                "(template_id, title, content, channel, target_role, target_users, total_recipients, created_by, scheduled_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            stmt.bind(0, templateId);
+            stmt.bind(1, title);
+            stmt.bind(2, content);
+            stmt.bind(3, channel);
+            stmt.bind(4, targetRole);
+            stmt.bind(5, targetUsers);
+            stmt.bind(6, totalRecipients);
+            stmt.bind(7, createdBy);
+            stmt.bind(8, scheduledAt);
+            stmt.execute();
+        } else {
+            PreparedStatement stmt(database_, "INSERT INTO system_notifications "
+                "(template_id, title, content, channel, target_role, target_users, total_recipients, created_by) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            stmt.bind(0, templateId);
+            stmt.bind(1, title);
+            stmt.bind(2, content);
+            stmt.bind(3, channel);
+            stmt.bind(4, targetRole);
+            stmt.bind(5, targetUsers);
+            stmt.bind(6, totalRecipients);
+            stmt.bind(7, createdBy);
+            stmt.execute();
         }
-        sql += ") VALUES (" + (templateId > 0 ? std::to_string(templateId) : std::string("NULL")) + ", '"
-               + escapeSql(title) + "', '" + escapeSql(content) + "', '" + escapeSql(channel) + "', '"
-               + escapeSql(targetRole) + "', '" + escapeSql(targetUsers) + "', " + std::to_string(totalRecipients) + ", " + std::to_string(createdBy);
-        if (!scheduledAt.empty()) {
-            sql += ", '" + escapeSql(scheduledAt) + "'";
-        }
-        sql += ")";
-
-        database_->execute(sql);
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
         if (!lastIdResults.empty() && lastIdResults[0].count("id")) {
@@ -6992,11 +7166,17 @@ int AdminApiModule::createCleanupTask(const std::string& name, const std::string
     }
 
     try {
-        std::string sql = "INSERT INTO cleanup_tasks (name, display_name, task_type, description, cleanup_config, schedule_cron, is_enabled, is_system, created_by) "
-                        "VALUES ('" + escapeSql(name) + "', '" + escapeSql(displayName) + "', '" + escapeSql(taskType) + "', '"
-                        + escapeSql(description) + "', '" + escapeSql(cleanupConfig) + "', '" + escapeSql(scheduleCron) + "', 1, "
-                        + (isSystem ? "1" : "0") + ", " + std::to_string(createdBy) + ")";
-        database_->execute(sql);
+        PreparedStatement stmt(database_, "INSERT INTO cleanup_tasks (name, display_name, task_type, description, cleanup_config, schedule_cron, is_enabled, is_system, created_by) "
+                        "VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)");
+        stmt.bind(0, name);
+        stmt.bind(1, displayName);
+        stmt.bind(2, taskType);
+        stmt.bind(3, description);
+        stmt.bind(4, cleanupConfig);
+        stmt.bind(5, scheduleCron);
+        stmt.bind(6, isSystem ? 1 : 0);
+        stmt.bind(7, createdBy);
+        stmt.execute();
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
         if (!lastIdResults.empty() && lastIdResults[0].count("id")) {
@@ -7016,13 +7196,16 @@ bool AdminApiModule::updateCleanupTask(int id, const std::string& displayName, c
     }
 
     try {
-        std::string sql = "UPDATE cleanup_tasks SET display_name = '" + escapeSql(displayName) + "', "
-                        "description = '" + escapeSql(description) + "', "
-                        "cleanup_config = '" + escapeSql(cleanupConfig) + "', "
-                        "schedule_cron = '" + escapeSql(scheduleCron) + "', "
-                        "is_enabled = " + (isEnabled ? "1" : "0") + " "
-                        "WHERE id = " + std::to_string(id);
-        database_->execute(sql);
+        PreparedStatement stmt(database_, "UPDATE cleanup_tasks SET display_name = ?, "
+                        "description = ?, cleanup_config = ?, schedule_cron = ?, "
+                        "is_enabled = ? WHERE id = ?");
+        stmt.bind(0, displayName);
+        stmt.bind(1, description);
+        stmt.bind(2, cleanupConfig);
+        stmt.bind(3, scheduleCron);
+        stmt.bind(4, isEnabled ? 1 : 0);
+        stmt.bind(5, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update cleanup task: {}", e.what());
@@ -7073,10 +7256,12 @@ int64_t AdminApiModule::triggerCleanup(int taskId, int triggeredBy) {
         std::string cleanupConfig = cleanDbString(taskResults[0].count("cleanup_config") ? taskResults[0].at("cleanup_config") : "{}");
 
         // Create execution record
-        std::string insertSql = "INSERT INTO cleanup_execution_history (task_id, task_name, status, triggered_by) "
-                               "VALUES (" + std::to_string(taskId) + ", '" + escapeSql(taskName) + "', 'running', "
-                               + std::to_string(triggeredBy) + ")";
-        database_->execute(insertSql);
+        PreparedStatement insertStmt(database_, "INSERT INTO cleanup_execution_history (task_id, task_name, status, triggered_by) "
+                               "VALUES (?, ?, 'running', ?)");
+        insertStmt.bind(0, taskId);
+        insertStmt.bind(1, taskName);
+        insertStmt.bind(2, triggeredBy);
+        insertStmt.execute();
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
         int64_t executionId = 0;
@@ -7086,15 +7271,17 @@ int64_t AdminApiModule::triggerCleanup(int taskId, int triggeredBy) {
 
         // TODO: Execute actual cleanup based on task type and config
         // For now, simulate successful cleanup
-        std::string updateSql = "UPDATE cleanup_execution_history SET status = 'success', completed_at = NOW(), "
+        PreparedStatement updateExecStmt(database_, "UPDATE cleanup_execution_history SET status = 'success', completed_at = NOW(), "
                                "duration_seconds = 5, items_processed = 100, space_freed_mb = 10.5, "
-                               "output_message = 'Cleanup completed successfully' WHERE id = " + std::to_string(executionId);
-        database_->execute(updateSql);
+                               "output_message = 'Cleanup completed successfully' WHERE id = ?");
+        updateExecStmt.bind(0, static_cast<int>(executionId));
+        updateExecStmt.execute();
 
         // Update task's last run status
-        std::string updateTaskSql = "UPDATE cleanup_tasks SET last_run_at = NOW(), last_run_status = 'success', "
-                                   "last_run_message = 'Last run completed successfully' WHERE id = " + std::to_string(taskId);
-        database_->execute(updateTaskSql);
+        PreparedStatement updateTaskStmt(database_, "UPDATE cleanup_tasks SET last_run_at = NOW(), last_run_status = 'success', "
+                                   "last_run_message = 'Last run completed successfully' WHERE id = ?");
+        updateTaskStmt.bind(0, taskId);
+        updateTaskStmt.execute();
 
         return executionId;
     } catch (const std::exception& e) {
@@ -7301,10 +7488,12 @@ bool AdminApiModule::rejectPaper(int paperId, int moderatorId, const std::string
     }
 
     try {
-        std::string sql = "UPDATE paper_moderations SET status = 'rejected', moderator_id = "
-                        + std::to_string(moderatorId) + ", reason = '" + escapeSql(reason) + "', reviewed_at = NOW() "
-                        "WHERE paper_id = " + std::to_string(paperId) + " AND status = 'pending'";
-        database_->execute(sql);
+        PreparedStatement stmt(database_, "UPDATE paper_moderations SET status = 'rejected', moderator_id = ?, "
+                        "reason = ?, reviewed_at = NOW() WHERE paper_id = ? AND status = 'pending'");
+        stmt.bind(0, moderatorId);
+        stmt.bind(1, reason);
+        stmt.bind(2, paperId);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to reject paper: {}", e.what());
@@ -7326,7 +7515,7 @@ PaginatedResponse<UserReport> AdminApiModule::getUserReports(int page, int limit
         // Get total count
         std::string countSql = "SELECT COUNT(*) as total FROM user_reports";
         if (!status.empty()) {
-            countSql += " WHERE status = '" + escapeSql(status) + "'";
+            countSql += " WHERE status = ?";
         }
         auto countResults = database_->query(countSql);
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
@@ -7338,9 +7527,9 @@ PaginatedResponse<UserReport> AdminApiModule::getUserReports(int page, int limit
                          "LEFT JOIN users reporter ON ur.reporter_id = reporter.id "
                          "LEFT JOIN users reviewer ON ur.reviewer_id = reviewer.id";
         if (!status.empty()) {
-            sql += " WHERE ur.status = '" + escapeSql(status) + "'";
+            sql += " WHERE ur.status = ?";
         }
-        sql += " ORDER BY ur.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
+        sql += " ORDER BY ur.created_at DESC LIMIT ? OFFSET ?";
 
         auto results = database_->query(sql);
         for (const auto& row : results) {
@@ -7375,10 +7564,13 @@ bool AdminApiModule::resolveReport(int64_t reportId, int reviewerId, const std::
     }
 
     try {
-        std::string sql = "UPDATE user_reports SET status = '" + escapeSql(status) + "', reviewer_id = "
-                        + std::to_string(reviewerId) + ", resolution = '" + escapeSql(resolution) + "' "
-                        "WHERE id = " + std::to_string(reportId);
-        database_->execute(sql);
+        PreparedStatement stmt(database_, "UPDATE user_reports SET status = ?, reviewer_id = ?, "
+                        "resolution = ? WHERE id = ?");
+        stmt.bind(0, status);
+        stmt.bind(1, reviewerId);
+        stmt.bind(2, resolution);
+        stmt.bind(3, static_cast<int>(reportId));
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to resolve report: {}", e.what());
@@ -7427,8 +7619,14 @@ int AdminApiModule::createSensitiveWord(const std::string& word, const std::stri
 
     try {
         std::string sql = "INSERT INTO sensitive_words (word, category, severity, is_regex, replacement, created_by) "
-                        "VALUES ('" + escapeSql(word) + "', '" + escapeSql(category) + "', '" + escapeSql(severity) + "', "
-                        + (isRegex ? "1" : "0") + ", '" + escapeSql(replacement) + "', " + std::to_string(createdBy) + ")";
+                        "VALUES (?, ?, ?, ?, ?, ?)";
+        PreparedStatement stmt(database_, sql);
+        stmt.bind(0, word);
+        stmt.bind(1, category);
+        stmt.bind(2, severity);
+        stmt.bind(3, isRegex ? 1 : 0);
+        stmt.bind(4, replacement);
+        stmt.bind(5, createdBy);
         database_->execute(sql);
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
@@ -7509,8 +7707,9 @@ std::vector<SensitiveWordMatch> AdminApiModule::checkSensitiveWords(const std::s
                 matches.push_back(match);
 
                 // Update match count in database
-                std::string updateSql = "UPDATE sensitive_words SET match_count = match_count + 1 WHERE id = " + std::to_string(sw.id);
-                database_->execute(updateSql);
+                PreparedStatement updateWordStmt(database_, "UPDATE sensitive_words SET match_count = match_count + 1 WHERE id = ?");
+                updateWordStmt.bind(0, sw.id);
+                updateWordStmt.execute();
             }
         }
     } catch (const std::exception& e) {
@@ -7652,11 +7851,21 @@ std::pair<int, std::string> AdminApiModule::createApiKey(int userId, const std::
         std::string keyHash = hashSS.str();
         std::string keyPrefix = fullKey.substr(0, 10);
 
-        std::string sql = "INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, rate_limit_per_hour, expires_at, created_by) "
-                        "VALUES (" + std::to_string(userId) + ", '" + escapeSql(name) + "', '" + keyHash + "', '"
-                        + keyPrefix + "', '" + escapeSql(scopes) + "', " + std::to_string(rateLimitPerHour) + ", "
-                        + (expiresAt.empty() ? "NULL" : "'" + escapeSql(expiresAt) + "'") + ", " + std::to_string(createdBy) + ")";
-        database_->execute(sql);
+        std::string sqlStr = "INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, rate_limit_per_hour, expires_at, created_by) "
+                        "VALUES (?, ?, ?, ?, ?, ?, " + std::string(expiresAt.empty() ? "NULL" : "?") + ", ?)";
+        PreparedStatement stmt(database_, sqlStr);
+        int bindIdx = 0;
+        stmt.bind(bindIdx++, userId);
+        stmt.bind(bindIdx++, name);
+        stmt.bind(bindIdx++, keyHash);
+        stmt.bind(bindIdx++, keyPrefix);
+        stmt.bind(bindIdx++, scopes);
+        stmt.bind(bindIdx++, rateLimitPerHour);
+        if (!expiresAt.empty()) {
+            stmt.bind(bindIdx++, expiresAt);
+        }
+        stmt.bind(bindIdx, createdBy);
+        stmt.execute();
 
         auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
         int keyId = 0;

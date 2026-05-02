@@ -7,10 +7,24 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <chrono>
 #include <functional>
+#include <chrono>
 
 namespace PaperCrawler {
+
+/**
+ * @brief 光标位置信息
+ */
+struct CursorPosition {
+    int userId;
+    std::string username;
+    int line;
+    int column;
+    std::chrono::steady_clock::time_point lastActive;
+};
 
 // Forward declaration -- avoids pulling the full WebSocketModule header here.
 class WebSocketModule;
@@ -288,6 +302,10 @@ private:
     std::unique_ptr<Impl> impl_;
 
     std::shared_ptr<WebSocketModule> wsModule_;
+
+    // 光标追踪: documentId -> (userId -> CursorPosition)
+    std::map<std::string, std::map<int, CursorPosition>> documentCursors_;
+    std::mutex cursorsMutex_;
 
     void registerRoutes() override;
 

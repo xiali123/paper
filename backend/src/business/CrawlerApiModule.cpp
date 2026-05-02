@@ -5,6 +5,7 @@
 #include "modules/DistributedTaskModule.hpp"
 #include "network/WebSocketModule.hpp"
 #include "data/IDatabase.hpp"
+#include "data/PreparedStatement.hpp"
 #include "core/Services.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
@@ -24,13 +25,13 @@ namespace PaperCrawler {
 // 默认构造函数
 CrawlerApiModule::CrawlerApiModule()
     : CrawlerApiModule(nullptr) {
-    std::cout << "[CrawlerApi] CrawlerApiModule default constructor" << std::endl;
+    spdlog::info("[CrawlerApi] CrawlerApiModule default constructor");
 }
 
 // 带参数的构造函数
 CrawlerApiModule::CrawlerApiModule(std::shared_ptr<IDatabase> database)
     : database_(database) {
-    std::cout << "[CrawlerApi] CrawlerApiModule parameterized constructor" << std::endl;
+    spdlog::info("[CrawlerApi] CrawlerApiModule parameterized constructor");
 }
 
 CrawlerApiModule::~CrawlerApiModule() = default;
@@ -144,6 +145,335 @@ void CrawlerApiModule::registerRoutes() {
     // POST /api/crawler/templates/:id/test
     router.post(prefix + "/templates/:id/test", [this](const HttpRequest& req) {
         return handleTestTemplate(req);
+    });
+
+    // ========================================================================
+    // 模板市场接口
+    // ========================================================================
+
+    // POST /api/crawler/marketplace/publish - 发布模板到市场
+    router.post(prefix + "/marketplace/publish", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        // 检查认证
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            auto jsonOpt = JsonUtils::parse(req.body);
+            if (!jsonOpt.has_value()) {
+                return buildJsonResponse(400, "Invalid JSON format");
+            }
+
+            auto jsonObj = jsonOpt.value();
+            std::string templateId = JsonUtils::getValue<std::string>(jsonObj, "templateId").value_or("");
+            std::string description = JsonUtils::getValue<std::string>(jsonObj, "description").value_or("");
+            std::string tags = JsonUtils::getValue<std::string>(jsonObj, "tags").value_or("");
+
+            if (templateId.empty()) {
+                return buildJsonResponse(400, "Missing templateId");
+            }
+
+            // 尝试数据库操作
+            if (database_) {
+                // 将模板标记为公开发布
+                PreparedStatement updateStmt(database_,
+                    "UPDATE crawler_templates SET is_public = 1, marketplace_description = ?, "
+                    "marketplace_tags = ?, published_at = datetime('now') WHERE template_id = ?");
+                updateStmt.bind(0, description);
+                updateStmt.bind(1, tags);
+                updateStmt.bind(2, templateId);
+                updateStmt.execute();
+
+                nlohmann::json data;
+                data["templateId"] = templateId;
+                data["published"] = true;
+                data["publishedAt"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+                return buildJsonResponse(true, "Template published to marketplace", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templateId"] = templateId;
+            data["published"] = true;
+            data["publishedAt"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            return buildJsonResponse(true, "Template published to marketplace (stub mode)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // GET /api/crawler/marketplace/templates - 浏览市场模板
+    router.get(prefix + "/marketplace/templates", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+            int offset = req.queryParams.count("offset") ? std::stoi(req.queryParams.at("offset")) : 0;
+            std::string sortBy = req.queryParams.count("sort") ? req.queryParams.at("sort") : "downloads";
+
+            if (database_) {
+                std::string orderClause = "ORDER BY download_count DESC";
+                if (sortBy == "rating") {
+                    orderClause = "ORDER BY rating DESC";
+                } else if (sortBy == "newest") {
+                    orderClause = "ORDER BY published_at DESC";
+                }
+
+                PreparedStatement stmt(database_,
+                    "SELECT template_id, name, description, base_url, "
+                    "download_count, rating, rating_count, published_at "
+                    "FROM crawler_templates WHERE is_public = 1 "
+                    + orderClause + " LIMIT ? OFFSET ?");
+                stmt.bind(0, limit);
+                stmt.bind(1, offset);
+                auto rows = stmt.query();
+
+                nlohmann::json templates = nlohmann::json::array();
+                for (const auto& row : rows) {
+                    nlohmann::json tmpl;
+                    tmpl["templateId"] = row.at("template_id");
+                    tmpl["name"] = row.at("name");
+                    tmpl["description"] = row.count("description") ? row.at("description") : "";
+                    tmpl["baseUrl"] = row.count("base_url") ? row.at("base_url") : "";
+                    tmpl["downloadCount"] = row.count("download_count") ? std::stoi(row.at("download_count")) : 0;
+                    tmpl["rating"] = row.count("rating") ? std::stod(row.at("rating")) : 0.0;
+                    tmpl["ratingCount"] = row.count("rating_count") ? std::stoi(row.at("rating_count")) : 0;
+                    tmpl["publishedAt"] = row.count("published_at") ? row.at("published_at") : "";
+                    templates.push_back(tmpl);
+                }
+
+                nlohmann::json data;
+                data["templates"] = templates;
+                data["total"] = templates.size();
+                data["limit"] = limit;
+                data["offset"] = offset;
+                return buildJsonResponse(true, "Marketplace templates retrieved", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templates"] = nlohmann::json::array();
+            data["total"] = 0;
+            data["limit"] = limit;
+            data["offset"] = offset;
+            return buildJsonResponse(true, "Marketplace templates retrieved (no database)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // POST /api/crawler/marketplace/templates/:id/install - 安装市场模板
+    router.post(prefix + "/marketplace/templates/:id/install", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end()) {
+                return buildJsonResponse(400, "Missing template ID");
+            }
+            std::string templateId = idIt->second;
+
+            if (database_) {
+                // 增加下载计数
+                PreparedStatement updateStmt(database_,
+                    "UPDATE crawler_templates SET download_count = download_count + 1 "
+                    "WHERE template_id = ? AND is_public = 1");
+                updateStmt.bind(0, templateId);
+                updateStmt.execute();
+
+                // 获取模板详情
+                PreparedStatement stmt(database_,
+                    "SELECT template_id, name, description, base_url, url_template, "
+                    "method, requires_js_rendering "
+                    "FROM crawler_templates WHERE template_id = ? AND is_public = 1");
+                stmt.bind(0, templateId);
+                auto rows = stmt.query();
+
+                if (rows.empty()) {
+                    return buildJsonResponse(404, "Template not found in marketplace");
+                }
+
+                auto& row = rows[0];
+                nlohmann::json data;
+                data["templateId"] = row.at("template_id");
+                data["name"] = row.at("name");
+                data["installed"] = true;
+                data["message"] = "Template installed successfully";
+                return buildJsonResponse(true, "Template installed", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templateId"] = templateId;
+            data["installed"] = true;
+            data["message"] = "Template installed (stub mode)";
+            return buildJsonResponse(true, "Template installed (stub mode)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // POST /api/crawler/marketplace/templates/:id/rate - 评分
+    router.post(prefix + "/marketplace/templates/:id/rate", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end()) {
+                return buildJsonResponse(400, "Missing template ID");
+            }
+            std::string templateId = idIt->second;
+
+            auto jsonOpt = JsonUtils::parse(req.body);
+            if (!jsonOpt.has_value()) {
+                return buildJsonResponse(400, "Invalid JSON format");
+            }
+
+            auto jsonObj = jsonOpt.value();
+            int rating = JsonUtils::getValue<int>(jsonObj, "rating").value_or(0);
+
+            if (rating < 1 || rating > 5) {
+                return buildJsonResponse(400, "Rating must be between 1 and 5");
+            }
+
+            if (database_) {
+                // 更新评分（简单平均）
+                PreparedStatement updateStmt(database_,
+                    "UPDATE crawler_templates SET "
+                    "rating = (rating * rating_count + ?) / (rating_count + 1), "
+                    "rating_count = rating_count + 1 "
+                    "WHERE template_id = ? AND is_public = 1");
+                updateStmt.bind(0, rating);
+                updateStmt.bind(1, templateId);
+                updateStmt.execute();
+
+                nlohmann::json data;
+                data["templateId"] = templateId;
+                data["rating"] = rating;
+                data["message"] = "Rating submitted";
+                return buildJsonResponse(true, "Rating submitted", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templateId"] = templateId;
+            data["rating"] = rating;
+            data["message"] = "Rating submitted (stub mode)";
+            return buildJsonResponse(true, "Rating submitted (stub mode)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // GET /api/crawler/marketplace/search - 搜索市场模板
+    router.get(prefix + "/marketplace/search", [this](const HttpRequest& req) {
+        HttpResponse response;
+        response.headers["Content-Type"] = "application/json";
+
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end() || authIt->second.empty()) {
+            response.statusCode = 401;
+            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
+            return response;
+        }
+
+        try {
+            std::string query = req.queryParams.count("q") ? req.queryParams.at("q") : "";
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+            std::string tag = req.queryParams.count("tag") ? req.queryParams.at("tag") : "";
+
+            if (database_) {
+                std::string sql = "SELECT template_id, name, description, base_url, "
+                                  "download_count, rating, rating_count, published_at "
+                                  "FROM crawler_templates WHERE is_public = 1";
+                std::string whereClause;
+
+                if (!query.empty()) {
+                    whereClause += " AND (name LIKE ? OR description LIKE ? OR marketplace_tags LIKE ?)";
+                }
+                if (!tag.empty()) {
+                    whereClause += " AND marketplace_tags LIKE ?";
+                }
+
+                sql += whereClause + " ORDER BY download_count DESC LIMIT ?";
+
+                PreparedStatement stmt(database_, sql);
+                int bindIdx = 0;
+                if (!query.empty()) {
+                    std::string likeQuery = "%" + query + "%";
+                    stmt.bind(bindIdx++, likeQuery);
+                    stmt.bind(bindIdx++, likeQuery);
+                    stmt.bind(bindIdx++, likeQuery);
+                }
+                if (!tag.empty()) {
+                    stmt.bind(bindIdx++, "%" + tag + "%");
+                }
+                stmt.bind(bindIdx, limit);
+
+                auto rows = stmt.query();
+
+                nlohmann::json templates = nlohmann::json::array();
+                for (const auto& row : rows) {
+                    nlohmann::json tmpl;
+                    tmpl["templateId"] = row.at("template_id");
+                    tmpl["name"] = row.at("name");
+                    tmpl["description"] = row.count("description") ? row.at("description") : "";
+                    tmpl["downloadCount"] = row.count("download_count") ? std::stoi(row.at("download_count")) : 0;
+                    tmpl["rating"] = row.count("rating") ? std::stod(row.at("rating")) : 0.0;
+                    templates.push_back(tmpl);
+                }
+
+                nlohmann::json data;
+                data["templates"] = templates;
+                data["total"] = templates.size();
+                data["query"] = query;
+                return buildJsonResponse(true, "Marketplace search results", data);
+            }
+
+            // Stub响应
+            nlohmann::json data;
+            data["templates"] = nlohmann::json::array();
+            data["total"] = 0;
+            data["query"] = query;
+            return buildJsonResponse(true, "Marketplace search (no database)", data);
+
+        } catch (const std::exception& e) {
+            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        }
     });
 
     // ========================================================================
@@ -446,9 +776,9 @@ HttpResponse CrawlerApiModule::handleTestTemplate(const HttpRequest& req) {
             return buildJsonResponse(404, "Template not found (no database)");
         }
         // 从数据库加载模板
-        auto templates = database_->query(
-            "SELECT template_id, name, base_url, url_template FROM crawler_templates WHERE template_id = '" + templateId + "'"
-        );
+        PreparedStatement tmplStmt(database_, "SELECT template_id, name, base_url, url_template FROM crawler_templates WHERE template_id = ?");
+        tmplStmt.bind(0, templateId);
+        auto templates = tmplStmt.query();
 
         if (templates.empty()) {
             return buildJsonResponse(false, "Template not found");
@@ -517,10 +847,12 @@ HttpResponse CrawlerApiModule::handleCreateTask(const HttpRequest& req) {
         }
 
         // 创建任务记录
-        std::string insertSql =
-            "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
-            "VALUES ('" + taskId + "', '" + templateId + "', 'PENDING', '" + priority + "', datetime('now'))";
-        database_->execute(insertSql);
+        PreparedStatement insertStmt(database_, "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
+            "VALUES (?, ?, 'PENDING', ?, datetime('now'))");
+        insertStmt.bind(0, taskId);
+        insertStmt.bind(1, templateId);
+        insertStmt.bind(2, priority);
+        insertStmt.execute();
 
         nlohmann::json response;
         response["taskId"] = taskId;
@@ -549,16 +881,22 @@ HttpResponse CrawlerApiModule::handleListTasks(const HttpRequest& req) {
         int offset = req.queryParams.count("offset") ? std::stoi(req.queryParams.at("offset")) : 0;
 
         // 构建SQL查询（使用IDatabase接口，和其他模块保持一致）
-        std::string sql = "SELECT task_id, template_id, status, priority, created_at "
-                         "FROM distributed_crawl_tasks";
-
+        // Build query using PreparedStatement to prevent SQL injection
+        std::vector<std::map<std::string, std::string>> rows;
         if (!statusFilter.empty()) {
-            sql += " WHERE status = '" + statusFilter + "'";
+            PreparedStatement stmt(database_, "SELECT task_id, template_id, status, priority, created_at "
+                             "FROM distributed_crawl_tasks WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            stmt.bind(0, statusFilter);
+            stmt.bind(1, limit);
+            stmt.bind(2, offset);
+            rows = stmt.query();
+        } else {
+            PreparedStatement stmt(database_, "SELECT task_id, template_id, status, priority, created_at "
+                             "FROM distributed_crawl_tasks ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            stmt.bind(0, limit);
+            stmt.bind(1, offset);
+            rows = stmt.query();
         }
-
-        sql += " ORDER BY created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-
-        auto rows = database_->query(sql);
 
         // 构建JSON数组
         nlohmann::json tasks = nlohmann::json::array();
@@ -653,23 +991,24 @@ void CrawlerApiModule::handleWorkerRegister(const WebSocketMessage& message) {
         }
 
         // 检查工作节点是否已存在
-        auto existingWorkers = database_->query(
-            "SELECT node_id FROM worker_nodes WHERE node_id = '" + workerId + "'"
-        );
+        PreparedStatement checkStmt(database_, "SELECT node_id FROM worker_nodes WHERE node_id = ?");
+        checkStmt.bind(0, workerId);
+        auto existingWorkers = checkStmt.query();
 
         if (existingWorkers.empty()) {
             // 新工作节点，插入记录
-            std::string insertSql =
-                "INSERT INTO worker_nodes (node_id, node_type, status, max_concurrent_tasks, current_tasks, created_at) "
-                "VALUES ('" + workerId + "', '" + workerType + "', 'ONLINE', " +
-                std::to_string(maxTasks) + ", 0, datetime('now'))";
-            database_->execute(insertSql);
+            PreparedStatement insertStmt(database_, "INSERT INTO worker_nodes (node_id, node_type, status, max_concurrent_tasks, current_tasks, created_at) "
+                "VALUES (?, ?, 'ONLINE', ?, 0, datetime('now'))");
+            insertStmt.bind(0, workerId);
+            insertStmt.bind(1, workerType);
+            insertStmt.bind(2, maxTasks);
+            insertStmt.execute();
         } else {
             // 已存在，更新状态
-            std::string updateSql =
-                "UPDATE worker_nodes SET status = 'ONLINE', last_seen = datetime('now') "
-                "WHERE node_id = '" + workerId + "'";
-            database_->execute(updateSql);
+            PreparedStatement updateStmt(database_, "UPDATE worker_nodes SET status = 'ONLINE', last_seen = datetime('now') "
+                "WHERE node_id = ?");
+            updateStmt.bind(0, workerId);
+            updateStmt.execute();
         }
 
         // 发送确认消息
@@ -709,13 +1048,12 @@ void CrawlerApiModule::handleWorkerHeartbeat(const WebSocketMessage& message) {
         }
 
         // 更新工作节点心跳
-        std::string updateSql =
-            "UPDATE worker_nodes SET "
-            "current_tasks = " + std::to_string(currentTasks) + ", "
-            "status = '" + status + "', "
-            "last_seen = datetime('now') "
-            "WHERE node_id = '" + workerId + "'";
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE worker_nodes SET "
+            "current_tasks = ?, status = ?, last_seen = datetime('now') WHERE node_id = ?");
+        updateStmt.bind(0, currentTasks);
+        updateStmt.bind(1, status);
+        updateStmt.bind(2, workerId);
+        updateStmt.execute();
 
         // 发送心跳响应
         if (websocket_) {
@@ -753,13 +1091,12 @@ void CrawlerApiModule::handleTaskResult(const WebSocketMessage& message) {
         }
 
         // 更新任务状态
-        std::string updateSql =
-            "UPDATE distributed_crawl_tasks SET "
-            "status = '" + status + "', "
-            "papers_found = " + std::to_string(papersFound) + ", "
-            "completed_at = datetime('now') "
-            "WHERE task_id = '" + taskId + "'";
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE distributed_crawl_tasks SET "
+            "status = ?, papers_found = ?, completed_at = datetime('now') WHERE task_id = ?");
+        updateStmt.bind(0, status);
+        updateStmt.bind(1, papersFound);
+        updateStmt.bind(2, taskId);
+        updateStmt.execute();
 
         // 发送确认消息
         if (websocket_) {
@@ -842,13 +1179,11 @@ void CrawlerApiModule::handleErrorReport(const WebSocketMessage& message) {
         }
 
         // 更新任务状态为失败
-        std::string updateSql =
-            "UPDATE distributed_crawl_tasks SET "
-            "status = 'FAILED', "
-            "error_message = '" + errorMessage + "', "
-            "completed_at = datetime('now') "
-            "WHERE task_id = '" + taskId + "'";
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE distributed_crawl_tasks SET "
+            "status = 'FAILED', error_message = ?, completed_at = datetime('now') WHERE task_id = ?");
+        updateStmt.bind(0, errorMessage);
+        updateStmt.bind(1, taskId);
+        updateStmt.execute();
 
         // 记录错误到日志表（如果存在）
         // TODO: 创建error_logs表来记录详细错误
@@ -1003,10 +1338,10 @@ HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
         }
 
         // 查询任务详情
-        auto tasks = database_->query(
-            "SELECT task_id, template_id, status, priority, papers_found, created_at, completed_at "
-            "FROM distributed_crawl_tasks WHERE task_id = '" + taskId + "'"
-        );
+        PreparedStatement taskStmt(database_, "SELECT task_id, template_id, status, priority, papers_found, created_at, completed_at "
+            "FROM distributed_crawl_tasks WHERE task_id = ?");
+        taskStmt.bind(0, taskId);
+        auto tasks = taskStmt.query();
 
         if (tasks.empty()) {
             return buildJsonResponse(404, "Task not found");
@@ -1043,8 +1378,9 @@ HttpResponse CrawlerApiModule::handleCancelTask(const HttpRequest& req) {
         }
 
         // 更新任务状态为已取消
-        std::string updateSql = "UPDATE distributed_crawl_tasks SET status = 'CANCELLED', completed_at = datetime('now') WHERE task_id = '" + taskId + "'";
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE distributed_crawl_tasks SET status = 'CANCELLED', completed_at = datetime('now') WHERE task_id = ?");
+        updateStmt.bind(0, taskId);
+        updateStmt.execute();
 
         return buildJsonResponse(true, "Task cancelled successfully");
 
@@ -1067,9 +1403,9 @@ HttpResponse CrawlerApiModule::handleRetryTask(const HttpRequest& req) {
         }
 
         // 查询原任务信息
-        auto tasks = database_->query(
-            "SELECT template_id, priority FROM distributed_crawl_tasks WHERE task_id = '" + taskId + "'"
-        );
+        PreparedStatement taskStmt(database_, "SELECT template_id, priority FROM distributed_crawl_tasks WHERE task_id = ?");
+        taskStmt.bind(0, taskId);
+        auto tasks = taskStmt.query();
 
         if (tasks.empty()) {
             return buildJsonResponse(404, "Task not found");
@@ -1082,10 +1418,12 @@ HttpResponse CrawlerApiModule::handleRetryTask(const HttpRequest& req) {
         // 创建新任务（重试）
         std::string newTaskId = "task_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
-        std::string insertSql =
-            "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
-            "VALUES ('" + newTaskId + "', '" + templateId + "', 'PENDING', '" + priority + "', datetime('now'))";
-        database_->execute(insertSql);
+        PreparedStatement insertStmt(database_, "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
+            "VALUES (?, ?, 'PENDING', ?, datetime('now'))");
+        insertStmt.bind(0, newTaskId);
+        insertStmt.bind(1, templateId);
+        insertStmt.bind(2, priority);
+        insertStmt.execute();
 
         nlohmann::json response;
         response["originalTaskId"] = taskId;
@@ -1113,10 +1451,10 @@ HttpResponse CrawlerApiModule::handleGetTaskLogs(const HttpRequest& req) {
 
         // 查询任务日志（如果存在task_logs表）
         // 暂时返回任务状态作为"日志"
-        auto tasks = database_->query(
-            "SELECT status, created_at, completed_at, error_message "
-            "FROM distributed_crawl_tasks WHERE task_id = '" + taskId + "'"
-        );
+        PreparedStatement taskStmt(database_, "SELECT status, created_at, completed_at, error_message "
+            "FROM distributed_crawl_tasks WHERE task_id = ?");
+        taskStmt.bind(0, taskId);
+        auto tasks = taskStmt.query();
 
         if (tasks.empty()) {
             return buildJsonResponse(false, "Task not found");
@@ -1273,11 +1611,14 @@ HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
         }
 
         // 创建定时任务记录
-        std::string insertSql =
-            "INSERT INTO scheduled_tasks (schedule_id, name, template_id, cron_expression, parameters, enabled, created_at) "
-            "VALUES ('" + scheduleId + "', '" + name + "', '" + templateId + "', '" +
-            cronExpression + "', '" + parameters + "', 1, datetime('now'))";
-        database_->execute(insertSql);
+        PreparedStatement insertStmt(database_, "INSERT INTO scheduled_tasks (schedule_id, name, template_id, cron_expression, parameters, enabled, created_at) "
+            "VALUES (?, ?, ?, ?, ?, 1, datetime('now'))");
+        insertStmt.bind(0, scheduleId);
+        insertStmt.bind(1, name);
+        insertStmt.bind(2, templateId);
+        insertStmt.bind(3, cronExpression);
+        insertStmt.bind(4, parameters);
+        insertStmt.execute();
 
         nlohmann::json response;
         response["scheduleId"] = scheduleId;
@@ -1350,36 +1691,43 @@ HttpResponse CrawlerApiModule::handleUpdateSchedule(const HttpRequest& req) {
 
         auto jsonObj = jsonOpt.value();
 
-        // 构建更新SQL
+        // 构建更新SQL using PreparedStatement
         std::string updateSql = "UPDATE scheduled_tasks SET ";
-        bool hasUpdate = false;
+        std::vector<std::string> setClauses;
+        std::string nameVal, cronVal, paramsVal;
 
         if (jsonObj.contains("name")) {
-            std::string name = jsonObj["name"];
-            updateSql += "name = '" + name + "'";
-            hasUpdate = true;
+            setClauses.push_back("name = ?");
+            nameVal = jsonObj["name"];
         }
 
         if (jsonObj.contains("cronExpression")) {
-            std::string cron = jsonObj["cronExpression"];
-            if (hasUpdate) updateSql += ", ";
-            updateSql += "cron_expression = '" + cron + "'";
-            hasUpdate = true;
+            setClauses.push_back("cron_expression = ?");
+            cronVal = jsonObj["cronExpression"];
         }
 
         if (jsonObj.contains("parameters")) {
-            std::string params = jsonObj["parameters"];
-            if (hasUpdate) updateSql += ", ";
-            updateSql += "parameters = '" + params + "'";
-            hasUpdate = true;
+            setClauses.push_back("parameters = ?");
+            paramsVal = jsonObj["parameters"];
         }
 
-        if (!hasUpdate) {
+        if (setClauses.empty()) {
             return buildJsonResponse(false, "No fields to update");
         }
 
-        updateSql += " WHERE schedule_id = '" + scheduleId + "'";
-        database_->execute(updateSql);
+        for (size_t i = 0; i < setClauses.size(); i++) {
+            if (i > 0) updateSql += ", ";
+            updateSql += setClauses[i];
+        }
+        updateSql += " WHERE schedule_id = ?";
+
+        PreparedStatement updateStmt(database_, updateSql);
+        int bindIdx = 0;
+        if (jsonObj.contains("name")) updateStmt.bind(bindIdx++, nameVal);
+        if (jsonObj.contains("cronExpression")) updateStmt.bind(bindIdx++, cronVal);
+        if (jsonObj.contains("parameters")) updateStmt.bind(bindIdx++, paramsVal);
+        updateStmt.bind(bindIdx, scheduleId);
+        updateStmt.execute();
 
         return buildJsonResponse(true, "Schedule updated successfully");
 
@@ -1401,8 +1749,9 @@ HttpResponse CrawlerApiModule::handleDeleteSchedule(const HttpRequest& req) {
         std::string scheduleId = scheduleIdIt->second;
 
         // 删除定时任务
-        std::string deleteSql = "DELETE FROM scheduled_tasks WHERE schedule_id = '" + scheduleId + "'";
-        database_->execute(deleteSql);
+        PreparedStatement deleteStmt(database_, "DELETE FROM scheduled_tasks WHERE schedule_id = ?");
+        deleteStmt.bind(0, scheduleId);
+        deleteStmt.execute();
 
         return buildJsonResponse(true, "Schedule deleted successfully");
 
@@ -1424,8 +1773,9 @@ HttpResponse CrawlerApiModule::handleEnableSchedule(const HttpRequest& req) {
         std::string scheduleId = scheduleIdIt->second;
 
         // 启用定时任务
-        std::string updateSql = "UPDATE scheduled_tasks SET enabled = 1 WHERE schedule_id = '" + scheduleId + "'";
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE scheduled_tasks SET enabled = 1 WHERE schedule_id = ?");
+        updateStmt.bind(0, scheduleId);
+        updateStmt.execute();
 
         return buildJsonResponse(true, "Schedule enabled successfully");
 
@@ -1447,8 +1797,9 @@ HttpResponse CrawlerApiModule::handleDisableSchedule(const HttpRequest& req) {
         std::string scheduleId = scheduleIdIt->second;
 
         // 禁用定时任务
-        std::string updateSql = "UPDATE scheduled_tasks SET enabled = 0 WHERE schedule_id = '" + scheduleId + "'";
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE scheduled_tasks SET enabled = 0 WHERE schedule_id = ?");
+        updateStmt.bind(0, scheduleId);
+        updateStmt.execute();
 
         return buildJsonResponse(true, "Schedule disabled successfully");
 
@@ -1471,9 +1822,9 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
         }
 
         // 查询定时任务配置
-        auto schedules = database_->query(
-            "SELECT template_id, parameters FROM scheduled_tasks WHERE schedule_id = '" + scheduleId + "'"
-        );
+        PreparedStatement schedStmt(database_, "SELECT template_id, parameters FROM scheduled_tasks WHERE schedule_id = ?");
+        schedStmt.bind(0, scheduleId);
+        auto schedules = schedStmt.query();
 
         if (schedules.empty()) {
             return buildJsonResponse(404, "Schedule not found");
@@ -1486,10 +1837,11 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
         // 创建新任务
         std::string taskId = "task_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
-        std::string insertSql =
-            "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
-            "VALUES ('" + taskId + "', '" + templateId + "', 'PENDING', 'NORMAL', datetime('now'))";
-        database_->execute(insertSql);
+        PreparedStatement insertStmt(database_, "INSERT INTO distributed_crawl_tasks (task_id, template_id, status, priority, created_at) "
+            "VALUES (?, ?, 'PENDING', 'NORMAL', datetime('now'))");
+        insertStmt.bind(0, taskId);
+        insertStmt.bind(1, templateId);
+        insertStmt.execute();
 
         nlohmann::json response;
         response["scheduleId"] = scheduleId;
@@ -1560,9 +1912,9 @@ HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
         }
 
         // 查询工作节点详情
-        auto workers = database_->query(
-            "SELECT * FROM worker_nodes WHERE node_id = '" + workerId + "'"
-        );
+        PreparedStatement workerStmt(database_, "SELECT * FROM worker_nodes WHERE node_id = ?");
+        workerStmt.bind(0, workerId);
+        auto workers = workerStmt.query();
 
         if (workers.empty()) {
             return buildJsonResponse(404, "Worker not found");
@@ -1601,8 +1953,9 @@ HttpResponse CrawlerApiModule::handleDisableWorker(const HttpRequest& req) {
         std::string workerId = workerIdIt->second;
 
         // 禁用工作节点
-        std::string updateSql = "UPDATE worker_nodes SET status = 'DISABLED' WHERE node_id = '" + workerId + "'";
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_, "UPDATE worker_nodes SET status = 'DISABLED' WHERE node_id = ?");
+        updateStmt.bind(0, workerId);
+        updateStmt.execute();
 
         return buildJsonResponse(true, "Worker disabled successfully");
 
@@ -1624,9 +1977,9 @@ HttpResponse CrawlerApiModule::handleGetWorkerStatistics(const HttpRequest& req)
         std::string workerId = workerIdIt->second;
 
         // 查询工作节点统计
-        auto workers = database_->query(
-            "SELECT tasks_completed, tasks_failed FROM worker_nodes WHERE node_id = '" + workerId + "'"
-        );
+        PreparedStatement workerStmt(database_, "SELECT tasks_completed, tasks_failed FROM worker_nodes WHERE node_id = ?");
+        workerStmt.bind(0, workerId);
+        auto workers = workerStmt.query();
 
         if (workers.empty()) {
             return buildJsonResponse(false, "Worker not found");

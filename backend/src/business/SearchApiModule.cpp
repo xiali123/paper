@@ -1,6 +1,7 @@
 #include <iostream>
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
+#include "data/QueryCache.hpp"
 #include "business/SearchApiModule.hpp"
 #include "business/PaperApiModule.hpp"
 #include "network/HttpClient.hpp"
@@ -395,7 +396,7 @@ public:
 
 SearchApiModule::SearchApiModule()
     : SearchApiModule(static_cast<std::shared_ptr<IDatabase>>(nullptr)) {
-    std::cout << "[SearchApi] SearchApiModule default constructor" << std::endl;
+    spdlog::info("[SearchApi] SearchApiModule default constructor");
 }
 
 SearchApiModule::SearchApiModule(HttpClientPtr httpClient)
@@ -714,8 +715,20 @@ void SearchApiModule::registerRoutes() {
         if (pageIt != req.queryParams.end()) page = std::stoi(pageIt->second);
         if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
 
+        std::string cacheKey = CacheKeys::search(query, page, limit);
+        auto cached = QueryCache::instance().get(cacheKey);
+        if (cached) {
+            HttpResponse resp;
+            resp.statusCode = 200;
+            resp.headers["Content-Type"] = "application/json";
+            resp.headers["X-Cache"] = "HIT";
+            resp.body = *cached;
+            return resp;
+        }
+
         auto result = search(query, SearchType::PAPERS, page, limit);
         response.body = result.toJson();
+        QueryCache::instance().put(cacheKey, response.body, CacheTTL::SEARCH_RESULTS);
         return response;
     });
 

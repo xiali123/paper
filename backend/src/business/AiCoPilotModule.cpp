@@ -5,6 +5,8 @@
 #include "prompts/AIPromptTemplates.hpp"
 #include "business/AIResponseParser.hpp"
 #include "data/PreparedStatement.hpp"
+#include "features/security/SecurityModule.hpp"
+#include <spdlog/spdlog.h>
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -36,49 +38,103 @@ void AiCoPilotModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix();
 
+    // Auth middleware - check Authorization header
+    auto requireAuth = [](const HttpRequest& req) -> bool {
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end()) return false;
+
+        const std::string& authHeader = authIt->second;
+        if (authHeader.substr(0, 7) != "Bearer ") return false;
+
+        std::string token = authHeader.substr(7);
+        if (token.empty()) return false;
+
+        SecurityModule sec;
+        auto result = sec.verifyJWT(token);
+        return result.valid;
+    };
+
+    auto unauthorizedResp = []() -> HttpResponse {
+        HttpResponse resp;
+        resp.statusCode = 401;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":false,"message":"Unauthorized"})";
+        return resp;
+    };
+
     // 1. AI审稿人系统
-    router.post(prefix + "/review", [this](const HttpRequest& req) {
+    router.post(prefix + "/review", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         return handleRequest(req); // 代理到handleRequest
     });
 
-    router.get(prefix + "/reviews/:userId", [this](const HttpRequest& req) {
+    router.get(prefix + "/reviews/:userId", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取审稿历史
+        HttpResponse resp;
+        resp.statusCode = 200;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":true,"data":[]})";
+        return resp;
     });
 
     // 2. 文献综述生成器
-    router.post(prefix + "/literature-review/generate", [this](const HttpRequest& req) {
+    router.post(prefix + "/literature-review/generate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         return handleRequest(req);
     });
 
-    router.get(prefix + "/literature-reviews", [this](const HttpRequest& req) {
+    router.get(prefix + "/literature-reviews", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取文献综述列表
+        HttpResponse resp;
+        resp.statusCode = 200;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":true,"data":[]})";
+        return resp;
     });
 
     // 3. 研究规划助手
-    router.post(prefix + "/research-plan/generate", [this](const HttpRequest& req) {
+    router.post(prefix + "/research-plan/generate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         return handleRequest(req);
     });
 
-    router.get(prefix + "/research-plans", [this](const HttpRequest& req) {
+    router.get(prefix + "/research-plans", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取研究计划列表
+        HttpResponse resp;
+        resp.statusCode = 200;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":true,"data":[]})";
+        return resp;
     });
 
     // 4. 对话助手
-    router.post(prefix + "/chat", [this](const HttpRequest& req) {
+    router.post(prefix + "/chat", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         return handleRequest(req);
     });
 
-    router.get(prefix + "/conversations", [this](const HttpRequest& req) {
+    router.get(prefix + "/conversations", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取对话列表
+        HttpResponse resp;
+        resp.statusCode = 200;
+        resp.headers["Content-Type"] = "application/json";
+        resp.body = R"({"success":true,"data":[]})";
+        return resp;
     });
 
     // 5. 研究建议
-    router.get(prefix + "/recommendations", [this](const HttpRequest& req) {
+    router.get(prefix + "/recommendations", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         return handleRequest(req);
     });
 
     // 6. 统计
-    router.get(prefix + "/stats", [this](const HttpRequest& req) {
+    router.get(prefix + "/stats", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
+        if (!requireAuth(req)) return unauthorizedResp();
         return handleRequest(req);
     });
 }

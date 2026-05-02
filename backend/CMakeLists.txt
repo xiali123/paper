@@ -92,6 +92,7 @@ set(CORE_SOURCES
     src/core/RateLimitMiddleware.cpp
     src/core/MiddlewareChain.cpp
     src/core/ApiVersionManager.cpp
+    src/core/GrpcServiceRegistry.cpp
     # main.cpp单独处理
 )
 
