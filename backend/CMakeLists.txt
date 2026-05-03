@@ -849,9 +849,9 @@ message(STATUS "")
 #    - TemplateCrawlerModule使用SHARED，因为CrawlerApiModule需要链接它
 # ============================================================================
 
-function(add_dynamic_module MODULE_NAME SOURCES_LIST)
+function(add_dynamic_module MODULE_NAME FIRST_SOURCE)
     # 创建MODULE库
-    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+    add_library(${MODULE_NAME} MODULE ${FIRST_SOURCE} ${ARGN})
 
     # 输出到正确的目录：modules/
     if(WIN32)
@@ -896,8 +896,8 @@ function(add_dynamic_module MODULE_NAME SOURCES_LIST)
 endfunction()
 
 # 辅助函数：编译依赖系统模块的业务模块
-function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
-    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+function(add_dynamic_module_with_system MODULE_NAME FIRST_SOURCE)
+    add_library(${MODULE_NAME} MODULE ${FIRST_SOURCE} ${ARGN})
 
     # 输出到正确的目录：modules/
     if(WIN32)

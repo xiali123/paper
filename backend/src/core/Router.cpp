@@ -229,12 +229,27 @@ void Router::registerModuleRoutes(const std::string& prefix, IModule* module) {
 
     const auto& moduleRoutes = businessModule->getRoutes();
 
+    // Copy routes from module's routes_ map (if module uses addRoute())
     for (const auto& [path, handler] : moduleRoutes) {
         moduleRoutes_[routePrefix][path] = handler;
     }
 
-    spdlog::info("[Router] Module {} registered {} routes with prefix: {}",
-                 module->getName(), moduleRoutes.size(), routePrefix);
+    // Count routes already registered directly to exactRoutes_ via router.get()/post()/etc.
+    size_t directCount = 0;
+    for (const auto& [method, pathMap] : exactRoutes_) {
+        for (const auto& [path, handler] : pathMap) {
+            if (path.find(routePrefix) == 0) directCount++;
+        }
+    }
+    for (const auto& [method, patterns] : paramRoutes_) {
+        for (const auto& [pattern, handler] : patterns) {
+            if (pattern.find(routePrefix) == 0) directCount++;
+        }
+    }
+
+    size_t total = moduleRoutes.size() + directCount;
+    spdlog::info("[Router] Module {} registered {} routes with prefix: {} (module:{}, direct:{})",
+                 module->getName(), total, routePrefix, moduleRoutes.size(), directCount);
 }
 
 void Router::printRoutes() const {
