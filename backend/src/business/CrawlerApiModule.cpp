@@ -14,7 +14,6 @@
 #include "features/infrastructure/LoggingModule.hpp"
 #include "common/JsonUtils.hpp"
 #include "data/ValidationHelper.hpp"
-#include <iostream>
 #include <sstream>
 #include <regex>
 #include <algorithm>

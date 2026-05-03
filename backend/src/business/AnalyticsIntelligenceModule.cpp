@@ -54,10 +54,7 @@ void AnalyticsIntelligenceModule::registerRoutes() {
             json.push_back(item);
         }
 
-        HttpResponse response;
-        response.statusCode = 200;
-        response.setJson(json.dump());
-        return response;
+        return HttpResponse::json(200, json.dump());
     });
 
     // 2. 研究兴趣演化
@@ -79,10 +76,7 @@ void AnalyticsIntelligenceModule::registerRoutes() {
             json.push_back(item);
         }
 
-        HttpResponse response;
-        response.statusCode = 200;
-        response.setJson(json.dump());
-        return response;
+        return HttpResponse::json(200, json.dump());
     });
 
     // 3. 每日学术简报
@@ -102,10 +96,7 @@ void AnalyticsIntelligenceModule::registerRoutes() {
         json["highlights"] = briefing.highlights;
         json["isSent"] = briefing.isSent;
 
-        HttpResponse response;
-        response.statusCode = 200;
-        response.setJson(json.dump());
-        return response;
+        return HttpResponse::json(200, json.dump());
     });
 
     // 其他路由...

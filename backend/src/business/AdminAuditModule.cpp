@@ -105,11 +105,7 @@ void AdminAuditModule::registerRoutes() {
     };
 
     auto unauthorizedResp = []() -> HttpResponse {
-        HttpResponse resp;
-        resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
-        return resp;
+        return HttpResponse::json(HTTP::UNAUTHORIZED, StringUtil::buildJsonResponse(false, "Unauthorized. Admin authentication required."));
     };
 
     // Audit logs

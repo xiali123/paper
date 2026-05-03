@@ -68,10 +68,7 @@ std::string DashboardApiModule::getQueryParam(const HttpRequest& req,
 }
 
 HttpResponse DashboardApiModule::makeJsonResponse(int status, const std::string& body) const {
-    HttpResponse response;
-    response.statusCode = status;
-    response.setJson(body);
-    return response;
+    return HttpResponse::json(status, body);
 }
 
 // ============================================================================

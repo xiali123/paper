@@ -111,11 +111,7 @@ void CollaborativeWritingModule::registerRoutes() {
     };
 
     auto unauthorizedResp = []() -> HttpResponse {
-        HttpResponse resp;
-        resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        resp.body = R"({"success":false,"message":"Unauthorized"})";
-        return resp;
+        return HttpResponse::json(HTTP::UNAUTHORIZED, buildJsonResponse(false, "Unauthorized"));
     };
 
     // POST /api/writing/documents — 创建文档

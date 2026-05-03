@@ -1,4 +1,3 @@
-#include <iostream>
 #include "core/HttpStatus.hpp"
 #include "business/AuthApiModule.hpp"
 #include "features/security/SessionModule.hpp"

@@ -1,4 +1,3 @@
-#include <iostream>
 #include "core/HttpStatus.hpp"
 #include "business/StatsApiModule.hpp"
 #include "data/DatabaseModule.hpp"

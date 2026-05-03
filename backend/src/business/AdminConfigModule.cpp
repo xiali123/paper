@@ -93,7 +93,7 @@ void AdminConfigModule::registerRoutes() {
     };
 
     auto unauthorizedResp = []() -> HttpResponse {
-        return HttpResponse::json(HTTP::UNAUTHORIZED, R"({"success":false,"error":"Unauthorized. Admin authentication required."})");
+        return HttpResponse::json(HTTP::UNAUTHORIZED, StringUtil::buildJsonResponse(false, "Unauthorized. Admin authentication required."));
     };
 
     // Global config

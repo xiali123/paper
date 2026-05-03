@@ -1,4 +1,3 @@
-#include <iostream>
 #include "core/HttpStatus.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"

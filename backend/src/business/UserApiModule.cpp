@@ -1,4 +1,3 @@
-#include <iostream>
 #include "core/HttpStatus.hpp"
 #include <fstream>
 #include "business/UserApiModule.hpp"

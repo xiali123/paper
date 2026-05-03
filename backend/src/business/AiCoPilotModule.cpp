@@ -59,11 +59,7 @@ void AiCoPilotModule::registerRoutes() {
     };
 
     auto unauthorizedResp = []() -> HttpResponse {
-        HttpResponse resp;
-        resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        resp.body = R"({"success":false,"message":"Unauthorized"})";
-        return resp;
+        return HttpResponse::json(HTTP::UNAUTHORIZED, buildJsonResponse(false, "Unauthorized"));
     };
 
     // 1. AI审稿人系统
@@ -74,12 +70,7 @@ void AiCoPilotModule::registerRoutes() {
 
     router.get(prefix + "/reviews/:userId", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
         if (!requireAuth(req)) return unauthorizedResp();
-        // 处理获取审稿历史
-        HttpResponse resp;
-        resp.statusCode = HTTP::OK;
-        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        resp.body = R"({"success":true,"data":[]})";
-        return resp;
+        return HttpResponse::json(HTTP::OK, buildJsonResponse(true, "OK", nlohmann::json::array().dump()));
     });
 
     // 2. 文献综述生成器
@@ -90,12 +81,7 @@ void AiCoPilotModule::registerRoutes() {
 
     router.get(prefix + "/literature-reviews", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
         if (!requireAuth(req)) return unauthorizedResp();
-        // 处理获取文献综述列表
-        HttpResponse resp;
-        resp.statusCode = HTTP::OK;
-        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        resp.body = R"({"success":true,"data":[]})";
-        return resp;
+        return HttpResponse::json(HTTP::OK, buildJsonResponse(true, "OK", nlohmann::json::array().dump()));
     });
 
     // 3. 研究规划助手
@@ -106,12 +92,7 @@ void AiCoPilotModule::registerRoutes() {
 
     router.get(prefix + "/research-plans", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
         if (!requireAuth(req)) return unauthorizedResp();
-        // 处理获取研究计划列表
-        HttpResponse resp;
-        resp.statusCode = HTTP::OK;
-        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        resp.body = R"({"success":true,"data":[]})";
-        return resp;
+        return HttpResponse::json(HTTP::OK, buildJsonResponse(true, "OK", nlohmann::json::array().dump()));
     });
 
     // 4. 对话助手
@@ -122,12 +103,7 @@ void AiCoPilotModule::registerRoutes() {
 
     router.get(prefix + "/conversations", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
         if (!requireAuth(req)) return unauthorizedResp();
-        // 处理获取对话列表
-        HttpResponse resp;
-        resp.statusCode = HTTP::OK;
-        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        resp.body = R"({"success":true,"data":[]})";
-        return resp;
+        return HttpResponse::json(HTTP::OK, buildJsonResponse(true, "OK", nlohmann::json::array().dump()));
     });
 
     // 5. 研究建议
@@ -753,11 +729,7 @@ HttpResponse AiCoPilotModule::handleStreamRequest(const HttpRequest& req) {
     // Extract prompt from query params
     std::string prompt = req.getQuery("prompt", "");
     if (prompt.empty()) {
-        HttpResponse resp;
-        resp.statusCode = HTTP::BAD_REQUEST;
-        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        resp.body = R"({"success":false,"message":"Missing 'prompt' query parameter"})";
-        return resp;
+        return HttpResponse::json(HTTP::BAD_REQUEST, buildJsonResponse(false, "Missing 'prompt' query parameter"));
     }
 
     spdlog::info("[AiCoPilot] SSE stream request received, prompt length: {}",

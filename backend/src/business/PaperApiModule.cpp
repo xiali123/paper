@@ -1,4 +1,3 @@
-#include <iostream>
 #include "core/HttpStatus.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
@@ -226,10 +225,7 @@ void PaperApiModule::registerRoutes() {
     router.get(prefix, [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setJson(handleListPapers(params));
-        return response;
+        return HttpResponse::json(HTTP::OK, handleListPapers(params));
     });
 
     // GET /api/papers/:id
@@ -237,33 +233,27 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
         auto jsonResult = handleGetPaper(params);
-        HttpResponse response;
+        int status = HTTP::OK;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
-                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
-        } else { response.statusCode = HTTP::OK; }
-        response.setJson(jsonResult);
-        return response;
+            status = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                     jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        }
+        return HttpResponse::json(status, jsonResult);
     });
 
     // POST /api/papers
     router.post(prefix, [this](const HttpRequest& req) {
         auto jsonResult = handleCreatePaper(req.body);
-        HttpResponse response;
-        response.statusCode = (jsonResult.find("\"error\"") != std::string::npos &&
-                              jsonResult.find("validation") != std::string::npos) ? HTTP::BAD_REQUEST : HTTP::CREATED;
-        response.setJson(jsonResult);
-        return response;
+        int status = (jsonResult.find("\"error\"") != std::string::npos &&
+                      jsonResult.find("validation") != std::string::npos) ? HTTP::BAD_REQUEST : HTTP::CREATED;
+        return HttpResponse::json(status, jsonResult);
     });
 
     // PUT /api/papers/:id
     router.put(prefix + "/:id", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setJson(handleUpdatePaper(params, req.body));
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUpdatePaper(params, req.body));
     });
 
     // DELETE /api/papers/:id
@@ -271,41 +261,31 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
         auto jsonResult = handleDeletePaper(params);
-        HttpResponse response;
+        int status = HTTP::OK;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
-                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
-        } else { response.statusCode = HTTP::OK; }
-        response.setJson(jsonResult);
-        return response;
+            status = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                     jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        }
+        return HttpResponse::json(status, jsonResult);
     });
 
     // GET /api/papers/search
     router.get(prefix + "/search", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setJson(handleSearch(params));
-        return response;
+        return HttpResponse::json(HTTP::OK, handleSearch(params));
     });
 
     // GET /api/papers/stats
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setJson(handleStats());
-        return response;
+        return HttpResponse::json(HTTP::OK, handleStats());
     });
 
     // GET /api/papers/export
     router.get(prefix + "/export", [this](const HttpRequest& req) {
         std::map<std::string, std::string> params;
         for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setJson(handleExport(params));
-        return response;
+        return HttpResponse::json(HTTP::OK, handleExport(params));
     });
 
     // POST /api/papers/:id/favorite
@@ -313,13 +293,12 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
         auto jsonResult = handleFavorite(params, req.body);
-        HttpResponse response;
+        int status = HTTP::OK;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
-                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
-        } else { response.statusCode = HTTP::OK; }
-        response.setJson(jsonResult);
-        return response;
+            status = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                     jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        }
+        return HttpResponse::json(status, jsonResult);
     });
 
     // POST /api/papers/:id/read
@@ -327,13 +306,12 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
         auto jsonResult = handleRead(params, req.body);
-        HttpResponse response;
+        int status = HTTP::OK;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
-                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
-        } else { response.statusCode = HTTP::OK; }
-        response.setJson(jsonResult);
-        return response;
+            status = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                     jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        }
+        return HttpResponse::json(status, jsonResult);
     });
 
     // POST /api/papers/:id/tags
@@ -341,13 +319,12 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
         auto jsonResult = handleTags(params, req.body, "POST");
-        HttpResponse response;
+        int status = HTTP::OK;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
-                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
-        } else { response.statusCode = HTTP::OK; }
-        response.setJson(jsonResult);
-        return response;
+            status = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                     jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        }
+        return HttpResponse::json(status, jsonResult);
     });
 
     // DELETE /api/papers/:id/tags/:tag
@@ -356,13 +333,12 @@ void PaperApiModule::registerRoutes() {
         params["id"] = req.getPathParam("id", "0");
         params["tag"] = req.getPathParam("tag", "");
         auto jsonResult = handleTags(params, "", "DELETE");
-        HttpResponse response;
+        int status = HTTP::OK;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
-                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
-        } else { response.statusCode = HTTP::OK; }
-        response.setJson(jsonResult);
-        return response;
+            status = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                     jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        }
+        return HttpResponse::json(status, jsonResult);
     });
 
     spdlog::info("[PaperApiModule] Registered 12 routes");
