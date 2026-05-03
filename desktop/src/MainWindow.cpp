@@ -47,6 +47,11 @@
 #include "ContextMenuBuilder.hpp"
 #include "PaperExportDialog.hpp"
 #include "ThemeCustomizer.hpp"
+#include "FilterChipBar.hpp"
+#include "PaperStatsChart.hpp"
+#include "QuickNoteWidget.hpp"
+#include "PaperCollectionWidget.hpp"
+#include "SideBySideDiff.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -285,6 +290,20 @@ void MainWindow::setupUI() {
     filterPanel_->setMaximumWidth(200);
     filterPanel_->setVisible(false);
     resultsLayout->addWidget(filterPanel_);
+
+    // Filter chip bar
+    filterChipBar_ = new FilterChipBar();
+    filterChipBar_->setVisible(false);
+    connect(filterChipBar_, &FilterChipBar::filterChanged, this,
+            [this](const QMap<QString, QStringList>& active) {
+        QString yearFilter = active.value("year").join(",");
+        QString levelFilter = active.value("level").join(",");
+        if (!currentKeyword_.isEmpty()) {
+            apiManager_->searchPapers(currentKeyword_, yearFilter, levelFilter,
+                                      currentOffset_, currentLimit_);
+        }
+    });
+    searchLayout->addWidget(filterChipBar_);
 
     searchLayout->addLayout(resultsLayout);
 
@@ -2909,6 +2928,86 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* statsChartAction = toolsMenu->addAction("Paper &Charts");
+    connect(statsChartAction, &QAction::triggered, this, [this]() {
+        if (!resultView_) return;
+        auto papers = resultView_->getPapers();
+        if (papers.isEmpty()) {
+            ToastWidget::showWarning("No papers. Search first.");
+            return;
+        }
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Statistics Charts");
+        dlg->resize(900, 500);
+        auto* layout = new QHBoxLayout(dlg);
+
+        // Year distribution bar chart
+        QMap<QString, double> yearData;
+        for (const auto& p : papers) {
+            QString y = p.year.isEmpty() ? "N/A" : p.year;
+            yearData[y] = yearData.value(y, 0) + 1;
+        }
+        auto* yearChart = new PaperStatsChart();
+        yearChart->setChartData(yearData, PaperStatsChart::BarChart);
+        yearChart->setTitle("Papers by Year");
+        layout->addWidget(yearChart, 1);
+
+        // Source distribution pie chart
+        QMap<QString, double> sourceData;
+        for (const auto& p : papers) {
+            QString s = p.source.isEmpty() ? "Unknown" : p.source;
+            sourceData[s] = sourceData.value(s, 0) + 1;
+        }
+        auto* sourceChart = new PaperStatsChart();
+        sourceChart->setChartData(sourceData, PaperStatsChart::PieChart);
+        sourceChart->setTitle("Papers by Source");
+        layout->addWidget(sourceChart, 1);
+
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* quickNoteAction = toolsMenu->addAction("&Quick Notes");
+    quickNoteAction->setShortcut(QKeySequence("Ctrl+Shift+N"));
+    connect(quickNoteAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Quick Notes");
+        dlg->resize(400, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* notes = new QuickNoteWidget();
+        layout->addWidget(notes);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* collectionAction = toolsMenu->addAction("Paper &Collections");
+    connect(collectionAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Collections");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* collWidget = new PaperCollectionWidget();
+        layout->addWidget(collWidget);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* diffAction = toolsMenu->addAction("Side-by-Side &Diff");
+    connect(diffAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Side-by-Side Diff");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* diff = new SideBySideDiff();
+        layout->addWidget(diff);
+
+        QString text1 = QInputDialog::getMultiLineText(this, "Left Content", "Enter left text:");
+        QString text2 = QInputDialog::getMultiLineText(this, "Right Content", "Enter right text:");
+        diff->setContents("Left", text1, "Right", text2);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     auto* doiAction = toolsMenu->addAction("&DOI Lookup");
     connect(doiAction, &QAction::triggered, this, [this]() {
         auto* dlg = new DoiLookupDialog(this);
@@ -3198,6 +3297,24 @@ void MainWindow::connectSignals() {
         auto* dlg = new PaperExportDialog(papers, this);
         dlg->exec();
         dlg->deleteLater();
+    });
+    commandPalette_->addAction("Paper Charts", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Charts");
+    });
+    commandPalette_->addAction("Quick Notes", "Ctrl+Shift+N", "Tools", [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Quick Notes");
+        dlg->resize(400, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        layout->addWidget(new QuickNoteWidget());
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("Paper Collections", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Collections");
+    });
+    commandPalette_->addAction("Side-by-Side Diff", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Side-by-Side Diff");
     });
     commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
     commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });

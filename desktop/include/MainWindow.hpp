@@ -50,6 +50,11 @@ class UpdateChecker;
 class SearchSuggestWidget;
 class PaperExportDialog;
 class ThemeCustomizer;
+class FilterChipBar;
+class PaperStatsChart;
+class QuickNoteWidget;
+class PaperCollectionWidget;
+class SideBySideDiff;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -170,6 +175,9 @@ private:
     UpdateChecker* updateChecker_{nullptr};
     SearchSuggestWidget* searchSuggest_{nullptr};
     ThemeCustomizer* themeCustomizer_{nullptr};
+    FilterChipBar* filterChipBar_{nullptr};
+    QuickNoteWidget* quickNotes_{nullptr};
+    PaperCollectionWidget* collections_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 
