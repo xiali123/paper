@@ -65,6 +65,11 @@ class TagManager;
 class WorkspaceManager;
 class AnnotationWidget;
 class PaperVersionHistory;
+class PaperRankingWidget;
+class AiSummarizerWidget;
+class JournalBrowserWidget;
+class PaperFeedWidget;
+class HotkeyManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

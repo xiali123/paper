@@ -62,6 +62,11 @@
 #include "WorkspaceManager.hpp"
 #include "AnnotationWidget.hpp"
 #include "PaperVersionHistory.hpp"
+#include "PaperRankingWidget.hpp"
+#include "AiSummarizerWidget.hpp"
+#include "JournalBrowserWidget.hpp"
+#include "PaperFeedWidget.hpp"
+#include "HotkeyManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3123,6 +3128,95 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addSeparator();
+
+    auto* rankingAction = toolsMenu->addAction("Paper &Rankings");
+    connect(rankingAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Rankings");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* ranking = new PaperRankingWidget();
+        if (resultView_) {
+            QList<RankingEntry> entries;
+            for (const auto& p : resultView_->getPapers()) {
+                RankingEntry e;
+                e.paperId = p.id;
+                e.title = p.title;
+                e.authors = p.authors;
+                e.year = p.year;
+                entries.append(e);
+            }
+            ranking->setRankings(entries);
+        }
+        layout->addWidget(ranking);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* aiSummaryAction = toolsMenu->addAction("AI &Summarizer");
+    connect(aiSummaryAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("AI Summarizer");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* summarizer = new AiSummarizerWidget();
+        summarizer->setApiManager(apiManager_);
+        layout->addWidget(summarizer);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* journalAction = toolsMenu->addAction("Journal &Browser");
+    connect(journalAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Journal Browser");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* browser = new JournalBrowserWidget();
+        connect(browser, &JournalBrowserWidget::searchPapersInJournal,
+                this, [this](const QString& name) {
+            onSearch(name);
+            tabWidget_->setCurrentIndex(0);
+        });
+        layout->addWidget(browser);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* feedAction = toolsMenu->addAction("Paper &Feed");
+    connect(feedAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Feed");
+        dlg->resize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* feed = new PaperFeedWidget();
+        connect(feed, &PaperFeedWidget::paperClicked, this, [this](int paperId) {
+            apiManager_->getPaperDetails(paperId);
+        });
+        layout->addWidget(feed);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* hotkeyAction = toolsMenu->addAction("Hotkey &Manager");
+    connect(hotkeyAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hotkey Manager");
+        dlg->resize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* mgr = new HotkeyManager();
+        mgr->registerAction("search", "Search", "File", QKeySequence("Ctrl+S"));
+        mgr->registerAction("export", "Export", "File", QKeySequence("Ctrl+E"));
+        mgr->registerAction("theme", "Toggle Theme", "View", QKeySequence("Ctrl+T"));
+        mgr->registerAction("settings", "Settings", "Edit", QKeySequence("Ctrl+,"));
+        mgr->registerAction("quit", "Quit", "File", QKeySequence("Ctrl+Q"));
+        mgr->registerAction("command_palette", "Command Palette", "View", QKeySequence("Ctrl+K"));
+        layout->addWidget(mgr);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     auto* doiAction = toolsMenu->addAction("&DOI Lookup");
     connect(doiAction, &QAction::triggered, this, [this]() {
         auto* dlg = new DoiLookupDialog(this);
@@ -3468,6 +3562,29 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Version History", "", "Paper", [this]() {
         ToastWidget::showInfo("Open Tools > Version History");
+    });
+    commandPalette_->addAction("Paper Rankings", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Rankings");
+    });
+    commandPalette_->addAction("AI Summarizer", "", "Tools", [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("AI Summarizer");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new AiSummarizerWidget();
+        w->setApiManager(apiManager_);
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("Journal Browser", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Journal Browser");
+    });
+    commandPalette_->addAction("Paper Feed", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Feed");
+    });
+    commandPalette_->addAction("Hotkey Manager", "", "Settings", [this]() {
+        ToastWidget::showInfo("Open Tools > Hotkey Manager");
     });
     commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
     commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });
