@@ -67,6 +67,11 @@
 #include "JournalBrowserWidget.hpp"
 #include "PaperFeedWidget.hpp"
 #include "HotkeyManager.hpp"
+#include "CitationExporter.hpp"
+#include "ReadingQueueWidget.hpp"
+#include "CollaborationWidget.hpp"
+#include "PaperComparisonMatrix.hpp"
+#include "PdfViewerWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3217,6 +3222,84 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addSeparator();
+
+    auto* citeAction = toolsMenu->addAction("Citation &Exporter");
+    connect(citeAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Exporter");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* exporter = new CitationExporter();
+        if (resultView_) exporter->setPapers(resultView_->getPapers());
+        layout->addWidget(exporter);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* queueAction = toolsMenu->addAction("Reading &Queue");
+    connect(queueAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Queue");
+        dlg->resize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* queue = new ReadingQueueWidget();
+        connect(queue, &ReadingQueueWidget::paperClicked, this, [this](int paperId) {
+            apiManager_->getPaperDetails(paperId);
+        });
+        layout->addWidget(queue);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* collabAction = toolsMenu->addAction("&Collaboration");
+    connect(collabAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Collaboration");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        layout->addWidget(new CollaborationWidget());
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* matrixAction = toolsMenu->addAction("Comparison &Matrix");
+    connect(matrixAction, &QAction::triggered, this, [this]() {
+        if (!resultView_) return;
+        auto papers = resultView_->getPapers();
+        if (papers.size() < 2) {
+            ToastWidget::showWarning("Need at least 2 papers to compare");
+            return;
+        }
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Comparison Matrix");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* matrix = new PaperComparisonMatrix();
+        matrix->setPapers(papers);
+        connect(matrix, &PaperComparisonMatrix::paperClicked, this, [this](int paperId) {
+            apiManager_->getPaperDetails(paperId);
+        });
+        layout->addWidget(matrix);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* pdfAction = toolsMenu->addAction("PDF &Viewer");
+    connect(pdfAction, &QAction::triggered, this, [this]() {
+        auto path = QFileDialog::getOpenFileName(this, "Open PDF", "", "PDF (*.pdf)");
+        if (path.isEmpty()) return;
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("PDF Viewer");
+        dlg->resize(800, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* viewer = new PdfViewerWidget();
+        viewer->loadFile(path);
+        layout->addWidget(viewer);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     auto* doiAction = toolsMenu->addAction("&DOI Lookup");
     connect(doiAction, &QAction::triggered, this, [this]() {
         auto* dlg = new DoiLookupDialog(this);
@@ -3585,6 +3668,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Hotkey Manager", "", "Settings", [this]() {
         ToastWidget::showInfo("Open Tools > Hotkey Manager");
+    });
+    commandPalette_->addAction("Citation Exporter", "", "Paper", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Exporter");
+    });
+    commandPalette_->addAction("Reading Queue", "", "Paper", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Queue");
+    });
+    commandPalette_->addAction("Collaboration", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Collaboration");
+    });
+    commandPalette_->addAction("Comparison Matrix", "", "Paper", [this]() {
+        ToastWidget::showInfo("Open Tools > Comparison Matrix");
+    });
+    commandPalette_->addAction("PDF Viewer", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > PDF Viewer");
     });
     commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
     commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });

@@ -70,6 +70,11 @@ class AiSummarizerWidget;
 class JournalBrowserWidget;
 class PaperFeedWidget;
 class HotkeyManager;
+class CitationExporter;
+class ReadingQueueWidget;
+class CollaborationWidget;
+class PaperComparisonMatrix;
+class PdfViewerWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
