@@ -44,6 +44,9 @@ class SystemTrayManager;
 class WelcomeWidget;
 class NotificationCenter;
 class DragDropHandler;
+class CommandPalette;
+class SessionManager;
+class UpdateChecker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -159,6 +162,9 @@ private:
     SystemTrayManager* trayManager_{nullptr};
     WelcomeWidget* welcomeWidget_{nullptr};
     NotificationCenter* notificationCenter_{nullptr};
+    CommandPalette* commandPalette_{nullptr};
+    SessionManager* sessionManager_{nullptr};
+    UpdateChecker* updateChecker_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 

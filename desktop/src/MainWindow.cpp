@@ -37,6 +37,11 @@
 #include "DoiLookupDialog.hpp"
 #include "PaperDeduplicator.hpp"
 #include "MarkdownNoteEditor.hpp"
+#include "CommandPalette.hpp"
+#include "TagCloudWidget.hpp"
+#include "UpdateChecker.hpp"
+#include "SessionManager.hpp"
+#include "SplitPaperView.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3108,6 +3113,76 @@ void MainWindow::connectSignals() {
                 this, &MainWindow::onPaperSelected);
     }
 
+    // Command palette (Ctrl+K)
+    commandPalette_ = new CommandPalette(this);
+    commandPalette_->addAction("Search Papers", "Ctrl+S", "Search", [this]() { searchWidget_->setFocus(); });
+    commandPalette_->addAction("Advanced Search", "Ctrl+Shift+F", "Search", [this]() {
+        auto* dlg = new AdvancedSearchDialog(this);
+        connect(dlg, &AdvancedSearchDialog::searchRequested, this, [this](const AdvancedSearchDialog::SearchCriteria& c) {
+            onSearch(c.query);
+        });
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("New Paper", "", "Paper", [this]() { apiManager_->createPaper({}); });
+    commandPalette_->addAction("Export", "Ctrl+E", "Paper", [this]() { onExport(); });
+    commandPalette_->addAction("Toggle Theme", "Ctrl+T", "View", [this]() { onToggleTheme(); });
+    commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
+    commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });
+    commandPalette_->addAction("Crawler", "Ctrl+4", "Tabs", [this]() { tabWidget_->setCurrentIndex(3); });
+    commandPalette_->addAction("Recommendations", "Ctrl+5", "Tabs", [this]() { tabWidget_->setCurrentIndex(4); });
+    commandPalette_->addAction("Admin", "Ctrl+6", "Tabs", [this]() { tabWidget_->setCurrentIndex(5); });
+    commandPalette_->addAction("Statistics", "Ctrl+7", "Tabs", [this]() { tabWidget_->setCurrentIndex(6); });
+    commandPalette_->addAction("DOI Lookup", "", "Tools", [this]() {
+        auto* dlg = new DoiLookupDialog(this);
+        connect(dlg, &DoiLookupDialog::paperFound, this, [this](const QJsonObject& data) {
+            apiManager_->createPaper(data);
+        });
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("Find Duplicates", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Find Duplicates");
+    });
+    commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Lists");
+    });
+    commandPalette_->addAction("Offline Cache", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Offline Cache");
+    });
+    commandPalette_->addAction("Recent History", "Ctrl+H", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Recent History");
+    });
+    commandPalette_->addAction("Keyboard Shortcuts", "", "Help", [this]() {
+        auto* dlg = new ShortcutConfigDialog(this);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("About", "", "Help", [this]() { onAbout(); });
+    commandPalette_->addAction("Quit", "Ctrl+Q", "File", []() { QApplication::quit(); });
+
+    auto* cmdPaletteShortcut = new QShortcut(QKeySequence("Ctrl+K"), this);
+    connect(cmdPaletteShortcut, &QShortcut::activated, this, [this]() {
+        commandPalette_->showPalette();
+    });
+
+    // Session manager
+    sessionManager_ = new SessionManager(this);
+    sessionManager_->saveRecentSearch("");
+
+    // Update checker
+    updateChecker_ = new UpdateChecker(this);
+    updateChecker_->setCurrentVersion("1.0.0");
+    connect(updateChecker_, &UpdateChecker::updateAvailable, this,
+            [this](const QString& version, const QString& url, const QString& notes) {
+        if (notificationCenter_) {
+            notificationCenter_->addNotification(Notification::Info, "Update Available",
+                QString("Version %1 available").arg(version), "");
+        }
+        statusBar()->showMessage(QString("Update %1 available").arg(version), 10000);
+    });
+    updateChecker_->checkForUpdates();
+
     // Connect API signals
     connect(apiManager_, &ApiManager::searchSuccess,
             this, &MainWindow::onSearchSuccess);
@@ -3956,6 +4031,15 @@ void MainWindow::onDatabaseError(const QString& error) {
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
+    // Save session
+    if (sessionManager_) {
+        sessionManager_->saveSession(currentKeyword_, currentOffset_,
+            tabWidget_->currentIndex(), saveGeometry(), saveState());
+        if (!currentKeyword_.isEmpty()) {
+            sessionManager_->saveRecentSearch(currentKeyword_);
+        }
+    }
+
     if (trayManager_ && QSystemTrayIcon::isSystemTrayAvailable()) {
         hide();
         trayManager_->showNotification("PaperCrawler",
