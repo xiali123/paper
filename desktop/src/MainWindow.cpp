@@ -102,6 +102,11 @@
 #include "ColorSchemeEditor.hpp"
 #include "PaperMergerWidget.hpp"
 #include "AbstractSummaryWidget.hpp"
+#include "PaperDependencyWidget.hpp"
+#include "PdfBookmarkWidget.hpp"
+#include "PaperComparisonSlider.hpp"
+#include "NotificationRuleEditor.hpp"
+#include "PaperTimelineBuilder.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3915,6 +3920,98 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* depAction = toolsMenu->addAction("Paper &Dependencies");
+    connect(depAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Dependency Tracker");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDependencyWidget();
+        if (resultView_) {
+            for (const auto& p : resultView_->getPapers())
+                w->addPaper(p.id, p.title);
+        }
+        connect(w, &PaperDependencyWidget::chainSelected, this, [](int id, const QList<int>& chain) {
+            ToastWidget::showInfo(QString("Chain from #%1: %2 papers deep").arg(id).arg(chain.size()));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* bmAction = toolsMenu->addAction("PDF &Bookmarks");
+    connect(bmAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("PDF Bookmarks");
+        dlg->resize(600, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PdfBookmarkWidget();
+        connect(w, &PdfBookmarkWidget::pageRequested, this, [](int page) {
+            ToastWidget::showInfo(QString("Jump to page %1").arg(page));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* compareSliderAction = toolsMenu->addAction("Paper &Comparison");
+    connect(compareSliderAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Comparison");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperComparisonSlider();
+        if (resultView_) {
+            for (const auto& p : resultView_->getPapers()) {
+                ComparePaper cp{p.id, p.title, p.authors, p.year, p.journal, p.doi, p.abstractText, "", 0, 0.0, 0, "", ""};
+                w->addPaper(cp);
+            }
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* notifRuleAction = toolsMenu->addAction("Notification &Rules");
+    connect(notifRuleAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Notification Rule Editor");
+        dlg->resize(900, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new NotificationRuleEditor();
+        connect(w, &NotificationRuleEditor::ruleTriggered, this, [](int id, const QString& action) {
+            ToastWidget::showInfo(QString("Rule #%1 triggered: %2").arg(id).arg(action));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* timelineAction = toolsMenu->addAction("Paper &Timeline");
+    connect(timelineAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Timeline Builder");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTimelineBuilder();
+        if (resultView_) {
+            for (const auto& p : resultView_->getPapers()) {
+                TimelineEntry e;
+                e.paperId = p.id;
+                e.title = p.title;
+                e.year = p.year;
+                e.category = p.journal.isEmpty() ? "General" : p.journal.left(15);
+                w->addEntry(e);
+            }
+        }
+        connect(w, &PaperTimelineBuilder::entryClicked, this, [this](int id) {
+            onPaperSelected(id);
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4380,6 +4477,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Abstract Summarizer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Abstract Summarizer");
+    });
+    commandPalette_->addAction("Paper Dependencies", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Dependencies");
+    });
+    commandPalette_->addAction("PDF Bookmarks", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > PDF Bookmarks");
+    });
+    commandPalette_->addAction("Paper Comparison", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Comparison");
+    });
+    commandPalette_->addAction("Notification Rules", "", "Settings", [this]() {
+        ToastWidget::showInfo("Open Tools > Notification Rules");
+    });
+    commandPalette_->addAction("Paper Timeline", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Timeline");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

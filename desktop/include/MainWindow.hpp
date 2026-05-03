@@ -105,6 +105,11 @@ class SessionStatisticsWidget;
 class ColorSchemeEditor;
 class PaperMergerWidget;
 class AbstractSummaryWidget;
+class PaperDependencyWidget;
+class PdfBookmarkWidget;
+class PaperComparisonSlider;
+class NotificationRuleEditor;
+class PaperTimelineBuilder;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
