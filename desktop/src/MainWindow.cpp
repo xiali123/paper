@@ -42,6 +42,11 @@
 #include "UpdateChecker.hpp"
 #include "SessionManager.hpp"
 #include "SplitPaperView.hpp"
+#include "RatingWidget.hpp"
+#include "SearchSuggestWidget.hpp"
+#include "ContextMenuBuilder.hpp"
+#include "PaperExportDialog.hpp"
+#include "ThemeCustomizer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -2756,6 +2761,22 @@ void MainWindow::createMenus() {
     themeAction->setShortcut(QKeySequence("Ctrl+T"));
     connect(themeAction, &QAction::triggered, this, &MainWindow::onToggleTheme);
 
+    QAction* themeCustomAction = viewMenu->addAction("Theme &Customizer");
+    connect(themeCustomAction, &QAction::triggered, this, [this]() {
+        if (!themeCustomizer_) {
+            themeCustomizer_ = new ThemeCustomizer(this);
+            connect(themeCustomizer_, &ThemeCustomizer::themeChanged, this,
+                    [this](const QMap<QString, QColor>& colors) {
+                Q_UNUSED(colors);
+                ToastWidget::showSuccess("Custom theme applied");
+            });
+            connect(themeCustomizer_, &ThemeCustomizer::resetToDefault, this, [this]() {
+                ToastWidget::showInfo("Theme reset to default");
+            });
+        }
+        themeCustomizer_->exec();
+    });
+
     // Tools menu
     QMenu* toolsMenu = menuBar()->addMenu("&Tools");
 
@@ -2874,6 +2895,19 @@ void MainWindow::createMenus() {
     });
 
     toolsMenu->addSeparator();
+
+    auto* exportDialogAction = toolsMenu->addAction("Advanced &Export");
+    connect(exportDialogAction, &QAction::triggered, this, [this]() {
+        if (!resultView_) return;
+        auto papers = resultView_->getPapers();
+        if (papers.isEmpty()) {
+            ToastWidget::showWarning("No papers to export. Search first.");
+            return;
+        }
+        auto* dlg = new PaperExportDialog(papers, this);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     auto* doiAction = toolsMenu->addAction("&DOI Lookup");
     connect(doiAction, &QAction::triggered, this, [this]() {
@@ -3029,6 +3063,14 @@ void MainWindow::connectSignals() {
     connect(searchWidget_, &SearchWidget::searchRequested,
             this, &MainWindow::onSearch);
 
+    // Search suggestions
+    auto* searchEdit = searchWidget_->findChild<QLineEdit*>();
+    if (searchEdit) {
+        searchSuggest_ = new SearchSuggestWidget(searchEdit, this);
+        connect(searchSuggest_, &SearchSuggestWidget::suggestionSelected,
+                this, &MainWindow::onSearch);
+    }
+
     // Recent history
     recentHistory_ = new RecentHistoryWidget(this);
 
@@ -3106,6 +3148,20 @@ void MainWindow::connectSignals() {
                 this, &MainWindow::onPaperSelected);
         connect(resultView_, &PaperCardView::pageChanged,
                 this, &MainWindow::onPageChanged);
+        resultView_->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(resultView_, &PaperCardView::customContextMenuRequested, this,
+                [this](const QPoint& pos) {
+            auto papers = resultView_->getPapers();
+            if (papers.isEmpty()) return;
+            QModelIndex idx = resultView_->indexAt(pos);
+            if (!idx.isValid()) return;
+            int row = idx.row();
+            if (row < 0 || row >= papers.size()) return;
+            auto* menu = ContextMenuBuilder::buildPaperMenu(
+                papers[row], apiManager_, nullptr, this);
+            menu->exec(resultView_->viewport()->mapToGlobal(pos));
+            menu->deleteLater();
+        });
     }
 
     if (tableView_) {
@@ -3127,6 +3183,22 @@ void MainWindow::connectSignals() {
     commandPalette_->addAction("New Paper", "", "Paper", [this]() { apiManager_->createPaper({}); });
     commandPalette_->addAction("Export", "Ctrl+E", "Paper", [this]() { onExport(); });
     commandPalette_->addAction("Toggle Theme", "Ctrl+T", "View", [this]() { onToggleTheme(); });
+    commandPalette_->addAction("Theme Customizer", "", "View", [this]() {
+        if (!themeCustomizer_) {
+            themeCustomizer_ = new ThemeCustomizer(this);
+            connect(themeCustomizer_, &ThemeCustomizer::themeChanged, this,
+                    [this](const QMap<QString, QColor>&) { ToastWidget::showSuccess("Custom theme applied"); });
+        }
+        themeCustomizer_->exec();
+    });
+    commandPalette_->addAction("Advanced Export", "", "Paper", [this]() {
+        if (!resultView_) return;
+        auto papers = resultView_->getPapers();
+        if (papers.isEmpty()) { ToastWidget::showWarning("No papers"); return; }
+        auto* dlg = new PaperExportDialog(papers, this);
+        dlg->exec();
+        dlg->deleteLater();
+    });
     commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
     commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });
     commandPalette_->addAction("Crawler", "Ctrl+4", "Tabs", [this]() { tabWidget_->setCurrentIndex(3); });

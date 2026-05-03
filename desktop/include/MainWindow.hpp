@@ -47,6 +47,9 @@ class DragDropHandler;
 class CommandPalette;
 class SessionManager;
 class UpdateChecker;
+class SearchSuggestWidget;
+class PaperExportDialog;
+class ThemeCustomizer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -165,6 +168,8 @@ private:
     CommandPalette* commandPalette_{nullptr};
     SessionManager* sessionManager_{nullptr};
     UpdateChecker* updateChecker_{nullptr};
+    SearchSuggestWidget* searchSuggest_{nullptr};
+    ThemeCustomizer* themeCustomizer_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 
