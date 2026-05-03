@@ -68,7 +68,7 @@ void CrawlerApiModule::registerRoutes() {
     // 🔔 优先级1：使用ModuleLoader注入的数据库连接
     database_ = getDatabase();
     if (database_) {
-        spdlog::info("[CrawlerApiModule] ✅ Received injected database connection from ModuleLoader!");
+        spdlog::info("[CrawlerApi] ✅ Received injected database connection from ModuleLoader!");
     }
 
     // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
@@ -79,10 +79,10 @@ void CrawlerApiModule::registerRoutes() {
                 auto dbInterface = static_cast<IDatabase*>(dbModule);
                 std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
                 database_ = dbPtr;
-                spdlog::info("[CrawlerApiModule] ✅ Received shared database connection from global DatabaseModule!");
+                spdlog::info("[CrawlerApi] ✅ Received shared database connection from global DatabaseModule!");
             }
         } catch (const std::exception& e) {
-            spdlog::warn("[CrawlerApiModule] Failed to get global database connection: {}", e.what());
+            spdlog::warn("[CrawlerApi] Failed to get global database connection: {}", e.what());
         }
     }
 

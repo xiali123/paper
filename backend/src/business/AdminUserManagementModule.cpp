@@ -143,7 +143,7 @@ AdminStats AdminUserManagementModule::getStats() {
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return stats;
         }
 
@@ -195,7 +195,7 @@ PaginatedResponse<AdminUser> AdminUserManagementModule::listUsers(int page, int 
     try {
         // 从数据库查询用户
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return response;
         }
 
@@ -213,7 +213,7 @@ PaginatedResponse<AdminUser> AdminUserManagementModule::listUsers(int page, int 
 
         sql += whereClause + " LIMIT ? OFFSET ?";
 
-        spdlog::info("[AdminApiModule] Executing prepared SQL for user list");
+        spdlog::info("[AdminUserManagement] Executing prepared SQL for user list");
         PreparedStatement stmt(database_, sql);
         int bindIdx = 0;
         if (!search.empty()) {
@@ -290,7 +290,7 @@ PaginatedResponse<AdminUser> AdminUserManagementModule::listUsers(int page, int 
         }
 
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to list users: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to list users: {}", e.what());
     }
 
     return response;
@@ -301,7 +301,7 @@ std::optional<AdminUser> AdminUserManagementModule::getUser(int id) {
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return std::nullopt;
         }
 
@@ -336,7 +336,7 @@ std::optional<AdminUser> AdminUserManagementModule::getUser(int id) {
             return user;
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get user: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to get user: {}", e.what());
     }
 
     return std::nullopt;
@@ -347,7 +347,7 @@ std::optional<AdminUser> AdminUserManagementModule::getUserByUsername(const std:
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return std::nullopt;
         }
 
@@ -382,7 +382,7 @@ std::optional<AdminUser> AdminUserManagementModule::getUserByUsername(const std:
             return user;
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get user by username: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to get user by username: {}", e.what());
     }
 
     return std::nullopt;
@@ -470,7 +470,7 @@ std::optional<AdminUser> AdminUserManagementModule::updateUser(int id, const Adm
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return std::nullopt;
         }
 
@@ -504,7 +504,7 @@ std::optional<AdminUser> AdminUserManagementModule::updateUser(int id, const Adm
             return getUser(id);
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to update user: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to update user: {}", e.what());
     }
 
     return std::nullopt;
@@ -515,7 +515,7 @@ bool AdminUserManagementModule::deleteUser(int id) {
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return false;
         }
 
@@ -531,11 +531,11 @@ bool AdminUserManagementModule::deleteUser(int id) {
             addAuditLog("user_deleted", "user", id, "system", 0,
                         "Deleted user: " + username, "127.0.0.1");
 
-            spdlog::info("[AdminApiModule] Deleted user: {}", username);
+            spdlog::info("[AdminUserManagement] Deleted user: {}", username);
             return true;
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete user: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to delete user: {}", e.what());
     }
 
     return false;
@@ -546,7 +546,7 @@ std::optional<AdminUser> AdminUserManagementModule::activateUser(int id) {
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return std::nullopt;
         }
 
@@ -559,12 +559,12 @@ std::optional<AdminUser> AdminUserManagementModule::activateUser(int id) {
             if (user) {
                 addAuditLog("user_activated", "user", id, "system", 0,
                             "Activated user: " + user->username, "127.0.0.1");
-                spdlog::info("[AdminApiModule] Activated user: {}", user->username);
+                spdlog::info("[AdminUserManagement] Activated user: {}", user->username);
             }
             return getUser(id);
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to activate user: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to activate user: {}", e.what());
     }
 
     return std::nullopt;
@@ -575,7 +575,7 @@ std::optional<AdminUser> AdminUserManagementModule::deactivateUser(int id) {
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return std::nullopt;
         }
 
@@ -588,12 +588,12 @@ std::optional<AdminUser> AdminUserManagementModule::deactivateUser(int id) {
             if (user) {
                 addAuditLog("user_deactivated", "user", id, "system", 0,
                             "Deactivated user: " + user->username, "127.0.0.1");
-                spdlog::info("[AdminApiModule] Deactivated user: {}", user->username);
+                spdlog::info("[AdminUserManagement] Deactivated user: {}", user->username);
             }
             return getUser(id);
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to deactivate user: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to deactivate user: {}", e.what());
     }
 
     return std::nullopt;
@@ -602,7 +602,7 @@ std::optional<AdminUser> AdminUserManagementModule::deactivateUser(int id) {
 std::optional<AdminUser> AdminUserManagementModule::createUser(const AdminUser& user) {
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminUserManagement] No database connection available");
             return std::nullopt;
         }
 
@@ -611,7 +611,7 @@ std::optional<AdminUser> AdminUserManagementModule::createUser(const AdminUser& 
         checkUserStmt.bind(0, user.username);
         auto usernameResults = checkUserStmt.query();
         if (!usernameResults.empty()) {
-            spdlog::warn("[AdminApiModule] Username already exists: {}", user.username);
+            spdlog::warn("[AdminUserManagement] Username already exists: {}", user.username);
             return std::nullopt;
         }
 
@@ -620,7 +620,7 @@ std::optional<AdminUser> AdminUserManagementModule::createUser(const AdminUser& 
         checkEmailStmt.bind(0, user.email);
         auto emailResults = checkEmailStmt.query();
         if (!emailResults.empty()) {
-            spdlog::warn("[AdminApiModule] Email already exists: {}", user.email);
+            spdlog::warn("[AdminUserManagement] Email already exists: {}", user.email);
             return std::nullopt;
         }
 
@@ -683,12 +683,12 @@ std::optional<AdminUser> AdminUserManagementModule::createUser(const AdminUser& 
                 addAuditLog("user_created", "user", newUser.id, "system", 0,
                             "Created user: " + user.username, "127.0.0.1");
 
-                spdlog::info("[AdminApiModule] Created user: {}", user.username);
+                spdlog::info("[AdminUserManagement] Created user: {}", user.username);
                 return newUser;
             }
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to create user: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to create user: {}", e.what());
     }
 
     return std::nullopt;
@@ -1467,7 +1467,7 @@ std::string AdminUserManagementModule::handleExportUsers(const std::map<std::str
 
         return csv.str();
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to export users: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to export users: {}", e.what());
         return "id,username,email,full_name,role,is_active,created_at,last_login_at,last_login_ip\n";
     }
 }
@@ -1547,7 +1547,7 @@ std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std:
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Login history retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get login history: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to get login history: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve login history: " + std::string(e.what()));
     }
 }
@@ -1587,7 +1587,7 @@ std::string AdminUserManagementModule::handleGetLoginStats(const std::map<std::s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Login statistics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get login stats: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to get login stats: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve login statistics: " + std::string(e.what()));
     }
 }
@@ -1671,7 +1671,7 @@ std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Suspicious logins retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get suspicious logins: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to get suspicious logins: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve suspicious logins: " + std::string(e.what()));
     }
 }
@@ -1739,7 +1739,7 @@ std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "IP blacklist retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get IP blacklist: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to get IP blacklist: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve IP blacklist: " + std::string(e.what()));
     }
 }
@@ -1803,7 +1803,7 @@ std::string AdminUserManagementModule::handleAddIpBlacklist(const std::map<std::
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to add IP to blacklist: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to add IP to blacklist: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to add IP to blacklist: " + std::string(e.what()));
     }
 }
@@ -1835,7 +1835,7 @@ std::string AdminUserManagementModule::handleRemoveIpBlacklist(const std::map<st
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to remove IP from blacklist: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to remove IP from blacklist: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to remove IP from blacklist: " + std::string(e.what()));
     }
 }
@@ -1903,7 +1903,7 @@ std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Account lockouts retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get account lockouts: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to get account lockouts: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve account lockouts: " + std::string(e.what()));
     }
 }
@@ -1957,7 +1957,7 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to lock user account: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to lock user account: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to lock user account: " + std::string(e.what()));
     }
 }
@@ -1989,7 +1989,7 @@ std::string AdminUserManagementModule::handleUnlockUserAccount(const std::map<st
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to unlock user account: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to unlock user account: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to unlock user account: " + std::string(e.what()));
     }
 }
@@ -2035,7 +2035,7 @@ std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::ma
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to handle suspicious login: {}", e.what());
+        spdlog::error("[AdminUserManagement] Failed to handle suspicious login: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to handle suspicious login: " + std::string(e.what()));
     }
 }

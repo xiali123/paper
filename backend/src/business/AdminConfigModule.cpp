@@ -391,7 +391,7 @@ std::string AdminConfigModule::handleGetConfigCategories(const std::map<std::str
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Config categories retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get config categories: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get config categories: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve config categories: " + std::string(e.what()));
     }
 }
@@ -445,7 +445,7 @@ std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std:
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Configs retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get configs: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get configs: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve configs: " + std::string(e.what()));
     }
 }
@@ -507,7 +507,7 @@ std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, st
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to update config: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to update config: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update config: " + std::string(e.what()));
     }
 }
@@ -591,7 +591,7 @@ std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Config history retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get config history: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get config history: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve config history: " + std::string(e.what()));
     }
 }
@@ -623,7 +623,7 @@ std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Config summary retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get config summary: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get config summary: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve config summary: " + std::string(e.what()));
     }
 }
@@ -677,7 +677,7 @@ std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Backup jobs retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get backup jobs: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get backup jobs: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve backup jobs: " + std::string(e.what()));
     }
 }
@@ -721,7 +721,7 @@ std::string AdminConfigModule::handleCreateBackupJob(const std::map<std::string,
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to create backup job: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to create backup job: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create backup job: " + std::string(e.what()));
     }
 }
@@ -764,7 +764,7 @@ std::string AdminConfigModule::handleUpdateBackupJob(const std::map<std::string,
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to update backup job: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to update backup job: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update backup job: " + std::string(e.what()));
     }
 }
@@ -796,7 +796,7 @@ std::string AdminConfigModule::handleDeleteBackupJob(const std::map<std::string,
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete backup job: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to delete backup job: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete backup job: " + std::string(e.what()));
     }
 }
@@ -886,7 +886,7 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to trigger backup: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to trigger backup: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to trigger backup: " + std::string(e.what()));
     }
 }
@@ -974,7 +974,7 @@ std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Backup records retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get backup records: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get backup records: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve backup records: " + std::string(e.what()));
     }
 }
@@ -1021,7 +1021,7 @@ std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete backup file: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to delete backup file: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete backup file: " + std::string(e.what()));
     }
 }
@@ -1076,7 +1076,7 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Backup statistics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get backup stats: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get backup stats: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve backup statistics: " + std::string(e.what()));
     }
 }
@@ -1108,7 +1108,7 @@ std::string AdminConfigModule::handleGetNotificationTemplates(const std::map<std
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification templates retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get notification templates: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get notification templates: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve templates: " + std::string(e.what()));
     }
 }
@@ -1138,7 +1138,7 @@ std::string AdminConfigModule::handleCreateNotificationTemplate(const std::map<s
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create notification template");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to create notification template: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to create notification template: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create template: " + std::string(e.what()));
     }
 }
@@ -1167,7 +1167,7 @@ std::string AdminConfigModule::handleUpdateNotificationTemplate(const std::map<s
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update notification template");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to update notification template: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to update notification template: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update template: " + std::string(e.what()));
     }
 }
@@ -1191,7 +1191,7 @@ std::string AdminConfigModule::handleDeleteNotificationTemplate(const std::map<s
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete notification template");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete notification template: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to delete notification template: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete template: " + std::string(e.what()));
     }
 }
@@ -1235,7 +1235,7 @@ std::string AdminConfigModule::handleGetSystemNotifications(const std::map<std::
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "System notifications retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get system notifications: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get system notifications: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve notifications: " + std::string(e.what()));
     }
 }
@@ -1266,7 +1266,7 @@ std::string AdminConfigModule::handleSendNotification(const std::map<std::string
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to send notification");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to send notification: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to send notification: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to send notification: " + std::string(e.what()));
     }
 }
@@ -1305,7 +1305,7 @@ std::string AdminConfigModule::handleGetNotificationHistory(const std::map<std::
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification history retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get notification history: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get notification history: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve history: " + std::string(e.what()));
     }
 }
@@ -1325,7 +1325,7 @@ std::string AdminConfigModule::handleGetNotificationStats(const std::map<std::st
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification statistics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get notification stats: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get notification stats: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }
@@ -1363,7 +1363,7 @@ std::string AdminConfigModule::handleGetCleanupTasks(const std::map<std::string,
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Cleanup tasks retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get cleanup tasks: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get cleanup tasks: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve tasks: " + std::string(e.what()));
     }
 }
@@ -1394,7 +1394,7 @@ std::string AdminConfigModule::handleCreateCleanupTask(const std::map<std::strin
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create cleanup task");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to create cleanup task: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to create cleanup task: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create task: " + std::string(e.what()));
     }
 }
@@ -1425,7 +1425,7 @@ std::string AdminConfigModule::handleUpdateCleanupTask(const std::map<std::strin
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update cleanup task");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to update cleanup task: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to update cleanup task: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update task: " + std::string(e.what()));
     }
 }
@@ -1449,7 +1449,7 @@ std::string AdminConfigModule::handleDeleteCleanupTask(const std::map<std::strin
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete cleanup task or task is system task");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete cleanup task: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to delete cleanup task: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete task: " + std::string(e.what()));
     }
 }
@@ -1479,7 +1479,7 @@ std::string AdminConfigModule::handleTriggerCleanup(const std::map<std::string, 
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to trigger cleanup task");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to trigger cleanup: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to trigger cleanup: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to trigger cleanup: " + std::string(e.what()));
     }
 }
@@ -1522,7 +1522,7 @@ std::string AdminConfigModule::handleGetCleanupHistory(const std::map<std::strin
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Cleanup history retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get cleanup history: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get cleanup history: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve history: " + std::string(e.what()));
     }
 }
@@ -1550,7 +1550,7 @@ std::string AdminConfigModule::handleGetStorageStats(const std::map<std::string,
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Storage statistics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get storage stats: {}", e.what());
+        spdlog::error("[AdminConfig] Failed to get storage stats: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve storage statistics: " + std::string(e.what()));
     }
 }

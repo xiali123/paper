@@ -742,12 +742,12 @@ void AiApiModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix();
 
-    spdlog::info("[AiApiModule] Registering routes with prefix: {}", prefix);
+    spdlog::info("[AiApi] Registering routes with prefix: {}", prefix);
 
     // 接收数据库连接
     database_ = getDatabase();
     if (database_) {
-        spdlog::info("[AiApiModule] ✅ Received injected database connection from ModuleLoader!");
+        spdlog::info("[AiApi] ✅ Received injected database connection from ModuleLoader!");
         impl_->database_ = database_;
     }
 
@@ -760,10 +760,10 @@ void AiApiModule::registerRoutes() {
                 std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
                 database_ = dbPtr;
                 impl_->database_ = dbPtr;
-                spdlog::info("[AiApiModule] ✅ Received shared database connection from global DatabaseModule!");
+                spdlog::info("[AiApi] ✅ Received shared database connection from global DatabaseModule!");
             }
         } catch (const std::exception& e) {
-            spdlog::warn("[AiApiModule] Failed to get global database connection: {}", e.what());
+            spdlog::warn("[AiApi] Failed to get global database connection: {}", e.what());
         }
     }
 
@@ -977,7 +977,7 @@ void AiApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[AiApiModule] Registered 6 routes");
+    spdlog::info("[AiApi] Registered 6 routes");
 }
 
 } // namespace PaperCrawler

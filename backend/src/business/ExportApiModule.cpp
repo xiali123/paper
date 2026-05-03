@@ -75,7 +75,7 @@ public:
     std::vector<Paper> getPapersForExport(const std::vector<int>& paperIds) {
         std::vector<Paper> papers;
         if (!database_) {
-            spdlog::error("[ExportAPI] No database connection");
+            spdlog::error("[ExportApi] No database connection");
             return papers;
         }
 
@@ -107,7 +107,7 @@ public:
                 papers.push_back(paper);
             }
         } catch (const std::exception& e) {
-            spdlog::error("[ExportAPI] Failed to get papers: {}", e.what());
+            spdlog::error("[ExportApi] Failed to get papers: {}", e.what());
         }
         return papers;
     }
@@ -627,11 +627,11 @@ void ExportApiModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix();
 
-    spdlog::info("[ExportApiModule] Registering routes with prefix: {}", prefix);
+    spdlog::info("[ExportApi] Registering routes with prefix: {}", prefix);
     // 🔔 优先级1：使用ModuleLoader注入的数据库连接
     database_ = getDatabase();
     if (database_) {
-        spdlog::info("[ExportApiModule] ✅ Received injected database connection from ModuleLoader!");
+        spdlog::info("[ExportApi] ✅ Received injected database connection from ModuleLoader!");
     }
 
     // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
@@ -642,10 +642,10 @@ void ExportApiModule::registerRoutes() {
                 auto dbInterface = static_cast<IDatabase*>(dbModule);
                 std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
                 database_ = dbPtr;
-                spdlog::info("[ExportApiModule] ✅ Received shared database connection from global DatabaseModule!");
+                spdlog::info("[ExportApi] ✅ Received shared database connection from global DatabaseModule!");
             }
         } catch (const std::exception& e) {
-            spdlog::warn("[ExportApiModule] Failed to get global database connection: {}", e.what());
+            spdlog::warn("[ExportApi] Failed to get global database connection: {}", e.what());
         }
     }
 
@@ -886,7 +886,7 @@ void ExportApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[ExportApiModule] Registered 4 routes");
+    spdlog::info("[ExportApi] Registered 4 routes");
 }
 
 } // namespace PaperCrawler

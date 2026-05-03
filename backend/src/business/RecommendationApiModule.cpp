@@ -1398,12 +1398,12 @@ void RecommendationApiModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix();
 
-    spdlog::info("[RecommendationApiModule] Registering routes with prefix: {}", prefix);
+    spdlog::info("[Recommendation] Registering routes with prefix: {}", prefix);
 
     // 接收数据库连接
     database_ = getDatabase();
     if (database_) {
-        spdlog::info("[RecommendationApiModule] ✅ Received injected database connection from ModuleLoader!");
+        spdlog::info("[Recommendation] ✅ Received injected database connection from ModuleLoader!");
         impl_->database_ = database_;
     }
 
@@ -1416,10 +1416,10 @@ void RecommendationApiModule::registerRoutes() {
                 std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
                 database_ = dbPtr;
                 impl_->database_ = dbPtr;
-                spdlog::info("[RecommendationApiModule] ✅ Received shared database connection from global DatabaseModule!");
+                spdlog::info("[Recommendation] ✅ Received shared database connection from global DatabaseModule!");
             }
         } catch (const std::exception& e) {
-            spdlog::warn("[RecommendationApiModule] Failed to get global database connection: {}", e.what());
+            spdlog::warn("[Recommendation] Failed to get global database connection: {}", e.what());
         }
     }
 
@@ -1796,7 +1796,7 @@ void RecommendationApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[RecommendationApiModule] Registered 7 routes");
+    spdlog::info("[Recommendation] Registered 7 routes");
 }
 
 } // namespace PaperCrawler

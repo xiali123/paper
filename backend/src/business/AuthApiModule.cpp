@@ -25,7 +25,7 @@ namespace PaperCrawler {
 // 默认构造函数实现
 AuthApiModule::AuthApiModule()
     : AuthApiModule(nullptr) {
-    spdlog::info("[Auth] AuthApiModule default constructor (database=nullptr)");
+    spdlog::info("[AuthApi] AuthApiModule default constructor (database=nullptr)");
 }
 
 // 简单JSON构建辅助函数
@@ -90,7 +90,7 @@ public:
         if (securityModule_) {
             securityModule_->initialize();
             securityModule_->start();
-            spdlog::info("[Auth] SecurityModule initialized for password hashing");
+            spdlog::info("[AuthApi] SecurityModule initialized for password hashing");
         }
 
         // 确保默认superadmin用户存在
@@ -119,20 +119,20 @@ public:
                 if (securityModule_) {
                     bool verified = securityModule_->verifyPassword(password, storedHash);
                     if (!verified) {
-                        spdlog::warn("[Auth] Password verification failed for user: {}", usernameOrEmail);
+                        spdlog::warn("[AuthApi] Password verification failed for user: {}", usernameOrEmail);
                     }
                     return verified;
                 } else {
-                    spdlog::error("[Auth] SecurityModule not initialized, falling back to insecure verification");
+                    spdlog::error("[AuthApi] SecurityModule not initialized, falling back to insecure verification");
                     // 降级方案：如果SecurityModule未初始化，仍然拒绝所有登录
                     return false;
                 }
             }
 
-            spdlog::warn("[Auth] User not found: {}", usernameOrEmail);
+            spdlog::warn("[AuthApi] User not found: {}", usernameOrEmail);
             return false;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Password verification failed: {}", e.what());
+            spdlog::error("[AuthApi] Password verification failed: {}", e.what());
             return false;
         }
     }
@@ -144,12 +144,12 @@ public:
             if (result.success) {
                 return result.hash;
             } else {
-                spdlog::error("[Auth] Password hashing failed: {}", result.errorMessage);
+                spdlog::error("[AuthApi] Password hashing failed: {}", result.errorMessage);
                 // 降级方案：使用简单的哈希（仍然比明文好）
                 return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
             }
         } else {
-            spdlog::error("[Auth] SecurityModule not initialized for password hashing");
+            spdlog::error("[AuthApi] SecurityModule not initialized for password hashing");
             // 降级方案：使用简单的哈希
             return "$2a$12$" + std::to_string(std::hash<std::string>{}(password));
         }
@@ -160,7 +160,7 @@ public:
                      const std::string& refreshToken, std::chrono::seconds expiresIn) {
         try {
             if (database_) {
-                spdlog::info("[Auth] Storing session for user_id: {}", userId);
+                spdlog::info("[AuthApi] Storing session for user_id: {}", userId);
 
                 PreparedStatement checkStmt(database_, "SELECT id FROM user_sessions WHERE user_id = ?");
                 checkStmt.bind(0, userId);
@@ -194,7 +194,7 @@ public:
 
             return false;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to store session: {}", e.what());
+            spdlog::error("[AuthApi] Failed to store session: {}", e.what());
             return false;
         }
     }
@@ -208,25 +208,25 @@ public:
                 stmt.bind(0, accessToken);
                 auto results = stmt.query();
 
-                spdlog::info("[Auth] validateSession: Query returned {} rows for token: {}", results.size(), accessToken);
+                spdlog::info("[AuthApi] validateSession: Query returned {} rows for token: {}", results.size(), accessToken);
                 if (!results.empty()) {
                     try {
                         int userId = std::stoi(results[0]["user_id"]);
-                        spdlog::info("[Auth] validateSession: Successfully parsed userId: {}", userId);
+                        spdlog::info("[AuthApi] validateSession: Successfully parsed userId: {}", userId);
                         return userId;
                     } catch (const std::exception& e) {
-                        spdlog::error("[Auth] validateSession: Failed to parse userId: {}", e.what());
+                        spdlog::error("[AuthApi] validateSession: Failed to parse userId: {}", e.what());
                         return std::nullopt;
                     }
                 }
-                spdlog::warn("[Auth] validateSession: No results found for token");
+                spdlog::warn("[AuthApi] validateSession: No results found for token");
                 return std::nullopt;
             }
 
-            spdlog::warn("[Auth] validateSession: No database connection available");
+            spdlog::warn("[AuthApi] validateSession: No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to validate session: {}", e.what());
+            spdlog::error("[AuthApi] Failed to validate session: {}", e.what());
             return std::nullopt;
         }
     }
@@ -242,7 +242,7 @@ public:
 
             return false;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to delete session: {}", e.what());
+            spdlog::error("[AuthApi] Failed to delete session: {}", e.what());
             return false;
         }
     }
@@ -265,7 +265,7 @@ public:
 
             return std::nullopt;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to get refresh token: {}", e.what());
+            spdlog::error("[AuthApi] Failed to get refresh token: {}", e.what());
             return std::nullopt;
         }
     }
@@ -291,10 +291,10 @@ public:
                 return std::nullopt;
             }
 
-            spdlog::warn("[Auth] No database connection available");
+            spdlog::warn("[AuthApi] No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to query user: {}", e.what());
+            spdlog::error("[AuthApi] Failed to query user: {}", e.what());
             return std::nullopt;
         }
     }
@@ -321,31 +321,31 @@ public:
                 return std::nullopt;
             }
 
-            spdlog::warn("[Auth] No database connection available");
+            spdlog::warn("[AuthApi] No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to query user by email: {}", e.what());
+            spdlog::error("[AuthApi] Failed to query user by email: {}", e.what());
             return std::nullopt;
         }
     }
     // 从数据库查询用户（支持用户名或邮箱）
     std::optional<User> getUserByUsernameOrEmail(const std::string& usernameOrEmail) {
         try {
-            spdlog::info("[Auth] getUserByUsernameOrEmail called with: '{}'", usernameOrEmail);
+            spdlog::info("[AuthApi] getUserByUsernameOrEmail called with: '{}'", usernameOrEmail);
 
             if (database_) {
                 PreparedStatement stmt(database_, "SELECT * FROM users WHERE username = ? OR email = ?");
                 stmt.bind(0, usernameOrEmail);
                 stmt.bind(1, usernameOrEmail);
-                spdlog::info("[Auth] Executing SQL: {}", stmt.getSQL());
+                spdlog::info("[AuthApi] Executing SQL: {}", stmt.getSQL());
                 auto results = stmt.query();
 
-                spdlog::info("[Auth] Query returned {} results", results.size());
+                spdlog::info("[AuthApi] Query returned {} results", results.size());
 
                 if (!results.empty()) {
-                    spdlog::info("[Auth] First result keys:");
+                    spdlog::info("[AuthApi] First result keys:");
                     for (const auto& [key, value] : results[0]) {
-                        spdlog::info("[Auth]   {} = '{}'", key, value);
+                        spdlog::info("[AuthApi]   {} = '{}'", key, value);
                     }
 
                     User user;
@@ -356,21 +356,21 @@ public:
                     user.role = results[0]["role"];
 
                     std::string isActiveValue = results[0]["is_active"];
-                    spdlog::info("[Auth] is_active field value: '{}'", isActiveValue);
+                    spdlog::info("[AuthApi] is_active field value: '{}'", isActiveValue);
                     user.active = (isActiveValue == "1" || isActiveValue == "TRUE");
 
-                    spdlog::info("[Auth] User found - id: {}, username: {}, email: {}, active: {}",
+                    spdlog::info("[AuthApi] User found - id: {}, username: {}, email: {}, active: {}",
                                 user.id, user.username, user.email, user.active);
                     return user;
                 }
-                spdlog::warn("[Auth] User not found in database");
+                spdlog::warn("[AuthApi] User not found in database");
                 return std::nullopt;
             }
 
-            spdlog::warn("[Auth] No database connection available");
+            spdlog::warn("[AuthApi] No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to query user: {}", e.what());
+            spdlog::error("[AuthApi] Failed to query user: {}", e.what());
             return std::nullopt;
         }
     }
@@ -403,10 +403,10 @@ public:
                 return std::nullopt;
             }
 
-            spdlog::warn("[Auth] No database connection available");
+            spdlog::warn("[AuthApi] No database connection available");
             return std::nullopt;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to create user: {}", e.what());
+            spdlog::error("[AuthApi] Failed to create user: {}", e.what());
             return std::nullopt;
         }
     }
@@ -431,18 +431,18 @@ public:
             )";
 
             if (database_) {
-                spdlog::info("[Auth] Ensuring user_sessions table exists...");
+                spdlog::info("[AuthApi] Ensuring user_sessions table exists...");
                 if (database_->execute(createSessionsTable)) {
-                    spdlog::info("[Auth] user_sessions table ready");
+                    spdlog::info("[AuthApi] user_sessions table ready");
                     return true;
                 }
                 return false;
             }
 
-            spdlog::warn("[Auth] No database connection available for table initialization");
+            spdlog::warn("[AuthApi] No database connection available for table initialization");
             return false;
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Exception initializing database tables: {}", e.what());
+            spdlog::error("[AuthApi] Exception initializing database tables: {}", e.what());
             return false;
         }
     }
@@ -453,17 +453,17 @@ public:
             // 检查admin用户是否已存在
             auto existingAdmin = getUserByUsername("admin");
             if (existingAdmin) {
-                spdlog::info("[Auth] Default admin user already exists");
+                spdlog::info("[AuthApi] Default admin user already exists");
                 return;
             }
 
             // 创建默认superadmin用户
-            spdlog::info("[Auth] Creating default superadmin user: admin");
+            spdlog::info("[AuthApi] Creating default superadmin user: admin");
 
             // 从环境变量读取初始密码，未设置则拒绝创建
             const char* envPassword = std::getenv("ADMIN_INITIAL_PASSWORD");
             if (!envPassword || std::string(envPassword).empty()) {
-                spdlog::warn("[Auth] ADMIN_INITIAL_PASSWORD env var not set, skipping default admin creation");
+                spdlog::warn("[AuthApi] ADMIN_INITIAL_PASSWORD env var not set, skipping default admin creation");
                 return;
             }
             std::string defaultPassword(envPassword);
@@ -474,11 +474,11 @@ public:
                 if (hashResult.success) {
                     passwordHash = hashResult.hash;
                 } else {
-                    spdlog::error("[Auth] Failed to hash password: {}", hashResult.errorMessage);
+                    spdlog::error("[AuthApi] Failed to hash password: {}", hashResult.errorMessage);
                     return;
                 }
             } else {
-                spdlog::error("[Auth] SecurityModule not available, cannot create admin safely");
+                spdlog::error("[AuthApi] SecurityModule not available, cannot create admin safely");
                 return;
             }
 
@@ -488,12 +488,12 @@ public:
                       "('admin', 'admin@papercrawler.com', 'Super Administrator', ?, 'superadmin', 1)");
                 stmt.bind(0, passwordHash);
                 stmt.execute();
-                spdlog::info("[Auth] Default superadmin created");
+                spdlog::info("[AuthApi] Default superadmin created");
             } else {
-                spdlog::warn("[Auth] No database connection available, cannot create default superadmin");
+                spdlog::warn("[AuthApi] No database connection available, cannot create default superadmin");
             }
         } catch (const std::exception& e) {
-            spdlog::error("[Auth] Failed to ensure default superadmin: {}", e.what());
+            spdlog::error("[AuthApi] Failed to ensure default superadmin: {}", e.what());
         }
     }
 };
@@ -511,7 +511,7 @@ void AuthApiModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix(); // "/api/auth"
 
-    spdlog::info("[AuthApiModule] Registering routes with prefix: {}", prefix);
+    spdlog::info("[AuthApi] Registering routes with prefix: {}", prefix);
 
     // 🔔 优先级1：使用ModuleLoader注入的数据库连接（BusinessModuleBase.setDatabase()）
     impl_->database_ = getDatabase();
@@ -671,9 +671,9 @@ void AuthApiModule::registerRoutes() {
                 EmailResult welcomeResult = impl_->emailService_.sendTemplate(
                     newUser->email, "Welcome to PaperCrawler", "welcome", welcomeVars);
                 if (welcomeResult.success) {
-                    spdlog::info("[Auth] Welcome email sent to {}", newUser->email);
+                    spdlog::info("[AuthApi] Welcome email sent to {}", newUser->email);
                 } else {
-                    spdlog::warn("[Auth] Failed to send welcome email to {}: {}",
+                    spdlog::warn("[AuthApi] Failed to send welcome email to {}: {}",
                                  newUser->email, welcomeResult.errorMessage);
                 }
 
@@ -802,7 +802,7 @@ void AuthApiModule::registerRoutes() {
 
             // 存储会话到数据库
             if (!impl_->storeSession(user.id, accessToken, refreshToken, impl_->config_.accessTokenExpiry)) {
-                spdlog::error("[Auth] Failed to store session in database");
+                spdlog::error("[AuthApi] Failed to store session in database");
                 impl_->stats_.failedLogins++;
                 HttpResponse response;
                 response.statusCode = HTTP::INTERNAL_ERROR;
@@ -843,9 +843,9 @@ void AuthApiModule::registerRoutes() {
                 updateOk = updateStmt.execute();
             }
             if (!updateOk) {
-                spdlog::error("[Auth] Failed to update last_login_at for user {}", user.id);
+                spdlog::error("[AuthApi] Failed to update last_login_at for user {}", user.id);
             } else {
-                spdlog::info("[Auth] Updated last_login_at for user {} (id={})", user.username, user.id);
+                spdlog::info("[AuthApi] Updated last_login_at for user {} (id={})", user.username, user.id);
                 if (impl_->database_) {
                     PreparedStatement histStmt(impl_->database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
                     histStmt.bind(0, user.id);
@@ -1314,7 +1314,7 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApiModule] Registered 9 routes");
+    spdlog::info("[AuthApi] Registered 9 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {
@@ -1394,7 +1394,7 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
 
     // 存储会话到数据库（替代原来的mockTokens_存储）
     if (!impl_->storeSession(user.id, accessToken, refreshToken, impl_->config_.accessTokenExpiry)) {
-        spdlog::error("[Auth] Failed to store session in database");
+        spdlog::error("[AuthApi] Failed to store session in database");
         impl_->stats_.failedLogins++;
         return buildJsonResponse({
             {"success", "false"},
@@ -1415,9 +1415,9 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
         updateOk = updateStmt.execute();
     }
     if (!updateOk) {
-        spdlog::error("[Auth] handleLogin: Failed to update last_login_at for user {}", user.id);
+        spdlog::error("[AuthApi] handleLogin: Failed to update last_login_at for user {}", user.id);
     } else {
-        spdlog::info("[Auth] handleLogin: Updated last_login_at for user {} (id={})", user.username, user.id);
+        spdlog::info("[AuthApi] handleLogin: Updated last_login_at for user {} (id={})", user.username, user.id);
         if (impl_->database_) {
             PreparedStatement histStmt(impl_->database_, "INSERT INTO login_history (user_id, ip_address, success) VALUES (?, ?, 1)");
             histStmt.bind(0, user.id);
@@ -1490,39 +1490,39 @@ RefreshTokenResponse AuthApiModule::refreshToken(const RefreshTokenRequest& requ
 }
 
 std::optional<User> AuthApiModule::getCurrentUser(const std::string& accessToken) {
-    spdlog::info("[Auth] getCurrentUser called with token: {}", accessToken);
+    spdlog::info("[AuthApi] getCurrentUser called with token: {}", accessToken);
 
     // 从数据库验证会话（替代原来的mockTokens_查找）
     auto userIdOpt = impl_->validateSession(accessToken);
     if (!userIdOpt.has_value()) {
-        spdlog::warn("[Auth] Token validation failed for: {}", accessToken);
+        spdlog::warn("[AuthApi] Token validation failed for: {}", accessToken);
         return std::nullopt;
     }
 
     int userId = *userIdOpt;
-    spdlog::info("[Auth] Token validated successfully for userId: {}", userId);
+    spdlog::info("[AuthApi] Token validated successfully for userId: {}", userId);
 
     // 从数据库查询用户（使用impl_->database_连接）
     try {
         std::vector<std::map<std::string, std::string>> results;
 
-        spdlog::info("[Auth] Querying user data for userId: {}", userId);
-        spdlog::info("[Auth] impl_->database_ available: {}", impl_->database_ != nullptr);
+        spdlog::info("[AuthApi] Querying user data for userId: {}", userId);
+        spdlog::info("[AuthApi] impl_->database_ available: {}", impl_->database_ != nullptr);
 
         // ✅ 修复：使用impl_->database_而不是直接访问database_
         if (impl_->database_) {
             PreparedStatement stmt(impl_->database_, "SELECT * FROM users WHERE id = ?");
             stmt.bind(0, userId);
-            spdlog::info("[Auth] Executing SQL: {}", stmt.getSQL());
+            spdlog::info("[AuthApi] Executing SQL: {}", stmt.getSQL());
             results = stmt.query();
-            spdlog::info("[Auth] Query returned {} rows", results.size());
+            spdlog::info("[AuthApi] Query returned {} rows", results.size());
         } else {
-            spdlog::warn("[Auth] No database connection available!");
+            spdlog::warn("[AuthApi] No database connection available!");
             return std::nullopt;
         }
 
         if (!results.empty()) {
-            spdlog::info("[Auth] User query successful, parsing user data");
+            spdlog::info("[AuthApi] User query successful, parsing user data");
             User user;
             user.id = std::stoi(results[0]["id"]);
             user.username = results[0]["username"];
@@ -1530,14 +1530,14 @@ std::optional<User> AuthApiModule::getCurrentUser(const std::string& accessToken
             user.fullName = results[0]["full_name"];
             user.role = results[0]["role"];
             user.active = (results[0]["is_active"] == "1" || results[0]["is_active"] == "TRUE");
-            spdlog::info("[Auth] User data parsed successfully: id={}, username={}, active={}", user.id, user.username, user.active);
+            spdlog::info("[AuthApi] User data parsed successfully: id={}, username={}, active={}", user.id, user.username, user.active);
             return user;
         }
 
-        spdlog::warn("[Auth] User query returned empty results for userId: {}", userId);
+        spdlog::warn("[AuthApi] User query returned empty results for userId: {}", userId);
         return std::nullopt;
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to query user: {}", e.what());
+        spdlog::error("[AuthApi] Failed to query user: {}", e.what());
         return std::nullopt;
     }
 }
@@ -1561,7 +1561,7 @@ std::optional<User> AuthApiModule::registerUser(const RegisterRequest& request) 
             }
         }
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to check email existence: {}", e.what());
+        spdlog::error("[AuthApi] Failed to check email existence: {}", e.what());
     }
 
     // 哈希密码
@@ -1615,7 +1615,7 @@ bool AuthApiModule::changePassword(int userId, const ChangePasswordRequest& requ
         revokeAllUserTokens(userId);
         return true;
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to change password: {}", e.what());
+        spdlog::error("[AuthApi] Failed to change password: {}", e.what());
         return false;
     }
 }
@@ -1647,7 +1647,7 @@ bool AuthApiModule::initiatePasswordReset(const std::string& email) {
             recordStmt.bind(3, token);
             recordStmt.execute();
 
-            spdlog::info("[Auth] Password reset token generated for user {} (id={})", username, userId);
+            spdlog::info("[AuthApi] Password reset token generated for user {} (id={})", username, userId);
 
             // 构造重置URL和模板变量
             std::string resetUrl = std::string("/reset-password?token=") + token;
@@ -1662,10 +1662,10 @@ bool AuthApiModule::initiatePasswordReset(const std::string& email) {
                 email, "Password Reset Request", "password_reset", vars);
             if (emailResult.success) {
                 emailStatus = "sent";
-                spdlog::info("[Auth] Password reset email sent to {} (messageId={})", email, emailResult.messageId);
+                spdlog::info("[AuthApi] Password reset email sent to {} (messageId={})", email, emailResult.messageId);
             } else {
                 emailStatus = "failed";
-                spdlog::error("[Auth] Failed to send password reset email to {}: {}", email, emailResult.errorMessage);
+                spdlog::error("[AuthApi] Failed to send password reset email to {}: {}", email, emailResult.errorMessage);
             }
 
             // 记录邮件发送日志（状态反映实际发送结果）
@@ -1682,7 +1682,7 @@ bool AuthApiModule::initiatePasswordReset(const std::string& email) {
 
         return false;
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to initiate password reset for email {}: {}", email, e.what());
+        spdlog::error("[AuthApi] Failed to initiate password reset for email {}: {}", email, e.what());
         return false;
     }
 }
@@ -1700,12 +1700,12 @@ bool AuthApiModule::completePasswordReset(const std::string& token, const std::s
         auto tokenResults = tokenStmt.query();
 
         if (tokenResults.empty()) {
-            spdlog::warn("[Auth] Invalid password reset token");
+            spdlog::warn("[AuthApi] Invalid password reset token");
             return false;
         }
 
         if (!tokenResults[0]["used_at"].empty()) {
-            spdlog::warn("[Auth] Password reset token already used");
+            spdlog::warn("[AuthApi] Password reset token already used");
             return false;
         }
 
@@ -1715,14 +1715,14 @@ bool AuthApiModule::completePasswordReset(const std::string& token, const std::s
         expiryStmt.bind(0, token);
         auto expiryResults = expiryStmt.query();
         if (expiryResults.empty() || std::stoi(expiryResults[0]["cnt"]) == 0) {
-            spdlog::warn("[Auth] Password reset token expired");
+            spdlog::warn("[AuthApi] Password reset token expired");
             return false;
         }
 
         int userId = std::stoi(tokenResults[0]["user_id"]);
 
         if (newPassword.length() < 6) {
-            spdlog::warn("[Auth] New password too weak");
+            spdlog::warn("[AuthApi] New password too weak");
             return false;
         }
 
@@ -1732,7 +1732,7 @@ bool AuthApiModule::completePasswordReset(const std::string& token, const std::s
         updateStmt.bind(0, passwordHash);
         updateStmt.bind(1, userId);
         if (!updateStmt.execute()) {
-            spdlog::error("[Auth] Failed to update password for user {}", userId);
+            spdlog::error("[AuthApi] Failed to update password for user {}", userId);
             return false;
         }
 
@@ -1757,11 +1757,11 @@ bool AuthApiModule::completePasswordReset(const std::string& token, const std::s
         // 密码重置后撤销所有旧会话
         revokeAllUserTokens(userId);
 
-        spdlog::info("[Auth] Password reset completed for user {} (id={})", userId, userId);
+        spdlog::info("[AuthApi] Password reset completed for user {} (id={})", userId, userId);
 
         return true;
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to complete password reset: {}", e.what());
+        spdlog::error("[AuthApi] Failed to complete password reset: {}", e.what());
         return false;
     }
 }
@@ -1795,7 +1795,7 @@ std::string AuthApiModule::generateResetToken(int userId, const std::string& ema
             stmt.execute();
         }
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to store reset token: {}", e.what());
+        spdlog::error("[AuthApi] Failed to store reset token: {}", e.what());
     }
 
     return tokenStr;
@@ -1827,7 +1827,7 @@ bool AuthApiModule::revokeToken(const std::string& token) {
         stmt.bind(0, token);
         return stmt.execute();
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to revoke token: {}", e.what());
+        spdlog::error("[AuthApi] Failed to revoke token: {}", e.what());
         return false;
     }
 }
@@ -1840,7 +1840,7 @@ bool AuthApiModule::revokeAllUserTokens(int userId) {
         stmt.bind(0, userId);
         return stmt.execute();
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] Failed to revoke all user tokens: {}", e.what());
+        spdlog::error("[AuthApi] Failed to revoke all user tokens: {}", e.what());
         return false;
     }
 }
@@ -1913,7 +1913,7 @@ std::string AuthApiModule::handleRefreshToken(const std::string& body) {
         err["error"] = "Invalid JSON format";
         return err.dump();
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] handleRefreshToken: {}", e.what());
+        spdlog::error("[AuthApi] handleRefreshToken: {}", e.what());
         nlohmann::json err;
         err["success"] = false;
         err["error"] = "Internal server error";
@@ -2026,9 +2026,9 @@ std::string AuthApiModule::handleRegister(const std::string& body) {
             EmailResult welcomeResult = impl_->emailService_.sendTemplate(
                 newUser->email, "Welcome to PaperCrawler", "welcome", welcomeVars);
             if (welcomeResult.success) {
-                spdlog::info("[Auth] Welcome email sent to {}", newUser->email);
+                spdlog::info("[AuthApi] Welcome email sent to {}", newUser->email);
             } else {
-                spdlog::warn("[Auth] Failed to send welcome email to {}: {}",
+                spdlog::warn("[AuthApi] Failed to send welcome email to {}: {}",
                              newUser->email, welcomeResult.errorMessage);
             }
 
@@ -2140,7 +2140,7 @@ std::string AuthApiModule::handleChangePassword(const std::string& body, const s
             {"error", "Invalid JSON format"}
         }, HTTP::BAD_REQUEST);
     } catch (const std::exception& e) {
-        spdlog::error("[Auth] handleChangePassword: {}", e.what());
+        spdlog::error("[AuthApi] handleChangePassword: {}", e.what());
         return buildJsonResponse({
             {"success", "false"},
             {"error", "Internal server error"}

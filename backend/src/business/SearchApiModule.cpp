@@ -113,7 +113,7 @@ public:
             recordSearchHistory(query, "basic", papers.size());
 
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to search papers: {}", e.what());
+            spdlog::error("[SearchApi] Failed to search papers: {}", e.what());
         }
         return papers;
     }
@@ -130,7 +130,7 @@ public:
                 return std::stoi(results[0]["count"]);
             }
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to get count: {}", e.what());
+            spdlog::error("[SearchApi] Failed to get count: {}", e.what());
         }
         return 0;
     }
@@ -148,7 +148,7 @@ public:
                 .bind(3, resultCount).bind(4, 0).bind(5, "");
             stmt.execute();
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to record search history: {}", e.what());
+            spdlog::error("[SearchApi] Failed to record search history: {}", e.what());
         }
     }
 
@@ -177,7 +177,7 @@ public:
                 suggestions.push_back(sug);
             }
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to get suggestions: {}", e.what());
+            spdlog::error("[SearchApi] Failed to get suggestions: {}", e.what());
         }
         return suggestions;
     }
@@ -206,7 +206,7 @@ public:
                 trending.push_back(t);
             }
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to get trending searches: {}", e.what());
+            spdlog::error("[SearchApi] Failed to get trending searches: {}", e.what());
         }
         return trending;
     }
@@ -236,7 +236,7 @@ public:
                 history.push_back(h);
             }
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to get search history: {}", e.what());
+            spdlog::error("[SearchApi] Failed to get search history: {}", e.what());
         }
         return history;
     }
@@ -249,7 +249,7 @@ public:
             stmt.bind(0, userId);
             return stmt.execute();
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to clear search history: {}", e.what());
+            spdlog::error("[SearchApi] Failed to clear search history: {}", e.what());
             return false;
         }
     }
@@ -269,7 +269,7 @@ public:
             stmt.bind(0, userId).bind(1, name).bind(2, jsonParams);
             return stmt.execute();
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to save search: {}", e.what());
+            spdlog::error("[SearchApi] Failed to save search: {}", e.what());
             return false;
         }
     }
@@ -293,7 +293,7 @@ public:
                 saved[row.at("name")] = row.at("query_params");
             }
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to get saved searches: {}", e.what());
+            spdlog::error("[SearchApi] Failed to get saved searches: {}", e.what());
         }
         return saved;
     }
@@ -307,7 +307,7 @@ public:
             stmt.bind(0, userId).bind(1, name);
             return stmt.execute();
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to delete saved search: {}", e.what());
+            spdlog::error("[SearchApi] Failed to delete saved search: {}", e.what());
             return false;
         }
     }
@@ -348,7 +348,7 @@ public:
                 stats.topQueries.push_back(row.at("query"));
             }
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to get stats: {}", e.what());
+            spdlog::error("[SearchApi] Failed to get stats: {}", e.what());
         }
         return stats;
     }
@@ -364,7 +364,7 @@ public:
                 .bind(2, paper.keywords).bind(3, paper.id);
             return stmt.execute();
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to update search index: {}", e.what());
+            spdlog::error("[SearchApi] Failed to update search index: {}", e.what());
             return false;
         }
     }
@@ -386,7 +386,7 @@ public:
             PreparedStatement stmt(database_, "OPTIMIZE TABLE papers");
             return stmt.execute();
         } catch (const std::exception& e) {
-            spdlog::error("[SearchAPI] Failed to rebuild search index: {}", e.what());
+            spdlog::error("[SearchApi] Failed to rebuild search index: {}", e.what());
             return false;
         }
     }
@@ -458,12 +458,12 @@ SearchResult SearchApiModule::search(const std::string& query, SearchType type, 
                 result.totalPages = (result.total + limit - 1) / limit;
                 usedMeilisearch   = true;
 
-                spdlog::debug("[SearchAPI] Meilisearch returned {} hits for '{}'",
+                spdlog::debug("[SearchApi] Meilisearch returned {} hits for '{}'",
                               meiliResp.hits.size(), query);
             }
         }
     } catch (const std::exception& e) {
-        spdlog::warn("[SearchAPI] Meilisearch unavailable, falling back to MySQL: {}", e.what());
+        spdlog::warn("[SearchApi] Meilisearch unavailable, falling back to MySQL: {}", e.what());
     }
 
     // Fallback to MySQL FULLTEXT search
@@ -630,7 +630,7 @@ std::string SearchApiModule::callMeilisearchAPI(const std::string& endpoint,
         return resp;
 
     } catch (const std::exception& e) {
-        spdlog::error("[SearchAPI] callMeilisearchAPI error: {}", e.what());
+        spdlog::error("[SearchApi] callMeilisearchAPI error: {}", e.what());
         return "";
     }
 }
@@ -684,7 +684,7 @@ SearchResult SearchApiModule::parseMeilisearchResponse(const std::string& respon
             }
         }
     } catch (const std::exception& e) {
-        spdlog::error("[SearchAPI] parseMeilisearchResponse error: {}", e.what());
+        spdlog::error("[SearchApi] parseMeilisearchResponse error: {}", e.what());
     }
 
     return result;

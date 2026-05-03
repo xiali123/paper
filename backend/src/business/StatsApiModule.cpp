@@ -452,12 +452,12 @@ void StatsApiModule::registerRoutes() {
     auto& router = Router::getInstance();
     std::string prefix = getRoutePrefix(); // "/api/stats"
 
-    spdlog::info("[StatsApiModule] Registering routes with prefix: {}", prefix);
+    spdlog::info("[StatsApi] Registering routes with prefix: {}", prefix);
 
     // 🔔 优先级1：使用ModuleLoader注入的数据库连接
     database_ = getDatabase();
     if (database_) {
-        spdlog::info("[StatsApiModule] ✅ Received injected database connection from ModuleLoader!");
+        spdlog::info("[StatsApi] ✅ Received injected database connection from ModuleLoader!");
     }
 
     // 🔔 优先级2：尝试从全局DatabaseModule获取（如果注入失败）
@@ -468,10 +468,10 @@ void StatsApiModule::registerRoutes() {
                 auto dbInterface = static_cast<IDatabase*>(dbModule);
                 std::shared_ptr<IDatabase> dbPtr(dbInterface, [](IDatabase*) {});
                 database_ = dbPtr;
-                spdlog::info("[StatsApiModule] ✅ Received shared database connection from global DatabaseModule!");
+                spdlog::info("[StatsApi] ✅ Received shared database connection from global DatabaseModule!");
             }
         } catch (const std::exception& e) {
-            spdlog::warn("[StatsApiModule] Failed to get global database connection: {}", e.what());
+            spdlog::warn("[StatsApi] Failed to get global database connection: {}", e.what());
         }
     }
 
@@ -552,7 +552,7 @@ void StatsApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[StatsApiModule] Registered 6 routes");
+    spdlog::info("[StatsApi] Registered 6 routes");
 }
 
 std::string StatsApiModule::handleStats() {
@@ -560,7 +560,7 @@ std::string StatsApiModule::handleStats() {
     std::string cacheKey = CacheKeys::stats("overview");
     auto cached = QueryCache::instance().get(cacheKey);
     if (cached) {
-        spdlog::debug("[StatsApiModule] Stats overview cache HIT");
+        spdlog::debug("[StatsApi] Stats overview cache HIT");
         return *cached;
     }
 
@@ -607,7 +607,7 @@ std::string StatsApiModule::handleStats() {
         QueryCache::instance().put(cacheKey, responseBody, CacheTTL::STATS);
         return responseBody;
     } catch (const std::exception& e) {
-        spdlog::error("[StatsApiModule] Error in handleStats: {}", e.what());
+        spdlog::error("[StatsApi] Error in handleStats: {}", e.what());
         std::ostringstream json;
         json << "{\n";
         json << "  \"success\": false,\n";

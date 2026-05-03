@@ -110,7 +110,7 @@ void AdminSystemModule::initializeModuleInfo() {
         impl_->modules_[name] = info;
     }
 
-    spdlog::info("[AdminApiModule] Initialized module info with {} modules", impl_->modules_.size());
+    spdlog::info("[AdminSystem] Initialized module info with {} modules", impl_->modules_.size());
 }
 
 std::vector<ModuleInfo> AdminSystemModule::listModules() {
@@ -134,12 +134,12 @@ bool AdminSystemModule::enableModule(const std::string& moduleName) {
 
     auto it = impl_->modules_.find(moduleName);
     if (it == impl_->modules_.end()) {
-        spdlog::warn("[AdminApiModule] Module not found: {}", moduleName);
+        spdlog::warn("[AdminSystem] Module not found: {}", moduleName);
         return false;
     }
 
     if (it->second.enabled) {
-        spdlog::info("[AdminApiModule] Module already enabled: {}", moduleName);
+        spdlog::info("[AdminSystem] Module already enabled: {}", moduleName);
         return true;
     }
 
@@ -150,7 +150,7 @@ bool AdminSystemModule::enableModule(const std::string& moduleName) {
     addAuditLog("module_enabled", "module", 0, "system", 0,
                 "Enabled module: " + moduleName, "127.0.0.1");
 
-    spdlog::info("[AdminApiModule] Enabled module: {}", moduleName);
+    spdlog::info("[AdminSystem] Enabled module: {}", moduleName);
     return true;
 }
 
@@ -159,12 +159,12 @@ bool AdminSystemModule::disableModule(const std::string& moduleName) {
 
     auto it = impl_->modules_.find(moduleName);
     if (it == impl_->modules_.end()) {
-        spdlog::warn("[AdminApiModule] Module not found: {}", moduleName);
+        spdlog::warn("[AdminSystem] Module not found: {}", moduleName);
         return false;
     }
 
     if (!it->second.enabled) {
-        spdlog::info("[AdminApiModule] Module already disabled: {}", moduleName);
+        spdlog::info("[AdminSystem] Module already disabled: {}", moduleName);
         return true;
     }
 
@@ -174,7 +174,7 @@ bool AdminSystemModule::disableModule(const std::string& moduleName) {
     addAuditLog("module_disabled", "module", 0, "system", 0,
                 "Disabled module: " + moduleName, "127.0.0.1");
 
-    spdlog::info("[AdminApiModule] Disabled module: {}", moduleName);
+    spdlog::info("[AdminSystem] Disabled module: {}", moduleName);
     return true;
 }
 
@@ -210,7 +210,7 @@ std::string AdminSystemModule::uploadModule(const std::string& fileData, const s
     outFile.write(fileData.data(), fileData.size());
     outFile.close();
 
-    spdlog::info("[AdminApiModule] Module uploaded: {} -> {}", filename, filePath);
+    spdlog::info("[AdminSystem] Module uploaded: {} -> {}", filename, filePath);
     return filePath;
 }
 
@@ -250,11 +250,11 @@ bool AdminSystemModule::installModule(const std::string& moduleName, const std::
 
         impl_->modules_[moduleName] = info;
 
-        spdlog::info("[AdminApiModule] Module installed: {}", moduleName);
+        spdlog::info("[AdminSystem] Module installed: {}", moduleName);
         return true;
     }
 
-    spdlog::error("[AdminApiModule] Failed to install module: {}", moduleName);
+    spdlog::error("[AdminSystem] Failed to install module: {}", moduleName);
     return false;
 }
 
@@ -269,11 +269,11 @@ bool AdminSystemModule::uninstallModule(const std::string& moduleName) {
         std::lock_guard<std::mutex> lock(modulesMutex_);
         impl_->modules_.erase(moduleName);
 
-        spdlog::info("[AdminApiModule] Module uninstalled: {}", moduleName);
+        spdlog::info("[AdminSystem] Module uninstalled: {}", moduleName);
         return true;
     }
 
-    spdlog::error("[AdminApiModule] Failed to uninstall module: {}", moduleName);
+    spdlog::error("[AdminSystem] Failed to uninstall module: {}", moduleName);
     return false;
 }
 
@@ -288,11 +288,11 @@ bool AdminSystemModule::reloadModule(const std::string& moduleName) {
             it->second.lastLoaded = std::chrono::system_clock::now();
         }
 
-        spdlog::info("[AdminApiModule] Module reloaded: {}", moduleName);
+        spdlog::info("[AdminSystem] Module reloaded: {}", moduleName);
         return true;
     }
 
-    spdlog::error("[AdminApiModule] Failed to reload module: {}", moduleName);
+    spdlog::error("[AdminSystem] Failed to reload module: {}", moduleName);
     return false;
 }
 
@@ -316,9 +316,9 @@ std::vector<ModuleInfo> AdminSystemModule::scanModules(const std::string& direct
             result.push_back(info);
         }
 
-        spdlog::info("[AdminApiModule] Scanned {} modules in {}", result.size(), directory);
+        spdlog::info("[AdminSystem] Scanned {} modules in {}", result.size(), directory);
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to scan modules: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to scan modules: {}", e.what());
     }
 
     return result;
@@ -573,7 +573,7 @@ AdminStats AdminSystemModule::getStats() {
 
     try {
         if (!database_) {
-            spdlog::error("[AdminApiModule] No database connection available");
+            spdlog::error("[AdminSystem] No database connection available");
             return stats;
         }
 
@@ -617,7 +617,7 @@ AdminStats AdminSystemModule::getStats() {
             }
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get stats: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to get stats: {}", e.what());
     }
 
     return stats;
@@ -706,7 +706,7 @@ std::string AdminSystemModule::handleListModules(const std::map<std::string, std
     response << "\"data\":" << modulesJson.str();
     response << "}";
 
-    spdlog::debug("[AdminApiModule] handleListModules returning: {}", response.str());
+    spdlog::debug("[AdminSystem] handleListModules returning: {}", response.str());
     return response.str();
 }
 
@@ -923,7 +923,7 @@ std::string AdminSystemModule::handleGetSystemMetrics(const std::map<std::string
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "System metrics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get system metrics: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to get system metrics: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve system metrics: " + std::string(e.what()));
     }
 }
@@ -968,7 +968,7 @@ std::string AdminSystemModule::handleGetServiceHealth(const std::map<std::string
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Service health retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get service health: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to get service health: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve service health: " + std::string(e.what()));
     }
 }
@@ -1078,7 +1078,7 @@ std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "System logs retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get system logs: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to get system logs: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve system logs: " + std::string(e.what()));
     }
 }
@@ -1125,7 +1125,7 @@ std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Log statistics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get log stats: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to get log stats: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve log statistics: " + std::string(e.what()));
     }
 }
@@ -1156,7 +1156,7 @@ std::string AdminSystemModule::handleCleanLogs(const std::map<std::string, std::
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to clean logs: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to clean logs: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to clean logs: " + std::string(e.what()));
     }
 }
@@ -1207,7 +1207,7 @@ std::string AdminSystemModule::handleGetPerformanceMetrics(const std::map<std::s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Performance metrics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get performance metrics: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to get performance metrics: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve performance metrics: " + std::string(e.what()));
     }
 }
@@ -1252,7 +1252,7 @@ std::string AdminSystemModule::handleGetSlowQueries(const std::map<std::string, 
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Slow queries retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get slow queries: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to get slow queries: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve slow queries: " + std::string(e.what()));
     }
 }
@@ -1346,7 +1346,7 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Performance bottlenecks analyzed", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to analyze bottlenecks: {}", e.what());
+        spdlog::error("[AdminSystem] Failed to analyze bottlenecks: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to analyze bottlenecks: " + std::string(e.what()));
     }
 }

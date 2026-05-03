@@ -107,7 +107,7 @@ public:
         std::string cachedPdfPath = cacheDirectory_ + "/" + contentHash + ".pdf";
 
         if (std::filesystem::exists(cachedPdfPath)) {
-            spdlog::info("[LatexApiModule] Cache hit for hash: {}", contentHash);
+            spdlog::info("[LatexApi] Cache hit for hash: {}", contentHash);
             return cachedPdfPath;
         }
 
@@ -120,9 +120,9 @@ public:
 
         try {
             std::filesystem::copy_file(sourcePdfPath, cachedPdfPath, std::filesystem::copy_options::overwrite_existing);
-            spdlog::info("[LatexApiModule] Cached PDF: {} -> {}", sourcePdfPath, cachedPdfPath);
+            spdlog::info("[LatexApi] Cached PDF: {} -> {}", sourcePdfPath, cachedPdfPath);
         } catch (const std::exception& e) {
-            spdlog::error("[LatexApiModule] Failed to cache PDF: {}", e.what());
+            spdlog::error("[LatexApi] Failed to cache PDF: {}", e.what());
         }
     }
 
@@ -143,12 +143,12 @@ public:
 
                     if (age > maxAge) {
                         std::filesystem::remove(entry.path());
-                        spdlog::info("[LatexApiModule] Removed old cache: {}", entry.path().filename().string());
+                        spdlog::info("[LatexApi] Removed old cache: {}", entry.path().filename().string());
                     }
                 }
             }
         } catch (const std::exception& e) {
-            spdlog::error("[LatexApiModule] Failed to clean old cache: {}", e.what());
+            spdlog::error("[LatexApi] Failed to clean old cache: {}", e.what());
         }
     }
 
@@ -162,7 +162,7 @@ public:
                 }
             }
         } catch (const std::exception& e) {
-            spdlog::error("[LatexApiModule] Failed to calculate cache size: {}", e.what());
+            spdlog::error("[LatexApi] Failed to calculate cache size: {}", e.what());
         }
         return totalSize;
     }
@@ -174,17 +174,17 @@ public:
 
 LatexApiModule::LatexApiModule()
     : LatexApiModule(nullptr) {
-    spdlog::info("[LatexApiModule] Default constructor called");
+    spdlog::info("[LatexApi] Default constructor called");
 }
 
 LatexApiModule::LatexApiModule(std::shared_ptr<IDatabase> database)
     : impl_(std::make_unique<Impl>(database)), database_(database) {
-    spdlog::info("[LatexApiModule] Constructor with database");
+    spdlog::info("[LatexApi] Constructor with database");
     initializeBuiltInTemplates();
 }
 
 LatexApiModule::~LatexApiModule() {
-    spdlog::info("[LatexApiModule] Destructor called");
+    spdlog::info("[LatexApi] Destructor called");
 }
 
 // ============================================================================
@@ -537,7 +537,7 @@ void LatexApiModule::registerRoutes() {
         return response;
     });
 
-    spdlog::info("[LatexApiModule] Routes registered successfully");
+    spdlog::info("[LatexApi] Routes registered successfully");
 }
 
 // ============================================================================
@@ -813,7 +813,7 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
 
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        spdlog::error("[LatexApiModule] Missing document ID in PDF download request");
+        spdlog::error("[LatexApi] Missing document ID in PDF download request");
         response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Missing document ID");
@@ -824,11 +824,11 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         int id = std::stoi(idIt->second);
         std::string pdfPath = impl_->pdfDirectory_ + "/document_" + std::to_string(id) + ".pdf";
 
-        spdlog::info("[LatexApiModule] PDF download request for document: {}, path: {}", id, pdfPath);
+        spdlog::info("[LatexApi] PDF download request for document: {}, path: {}", id, pdfPath);
 
         // Check file exists, create minimal valid PDF if not
         if (!std::filesystem::exists(pdfPath)) {
-            spdlog::warn("[LatexApiModule] PDF file not found, creating placeholder: {}", pdfPath);
+            spdlog::warn("[LatexApi] PDF file not found, creating placeholder: {}", pdfPath);
             std::ofstream pdf(pdfPath, std::ios::binary);
             // Minimal valid PDF with one page
             const char* minimalPdf =
@@ -892,16 +892,16 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         // Set response body (binary data in string)
         response.body = std::string(fileData.begin(), fileData.end());
 
-        spdlog::info("[LatexApiModule] PDF sent successfully: {} bytes", fileSize);
+        spdlog::info("[LatexApi] PDF sent successfully: {} bytes", fileSize);
         return response;
     } catch (const std::invalid_argument& e) {
-        spdlog::error("[LatexApiModule] Invalid document ID: {}", idIt->second);
+        spdlog::error("[LatexApi] Invalid document ID: {}", idIt->second);
         response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Invalid document ID: " + idIt->second);
         return response;
     } catch (const std::exception& e) {
-        spdlog::error("[LatexApiModule] PDF download error: {}", e.what());
+        spdlog::error("[LatexApi] PDF download error: {}", e.what());
         response.statusCode = HTTP::INTERNAL_ERROR;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
@@ -914,7 +914,7 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
 
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        spdlog::error("[LatexApiModule] Missing project ID in PDF download request");
+        spdlog::error("[LatexApi] Missing project ID in PDF download request");
         response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Missing project ID");
@@ -925,11 +925,11 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
         int id = std::stoi(idIt->second);
         std::string pdfPath = impl_->pdfDirectory_ + "/project_" + std::to_string(id) + ".pdf";
 
-        spdlog::info("[LatexApiModule] PDF download request for project: {}, path: {}", id, pdfPath);
+        spdlog::info("[LatexApi] PDF download request for project: {}, path: {}", id, pdfPath);
 
         // Check file exists, create minimal valid PDF if not
         if (!std::filesystem::exists(pdfPath)) {
-            spdlog::warn("[LatexApiModule] PDF file not found, creating placeholder: {}", pdfPath);
+            spdlog::warn("[LatexApi] PDF file not found, creating placeholder: {}", pdfPath);
             std::ofstream pdf(pdfPath, std::ios::binary);
             // Minimal valid PDF with one page
             const char* minimalPdf =
@@ -992,16 +992,16 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
 
         response.body = std::string(fileData.begin(), fileData.end());
 
-        spdlog::info("[LatexApiModule] Project PDF sent successfully: {} bytes", fileSize);
+        spdlog::info("[LatexApi] Project PDF sent successfully: {} bytes", fileSize);
         return response;
     } catch (const std::invalid_argument& e) {
-        spdlog::error("[LatexApiModule] Invalid project ID: {}", idIt->second);
+        spdlog::error("[LatexApi] Invalid project ID: {}", idIt->second);
         response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Invalid project ID: " + idIt->second);
         return response;
     } catch (const std::exception& e) {
-        spdlog::error("[LatexApiModule] Project PDF download error: {}", e.what());
+        spdlog::error("[LatexApi] Project PDF download error: {}", e.what());
         response.statusCode = HTTP::INTERNAL_ERROR;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
@@ -1912,7 +1912,7 @@ std::string LatexApiModule::handleClearCache() {
             }
         }
 
-        spdlog::info("[LatexApiModule] Cleared {} cache files", deletedCount);
+        spdlog::info("[LatexApi] Cleared {} cache files", deletedCount);
 
         nlohmann::json result;
         result["deleted_count"] = deletedCount;
@@ -2218,7 +2218,7 @@ LatexCompilationResult LatexApiModule::compileLatexContent(const std::string& co
     std::string cachedPdfPath = impl_->checkPdfCache(contentHash);
     if (!cachedPdfPath.empty()) {
         // 使用缓存的PDF
-        spdlog::info("[LatexApiModule] Using cached PDF: {}", cachedPdfPath);
+        spdlog::info("[LatexApi] Using cached PDF: {}", cachedPdfPath);
 
         // 复制缓存的PDF到输出路径
         try {
@@ -2234,11 +2234,11 @@ LatexCompilationResult LatexApiModule::compileLatexContent(const std::string& co
 
             return result;
         } catch (const std::exception& e) {
-            spdlog::error("[LatexApiModule] Failed to copy cached PDF: {}", e.what());
+            spdlog::error("[LatexApi] Failed to copy cached PDF: {}", e.what());
             // 继续执行编译
         }
     } else {
-        spdlog::info("[LatexApiModule] Cache miss for hash: {}, compiling...", contentHash);
+        spdlog::info("[LatexApi] Cache miss for hash: {}, compiling...", contentHash);
     }
 
     // Write .tex file
@@ -2307,7 +2307,7 @@ LatexCompilationResult LatexApiModule::compileLatexContent(const std::string& co
                 std::filesystem::copy_file(outputFile, outputPath, std::filesystem::copy_options::overwrite_existing);
                 result.pdfPath = outputPath;
             } catch (const std::exception& e) {
-                spdlog::error("[LatexApiModule] Failed to copy PDF to output path: {}", e.what());
+                spdlog::error("[LatexApi] Failed to copy PDF to output path: {}", e.what());
             }
         }
     } else {
@@ -2505,7 +2505,7 @@ std::optional<LatexVersionNode> LatexApiModule::saveVersion(int fileId, int proj
     impl_->fileVersions_[fileKey].push_back(versionId);
     impl_->branchTips_[branchId] = versionId;
 
-    spdlog::info("[LatexApiModule] Saved version {} for file {} (project {}, user {})",
+    spdlog::info("[LatexApi] Saved version {} for file {} (project {}, user {})",
                  versionId, fileId, projectId, userId);
 
     return version;
@@ -2576,7 +2576,7 @@ std::optional<LatexVersionNode> LatexApiModule::restoreVersion(const std::string
         // 更新存储
         impl_->versions_[branchVersion->id] = *branchVersion;
 
-        spdlog::info("[LatexApiModule] Restored version {} as new version {}", versionId, branchVersion->id);
+        spdlog::info("[LatexApi] Restored version {} as new version {}", versionId, branchVersion->id);
         return branchVersion;
     }
 
@@ -2606,7 +2606,7 @@ std::optional<LatexVersionNode> LatexApiModule::createBranch(const std::string& 
     impl_->versions_[newVersion.id] = newVersion;
     impl_->branchTips_[newBranchId] = newVersion.id;
 
-    spdlog::info("[LatexApiModule] Created branch {} from version {}", newBranchId, parentVersionId);
+    spdlog::info("[LatexApi] Created branch {} from version {}", newBranchId, parentVersionId);
 
     return newVersion;
 }
@@ -2643,7 +2643,7 @@ std::optional<LatexVersionNode> LatexApiModule::mergeBranch(const std::string& b
         impl_->versions_[mergedVersion->id] = *mergedVersion;
         impl_->branchTips_["main"] = mergedVersion->id;
 
-        spdlog::info("[LatexApiModule] Merged branch {} into main as version {}", branchId, mergedVersion->id);
+        spdlog::info("[LatexApi] Merged branch {} into main as version {}", branchId, mergedVersion->id);
         return mergedVersion;
     }
 
@@ -2667,7 +2667,7 @@ bool LatexApiModule::deleteVersion(const std::string& versionId) {
     // 删除版本
     impl_->versions_.erase(it);
 
-    spdlog::info("[LatexApiModule] Deleted version {}", versionId);
+    spdlog::info("[LatexApi] Deleted version {}", versionId);
     return true;
 }
 
