@@ -57,6 +57,11 @@
 #include "AdvancedTableWidget.hpp"
 #include "PaperRecommendationEngine.hpp"
 #include "PdfThumbnailWidget.hpp"
+#include "BatchImportWidget.hpp"
+#include "TagManager.hpp"
+#include "WorkspaceManager.hpp"
+#include "AnnotationWidget.hpp"
+#include "PaperVersionHistory.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3054,6 +3059,70 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addSeparator();
+
+    auto* batchImportAction = toolsMenu->addAction("Batch &Import");
+    connect(batchImportAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Batch Import");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* importWidget = new BatchImportWidget();
+        importWidget->setApiManager(apiManager_);
+        layout->addWidget(importWidget);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* tagMgrAction = toolsMenu->addAction("Tag &Manager");
+    connect(tagMgrAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Tag Manager");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        layout->addWidget(new TagManager());
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* workspaceAction = toolsMenu->addAction("&Workspaces");
+    connect(workspaceAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Workspace Manager");
+        dlg->resize(500, 400);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* ws = new WorkspaceManager();
+        connect(ws, &WorkspaceManager::layoutRestored, this, [this](const WorkspaceLayout& wl) {
+            if (!wl.windowGeometry.isEmpty()) restoreGeometry(wl.windowGeometry);
+            if (wl.activeTab >= 0) tabWidget_->setCurrentIndex(wl.activeTab);
+        });
+        layout->addWidget(ws);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* annotationAction = toolsMenu->addAction("&Annotations");
+    connect(annotationAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Annotations");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        layout->addWidget(new AnnotationWidget());
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* versionAction = toolsMenu->addAction("Version &History");
+    connect(versionAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Version History");
+        dlg->resize(600, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        layout->addWidget(new PaperVersionHistory());
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     auto* doiAction = toolsMenu->addAction("&DOI Lookup");
     connect(doiAction, &QAction::triggered, this, [this]() {
         auto* dlg = new DoiLookupDialog(this);
@@ -3376,6 +3445,29 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Paper Recommendations", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Recommendations");
+    });
+    commandPalette_->addAction("Batch Import", "", "File", [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Batch Import");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new BatchImportWidget();
+        w->setApiManager(apiManager_);
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("Tag Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Tag Manager");
+    });
+    commandPalette_->addAction("Workspaces", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Workspaces");
+    });
+    commandPalette_->addAction("Annotations", "", "Paper", [this]() {
+        ToastWidget::showInfo("Open Tools > Annotations");
+    });
+    commandPalette_->addAction("Version History", "", "Paper", [this]() {
+        ToastWidget::showInfo("Open Tools > Version History");
     });
     commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
     commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });

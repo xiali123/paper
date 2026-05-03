@@ -60,6 +60,11 @@ class BackupRestoreWidget;
 class AdvancedTableWidget;
 class PaperRecommendationEngine;
 class PdfThumbnailWidget;
+class BatchImportWidget;
+class TagManager;
+class WorkspaceManager;
+class AnnotationWidget;
+class PaperVersionHistory;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
