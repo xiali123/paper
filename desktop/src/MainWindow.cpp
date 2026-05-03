@@ -72,6 +72,11 @@
 #include "CollaborationWidget.hpp"
 #include "PaperComparisonMatrix.hpp"
 #include "PdfViewerWidget.hpp"
+#include "SmartSearchWidget.hpp"
+#include "PaperClusteringWidget.hpp"
+#include "ScheduledTaskWidget.hpp"
+#include "UserProfileWidget.hpp"
+#include "MiniBrowserWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3300,6 +3305,93 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addSeparator();
+
+    auto* smartSearchAction = toolsMenu->addAction("&Smart Search");
+    smartSearchAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    connect(smartSearchAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Smart Search");
+        dlg->resize(700, 400);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* ss = new SmartSearchWidget();
+        connect(ss, &SmartSearchWidget::searchRequested, this, [this](const QString& q) {
+            onSearch(q);
+            tabWidget_->setCurrentIndex(0);
+        });
+        layout->addWidget(ss);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* clusterAction = toolsMenu->addAction("Paper &Clustering");
+    connect(clusterAction, &QAction::triggered, this, [this]() {
+        if (!resultView_) return;
+        auto papers = resultView_->getPapers();
+        if (papers.isEmpty()) {
+            ToastWidget::showWarning("No papers. Search first.");
+            return;
+        }
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Clustering");
+        dlg->resize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* clustering = new PaperClusteringWidget();
+        QList<QPair<int, QString>> pool;
+        for (const auto& p : papers) {
+            pool.append({p.id, p.authors + " " + p.journal + " " + p.keywords.join(" ")});
+        }
+        clustering->setPapers(pool);
+        connect(clustering, &PaperClusteringWidget::paperClicked, this, [this](int id) {
+            apiManager_->getPaperDetails(id);
+        });
+        layout->addWidget(clustering);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* scheduledAction = toolsMenu->addAction("Scheduled &Tasks");
+    connect(scheduledAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Scheduled Tasks");
+        dlg->resize(700, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* tasks = new ScheduledTaskWidget();
+        connect(tasks, &ScheduledTaskWidget::taskExecuted, this, [this](int taskId) {
+            ToastWidget::showInfo(QString("Task #%1 executed").arg(taskId));
+        });
+        layout->addWidget(tasks);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* profileAction = toolsMenu->addAction("User &Profile");
+    connect(profileAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("User Profile");
+        dlg->resize(500, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* profile = new UserProfileWidget();
+        connect(profile, &UserProfileWidget::profileUpdated, this, [](const UserProfile& p) {
+            Q_UNUSED(p);
+        });
+        layout->addWidget(profile);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* browserAction = toolsMenu->addAction("Mini &Browser");
+    connect(browserAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Mini Browser");
+        dlg->resize(800, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* browser = new MiniBrowserWidget();
+        layout->addWidget(browser);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     auto* doiAction = toolsMenu->addAction("&DOI Lookup");
     connect(doiAction, &QAction::triggered, this, [this]() {
         auto* dlg = new DoiLookupDialog(this);
@@ -3683,6 +3775,31 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("PDF Viewer", "", "View", [this]() {
         ToastWidget::showInfo("Open Tools > PDF Viewer");
+    });
+    commandPalette_->addAction("Smart Search", "Ctrl+Shift+S", "Search", [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Smart Search");
+        dlg->resize(700, 400);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* ss = new SmartSearchWidget();
+        connect(ss, &SmartSearchWidget::searchRequested, this, [this](const QString& q) {
+            onSearch(q);
+        });
+        layout->addWidget(ss);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("Paper Clustering", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Clustering");
+    });
+    commandPalette_->addAction("Scheduled Tasks", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Scheduled Tasks");
+    });
+    commandPalette_->addAction("User Profile", "", "Settings", [this]() {
+        ToastWidget::showInfo("Open Tools > User Profile");
+    });
+    commandPalette_->addAction("Mini Browser", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Mini Browser");
     });
     commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
     commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });

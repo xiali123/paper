@@ -75,6 +75,11 @@ class ReadingQueueWidget;
 class CollaborationWidget;
 class PaperComparisonMatrix;
 class PdfViewerWidget;
+class SmartSearchWidget;
+class PaperClusteringWidget;
+class ScheduledTaskWidget;
+class UserProfileWidget;
+class MiniBrowserWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
