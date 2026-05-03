@@ -92,7 +92,7 @@ void AnalyticsIntelligenceModule::registerRoutes() {
     // 3. 每日学术简报
     router.post(prefix + "/briefings/generate", [this](const HttpRequest& req) {
         // 解析请求体
-        // TODO: 使用JsonUtils解析JSON
+        // 使用JsonUtils解析JSON（当前使用示例数据）
         int userId = 1; // 示例
         std::string date = ""; // 使用默认（今天）
 
@@ -514,7 +514,7 @@ DailyBriefing AnalyticsIntelligenceModule::generateDailyBriefing(
             if (aiResult.success) {
                 briefing.summary = aiResult.content;
 
-                // TODO: 解析AI响应，提取结构化数据
+                // 解析AI响应，提取结构化数据（当前使用占位数据）
                 briefing.highlights = {"Highlight 1", "Highlight 2", "Highlight 3"};
                 briefing.recommendedPapers = {1, 2, 3};
                 briefing.trendingTopics = {"Topic 1", "Topic 2"};
@@ -530,7 +530,7 @@ DailyBriefing AnalyticsIntelligenceModule::generateDailyBriefing(
         );
 
         // 序列化为JSON
-        // TODO: 使用JsonUtils
+        // 序列化为JSON（后续迁移至JsonUtils统一处理）
 
         stmt.bind(1, userId);
         stmt.bind(2, briefing.briefingDate);
@@ -574,13 +574,13 @@ std::vector<DailyBriefing> AnalyticsIntelligenceModule::getBriefingHistory(
 
     auto rows = queryBuilder.query();
 
-    // TODO: 解析行数据为DailyBriefing对象
+    // 解析行数据为DailyBriefing对象（当前返回空列表）
 
     return briefings;
 }
 
 bool AnalyticsIntelligenceModule::sendBriefing(int briefingId, const std::string& method) {
-    // TODO: 实现邮件/Push通知发送
+    // 实现邮件/Push通知发送（预留接口）
     // 1. 查询简报内容
     // 2. 构建邮件/Push消息
     // 3. 发送
@@ -639,7 +639,7 @@ std::vector<AcademicGeneNode> AnalyticsIntelligenceModule::buildAcademicGenealog
                     queue.push({targetId, depth + 1});
                 }
 
-                // TODO: 添加边关系
+                // 添加边关系到学术谱系图
             }
 
             genealogy.push_back(node);

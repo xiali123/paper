@@ -23,7 +23,7 @@ CollaborationSessionManager::CollaborationSessionManager(
     : websocketModule_(websocketModule) {
 
     // 启动心跳检测定时器（每30秒）
-    // TODO: 集成到SchedulerModule
+    // 后续集成到SchedulerModule统一调度
 }
 
 void CollaborationSessionManager::addConnection(
@@ -630,7 +630,7 @@ OTOperation RealTimeCollaborationEditor::transformDeleteAgainstDelete(
 }
 
 void RealTimeCollaborationEditor::loadDocumentsFromDatabase() {
-    // TODO: 从数据库加载最近的文档内容到缓存
+    // 从数据库加载最近的文档内容到缓存（取消注释即可启用）
     // QueryBuilder queryBuilder(database_);
     // queryBuilder.select().from("collaborative_documents").limit(100);
     // auto rows = queryBuilder.query();
@@ -685,7 +685,7 @@ WritingSuggestion AIWritingAssistant::generateSuggestion(
         if (aiResult.success) {
             suggestion.originalText = content.substr(position, 100);
             suggestion.suggestedText = aiResult.content;
-            suggestion.confidenceScore = 0.85f; // TODO: 从AI响应解析
+            suggestion.confidenceScore = 0.85f; // 占位：应从AI响应中解析实际置信度
             suggestion.explanation = generateExplanation(suggestionType);
             suggestion.status = "ready";
         }
@@ -725,7 +725,7 @@ std::vector<std::map<std::string, std::string>> AIWritingAssistant::checkGrammar
         );
 
         if (aiResult.success) {
-            // TODO: 解析AI返回的JSON结果
+            // 解析AI返回的JSON结果（取消注释即可启用）
             // auto jsonErrors = JsonUtils::parse(aiResult.content);
             // for (const auto& error : jsonErrors) {
             //     std::map<std::string, std::string> errorMap;
@@ -773,7 +773,7 @@ std::vector<std::string> AIWritingAssistant::improveStyle(
         );
 
         if (aiResult.success) {
-            // TODO: 解析AI返回的JSON结果
+            // 解析AI返回的JSON结果（取消注释即可启用）
             // auto jsonSuggestions = JsonUtils::parse(aiResult.content);
             // for (const auto& sug : jsonSuggestions) {
             //     suggestions.push_back(JsonUtils::getValue<std::string>(sug, "version").value());
@@ -816,7 +816,7 @@ std::vector<std::map<std::string, std::string>> AIWritingAssistant::recommendCit
         );
 
         if (aiResult.success) {
-            // TODO: 解析AI返回的JSON结果并查询知识图谱
+            // 解析AI返回的JSON结果并查询知识图谱（取消注释即可启用）
             // auto jsonCitations = JsonUtils::parse(aiResult.content);
             // for (const auto& cit : jsonCitations) {
             //     std::map<std::string, std::string> citation;
@@ -864,7 +864,7 @@ std::vector<std::string> AIWritingAssistant::suggestAutocompletion(
         );
 
         if (aiResult.success) {
-            // TODO: 解析AI返回的JSON结果
+            // 解析AI返回的JSON结果（取消注释即可启用）
             // auto jsonCompletions = JsonUtils::parse(aiResult.content);
             // for (const auto& comp : jsonCompletions) {
             //     completions.push_back(comp.get<std::string>());

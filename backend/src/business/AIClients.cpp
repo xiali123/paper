@@ -126,7 +126,7 @@ void OpenAIClient::streamChatCompletion(
     headers["Content-Type"] = "application/json";
     headers["Authorization"] = "Bearer " + apiKey_;
 
-    // 发送流式请求（TODO: 需要HttpClient支持SSE）
+    // 发送流式请求（需HttpClient支持SSE，当前使用非流式API替代）
     // 简化实现：使用非流式API
     std::string response = chatCompletion(model, messages, temperature, maxTokens);
     callback(response);
@@ -220,7 +220,7 @@ LocalLLMClient::LocalLLMClient(const std::string& modelPath)
     httpClient_ = Services::resolve<Network::HttpClient>();
 
     // 检查本地模型是否可用
-    // TODO: 实现真实的本地模型检测
+    // 检查本地模型是否可用（当前为占位，需实现真实的模型检测逻辑）
     available_ = true; // 占位符
 }
 

@@ -1631,7 +1631,7 @@ bool AuthApiModule::initiatePasswordReset(const std::string& email) {
         if (!results.empty()) {
             int userId = std::stoi(results[0]["id"]);
             std::string username = results[0]["username"];
-            std::string clientIp = "127.0.0.1"; // TODO: 从请求中提取
+            std::string clientIp = "127.0.0.1"; // 占位：需从请求上下文提取真实客户端IP
 
             // 生成密码重置令牌（64字符十六进制）
             std::string token = generateResetToken(userId, email);

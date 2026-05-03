@@ -123,12 +123,12 @@ bool PaperApiModule::markAsFavorite(int id, bool favorite) {
 }
 
 bool PaperApiModule::addTag(int id, const std::string& tag) {
-    // TODO: implement via repository
+    // 待实现：通过repository完成标签添加
     return false;
 }
 
 bool PaperApiModule::removeTag(int id, const std::string& tag) {
-    // TODO: implement via repository
+    // 待实现：通过repository完成标签移除
     return false;
 }
 

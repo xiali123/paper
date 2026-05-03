@@ -18,7 +18,7 @@ namespace PaperCrawler {
 class UnifiedAIWorkflow::Impl {
 public:
     std::shared_ptr<IDatabase> database_;
-    // std::shared_ptr<CacheModule> cache_;  // TODO: CacheModule not implemented yet
+    // std::shared_ptr<CacheModule> cache_;  // CacheModule尚未实现，后续集成
     std::shared_ptr<Network::HttpClient> httpClient_;
 
     // 缓存统计
@@ -54,7 +54,7 @@ UnifiedAIWorkflow::~UnifiedAIWorkflow() = default;
 bool UnifiedAIWorkflow::initialize() {
     // 解析服务
     impl_->database_ = Services::resolve<IDatabase>();
-    // impl_->cache_ = Services::resolve<CacheModule>();  // TODO: CacheModule not implemented yet
+    // impl_->cache_ = Services::resolve<CacheModule>();  // CacheModule尚未实现，后续集成
     impl_->httpClient_ = Services::resolve<Network::HttpClient>();
 
     if (!impl_->database_) {
@@ -87,7 +87,7 @@ bool UnifiedAIWorkflow::initialize() {
     precomputeCommonQueries();
 
     // 订阅事件
-    // TODO: EventDrivenIntegration has missing dependencies
+    // EventDrivenIntegration依赖尚未就绪，取消注释即可启用事件订阅
     /*
     auto& eventBus = EventDrivenIntegration::getInstance();
     eventBus.subscribe(EventType::AI_REQUEST_SENT, "UnifiedAIWorkflow",

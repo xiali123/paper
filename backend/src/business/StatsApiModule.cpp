@@ -332,7 +332,7 @@ StatsApiModule::StatsApiModule()
 
 StatsApiModule::StatsApiModule(std::shared_ptr<IDatabase> database)
     : impl_(std::make_unique<Impl>()) {
-    // TODO: 接收database参数并保存到impl_
+    // 接收database参数并保存到impl_（后续启用数据库集成时取消注释）
     // impl_->database_ = database;
 }
 
@@ -419,7 +419,7 @@ std::string StatsApiModule::getRealtimeStats() {
 
 bool StatsApiModule::isHealthy() {
     // 检查关键组件是否健康
-    // TODO: 实际应该检查各模块的健康状态
+    // 实际应检查各模块的健康状态（当前为简化版本）
     return true;
 }
 
@@ -440,7 +440,7 @@ void StatsApiModule::updatePerformanceMetrics(const std::string& moduleName,
                                                uint64_t requestCount,
                                                std::chrono::microseconds responseTime,
                                                bool success) {
-    // TODO: 更新性能指标
+    // 更新性能指标（预留接口）
 }
 
 // ============================================================================
@@ -729,7 +729,7 @@ std::string StatsApiModule::handleRealtime() {
 
 void StatsApiModule::monitorLoop() {
     while (streaming_) {
-        // TODO: 收集实时统计数据
+        // 收集实时统计数据（当前为空循环占位）
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }

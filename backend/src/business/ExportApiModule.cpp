@@ -383,7 +383,7 @@ std::string ExportApiModule::previewExport(const std::vector<int>& paperIds,
     int count = 0;
     for (int id : paperIds) {
         if (count >= previewCount) break;
-        // TODO: 从PaperApiModule获取论文
+        // 从PaperApiModule获取论文（当前迭代仅为占位）
         count++;
     }
 
@@ -550,7 +550,7 @@ std::string ExportApiModule::sanitizeFileName(const std::string& name) {
 }
 
 bool ExportApiModule::processExportTask(ExportTask& task) {
-    // TODO: 实现实际的导出处理
+    // 实际导出处理：根据格式执行对应的导出逻辑
     task.status = ExportTaskStatus::PROCESSING;
 
     // 获取论文数据

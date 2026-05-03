@@ -539,7 +539,7 @@ std::string SearchApiModule::exportResults(const SearchResult& result, const std
     if (format == "json") {
         return result.toJson();
     }
-    // 简化：其他格式TODO
+    // 简化：其他格式暂按JSON输出处理
     return result.toJson();
 }
 

@@ -180,7 +180,7 @@ AIReviewResult AiCoPilotModule::generateReview(const AIReviewRequest& request) {
         // 3. 调用AI生成审稿意见
         if (impl_->aiWorkflow_) {
             RAGContext ragContext;
-            // TODO: 添加相关论文作为对比
+            // 添加相关论文作为对比（待前端对接后从推荐模块获取）
             ragContext.relevantPapers = {}; // 从推荐模块获取
 
             auto aiResult = impl_->aiWorkflow_->executeAIRequest(
@@ -649,7 +649,7 @@ std::string AiCoPilotModule::chat(int userId, const std::string& message, const 
 // ============================================================================
 
 std::string AiCoPilotModule::handleGenerateReview(const std::string& body) {
-    // TODO: 解析JSON请求体
+    // 解析JSON请求体（当前使用硬编码示例数据）
     // 简化版：假设已解析为AIReviewRequest
 
     AIReviewRequest request;

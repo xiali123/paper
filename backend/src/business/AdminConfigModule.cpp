@@ -674,7 +674,7 @@ std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string
 
 
 std::string AdminConfigModule::handleReloadConfigs(const std::map<std::string, std::string>& params) {
-    // TODO: 实现配置缓存清除逻辑
+    // 配置缓存清除逻辑（当前仅记录审计日志）
     addAuditLog("config_reloaded", "system_configs", 0, "superadmin", 0, "Config cache reloaded", "127.0.0.1");
     return buildJsonResponse(true, "Configurations reloaded successfully");
 }
@@ -858,7 +858,7 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
         }
 
         int jobId = std::stoi(idIt->second);
-        int createdBy = 1;  // TODO: 从session获取
+        int createdBy = 1;  // 占位：应从session获取当前操作用户
 
         if (database_) {
             // 获取备份任务信息
@@ -901,7 +901,7 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
                 recordId = std::stoll(cleanDbString(lastIdResults[0].at("id")));
             }
 
-            // TODO: 实际执行mysqldump命令
+            // 执行mysqldump命令（取消注释即可启用实际数据库导出）
             // std::string command = "mysqldump -u root -p123456 papercrawler_db > " + fullPath;
             // system(command.c_str());
 
@@ -1046,7 +1046,7 @@ std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string
             if (!results.empty()) {
                 std::string filePath = cleanDbString(results[0].count("file_path") ? results[0].at("file_path") : "");
 
-                // TODO: 删除实际文件
+                // 删除实际文件（取消下行注释即可启用文件删除）
                 // std::remove(filePath.c_str());
 
                 // 更新记录状态为deleted

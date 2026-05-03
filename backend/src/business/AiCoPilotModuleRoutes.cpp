@@ -302,7 +302,7 @@ std::string AiCoPilotModule::handleGenerateReview(const std::string& body) {
 }
 
 std::string AiCoPilotModule::handleGenerateLiteratureReview(const std::string& body) {
-    // TODO: 实现文献综述生成
+    // 文献综述生成（前端对接完成后实现具体逻辑）
     std::ostringstream json;
     json << "{\n";
     json << "  \"success\": true,\n";
@@ -312,7 +312,7 @@ std::string AiCoPilotModule::handleGenerateLiteratureReview(const std::string& b
 }
 
 std::string AiCoPilotModule::handleGenerateResearchPlan(const std::string& body) {
-    // TODO: 实现研究计划生成
+    // 研究计划生成（前端对接完成后实现具体逻辑）
     std::ostringstream json;
     json << "{\n";
     json << "  \"success\": true,\n";
@@ -322,7 +322,7 @@ std::string AiCoPilotModule::handleGenerateResearchPlan(const std::string& body)
 }
 
 std::string AiCoPilotModule::handleChat(const std::string& body) {
-    // TODO: 实现AI对话
+    // AI对话（前端对接完成后实现具体逻辑）
     std::ostringstream json;
     json << "{\n";
     json << "  \"success\": true,\n";
