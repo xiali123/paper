@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
 #include "data/ValidationHelper.hpp"
+#include "data/PreparedStatement.hpp"
 
 namespace PaperCrawler {
 
@@ -737,20 +738,26 @@ std::optional<CollaborativeDocument> CollaborativeWritingModule::createDocument(
     try {
         std::string initialContent = "";
         if (templateId > 0) {
-            auto results = database_->query(
-                "SELECT content FROM document_templates WHERE id = " + std::to_string(templateId));
+            PreparedStatement tplStmt(database_,
+                "SELECT content FROM document_templates WHERE id = ?");
+            tplStmt.bind(0, templateId);
+            auto results = tplStmt.query();
             if (!results.empty()) {
                 initialContent = results[0]["content"];
             }
         }
 
-        std::string sql = "INSERT INTO collaborative_documents "
-                        "(id, title, content, document_type, owner_id, template_id, word_count, status) "
-                        "VALUES (DEFAULT, '" + escapeSql(title) + "', '" + escapeSql(initialContent) + "', '"
-                        + escapeSql(documentType) + "', " + std::to_string(userId) + ", "
-                        + std::to_string(templateId) + ", 0, 'draft')";
+        PreparedStatement stmt(database_,
+            "INSERT INTO collaborative_documents "
+            "(id, title, content, document_type, owner_id, template_id, word_count, status) "
+            "VALUES (DEFAULT, ?, ?, ?, ?, ?, 0, 'draft')");
+        stmt.bind(0, title);
+        stmt.bind(1, initialContent);
+        stmt.bind(2, documentType);
+        stmt.bind(3, userId);
+        stmt.bind(4, templateId);
 
-        bool executeResult = database_->execute(sql);
+        bool executeResult = stmt.execute();
 
         if (executeResult) {
             // 使用MAX(id)而不是LAST_INSERT_ID()
@@ -769,8 +776,10 @@ std::optional<CollaborativeDocument> CollaborativeWritingModule::createDocument(
 
 std::optional<CollaborativeDocument> CollaborativeWritingModule::getDocument(int documentId) {
     try {
-        auto results = database_->query(
-            "SELECT * FROM collaborative_documents WHERE id = " + std::to_string(documentId));
+        PreparedStatement stmt(database_,
+            "SELECT * FROM collaborative_documents WHERE id = ?");
+        stmt.bind(0, documentId);
+        auto results = stmt.query();
 
         if (!results.empty()) {
             CollaborativeDocument doc;
@@ -796,32 +805,56 @@ std::optional<CollaborativeDocument> CollaborativeWritingModule::getDocument(int
 bool CollaborativeWritingModule::updateDocument(int documentId, const std::string& content,
                                                 const std::string& title, const std::string& status) {
     try {
-        std::vector<std::string> sets;
-        if (!content.empty()) sets.push_back("content = '" + escapeSql(content) + "'");
-        if (!title.empty()) sets.push_back("title = '" + escapeSql(title) + "'");
-        if (!status.empty()) sets.push_back("status = '" + escapeSql(status) + "'");
-
-        if (sets.empty()) {
-            // 至少更新updated_at
-            std::string sql = "UPDATE collaborative_documents SET updated_at = NOW() WHERE id = " + std::to_string(documentId);
-            return database_->execute(sql);
-        }
-
-        // 添加word_count和updated_at
+        // Count word_count for any update path that includes content
         int wordCount = static_cast<int>(
             std::count_if(content.begin(), content.end(), [](unsigned char c) { return std::isprint(c) || c == '\n'; }));
-        sets.push_back("word_count = " + std::to_string(wordCount));
-        sets.push_back("updated_at = NOW()");
 
-        // 正确拼接SET子句（用逗号分隔）
-        std::string setClause = sets[0];
-        for (size_t i = 1; i < sets.size(); ++i) {
-            setClause += ", " + sets[i];
+        if (content.empty() && title.empty() && status.empty()) {
+            // At least update updated_at
+            PreparedStatement stmt(database_,
+                "UPDATE collaborative_documents SET updated_at = NOW() WHERE id = ?");
+            stmt.bind(0, documentId);
+            return stmt.execute();
         }
 
-        std::string sql = "UPDATE collaborative_documents SET " + setClause + " WHERE id = " + std::to_string(documentId);
+        // Build dynamic SET clause with placeholders
+        std::vector<std::string> setClauses;
+        int paramIndex = 0;
+        std::vector<std::pair<int, std::variant<int, double, std::string, bool, std::nullptr_t>>> params;
 
-        return database_->execute(sql);
+        if (!content.empty()) {
+            setClauses.push_back("content = ?");
+            params.push_back({paramIndex++, content});
+        }
+        if (!title.empty()) {
+            setClauses.push_back("title = ?");
+            params.push_back({paramIndex++, title});
+        }
+        if (!status.empty()) {
+            setClauses.push_back("status = ?");
+            params.push_back({paramIndex++, status});
+        }
+
+        setClauses.push_back("word_count = ?");
+        params.push_back({paramIndex++, wordCount});
+
+        setClauses.push_back("updated_at = NOW()");
+
+        // Build SET clause string
+        std::string setClause = setClauses[0];
+        for (size_t i = 1; i < setClauses.size(); ++i) {
+            setClause += ", " + setClauses[i];
+        }
+
+        std::string sql = "UPDATE collaborative_documents SET " + setClause + " WHERE id = ?";
+        params.push_back({paramIndex, documentId});
+
+        PreparedStatement stmt(database_, sql);
+        for (const auto& [idx, val] : params) {
+            stmt.bind(idx, val);
+        }
+
+        return stmt.execute();
     } catch (const std::exception& e) {
         spdlog::error("[Writing] updateDocument error: {}", e.what());
         return false;
@@ -830,8 +863,10 @@ bool CollaborativeWritingModule::updateDocument(int documentId, const std::strin
 
 bool CollaborativeWritingModule::deleteDocument(int documentId) {
     try {
-        std::string sql = "DELETE FROM collaborative_documents WHERE id = " + std::to_string(documentId);
-        bool ok = database_->execute(sql);
+        PreparedStatement stmt(database_,
+            "DELETE FROM collaborative_documents WHERE id = ?");
+        stmt.bind(0, documentId);
+        bool ok = stmt.execute();
         if (ok) {
             impl_->documentContents_.erase(documentId);
         }
@@ -846,10 +881,12 @@ std::vector<CollaborativeDocument> CollaborativeWritingModule::getDocuments(int 
     std::vector<CollaborativeDocument> docs;
     try {
         int offset = (page - 1) * limit;
-        auto results = database_->query(
-            "SELECT * FROM collaborative_documents WHERE owner_id = " + std::to_string(userId) +
-            " ORDER BY updated_at DESC LIMIT " + std::to_string(limit) +
-            " OFFSET " + std::to_string(offset));
+        PreparedStatement stmt(database_,
+            "SELECT * FROM collaborative_documents WHERE owner_id = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?");
+        stmt.bind(0, userId);
+        stmt.bind(1, limit);
+        stmt.bind(2, offset);
+        auto results = stmt.query();
 
         for (auto& row : results) {
             CollaborativeDocument doc;
@@ -904,22 +941,27 @@ std::string CollaborativeWritingModule::applyOperation(int documentId, const OTO
         impl_->documentContents_[documentId] = newContent;
 
         // 记录操作
-        std::string sql = "INSERT INTO document_operations "
-                        "(document_id, user_id, operation_type, position, length, content) "
-                        "VALUES (" + std::to_string(documentId) + ", "
-                        + std::to_string(operation.clientId) + ", '"
-                        + std::to_string(static_cast<int>(operation.type)) + "', "
-                        + std::to_string(operation.position) + ", "
-                        + std::to_string(operation.length) + ", '"
-                        + escapeSql(operation.content) + "')";
-        database_->execute(sql);
+        PreparedStatement opStmt(database_,
+            "INSERT INTO document_operations "
+            "(document_id, user_id, operation_type, position, length, content) "
+            "VALUES (?, ?, ?, ?, ?, ?)");
+        opStmt.bind(0, documentId);
+        opStmt.bind(1, operation.clientId);
+        opStmt.bind(2, static_cast<int>(operation.type));
+        opStmt.bind(3, operation.position);
+        opStmt.bind(4, operation.length);
+        opStmt.bind(5, operation.content);
+        opStmt.execute();
 
         // 更新文档
         int wordCount = static_cast<int>(
             std::count_if(newContent.begin(), newContent.end(), [](unsigned char c) { return std::isprint(c) || c == '\n'; }));
-        std::string updateSql = "UPDATE collaborative_documents SET content = '" + escapeSql(newContent) +
-                "', word_count = " + std::to_string(wordCount) + ", updated_at = NOW() WHERE id = " + std::to_string(documentId);
-        database_->execute(updateSql);
+        PreparedStatement updateStmt(database_,
+            "UPDATE collaborative_documents SET content = ?, word_count = ?, updated_at = NOW() WHERE id = ?");
+        updateStmt.bind(0, newContent);
+        updateStmt.bind(1, wordCount);
+        updateStmt.bind(2, documentId);
+        updateStmt.execute();
 
         return newContent;
     } catch (const std::exception& e) {
@@ -990,16 +1032,19 @@ OTOperation CollaborativeWritingModule::transformDeleteAgainstDelete(const OTOpe
 }
 
 // ============================================================================
-// 3. WebSocket（保留框架，实际发送 TODO）
+// 3. WebSocket（保留框架，实际发送通过 WebSocketModule）
 // ============================================================================
 
 void CollaborativeWritingModule::handleWebSocketConnection(int documentId, int userId, const std::string& socketId) {
     try {
-        std::string sql = "INSERT INTO collaboration_sessions "
-                        "(document_id, user_id, socket_id, is_active) "
-                        "VALUES (" + std::to_string(documentId) + ", "
-                        + std::to_string(userId) + ", '" + escapeSql(socketId) + "', TRUE)";
-        if (database_->execute(sql)) {
+        PreparedStatement stmt(database_,
+            "INSERT INTO collaboration_sessions "
+            "(document_id, user_id, socket_id, is_active) "
+            "VALUES (?, ?, ?, TRUE)");
+        stmt.bind(0, documentId);
+        stmt.bind(1, userId);
+        stmt.bind(2, socketId);
+        if (stmt.execute()) {
             impl_->documentSessions_[documentId].push_back(socketId);
         }
     } catch (const std::exception& e) {
@@ -1009,7 +1054,10 @@ void CollaborativeWritingModule::handleWebSocketConnection(int documentId, int u
 
 void CollaborativeWritingModule::handleWebSocketDisconnection(const std::string& socketId) {
     try {
-        database_->execute("UPDATE collaboration_sessions SET is_active = FALSE WHERE socket_id = '" + escapeSql(socketId) + "'");
+        PreparedStatement stmt(database_,
+            "UPDATE collaboration_sessions SET is_active = FALSE WHERE socket_id = ?");
+        stmt.bind(0, socketId);
+        stmt.execute();
         for (auto& [docId, sessions] : impl_->documentSessions_) {
             sessions.erase(std::remove(sessions.begin(), sessions.end(), socketId), sessions.end());
         }
@@ -1089,17 +1137,21 @@ WritingSuggestion CollaborativeWritingModule::generateSuggestion(
             suggestion.suggestedText = suggestedText;
             suggestion.explanation = "Rule-based writing improvement suggestion";
 
-            std::string sql = "INSERT INTO ai_writing_suggestions "
-                            "(document_id, user_id, suggestion_type, position_start, position_end, "
-                            "original_text, suggested_text, confidence_score, explanation, status) "
-                            "VALUES (" + std::to_string(documentId) + ", "
-                            + std::to_string(userId) + ", '" + escapeSql(suggestionType) + "', "
-                            + std::to_string(positionStart) + ", " + std::to_string(positionEnd) + ", '"
-                            + escapeSql(suggestion.originalText) + "', '"
-                            + escapeSql(suggestedText) + "', "
-                            + std::to_string(suggestion.confidenceScore) + ", '"
-                            + escapeSql(suggestion.explanation) + "', 'pending')";
-            database_->execute(sql);
+            PreparedStatement stmt(database_,
+                "INSERT INTO ai_writing_suggestions "
+                "(document_id, user_id, suggestion_type, position_start, position_end, "
+                "original_text, suggested_text, confidence_score, explanation, status) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
+            stmt.bind(0, documentId);
+            stmt.bind(1, userId);
+            stmt.bind(2, suggestionType);
+            stmt.bind(3, positionStart);
+            stmt.bind(4, positionEnd);
+            stmt.bind(5, suggestion.originalText);
+            stmt.bind(6, suggestedText);
+            stmt.bind(7, static_cast<double>(suggestion.confidenceScore));
+            stmt.bind(8, suggestion.explanation);
+            stmt.execute();
 
             auto results = database_->query("SELECT LAST_INSERT_ID() as id");
             if (!results.empty()) {
@@ -1134,9 +1186,10 @@ std::string CollaborativeWritingModule::buildWritingPrompt(const CollaborativeDo
 std::vector<WritingSuggestion> CollaborativeWritingModule::getWritingSuggestions(int documentId) {
     std::vector<WritingSuggestion> suggestions;
     try {
-        auto results = database_->query(
-            "SELECT * FROM ai_writing_suggestions WHERE document_id = " + std::to_string(documentId) +
-            " ORDER BY created_at DESC");
+        PreparedStatement stmt(database_,
+            "SELECT * FROM ai_writing_suggestions WHERE document_id = ? ORDER BY created_at DESC");
+        stmt.bind(0, documentId);
+        auto results = stmt.query();
 
         for (auto& row : results) {
             WritingSuggestion s;
@@ -1161,8 +1214,10 @@ std::vector<WritingSuggestion> CollaborativeWritingModule::getWritingSuggestions
 
 bool CollaborativeWritingModule::acceptSuggestion(int suggestionId) {
     try {
-        return database_->execute(
-            "UPDATE ai_writing_suggestions SET status = 'accepted' WHERE id = " + std::to_string(suggestionId));
+        PreparedStatement stmt(database_,
+            "UPDATE ai_writing_suggestions SET status = 'accepted' WHERE id = ?");
+        stmt.bind(0, suggestionId);
+        return stmt.execute();
     } catch (const std::exception& e) {
         spdlog::error("[Writing] acceptSuggestion error: {}", e.what());
         return false;
@@ -1171,8 +1226,10 @@ bool CollaborativeWritingModule::acceptSuggestion(int suggestionId) {
 
 bool CollaborativeWritingModule::rejectSuggestion(int suggestionId) {
     try {
-        return database_->execute(
-            "UPDATE ai_writing_suggestions SET status = 'rejected' WHERE id = " + std::to_string(suggestionId));
+        PreparedStatement stmt(database_,
+            "UPDATE ai_writing_suggestions SET status = 'rejected' WHERE id = ?");
+        stmt.bind(0, suggestionId);
+        return stmt.execute();
     } catch (const std::exception& e) {
         spdlog::error("[Writing] rejectSuggestion error: {}", e.what());
         return false;
@@ -1192,7 +1249,10 @@ bool CollaborativeWritingModule::createVersion(int documentId, int userId, const
         }
 
         // 验证用户是否存在
-        auto userCheck = database_->query("SELECT id FROM users WHERE id = " + std::to_string(userId));
+        PreparedStatement userStmt(database_,
+            "SELECT id FROM users WHERE id = ?");
+        userStmt.bind(0, userId);
+        auto userCheck = userStmt.query();
         if (userCheck.empty()) {
             spdlog::error("[Writing] createVersion: user {} not found", userId);
             return false;
@@ -1201,9 +1261,10 @@ bool CollaborativeWritingModule::createVersion(int documentId, int userId, const
         std::string content = docOpt->content;
 
         // 获取当前最大版本号
-        auto verResults = database_->query(
-            "SELECT COALESCE(MAX(version_number), 0) as max_ver FROM document_versions WHERE document_id = "
-            + std::to_string(documentId));
+        PreparedStatement verStmt(database_,
+            "SELECT COALESCE(MAX(version_number), 0) as max_ver FROM document_versions WHERE document_id = ?");
+        verStmt.bind(0, documentId);
+        auto verResults = verStmt.query();
         int nextVersion = 1;
         if (!verResults.empty() && !verResults[0]["max_ver"].empty()) {
             nextVersion = safeStoi(verResults[0]["max_ver"]) + 1;
@@ -1212,18 +1273,20 @@ bool CollaborativeWritingModule::createVersion(int documentId, int userId, const
         int wordCount = static_cast<int>(
             std::count_if(content.begin(), content.end(), [](unsigned char c) { return std::isprint(c) || c == '\n'; }));
 
-        std::string sql = "INSERT INTO document_versions "
-                        "(document_id, version_number, content, change_summary, word_count, created_by) "
-                        "VALUES (" + std::to_string(documentId) + ", "
-                        + std::to_string(nextVersion) + ", '"
-                        + escapeSql(content) + "', '"
-                        + escapeSql(summary) + "', "
-                        + std::to_string(wordCount) + ", "
-                        + std::to_string(userId) + ")";
+        PreparedStatement stmt(database_,
+            "INSERT INTO document_versions "
+            "(document_id, version_number, content, change_summary, word_count, created_by) "
+            "VALUES (?, ?, ?, ?, ?, ?)");
+        stmt.bind(0, documentId);
+        stmt.bind(1, nextVersion);
+        stmt.bind(2, content);
+        stmt.bind(3, summary);
+        stmt.bind(4, wordCount);
+        stmt.bind(5, userId);
 
-        spdlog::info("[Writing] createVersion SQL: {}", sql);
+        spdlog::info("[Writing] createVersion: doc={}, ver={}, user={}", documentId, nextVersion, userId);
 
-        bool result = database_->execute(sql);
+        bool result = stmt.execute();
         spdlog::info("[Writing] createVersion result: {}", result);
         return result;
     } catch (const std::exception& e) {
@@ -1235,9 +1298,10 @@ bool CollaborativeWritingModule::createVersion(int documentId, int userId, const
 std::vector<std::map<std::string, std::string>> CollaborativeWritingModule::getVersions(int documentId) {
     std::vector<std::map<std::string, std::string>> versions;
     try {
-        auto results = database_->query(
-            "SELECT * FROM document_versions WHERE document_id = " + std::to_string(documentId) +
-            " ORDER BY version_number DESC");
+        PreparedStatement stmt(database_,
+            "SELECT * FROM document_versions WHERE document_id = ? ORDER BY version_number DESC");
+        stmt.bind(0, documentId);
+        auto results = stmt.query();
 
         for (const auto& row : results) {
             versions.push_back(row);
@@ -1255,16 +1319,18 @@ std::vector<std::map<std::string, std::string>> CollaborativeWritingModule::getV
 int CollaborativeWritingModule::addComment(int documentId, int userId, const std::string& content,
                                            int positionStart, int positionEnd, int parentId) {
     try {
-        std::string sql = "INSERT INTO document_comments "
-                        "(document_id, user_id, parent_id, position_start, position_end, content) "
-                        "VALUES (" + std::to_string(documentId) + ", "
-                        + std::to_string(userId) + ", "
-                        + std::to_string(parentId) + ", "
-                        + std::to_string(positionStart) + ", "
-                        + std::to_string(positionEnd) + ", '"
-                        + escapeSql(content) + "')";
+        PreparedStatement stmt(database_,
+            "INSERT INTO document_comments "
+            "(document_id, user_id, parent_id, position_start, position_end, content) "
+            "VALUES (?, ?, ?, ?, ?, ?)");
+        stmt.bind(0, documentId);
+        stmt.bind(1, userId);
+        stmt.bind(2, parentId);
+        stmt.bind(3, positionStart);
+        stmt.bind(4, positionEnd);
+        stmt.bind(5, content);
 
-        if (database_->execute(sql)) {
+        if (stmt.execute()) {
             auto results = database_->query("SELECT LAST_INSERT_ID() as id");
             if (!results.empty()) {
                 return std::stoi(results[0]["id"]);
@@ -1280,9 +1346,10 @@ int CollaborativeWritingModule::addComment(int documentId, int userId, const std
 std::vector<std::map<std::string, std::string>> CollaborativeWritingModule::getComments(int documentId) {
     std::vector<std::map<std::string, std::string>> comments;
     try {
-        auto results = database_->query(
-            "SELECT * FROM document_comments WHERE document_id = " + std::to_string(documentId) +
-            " ORDER BY created_at ASC");
+        PreparedStatement stmt(database_,
+            "SELECT * FROM document_comments WHERE document_id = ? ORDER BY created_at ASC");
+        stmt.bind(0, documentId);
+        auto results = stmt.query();
 
         for (const auto& row : results) {
             comments.push_back(row);
@@ -1295,9 +1362,10 @@ std::vector<std::map<std::string, std::string>> CollaborativeWritingModule::getC
 
 bool CollaborativeWritingModule::resolveComment(int commentId) {
     try {
-        return database_->execute(
-            "UPDATE document_comments SET is_resolved = TRUE, updated_at = NOW() WHERE id = "
-            + std::to_string(commentId));
+        PreparedStatement stmt(database_,
+            "UPDATE document_comments SET is_resolved = TRUE, updated_at = NOW() WHERE id = ?");
+        stmt.bind(0, commentId);
+        return stmt.execute();
     } catch (const std::exception& e) {
         spdlog::error("[Writing] resolveComment error: {}", e.what());
         return false;

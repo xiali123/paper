@@ -163,11 +163,10 @@ AIReviewResult AiCoPilotModule::generateReview(const AIReviewRequest& request) {
 
     try {
         // 1. 从数据库获取论文数据
-        std::ostringstream sql;
-        sql << "SELECT id, title, authors, abstract, content FROM papers WHERE id = "
-            << request.paperId;
-
-        auto papers = database_->query(sql.str());
+        PreparedStatement paperStmt(database_,
+            "SELECT id, title, authors, abstract, content FROM papers WHERE id = ?");
+        paperStmt.bind(0, request.paperId);
+        auto papers = paperStmt.query();
         if (papers.empty()) {
             result.success = false;
             return result;
@@ -223,18 +222,17 @@ AIReviewResult AiCoPilotModule::generateReview(const AIReviewRequest& request) {
                 }
 
                 // 保存到数据库
-                std::ostringstream insertSql;
-                insertSql << "INSERT INTO ai_review_feedback "
-                    << "(paper_id, user_id, review_score, acceptance_probability, "
-                    << "improvement_suggestions, reviewer_comments) VALUES ("
-                    << request.paperId << ", "
-                    << request.userId << ", "
-                    << result.reviewScore << ", "
-                    << result.acceptanceProbability << ", "
-                    << "'[\"suggestion1\", \"suggestion2\"]', "
-                    << "\"" << escapeSql(result.reviewerComments) << "\")";
-
-                database_->execute(insertSql.str());
+                PreparedStatement insertStmt(database_,
+                    "INSERT INTO ai_review_feedback "
+                    "(paper_id, user_id, review_score, acceptance_probability, "
+                    "improvement_suggestions, reviewer_comments) VALUES (?, ?, ?, ?, ?, ?)");
+                insertStmt.bind(0, request.paperId)
+                          .bind(1, request.userId)
+                          .bind(2, result.reviewScore)
+                          .bind(3, static_cast<double>(result.acceptanceProbability))
+                          .bind(4, std::string("[\"suggestion1\", \"suggestion2\"]"))
+                          .bind(5, result.reviewerComments);
+                insertStmt.execute();
 
                 // 发布事件
                 EventPublisher::aiResponseReceived(
@@ -295,11 +293,12 @@ std::string AiCoPilotModule::buildReviewPrompt(
 std::vector<AIReviewResult> AiCoPilotModule::getReviewHistory(int userId, int page, int limit) {
     std::vector<AIReviewResult> results;
 
-    std::ostringstream sql;
-    sql << "SELECT * FROM ai_review_feedback WHERE user_id = " << userId
-        << " ORDER BY created_at DESC LIMIT " << limit << " OFFSET " << ((page - 1) * limit);
-
-    auto rows = database_->query(sql.str());
+    int offset = (page - 1) * limit;
+    PreparedStatement reviewStmt(database_,
+        "SELECT * FROM ai_review_feedback WHERE user_id = ? "
+        "ORDER BY created_at DESC LIMIT ? OFFSET ?");
+    reviewStmt.bind(0, userId).bind(1, limit).bind(2, offset);
+    auto rows = reviewStmt.query();
 
     for (const auto& row : rows) {
         AIReviewResult r;
@@ -405,17 +404,17 @@ LiteratureReviewResult AiCoPilotModule::generateLiteratureReview(
                 }
 
                 // 保存到数据库
-                std::ostringstream insertSql;
-                insertSql << "INSERT INTO literature_reviews "
-                    << "(user_id, title, research_field, paper_ids, paper_count, review_content) VALUES ("
-                    << request.userId << ", "
-                    << "\"" << escapeSql(request.title) << "\", "
-                    << "\"" << escapeSql(request.researchField) << "\", "
-                    << "'[\"ids...\"]', "
-                    << request.paperIds.size() << ", "
-                    << "\"" << escapeSql(result.reviewContent) << "\")";
-
-                database_->execute(insertSql.str());
+                PreparedStatement insertLitStmt(database_,
+                    "INSERT INTO literature_reviews "
+                    "(user_id, title, research_field, paper_ids, paper_count, review_content) "
+                    "VALUES (?, ?, ?, ?, ?, ?)");
+                insertLitStmt.bind(0, request.userId)
+                              .bind(1, request.title)
+                              .bind(2, request.researchField)
+                              .bind(3, std::string("[\"ids...\"]"))
+                              .bind(4, static_cast<int>(request.paperIds.size()))
+                              .bind(5, result.reviewContent);
+                insertLitStmt.execute();
 
                 impl_->totalLiteratureReviews_++;
             }
@@ -512,16 +511,16 @@ ResearchPlanResult AiCoPilotModule::generateResearchPlan(const ResearchPlanReque
                 }
 
                 // 保存到数据库
-                std::ostringstream insertSql;
-                insertSql << "INSERT INTO research_plans "
-                    << "(user_id, title, research_question, feasibility_score, innovation_score) VALUES ("
-                    << request.userId << ", "
-                    << "\"" << escapeSql(request.title) << "\", "
-                    << "\"" << escapeSql(request.researchQuestion) << "\", "
-                    << result.feasibilityScore << ", "
-                    << result.innovationScore << ")";
-
-                database_->execute(insertSql.str());
+                PreparedStatement insertPlanStmt(database_,
+                    "INSERT INTO research_plans "
+                    "(user_id, title, research_question, feasibility_score, innovation_score) "
+                    "VALUES (?, ?, ?, ?, ?)");
+                insertPlanStmt.bind(0, request.userId)
+                               .bind(1, request.title)
+                               .bind(2, request.researchQuestion)
+                               .bind(3, result.feasibilityScore)
+                               .bind(4, result.innovationScore);
+                insertPlanStmt.execute();
 
                 impl_->totalResearchPlans_++;
             }
@@ -690,36 +689,40 @@ std::map<std::string, std::string> AiCoPilotModule::getUsageStats(int userId) {
     // 从数据库查询用户的详细使用统计
     try {
         // 审稿统计
-        std::ostringstream reviewSql;
-        reviewSql << "SELECT COUNT(*) AS cnt, AVG(review_score) AS avg_score "
-                  << "FROM ai_review_feedback WHERE user_id = " << userId;
-        auto reviewRows = database_->query(reviewSql.str());
+        PreparedStatement reviewStmt(database_,
+            "SELECT COUNT(*) AS cnt, AVG(review_score) AS avg_score "
+            "FROM ai_review_feedback WHERE user_id = ?");
+        reviewStmt.bind(0, userId);
+        auto reviewRows = reviewStmt.query();
         if (!reviewRows.empty()) {
             stats["db_review_count"] = reviewRows[0].count("cnt") ? reviewRows[0].at("cnt") : "0";
             stats["db_avg_review_score"] = reviewRows[0].count("avg_score") ? reviewRows[0].at("avg_score") : "0";
         }
 
         // 文献综述统计
-        std::ostringstream litSql;
-        litSql << "SELECT COUNT(*) AS cnt FROM literature_reviews WHERE user_id = " << userId;
-        auto litRows = database_->query(litSql.str());
+        PreparedStatement litStmt(database_,
+            "SELECT COUNT(*) AS cnt FROM literature_reviews WHERE user_id = ?");
+        litStmt.bind(0, userId);
+        auto litRows = litStmt.query();
         if (!litRows.empty()) {
             stats["db_literature_review_count"] = litRows[0].count("cnt") ? litRows[0].at("cnt") : "0";
         }
 
         // 研究计划统计
-        std::ostringstream planSql;
-        planSql << "SELECT COUNT(*) AS cnt FROM research_plans WHERE user_id = " << userId;
-        auto planRows = database_->query(planSql.str());
+        PreparedStatement planStmt(database_,
+            "SELECT COUNT(*) AS cnt FROM research_plans WHERE user_id = ?");
+        planStmt.bind(0, userId);
+        auto planRows = planStmt.query();
         if (!planRows.empty()) {
             stats["db_research_plan_count"] = planRows[0].count("cnt") ? planRows[0].at("cnt") : "0";
         }
 
         // 对话统计
-        std::ostringstream chatSql;
-        chatSql << "SELECT COUNT(DISTINCT session_id) AS session_count, COUNT(*) AS message_count "
-                << "FROM ai_conversations WHERE user_id = " << userId;
-        auto chatRows = database_->query(chatSql.str());
+        PreparedStatement chatStmt(database_,
+            "SELECT COUNT(DISTINCT session_id) AS session_count, COUNT(*) AS message_count "
+            "FROM ai_conversations WHERE user_id = ?");
+        chatStmt.bind(0, userId);
+        auto chatRows = chatStmt.query();
         if (!chatRows.empty()) {
             stats["db_session_count"] = chatRows[0].count("session_count") ? chatRows[0].at("session_count") : "0";
             stats["db_message_count"] = chatRows[0].count("message_count") ? chatRows[0].at("message_count") : "0";

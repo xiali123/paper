@@ -13,6 +13,7 @@
 #include <ctime>
 #include <iomanip>
 #include "data/ValidationHelper.hpp"
+#include "data/PreparedStatement.hpp"
 
 namespace PaperCrawler {
 
@@ -276,8 +277,9 @@ std::string DashboardApiModule::handleActivities(int limit) {
 
         // 论文添加
         try {
-            auto papers = database_->query(
-                "SELECT id, title, created_at FROM papers ORDER BY created_at DESC LIMIT " + std::to_string(limit));
+            auto papers = PreparedStatement(database_,
+                "SELECT id, title, created_at FROM papers ORDER BY created_at DESC LIMIT ?")
+                .bind(0, limit).query();
             for (auto& row : papers) {
                 std::map<std::string, std::string> act;
                 act["type"] = "paper_added";
@@ -291,8 +293,9 @@ std::string DashboardApiModule::handleActivities(int limit) {
 
         // 搜索活动
         try {
-            auto searches = database_->query(
-                "SELECT id, query as title, created_at FROM search_history ORDER BY created_at DESC LIMIT " + std::to_string(limit));
+            auto searches = PreparedStatement(database_,
+                "SELECT id, query as title, created_at FROM search_history ORDER BY created_at DESC LIMIT ?")
+                .bind(0, limit).query();
             for (auto& row : searches) {
                 std::map<std::string, std::string> act;
                 act["type"] = "search";
@@ -349,7 +352,7 @@ std::string DashboardApiModule::handleRecommendations(int limit) {
     }
 
     try {
-        auto results = database_->query(
+        auto results = PreparedStatement(database_,
             "SELECT p.id, p.title, p.authors, p.year, p.abstract, "
             "ps.similarity_score as score "
             "FROM papers p "
@@ -357,7 +360,8 @@ std::string DashboardApiModule::handleRecommendations(int limit) {
             "WHERE ps.similarity_score > 0.5 "
             "GROUP BY p.id "
             "ORDER BY MAX(ps.similarity_score) DESC, p.citation_count DESC "
-            "LIMIT " + std::to_string(limit));
+            "LIMIT ?")
+            .bind(0, limit).query();
 
         bool first = true;
         for (auto& row : results) {
@@ -409,10 +413,11 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
     }
 
     try {
-        auto results = database_->query(
+        auto results = PreparedStatement(database_,
             "SELECT keyword, search_count as count, trend_direction as trend "
             "FROM trending_searches "
-            "ORDER BY search_count DESC LIMIT " + std::to_string(limit));
+            "ORDER BY search_count DESC LIMIT ?")
+            .bind(0, limit).query();
 
         bool first = true;
         for (auto& row : results) {
@@ -430,10 +435,11 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
         spdlog::warn("[DashboardApi] Trending searches query failed: {}", e.what());
         // 回退：用 search_history 聚合
         try {
-            auto results = database_->query(
+            auto results = PreparedStatement(database_,
                 "SELECT query as keyword, COUNT(*) as count "
                 "FROM search_history "
-                "GROUP BY query ORDER BY count DESC LIMIT " + std::to_string(limit));
+                "GROUP BY query ORDER BY count DESC LIMIT ?")
+                .bind(0, limit).query();
             bool first = true;
             for (auto& row : results) {
                 if (!first) json << ",";
@@ -539,9 +545,9 @@ std::string DashboardApiModule::handleUpdateTodoStatus(const std::string& id, co
     // 优先更新数据库
     if (database_) {
         try {
-            auto results = database_->query(
-                "UPDATE dashboard_todos SET status = '" + newStatus +
-                "' WHERE id = " + id);
+            PreparedStatement(database_,
+                "UPDATE dashboard_todos SET status = ? WHERE id = ?")
+                .bind(0, newStatus).bind(1, id).execute();
             return "{\"success\":true,\"id\":\"" + id + "\",\"status\":\"" + newStatus + "\"}";
         } catch (const std::exception& e) {
             spdlog::warn("[DashboardApi] Todo status DB update failed, using in-memory: {}", e.what());
@@ -635,10 +641,10 @@ std::string DashboardApiModule::handleGrowth(int days) {
         std::string sql =
             "SELECT DATE(created_at) as date, COUNT(*) as count "
             "FROM papers "
-            "WHERE created_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(days) + " DAY) "
+            "WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY) "
             "GROUP BY DATE(created_at) ORDER BY date";
 
-        auto results = database_->query(sql);
+        auto results = PreparedStatement(database_, sql).bind(0, days).query();
 
         bool first = true;
         for (auto& row : results) {
@@ -844,10 +850,11 @@ std::string DashboardApiModule::handleUpdateConfig(const std::string& body) {
     // 优先持久化到数据库
     if (database_) {
         try {
-            database_->execute(
+            PreparedStatement(database_,
                 "INSERT INTO dashboard_config (config_key, config_value, updated_at) "
-                "VALUES ('layout', '" + body + "', NOW()) "
-                "ON DUPLICATE KEY UPDATE config_value = '" + body + "', updated_at = NOW()");
+                "VALUES ('layout', ?, NOW()) "
+                "ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()")
+                .bind(0, body).bind(1, body).execute();
             spdlog::info("[DashboardApi] Config saved to database");
         } catch (const std::exception& e) {
             spdlog::warn("[DashboardApi] Config DB save failed, using in-memory: {}", e.what());
