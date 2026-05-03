@@ -7,7 +7,7 @@
 #include "core/Router.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <iomanip>
 #include <fstream>

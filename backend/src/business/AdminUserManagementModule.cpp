@@ -5,7 +5,7 @@
 #include "core/ModuleMetadata.hpp"
 #include "features/security/SecurityModule.hpp"
 #include "data/PreparedStatement.hpp"
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>
@@ -994,13 +994,11 @@ void AdminUserManagementModule::registerRoutes() {
 std::string AdminUserManagementModule::handleGetStats(const std::map<std::string, std::string>& params) {
     auto stats = getStats();
 
-    // 直接构建符合前端期望的响应格式
-    std::ostringstream result;
-    result << "{";
-    result << "\"success\":true,";
-    result << "\"data\":" << stats.toJSON();
-    result << "}";
-    return result.str();
+    // Build response using nlohmann::json
+    nlohmann::json result;
+    result["success"] = true;
+    result["data"] = nlohmann::json::parse(stats.toJSON());
+    return result.dump();
 }
 
 std::string AdminUserManagementModule::handleListUsers(const std::map<std::string, std::string>& params) {
@@ -1024,28 +1022,21 @@ std::string AdminUserManagementModule::handleListUsers(const std::map<std::strin
 
     auto response = listUsers(page, limit, search, roleFilter);
 
-    // 构建用户数组JSON
-    std::ostringstream usersJson;
-    usersJson << "[";
-    for (size_t i = 0; i < response.items.size(); i++) {
-        if (i > 0) usersJson << ",";
-        usersJson << response.items[i].toJSON();
+    // Build users array using nlohmann::json
+    nlohmann::json usersArr = nlohmann::json::array();
+    for (const auto& user : response.items) {
+        usersArr.push_back(nlohmann::json::parse(user.toJSON()));
     }
-    usersJson << "]";
 
-    // 直接构建符合前端期望的响应格式
-    std::ostringstream result;
-    result << "{";
-    result << "\"success\":true,";
-    result << "\"data\":{";
-    result << "\"users\":" << usersJson.str() << ",";
-    result << "\"pagination\":{";
-    result << "\"page\":" << response.page << ",";
-    result << "\"limit\":" << response.limit << ",";
-    result << "\"total\":" << response.total << ",";
-    result << "\"totalPages\":" << response.totalPages;
-    result << "}}}";
-    return result.str();
+    // Build response using nlohmann::json
+    nlohmann::json result;
+    result["success"] = true;
+    result["data"]["users"] = usersArr;
+    result["data"]["pagination"]["page"] = response.page;
+    result["data"]["pagination"]["limit"] = response.limit;
+    result["data"]["pagination"]["total"] = response.total;
+    result["data"]["pagination"]["totalPages"] = response.totalPages;
+    return result.dump();
 }
 
 std::string AdminUserManagementModule::handleGetUser(const std::map<std::string, std::string>& params) {
@@ -1088,7 +1079,10 @@ std::string AdminUserManagementModule::handleCreateUser(const std::string& body)
         std::string password = jsonBody.value("password", "");
         if (password.empty()) {
             spdlog::warn("[Admin] createUser: password is required");
-            return "{\"success\":false,\"error\":\"Password is required\"}";
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Password is required";
+            return errResp.dump();
         }
         // Hash password using SHA256 (in production should use SecurityModule)
         unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -1316,35 +1310,31 @@ std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::
             total = std::stoi(StringUtil::cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
         }
 
-        // Build JSON array
-        std::ostringstream itemsJson;
-        itemsJson << "[";
-        for (size_t i = 0; i < results.size(); i++) {
-            if (i > 0) itemsJson << ",";
-            const auto& row = results[i];
-            itemsJson << "{";
-            itemsJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-            itemsJson << "\"user_id\":" << userId << ",";
-            itemsJson << "\"login_time\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("login_time") ? row.at("login_time") : "")) << "\",";
-            itemsJson << "\"ip_address\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "")) << "\",";
-            itemsJson << "\"user_agent\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "")) << "\",";
+        // Build JSON array using nlohmann::json
+        nlohmann::json itemsArr = nlohmann::json::array();
+        for (const auto& row : results) {
+            nlohmann::json item;
+            item["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            item["user_id"] = userId;
+            item["login_time"] = StringUtil::cleanDbString(row.count("login_time") ? row.at("login_time") : "");
+            item["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
+            item["user_agent"] = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
             std::string successVal = StringUtil::cleanDbString(row.count("success") ? row.at("success") : "0");
-            itemsJson << "\"success\":" << (successVal == "1" || successVal == "true" ? "true" : "false");
-            itemsJson << "}";
+            item["success"] = (successVal == "1" || successVal == "true");
+            itemsArr.push_back(item);
         }
-        itemsJson << "]";
 
         int totalPages = (total + limit - 1) / limit;
         if (totalPages < 1) totalPages = 1;
 
-        std::ostringstream data;
-        data << "{\"items\":" << itemsJson.str() << ","
-             << "\"total\":" << total << ","
-             << "\"page\":" << page << ","
-             << "\"limit\":" << limit << ","
-             << "\"total_pages\":" << totalPages << "}";
+        nlohmann::json data;
+        data["items"] = itemsArr;
+        data["total"] = total;
+        data["page"] = page;
+        data["limit"] = limit;
+        data["total_pages"] = totalPages;
 
-        return StringUtil::buildJsonResponse(HTTP::OK, true, "Login history retrieved", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Login history retrieved", data.dump());
     } catch (const std::exception& e) {
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
@@ -1366,29 +1356,25 @@ std::string AdminUserManagementModule::handleGetUserSessions(const std::map<std:
         stmt.bind(0, userId);
         auto results = stmt.query();
 
-        // Build JSON array
-        std::ostringstream itemsJson;
-        itemsJson << "[";
-        for (size_t i = 0; i < results.size(); i++) {
-            if (i > 0) itemsJson << ",";
-            const auto& row = results[i];
-            itemsJson << "{";
-            itemsJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-            itemsJson << "\"user_id\":" << userId << ",";
-            itemsJson << "\"token\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("token") ? row.at("token") : "")) << "\",";
-            itemsJson << "\"ip_address\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "")) << "\",";
-            itemsJson << "\"user_agent\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "")) << "\",";
-            itemsJson << "\"created_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
-            itemsJson << "\"expires_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
-            itemsJson << "}";
+        // Build JSON array using nlohmann::json
+        nlohmann::json itemsArr = nlohmann::json::array();
+        for (const auto& row : results) {
+            nlohmann::json item;
+            item["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            item["user_id"] = userId;
+            item["token"] = StringUtil::cleanDbString(row.count("token") ? row.at("token") : "");
+            item["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
+            item["user_agent"] = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
+            item["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            item["expires_at"] = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
+            itemsArr.push_back(item);
         }
-        itemsJson << "]";
 
-        std::ostringstream data;
-        data << "{\"sessions\":" << itemsJson.str() << ","
-             << "\"total\":" << results.size() << "}";
+        nlohmann::json data;
+        data["sessions"] = itemsArr;
+        data["total"] = results.size();
 
-        return StringUtil::buildJsonResponse(HTTP::OK, true, "Active sessions retrieved", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Active sessions retrieved", data.dump());
     } catch (const std::exception& e) {
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }

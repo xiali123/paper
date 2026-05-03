@@ -11,7 +11,7 @@
 #include "core/MessageBus.hpp"
 #include "core/ConfigManager.hpp"
 // 移除SharedBroadcastQueue，改用DatabaseModule::getConnection()
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>

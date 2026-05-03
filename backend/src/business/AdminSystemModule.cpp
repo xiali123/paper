@@ -5,7 +5,7 @@
 #include "core/ModuleMetadata.hpp"
 #include "features/security/SecurityModule.hpp"
 #include "data/PreparedStatement.hpp"
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>
@@ -633,37 +633,34 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
         auto stats = getStats();
 
         // User registration trend (last 30 days)
-        std::ostringstream trendJson;
-        trendJson << "[";
+        nlohmann::json trendArr = nlohmann::json::array();
         auto trendResults = database_->query(
             "SELECT DATE(created_at) as d, COUNT(*) as c FROM users "
             "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) "
             "GROUP BY DATE(created_at) ORDER BY d");
-        for (size_t i = 0; i < trendResults.size(); i++) {
-            if (i > 0) trendJson << ",";
-            trendJson << "{\"date\":\"" << StringUtil::cleanDbString(trendResults[i]["d"])
-                      << "\",\"count\":" << StringUtil::cleanDbString(trendResults[i]["c"]) << "}";
+        for (const auto& row : trendResults) {
+            trendArr.push_back({
+                {"date", StringUtil::cleanDbString(row.count("d") ? row.at("d") : "")},
+                {"count", std::stoi(StringUtil::cleanDbString(row.count("c") ? row.at("c") : "0"))}
+            });
         }
-        trendJson << "]";
 
         // Active users trend (logins per day, last 30 days)
-        std::ostringstream activeJson;
-        activeJson << "[";
+        nlohmann::json activeArr = nlohmann::json::array();
         auto activeResults = database_->query(
             "SELECT DATE(login_time) as d, COUNT(DISTINCT user_id) as c FROM login_history "
             "WHERE login_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND success = 1 "
             "GROUP BY DATE(login_time) ORDER BY d");
-        for (size_t i = 0; i < activeResults.size(); i++) {
-            if (i > 0) activeJson << ",";
-            activeJson << "{\"date\":\"" << StringUtil::cleanDbString(activeResults[i]["d"])
-                       << "\",\"count\":" << StringUtil::cleanDbString(activeResults[i]["c"]) << "}";
+        for (const auto& row : activeResults) {
+            activeArr.push_back({
+                {"date", StringUtil::cleanDbString(row.count("d") ? row.at("d") : "")},
+                {"count", std::stoi(StringUtil::cleanDbString(row.count("c") ? row.at("c") : "0"))}
+            });
         }
-        activeJson << "]";
 
         // System health
-        std::ostringstream healthJson;
-        healthJson << "{";
-        healthJson << "\"db_connected\":" << (database_ ? "true" : "false") << ",";
+        nlohmann::json healthObj;
+        healthObj["db_connected"] = database_ ? true : false;
         int healthyModules = 0;
         {
             std::lock_guard<std::mutex> lock(modulesMutex_);
@@ -671,17 +668,16 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
                 if (mod.enabled) healthyModules++;
             }
         }
-        healthJson << "\"modules_healthy\":" << healthyModules << ",";
-        healthJson << "\"modules_total\":" << impl_->modules_.size();
-        healthJson << "}";
+        healthObj["modules_healthy"] = healthyModules;
+        healthObj["modules_total"] = impl_->modules_.size();
 
-        std::ostringstream data;
-        data << "{\"stats\":" << stats.toJSON() << ","
-             << "\"user_trend\":" << trendJson.str() << ","
-             << "\"active_trend\":" << activeJson.str() << ","
-             << "\"system_health\":" << healthJson.str() << "}";
+        nlohmann::json data;
+        data["stats"] = nlohmann::json::parse(stats.toJSON());
+        data["user_trend"] = trendArr;
+        data["active_trend"] = activeArr;
+        data["system_health"] = healthObj;
 
-        return StringUtil::buildJsonResponse(HTTP::OK, true, "Dashboard data", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Dashboard data", data.dump());
     } catch (const std::exception& e) {
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
@@ -690,24 +686,19 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
 std::string AdminSystemModule::handleListModules(const std::map<std::string, std::string>& params) {
     auto modules = listModules();
 
-    std::ostringstream modulesJson;
-    modulesJson << "[";
-    for (size_t i = 0; i < modules.size(); i++) {
-        if (i > 0) modulesJson << ",";
-        modulesJson << modules[i].toJSON();
+    nlohmann::json modulesArr = nlohmann::json::array();
+    for (const auto& mod : modules) {
+        modulesArr.push_back(nlohmann::json::parse(mod.toJSON()));
     }
-    modulesJson << "]";
 
-    // 直接构建正确的响应格式，确保data字段是数组
-    std::ostringstream response;
-    response << "{";
-    response << "\"success\":true,";
-    response << "\"message\":\"Modules retrieved\",";
-    response << "\"data\":" << modulesJson.str();
-    response << "}";
+    // Build response with data field as array
+    nlohmann::json response;
+    response["success"] = true;
+    response["message"] = "Modules retrieved";
+    response["data"] = modulesArr;
 
-    spdlog::debug("[AdminSystem] handleListModules returning: {}", response.str());
-    return response.str();
+    spdlog::debug("[AdminSystem] handleListModules returning: {}", response.dump());
+    return response.dump();
 }
 
 std::string AdminSystemModule::handleEnableModule(const std::map<std::string, std::string>& params, const std::string& body) {
@@ -848,15 +839,12 @@ std::string AdminSystemModule::handleScanModules(const std::map<std::string, std
     try {
         auto modules = scanModules(directory);
 
-        std::ostringstream modulesJson;
-        modulesJson << "[";
-        for (size_t i = 0; i < modules.size(); i++) {
-            if (i > 0) modulesJson << ",";
-            modulesJson << modules[i].toJSON();
+        nlohmann::json modulesArr = nlohmann::json::array();
+        for (const auto& mod : modules) {
+            modulesArr.push_back(nlohmann::json::parse(mod.toJSON()));
         }
-        modulesJson << "]";
 
-        return StringUtil::buildJsonResponse(HTTP::OK, true, "Modules scanned", modulesJson.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Modules scanned", modulesArr.dump());
     } catch (const std::exception& e) {
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
@@ -1397,37 +1385,33 @@ std::string AdminSystemModule::handleListAnnouncements(const std::map<std::strin
         }
 
         // Build JSON array
-        std::ostringstream itemsJson;
-        itemsJson << "[";
-        for (size_t i = 0; i < results.size(); i++) {
-            if (i > 0) itemsJson << ",";
-            const auto& row = results[i];
-            itemsJson << "{";
-            itemsJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-            itemsJson << "\"title\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("title") ? row.at("title") : "")) << "\",";
-            itemsJson << "\"content\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("content") ? row.at("content") : "")) << "\",";
-            itemsJson << "\"type\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info")) << "\",";
-            itemsJson << "\"target_role\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all")) << "\",";
-            itemsJson << "\"created_by\":" << StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0") << ",";
+        nlohmann::json itemsArr = nlohmann::json::array();
+        for (const auto& row : results) {
             std::string isActiveVal = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
-            itemsJson << "\"is_active\":" << (isActiveVal == "1" || isActiveVal == "true" ? "true" : "false") << ",";
-            itemsJson << "\"created_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
-            itemsJson << "\"expires_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
-            itemsJson << "}";
+            itemsArr.push_back({
+                {"id", std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"))},
+                {"title", StringUtil::cleanDbString(row.count("title") ? row.at("title") : "")},
+                {"content", StringUtil::cleanDbString(row.count("content") ? row.at("content") : "")},
+                {"type", StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info")},
+                {"target_role", StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all")},
+                {"created_by", std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"))},
+                {"is_active", isActiveVal == "1" || isActiveVal == "true"},
+                {"created_at", StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")},
+                {"expires_at", StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")}
+            });
         }
-        itemsJson << "]";
 
         int totalPages = (total + limit - 1) / limit;
         if (totalPages < 1) totalPages = 1;
 
-        std::ostringstream data;
-        data << "{\"items\":" << itemsJson.str() << ","
-             << "\"total\":" << total << ","
-             << "\"page\":" << page << ","
-             << "\"limit\":" << limit << ","
-             << "\"total_pages\":" << totalPages << "}";
+        nlohmann::json data;
+        data["items"] = itemsArr;
+        data["total"] = total;
+        data["page"] = page;
+        data["limit"] = limit;
+        data["total_pages"] = totalPages;
 
-        return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcements retrieved", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcements retrieved", data.dump());
     } catch (const std::exception& e) {
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
@@ -1472,25 +1456,23 @@ std::string AdminSystemModule::handleCreateAnnouncement(const std::string& body)
 
             if (!newResults.empty()) {
                 const auto& row = newResults[0];
-                std::ostringstream annJson;
-                annJson << "{";
-                annJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-                annJson << "\"title\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("title") ? row.at("title") : "")) << "\",";
-                annJson << "\"content\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("content") ? row.at("content") : "")) << "\",";
-                annJson << "\"type\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info")) << "\",";
-                annJson << "\"target_role\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all")) << "\",";
-                annJson << "\"created_by\":" << StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0") << ",";
                 std::string isActiveVal = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
-                annJson << "\"is_active\":" << (isActiveVal == "1" || isActiveVal == "true" ? "true" : "false") << ",";
-                annJson << "\"created_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
-                annJson << "\"expires_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
-                annJson << "}";
+                nlohmann::json annObj;
+                annObj["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                annObj["title"] = StringUtil::cleanDbString(row.count("title") ? row.at("title") : "");
+                annObj["content"] = StringUtil::cleanDbString(row.count("content") ? row.at("content") : "");
+                annObj["type"] = StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info");
+                annObj["target_role"] = StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all");
+                annObj["created_by"] = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
+                annObj["is_active"] = isActiveVal == "1" || isActiveVal == "true";
+                annObj["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                annObj["expires_at"] = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
 
                 addAuditLog("announcement_created", "announcement",
                             std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0")),
                             "admin", 0, "Created announcement: " + title, "127.0.0.1");
 
-                return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcement created", annJson.str());
+                return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcement created", annObj.dump());
             }
         }
 
@@ -1638,9 +1620,10 @@ std::string AdminSystemModule::handleToggleAnnouncement(const std::map<std::stri
                         "Toggled announcement ID: " + std::to_string(annId) + " to " + (newState ? "active" : "inactive"),
                         "127.0.0.1");
 
-            std::ostringstream data;
-            data << "{\"id\":" << annId << ",\"is_active\":" << (newState ? "true" : "false") << "}";
-            return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcement toggled", data.str());
+            nlohmann::json data;
+            data["id"] = annId;
+            data["is_active"] = newState;
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcement toggled", data.dump());
         }
 
         return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Announcement not found");

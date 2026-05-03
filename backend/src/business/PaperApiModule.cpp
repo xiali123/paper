@@ -10,7 +10,7 @@
 #include "core/HttpTypes.hpp"
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>

@@ -9,6 +9,7 @@
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
 #include "business/JsonHelper.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <chrono>
@@ -18,6 +19,8 @@
 #include "data/PreparedStatement.hpp"
 
 namespace PaperCrawler {
+
+using json = nlohmann::json;
 
 // ============================================================================
 // 构造/析构
@@ -203,14 +206,16 @@ std::string DashboardApiModule::handleStats() {
         return *cached;
     }
 
-    std::ostringstream json;
-    json << "{";
+    json response;
 
     if (!database_) {
-        json << "\"totalPapers\":0,\"weeklyNewPapers\":0,\"favoriteCount\":0,"
-             << "\"exportCount\":0,\"pendingTasks\":0,\"toReadCount\":0";
-        json << "}";
-        std::string responseBody = json.str();
+        response["totalPapers"] = 0;
+        response["weeklyNewPapers"] = 0;
+        response["favoriteCount"] = 0;
+        response["exportCount"] = 0;
+        response["pendingTasks"] = 0;
+        response["toReadCount"] = 0;
+        std::string responseBody = response.dump();
         QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
         return responseBody;
     }
@@ -243,20 +248,23 @@ std::string DashboardApiModule::handleStats() {
             if (!r6.empty() && r6[0].count("cnt")) exportCount = std::stoi(r6[0].at("cnt"));
         } catch (...) {}
 
-        json << "\"totalPapers\":" << totalPapers
-             << ",\"weeklyNewPapers\":" << weeklyNewPapers
-             << ",\"favoriteCount\":" << favoriteCount
-             << ",\"exportCount\":" << exportCount
-             << ",\"pendingTasks\":" << pendingTasks
-             << ",\"toReadCount\":" << toReadCount;
+        response["totalPapers"] = totalPapers;
+        response["weeklyNewPapers"] = weeklyNewPapers;
+        response["favoriteCount"] = favoriteCount;
+        response["exportCount"] = exportCount;
+        response["pendingTasks"] = pendingTasks;
+        response["toReadCount"] = toReadCount;
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] Stats query failed: {}", e.what());
-        json << "\"totalPapers\":0,\"weeklyNewPapers\":0,\"favoriteCount\":0,"
-             << "\"exportCount\":0,\"pendingTasks\":0,\"toReadCount\":0";
+        response["totalPapers"] = 0;
+        response["weeklyNewPapers"] = 0;
+        response["favoriteCount"] = 0;
+        response["exportCount"] = 0;
+        response["pendingTasks"] = 0;
+        response["toReadCount"] = 0;
     }
 
-    json << "}";
-    std::string responseBody = json.str();
+    std::string responseBody = response.dump();
     QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
     return responseBody;
 }
@@ -266,12 +274,10 @@ std::string DashboardApiModule::handleStats() {
 // ============================================================================
 
 std::string DashboardApiModule::handleActivities(int limit) {
-    std::ostringstream json;
-    json << "[";
+    json activitiesArr = json::array();
 
     if (!database_) {
-        json << "]";
-        return json.str();
+        return activitiesArr.dump();
     }
 
     try {
@@ -310,34 +316,23 @@ std::string DashboardApiModule::handleActivities(int limit) {
         } catch (...) {}
 
         // 按时间排序取limit条（简化：直接截取）
-        bool first = true;
         int count = 0;
         for (auto& act : activities) {
             if (count >= limit) break;
-            if (!first) json << ",";
-            json << "{";
-            json << "\"id\":\"" << act["id"] << "\",";
-            json << "\"type\":\"" << act["type"] << "\",";
-            json << "\"title\":\"" << JsonHelper::buildJsonResponse({}) << "\",";
-            // 使用手动转义
-            std::string escapedTitle = act["title"];
-            std::string escapedDesc = act["description"];
-            // 简单转义引号
-            for (auto& c : escapedTitle) if (c == '"') c = '\'';
-            for (auto& c : escapedDesc) if (c == '"') c = '\'';
-            json << "\"title\":\"" << escapedTitle << "\",";
-            json << "\"description\":\"" << escapedDesc << "\",";
-            json << "\"timestamp\":\"" << act["timestamp"] << "\"";
-            json << "}";
-            first = false;
+            json item;
+            item["id"] = act["id"];
+            item["type"] = act["type"];
+            item["title"] = act["title"];
+            item["description"] = act["description"];
+            item["timestamp"] = act["timestamp"];
+            activitiesArr.push_back(item);
             count++;
         }
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] Activities query failed: {}", e.what());
     }
 
-    json << "]";
-    return json.str();
+    return activitiesArr.dump();
 }
 
 // ============================================================================
@@ -345,12 +340,10 @@ std::string DashboardApiModule::handleActivities(int limit) {
 // ============================================================================
 
 std::string DashboardApiModule::handleRecommendations(int limit) {
-    std::ostringstream json;
-    json << "[";
+    json resultsArr = json::array();
 
     if (!database_) {
-        json << "]";
-        return json.str();
+        return resultsArr.dump();
     }
 
     try {
@@ -365,30 +358,24 @@ std::string DashboardApiModule::handleRecommendations(int limit) {
             "LIMIT ?")
             .bind(0, limit).query();
 
-        bool first = true;
         for (auto& row : results) {
-            if (!first) json << ",";
-            std::string title = row.count("title") ? row["title"] : "";
-            for (auto& c : title) if (c == '"') c = '\'';
+            json paper;
+            paper["id"] = row.count("id") ? std::stoi(row["id"]) : 0;
+            paper["title"] = row.count("title") ? row["title"] : "";
+            paper["authors"] = row.count("authors") ? row["authors"] : "";
+            paper["year"] = row.count("year") ? row["year"] : "";
 
-            json << "{";
-            json << "\"paper\":{";
-            json << "\"id\":" << (row.count("id") ? row["id"] : "0") << ",";
-            json << "\"title\":\"" << title << "\",";
-            json << "\"authors\":\"" << (row.count("authors") ? row["authors"] : "") << "\",";
-            json << "\"year\":\"" << (row.count("year") ? row["year"] : "") << "\"";
-            json << "},";
-            json << "\"score\":" << (row.count("score") ? row["score"] : "0.8") << ",";
-            json << "\"reason\":\"Based on similarity analysis\"";
-            json << "}";
-            first = false;
+            json item;
+            item["paper"] = paper;
+            item["score"] = row.count("score") ? std::stod(row["score"]) : 0.8;
+            item["reason"] = "Based on similarity analysis";
+            resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] Recommendations query failed: {}", e.what());
     }
 
-    json << "]";
-    return json.str();
+    return resultsArr.dump();
 }
 
 // ============================================================================
@@ -404,12 +391,10 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
         return *cached;
     }
 
-    std::ostringstream json;
-    json << "[";
+    json resultsArr = json::array();
 
     if (!database_) {
-        json << "]";
-        std::string responseBody = json.str();
+        std::string responseBody = resultsArr.dump();
         QueryCache::instance().put(cacheKey, responseBody, CacheTTL::TRENDING);
         return responseBody;
     }
@@ -421,17 +406,12 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
             "ORDER BY search_count DESC LIMIT ?")
             .bind(0, limit).query();
 
-        bool first = true;
         for (auto& row : results) {
-            if (!first) json << ",";
-            std::string keyword = row.count("keyword") ? row["keyword"] : "";
-            for (auto& c : keyword) if (c == '"') c = '\'';
-            json << "{";
-            json << "\"keyword\":\"" << keyword << "\",";
-            json << "\"count\":" << (row.count("count") ? row["count"] : "0") << ",";
-            json << "\"trend\":\"" << (row.count("trend") ? row["trend"] : "stable") << "\"";
-            json << "}";
-            first = false;
+            json item;
+            item["keyword"] = row.count("keyword") ? row["keyword"] : "";
+            item["count"] = row.count("count") ? std::stoi(row["count"]) : 0;
+            item["trend"] = row.count("trend") ? row["trend"] : "stable";
+            resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] Trending searches query failed: {}", e.what());
@@ -442,23 +422,17 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
                 "FROM search_history "
                 "GROUP BY query ORDER BY count DESC LIMIT ?")
                 .bind(0, limit).query();
-            bool first = true;
             for (auto& row : results) {
-                if (!first) json << ",";
-                std::string keyword = row.count("keyword") ? row["keyword"] : "";
-                for (auto& c : keyword) if (c == '"') c = '\'';
-                json << "{";
-                json << "\"keyword\":\"" << keyword << "\",";
-                json << "\"count\":" << (row.count("count") ? row["count"] : "0") << ",";
-                json << "\"trend\":\"stable\"";
-                json << "}";
-                first = false;
+                json item;
+                item["keyword"] = row.count("keyword") ? row["keyword"] : "";
+                item["count"] = row.count("count") ? std::stoi(row["count"]) : 0;
+                item["trend"] = "stable";
+                resultsArr.push_back(item);
             }
         } catch (...) {}
     }
 
-    json << "]";
-    std::string responseBody = json.str();
+    std::string responseBody = resultsArr.dump();
     QueryCache::instance().put(cacheKey, responseBody, CacheTTL::TRENDING);
     return responseBody;
 }
@@ -475,25 +449,16 @@ std::string DashboardApiModule::handleTodos() {
                 "SELECT id, title, status, created_at as createdAt "
                 "FROM dashboard_todos ORDER BY created_at DESC");
             if (!results.empty()) {
-                std::ostringstream json;
-                json << "[";
-                bool first = true;
+                json todosArr = json::array();
                 for (auto& row : results) {
-                    if (!first) json << ",";
-                    std::string title = row.count("title") ? row["title"] : "";
-                    std::string status = row.count("status") ? row["status"] : "pending";
-                    std::string id = row.count("id") ? row["id"] : "0";
-                    std::string createdAt = row.count("createdAt") ? row["createdAt"] : "";
-                    json << "{";
-                    json << "\"id\":\"" << id << "\",";
-                    json << "\"title\":\"" << escapeJson(title) << "\",";
-                    json << "\"status\":\"" << status << "\",";
-                    json << "\"createdAt\":\"" << createdAt << "\"";
-                    json << "}";
-                    first = false;
+                    json item;
+                    item["id"] = row.count("id") ? row["id"] : "0";
+                    item["title"] = row.count("title") ? row["title"] : "";
+                    item["status"] = row.count("status") ? row["status"] : "pending";
+                    item["createdAt"] = row.count("createdAt") ? row["createdAt"] : "";
+                    todosArr.push_back(item);
                 }
-                json << "]";
-                return json.str();
+                return todosArr.dump();
             }
         } catch (const std::exception& e) {
             spdlog::warn("[DashboardApi] Todos DB query failed, using in-memory: {}", e.what());
@@ -502,19 +467,16 @@ std::string DashboardApiModule::handleTodos() {
 
     // 回退到内存存储
     std::lock_guard<std::mutex> lock(storageMutex_);
-    std::ostringstream json;
-    json << "[";
-    for (size_t i = 0; i < todos_.size(); ++i) {
-        if (i > 0) json << ",";
-        json << "{";
-        json << "\"id\":\"" << todos_[i].id << "\",";
-        json << "\"title\":\"" << escapeJson(todos_[i].title) << "\",";
-        json << "\"status\":\"" << todos_[i].status << "\",";
-        json << "\"createdAt\":\"" << todos_[i].createdAt << "\"";
-        json << "}";
+    json todosArr = json::array();
+    for (const auto& todo : todos_) {
+        json item;
+        item["id"] = todo.id;
+        item["title"] = todo.title;
+        item["status"] = todo.status;
+        item["createdAt"] = todo.createdAt;
+        todosArr.push_back(item);
     }
-    json << "]";
-    return json.str();
+    return todosArr.dump();
 }
 
 // ============================================================================
@@ -539,7 +501,10 @@ std::string DashboardApiModule::handleUpdateTodoStatus(const std::string& id, co
     }
 
     if (newStatus.empty()) {
-        return "{\"success\":false,\"message\":\"Missing 'status' field in request body\"}";
+        json response;
+        response["success"] = false;
+        response["message"] = "Missing 'status' field in request body";
+        return response.dump();
     }
 
     newStatus = ValidationHelper::sanitize(newStatus);
@@ -550,7 +515,11 @@ std::string DashboardApiModule::handleUpdateTodoStatus(const std::string& id, co
             PreparedStatement(database_,
                 "UPDATE dashboard_todos SET status = ? WHERE id = ?")
                 .bind(0, newStatus).bind(1, id).execute();
-            return "{\"success\":true,\"id\":\"" + id + "\",\"status\":\"" + newStatus + "\"}";
+            json response;
+            response["success"] = true;
+            response["id"] = id;
+            response["status"] = newStatus;
+            return response.dump();
         } catch (const std::exception& e) {
             spdlog::warn("[DashboardApi] Todo status DB update failed, using in-memory: {}", e.what());
         }
@@ -561,11 +530,18 @@ std::string DashboardApiModule::handleUpdateTodoStatus(const std::string& id, co
     for (auto& todo : todos_) {
         if (todo.id == id) {
             todo.status = newStatus;
-            return "{\"success\":true,\"id\":\"" + id + "\",\"status\":\"" + newStatus + "\"}";
+            json response;
+            response["success"] = true;
+            response["id"] = id;
+            response["status"] = newStatus;
+            return response.dump();
         }
     }
 
-    return "{\"success\":false,\"message\":\"Todo item not found\"}";
+    json response;
+    response["success"] = false;
+    response["message"] = "Todo item not found";
+    return response.dump();
 }
 
 // ============================================================================
@@ -573,12 +549,10 @@ std::string DashboardApiModule::handleUpdateTodoStatus(const std::string& id, co
 // ============================================================================
 
 std::string DashboardApiModule::handleCrawlerTasks() {
-    std::ostringstream json;
-    json << "[";
+    json resultsArr = json::array();
 
     if (!database_) {
-        json << "]";
-        return json.str();
+        return resultsArr.dump();
     }
 
     try {
@@ -593,27 +567,21 @@ std::string DashboardApiModule::handleCrawlerTasks() {
             "FROM distributed_crawl_tasks "
             "ORDER BY created_at DESC LIMIT 10");
 
-        bool first = true;
         for (auto& row : results) {
-            if (!first) json << ",";
-            std::string name = row.count("name") ? row["name"] : "";
-            for (auto& c : name) if (c == '"') c = '\'';
-            json << "{";
-            json << "\"id\":\"" << (row.count("id") ? row["id"] : "0") << "\",";
-            json << "\"name\":\"" << name << "\",";
-            json << "\"status\":\"" << (row.count("status") ? row["status"] : "pending") << "\",";
-            json << "\"progress\":" << (row.count("progress") ? row["progress"] : "0") << ",";
-            json << "\"createdAt\":\"" << (row.count("createdAt") ? row["createdAt"] : "") << "\",";
-            json << "\"completedAt\":\"" << (row.count("completedAt") ? row["completedAt"] : "") << "\"";
-            json << "}";
-            first = false;
+            json item;
+            item["id"] = row.count("id") ? row["id"] : "0";
+            item["name"] = row.count("name") ? row["name"] : "";
+            item["status"] = row.count("status") ? row["status"] : "pending";
+            item["progress"] = row.count("progress") ? std::stoi(row["progress"]) : 0;
+            item["createdAt"] = row.count("createdAt") ? row["createdAt"] : "";
+            item["completedAt"] = row.count("completedAt") ? row["completedAt"] : "";
+            resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] Crawler tasks query failed: {}", e.what());
     }
 
-    json << "]";
-    return json.str();
+    return resultsArr.dump();
 }
 
 // ============================================================================
@@ -629,12 +597,10 @@ std::string DashboardApiModule::handleGrowth(int days) {
         return *cached;
     }
 
-    std::ostringstream json;
-    json << "[";
+    json resultsArr = json::array();
 
     if (!database_) {
-        json << "]";
-        std::string responseBody = json.str();
+        std::string responseBody = resultsArr.dump();
         QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
         return responseBody;
     }
@@ -648,22 +614,19 @@ std::string DashboardApiModule::handleGrowth(int days) {
 
         auto results = PreparedStatement(database_, sql).bind(0, days).query();
 
-        bool first = true;
         for (auto& row : results) {
-            if (!first) json << ",";
-            json << "{";
-            json << "\"date\":\"" << (row.count("date") ? row["date"] : "") << "\",";
-            json << "\"count\":" << (row.count("count") ? row["count"] : "0") << ",";
-            json << "\"new\":" << (row.count("count") ? row["count"] : "0");
-            json << "}";
-            first = false;
+            int count = row.count("count") ? std::stoi(row["count"]) : 0;
+            json item;
+            item["date"] = row.count("date") ? row["date"] : "";
+            item["count"] = count;
+            item["new"] = count;
+            resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] Growth query failed: {}", e.what());
     }
 
-    json << "]";
-    std::string responseBody = json.str();
+    std::string responseBody = resultsArr.dump();
     QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
     return responseBody;
 }
@@ -681,12 +644,10 @@ std::string DashboardApiModule::handleDistributionJournals() {
         return *cached;
     }
 
-    std::ostringstream json;
-    json << "[";
+    json resultsArr = json::array();
 
     if (!database_) {
-        json << "]";
-        std::string responseBody = json.str();
+        std::string responseBody = resultsArr.dump();
         QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
         return responseBody;
     }
@@ -705,27 +666,22 @@ std::string DashboardApiModule::handleDistributionJournals() {
             total += std::stoi(row.count("count") ? row["count"] : "0");
         }
 
-        bool first = true;
         for (auto& row : results) {
-            if (!first) json << ",";
             std::string journal = row.count("journal") ? row["journal"] : "Unknown";
-            for (auto& c : journal) if (c == '"') c = '\'';
             int count = std::stoi(row.count("count") ? row["count"] : "0");
             double pct = total > 0 ? (count * 100.0 / total) : 0;
 
-            json << "{";
-            json << "\"journal\":\"" << journal << "\",";
-            json << "\"count\":" << count << ",";
-            json << "\"percentage\":" << std::fixed << std::setprecision(1) << pct;
-            json << "}";
-            first = false;
+            json item;
+            item["journal"] = journal;
+            item["count"] = count;
+            item["percentage"] = std::round(pct * 10.0) / 10.0;  // 1 decimal place
+            resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] Journal distribution query failed: {}", e.what());
     }
 
-    json << "]";
-    std::string responseBody = json.str();
+    std::string responseBody = resultsArr.dump();
     QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
     return responseBody;
 }
@@ -743,12 +699,10 @@ std::string DashboardApiModule::handleDistributionCcf() {
         return *cached;
     }
 
-    std::ostringstream json;
-    json << "[";
+    json resultsArr = json::array();
 
     if (!database_) {
-        json << "]";
-        std::string responseBody = json.str();
+        std::string responseBody = resultsArr.dump();
         QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
         return responseBody;
     }
@@ -766,27 +720,22 @@ std::string DashboardApiModule::handleDistributionCcf() {
             total += std::stoi(row.count("count") ? row["count"] : "0");
         }
 
-        bool first = true;
         for (auto& row : results) {
-            if (!first) json << ",";
             std::string level = row.count("level") ? row["level"] : "Uncategorized";
-            for (auto& c : level) if (c == '"') c = '\'';
             int count = std::stoi(row.count("count") ? row["count"] : "0");
             double pct = total > 0 ? (count * 100.0 / total) : 0;
 
-            json << "{";
-            json << "\"level\":\"" << level << "\",";
-            json << "\"count\":" << count << ",";
-            json << "\"percentage\":" << std::fixed << std::setprecision(1) << pct;
-            json << "}";
-            first = false;
+            json item;
+            item["level"] = level;
+            item["count"] = count;
+            item["percentage"] = std::round(pct * 10.0) / 10.0;  // 1 decimal place
+            resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
         spdlog::warn("[DashboardApi] CCF distribution query failed: {}", e.what());
     }
 
-    json << "]";
-    std::string responseBody = json.str();
+    std::string responseBody = resultsArr.dump();
     QueryCache::instance().put(cacheKey, responseBody, CacheTTL::DASHBOARD);
     return responseBody;
 }
@@ -806,9 +755,10 @@ std::string DashboardApiModule::handleRefresh() {
     std::ostringstream ts;
     ts << std::put_time(std::localtime(&time_t), "%Y-%m-%dT%H:%M:%S");
 
-    std::ostringstream json;
-    json << "{\"success\":true,\"timestamp\":\"" << ts.str() << "\"}";
-    return json.str();
+    json response;
+    response["success"] = true;
+    response["timestamp"] = ts.str();
+    return response.dump();
 }
 
 // ============================================================================
@@ -840,13 +790,19 @@ std::string DashboardApiModule::handleGetConfig() {
 
 std::string DashboardApiModule::handleUpdateConfig(const std::string& body) {
     if (body.empty()) {
-        return "{\"success\":false,\"message\":\"Empty request body\"}";
+        json response;
+        response["success"] = false;
+        response["message"] = "Empty request body";
+        return response.dump();
     }
 
     // 尝试解析JSON验证格式
     bool validJson = (body.front() == '{' && body.back() == '}');
     if (!validJson) {
-        return "{\"success\":false,\"message\":\"Invalid JSON format\"}";
+        json response;
+        response["success"] = false;
+        response["message"] = "Invalid JSON format";
+        return response.dump();
     }
 
     // 优先持久化到数据库
@@ -870,7 +826,9 @@ std::string DashboardApiModule::handleUpdateConfig(const std::string& body) {
     }
 
     spdlog::info("[DashboardApi] Config updated");
-    return "{\"success\":true}";
+    json response;
+    response["success"] = true;
+    return response.dump();
 }
 
 // ============================================================================

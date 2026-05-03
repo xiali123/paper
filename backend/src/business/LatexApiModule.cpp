@@ -3,7 +3,7 @@
 #include "data/StringUtil.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>

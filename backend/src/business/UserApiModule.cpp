@@ -8,7 +8,7 @@
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
 #include "common/JsonUtils.hpp"
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>

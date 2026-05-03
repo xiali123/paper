@@ -5,7 +5,7 @@
 #include "core/ModuleExports.hpp"
 #include "network/WebSocketModule.hpp"
 #include "features/security/SecurityModule.hpp"
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <algorithm>
 #include <spdlog/spdlog.h>

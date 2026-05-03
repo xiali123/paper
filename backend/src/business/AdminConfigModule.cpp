@@ -3,7 +3,7 @@
 #include "core/HttpTypes.hpp"
 #include "features/security/SecurityModule.hpp"
 #include "data/PreparedStatement.hpp"
-#include "../../core/external/nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <map>
