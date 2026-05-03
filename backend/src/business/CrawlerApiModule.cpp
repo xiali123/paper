@@ -251,12 +251,12 @@ void CrawlerApiModule::registerRoutes() {
                     nlohmann::json tmpl;
                     tmpl["templateId"] = row.at("template_id");
                     tmpl["name"] = row.at("name");
-                    tmpl["description"] = row.count("description") ? row.at("description") : "";
-                    tmpl["baseUrl"] = row.count("base_url") ? row.at("base_url") : "";
-                    tmpl["downloadCount"] = row.count("download_count") ? std::stoi(row.at("download_count")) : 0;
-                    tmpl["rating"] = row.count("rating") ? std::stod(row.at("rating")) : 0.0;
-                    tmpl["ratingCount"] = row.count("rating_count") ? std::stoi(row.at("rating_count")) : 0;
-                    tmpl["publishedAt"] = row.count("published_at") ? row.at("published_at") : "";
+                    tmpl["description"] = StringUtil::getRowStr(row, "description");
+                    tmpl["baseUrl"] = StringUtil::getRowStr(row, "base_url");
+                    tmpl["downloadCount"] = StringUtil::getRowInt(row, "download_count");
+                    tmpl["rating"] = StringUtil::getRowDouble(row, "rating");
+                    tmpl["ratingCount"] = StringUtil::getRowInt(row, "rating_count");
+                    tmpl["publishedAt"] = StringUtil::getRowStr(row, "published_at");
                     templates.push_back(tmpl);
                 }
 
@@ -454,9 +454,9 @@ void CrawlerApiModule::registerRoutes() {
                     nlohmann::json tmpl;
                     tmpl["templateId"] = row.at("template_id");
                     tmpl["name"] = row.at("name");
-                    tmpl["description"] = row.count("description") ? row.at("description") : "";
-                    tmpl["downloadCount"] = row.count("download_count") ? std::stoi(row.at("download_count")) : 0;
-                    tmpl["rating"] = row.count("rating") ? std::stod(row.at("rating")) : 0.0;
+                    tmpl["description"] = StringUtil::getRowStr(row, "description");
+                    tmpl["downloadCount"] = StringUtil::getRowInt(row, "download_count");
+                    tmpl["rating"] = StringUtil::getRowDouble(row, "rating");
                     templates.push_back(tmpl);
                 }
 
@@ -939,12 +939,12 @@ HttpResponse CrawlerApiModule::handleGetDashboard(const HttpRequest& req) {
         for (const auto& row : rows) {
             nlohmann::json data;
             data["date"] = row.at("date");
-            data["uniqueTemplates"] = std::stoi(row.at("unique_templates"));
-            data["totalTasks"] = std::stoi(row.at("total_tasks"));
-            data["completedTasks"] = std::stoi(row.at("completed_tasks"));
-            data["failedTasks"] = std::stoi(row.at("failed_tasks"));
-            data["totalPapersFound"] = std::stoi(row.at("total_papers_found"));
-            data["totalPapersAdded"] = std::stoi(row.at("total_papers_added"));
+            data["uniqueTemplates"] = StringUtil::getRowInt(row, "unique_templates");
+            data["totalTasks"] = StringUtil::getRowInt(row, "total_tasks");
+            data["completedTasks"] = StringUtil::getRowInt(row, "completed_tasks");
+            data["failedTasks"] = StringUtil::getRowInt(row, "failed_tasks");
+            data["totalPapersFound"] = StringUtil::getRowInt(row, "total_papers_found");
+            data["totalPapersAdded"] = StringUtil::getRowInt(row, "total_papers_added");
             dashboardData.push_back(data);
         }
 
@@ -1499,7 +1499,7 @@ HttpResponse CrawlerApiModule::handleGetTaskStatistics(const HttpRequest& req) {
 
         for (const auto& row : stats) {
             std::string status = row.at("status");
-            int count = std::stoi(row.at("count"));
+            int count = StringUtil::getRowInt(row, "count");
             response["statistics"][status] = count;
             totalTasks += count;
         }
@@ -1859,8 +1859,8 @@ HttpResponse CrawlerApiModule::handleListWorkers(const HttpRequest& req) {
             worker["nodeId"] = row.at("node_id");
             worker["nodeType"] = row.at("node_type");
             worker["status"] = row.at("status");
-            worker["maxConcurrentTasks"] = std::stoi(row.at("max_concurrent_tasks"));
-            worker["currentTasks"] = std::stoi(row.at("current_tasks"));
+            worker["maxConcurrentTasks"] = StringUtil::getRowInt(row, "max_concurrent_tasks");
+            worker["currentTasks"] = StringUtil::getRowInt(row, "current_tasks");
             worker["tasksCompleted"] = row.at("tasks_completed");
             worker["tasksFailed"] = row.at("tasks_failed");
             worker["createdAt"] = row.at("created_at");
@@ -1904,8 +1904,8 @@ HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
         response["nodeId"] = worker.at("node_id");
         response["nodeType"] = worker.at("node_type");
         response["status"] = worker.at("status");
-        response["maxConcurrentTasks"] = std::stoi(worker.at("max_concurrent_tasks"));
-        response["currentTasks"] = std::stoi(worker.at("current_tasks"));
+        response["maxConcurrentTasks"] = StringUtil::getRowInt(worker, "max_concurrent_tasks");
+        response["currentTasks"] = StringUtil::getRowInt(worker, "current_tasks");
         response["tasksCompleted"] = worker.at("tasks_completed");
         response["tasksFailed"] = worker.at("tasks_failed");
         response["ipAddress"] = worker.at("ip_address");
@@ -1965,8 +1965,8 @@ HttpResponse CrawlerApiModule::handleGetWorkerStatistics(const HttpRequest& req)
         }
 
         auto& worker = workers[0];
-        int completed = worker.at("tasks_completed").empty() ? 0 : std::stoi(worker.at("tasks_completed"));
-        int failed = worker.at("tasks_failed").empty() ? 0 : std::stoi(worker.at("tasks_failed"));
+        int completed = StringUtil::getRowInt(worker, "tasks_completed");
+        int failed = StringUtil::getRowInt(worker, "tasks_failed");
         int total = completed + failed;
 
         nlohmann::json response;
@@ -2008,7 +2008,7 @@ HttpResponse CrawlerApiModule::handleGetStatistics(const HttpRequest& req) {
         int totalTasks = 0;
         for (const auto& row : taskStats) {
             std::string status = row.at("status");
-            int count = std::stoi(row.at("count"));
+            int count = StringUtil::getRowInt(row, "count");
             response["tasks"][status] = count;
             totalTasks += count;
         }
@@ -2023,7 +2023,7 @@ HttpResponse CrawlerApiModule::handleGetStatistics(const HttpRequest& req) {
         int totalWorkers = 0;
         for (const auto& row : workerStats) {
             std::string status = row.at("status");
-            int count = std::stoi(row.at("count"));
+            int count = StringUtil::getRowInt(row, "count");
             response["workers"][status] = count;
             totalWorkers += count;
         }
@@ -2046,7 +2046,7 @@ HttpResponse CrawlerApiModule::handleGetStatistics(const HttpRequest& req) {
         response["schedules"] = nlohmann::json::object();
         for (const auto& row : scheduleStats) {
             std::string enabled = row.at("enabled") == "1" ? "enabled" : "disabled";
-            int count = std::stoi(row.at("count"));
+            int count = StringUtil::getRowInt(row, "count");
             response["schedules"][enabled] = count;
         }
 

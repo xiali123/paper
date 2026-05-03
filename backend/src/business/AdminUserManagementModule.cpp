@@ -281,8 +281,8 @@ PaginatedResponse<AdminUser> AdminUserManagementModule::listUsers(int page, int 
             } else {
                 user.lastLoginAt = std::chrono::system_clock::from_time_t(0);
             }
-            user.lastLoginIp = StringUtil::cleanDbString(row.count("last_login_ip") > 0 ? row.at("last_login_ip") : "");
-            user.loginCount = row.count("login_count") > 0 && row.at("login_count") != "NULL" ? std::stoi(row.at("login_count")) : 0;
+            user.lastLoginIp = StringUtil::getRowStr(row, "last_login_ip");
+            user.loginCount = StringUtil::getRowInt(row, "login_count");
 
             response.items.push_back(user);
 
@@ -330,8 +330,8 @@ std::optional<AdminUser> AdminUserManagementModule::getUser(int id) {
             } else {
                 user.lastLoginAt = std::chrono::system_clock::from_time_t(0);
             }
-            user.lastLoginIp = StringUtil::cleanDbString(results[0].count("last_login_ip") > 0 ? results[0].at("last_login_ip") : "");
-            user.loginCount = results[0].count("login_count") > 0 && results[0].at("login_count") != "NULL" ? std::stoi(results[0].at("login_count")) : 0;
+            user.lastLoginIp = StringUtil::getRowStr(results[0], "last_login_ip");
+            user.loginCount = StringUtil::getRowInt(results[0], "login_count");
 
             return user;
         }
@@ -376,8 +376,8 @@ std::optional<AdminUser> AdminUserManagementModule::getUserByUsername(const std:
             } else {
                 user.lastLoginAt = std::chrono::system_clock::from_time_t(0);
             }
-            user.lastLoginIp = StringUtil::cleanDbString(results[0].count("last_login_ip") > 0 ? results[0].at("last_login_ip") : "");
-            user.loginCount = results[0].count("login_count") > 0 && results[0].at("login_count") != "NULL" ? std::stoi(results[0].at("login_count")) : 0;
+            user.lastLoginIp = StringUtil::getRowStr(results[0], "last_login_ip");
+            user.loginCount = StringUtil::getRowInt(results[0], "login_count");
 
             return user;
         }
@@ -1307,19 +1307,19 @@ std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::
         auto countResults = countStmt.query();
         int total = 0;
         if (!countResults.empty()) {
-            total = std::stoi(StringUtil::cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
+            total = StringUtil::getRowInt(countResults[0], "total");
         }
 
         // Build JSON array using nlohmann::json
         nlohmann::json itemsArr = nlohmann::json::array();
         for (const auto& row : results) {
             nlohmann::json item;
-            item["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            item["id"] = StringUtil::getRowInt(row, "id");
             item["user_id"] = userId;
-            item["login_time"] = StringUtil::cleanDbString(row.count("login_time") ? row.at("login_time") : "");
-            item["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-            item["user_agent"] = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
-            std::string successVal = StringUtil::cleanDbString(row.count("success") ? row.at("success") : "0");
+            item["login_time"] = StringUtil::getRowStr(row, "login_time");
+            item["ip_address"] = StringUtil::getRowStr(row, "ip_address");
+            item["user_agent"] = StringUtil::getRowStr(row, "user_agent");
+            std::string successVal = StringUtil::getRowStr(row, "success", "0");
             item["success"] = (successVal == "1" || successVal == "true");
             itemsArr.push_back(item);
         }
@@ -1360,13 +1360,13 @@ std::string AdminUserManagementModule::handleGetUserSessions(const std::map<std:
         nlohmann::json itemsArr = nlohmann::json::array();
         for (const auto& row : results) {
             nlohmann::json item;
-            item["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            item["id"] = StringUtil::getRowInt(row, "id");
             item["user_id"] = userId;
-            item["token"] = StringUtil::cleanDbString(row.count("token") ? row.at("token") : "");
-            item["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-            item["user_agent"] = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
-            item["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-            item["expires_at"] = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
+            item["token"] = StringUtil::getRowStr(row, "token");
+            item["ip_address"] = StringUtil::getRowStr(row, "ip_address");
+            item["user_agent"] = StringUtil::getRowStr(row, "user_agent");
+            item["created_at"] = StringUtil::getRowStr(row, "created_at");
+            item["expires_at"] = StringUtil::getRowStr(row, "expires_at");
             itemsArr.push_back(item);
         }
 
@@ -1436,15 +1436,15 @@ std::string AdminUserManagementModule::handleExportUsers(const std::map<std::str
         csv << "id,username,email,full_name,role,is_active,created_at,last_login_at,last_login_ip\n";
 
         for (const auto& row : results) {
-            csv << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-            csv << "\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("username") ? row.at("username") : "")) << "\",";
-            csv << "\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("email") ? row.at("email") : "")) << "\",";
-            csv << "\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("full_name") ? row.at("full_name") : "")) << "\",";
-            csv << StringUtil::cleanDbString(row.count("role") ? row.at("role") : "user") << ",";
-            csv << StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0") << ",";
-            csv << "\"" << StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "") << "\",";
-            csv << "\"" << StringUtil::cleanDbString(row.count("last_login_at") ? row.at("last_login_at") : "") << "\",";
-            csv << "\"" << StringUtil::cleanDbString(row.count("last_login_ip") ? row.at("last_login_ip") : "") << "\"";
+            csv << StringUtil::getRowStr(row, "id", "0") << ",";
+            csv << "\"" << StringUtil::escapeJson(StringUtil::getRowStr(row, "username")) << "\",";
+            csv << "\"" << StringUtil::escapeJson(StringUtil::getRowStr(row, "email")) << "\",";
+            csv << "\"" << StringUtil::escapeJson(StringUtil::getRowStr(row, "full_name")) << "\",";
+            csv << StringUtil::getRowStr(row, "role", "user") << ",";
+            csv << StringUtil::getRowStr(row, "is_active", "0") << ",";
+            csv << "\"" << StringUtil::getRowStr(row, "created_at") << "\",";
+            csv << "\"" << StringUtil::getRowStr(row, "last_login_at") << "\",";
+            csv << "\"" << StringUtil::getRowStr(row, "last_login_ip") << "\"";
             csv << "\n";
         }
 
@@ -1500,7 +1500,7 @@ std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std:
             if (!usernameFilter.empty()) countStmt.bind(0, usernameFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+                total = StringUtil::getRowInt(countResults[0], "total");
             }
 
             // 获取登录历史
@@ -1514,13 +1514,13 @@ std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std:
 
             for (const auto& row : results) {
                 nlohmann::json attempt;
-                attempt["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                attempt["username"] = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
-                attempt["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                attempt["user_agent"] = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
-                attempt["success"] = StringUtil::cleanDbString(row.count("success") ? row.at("success") : "0") == "1";
-                attempt["failure_reason"] = StringUtil::cleanDbString(row.count("failure_reason") ? row.at("failure_reason") : "");
-                attempt["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                attempt["id"] = StringUtil::getRowInt64(row, "id");
+                attempt["username"] = StringUtil::getRowStr(row, "username");
+                attempt["ip_address"] = StringUtil::getRowStr(row, "ip_address");
+                attempt["user_agent"] = StringUtil::getRowStr(row, "user_agent");
+                attempt["success"] = StringUtil::getRowStr(row, "success", "0") == "1";
+                attempt["failure_reason"] = StringUtil::getRowStr(row, "failure_reason");
+                attempt["created_at"] = StringUtil::getRowStr(row, "created_at");
                 attempts.push_back(attempt);
             }
         }
@@ -1559,11 +1559,11 @@ std::string AdminUserManagementModule::handleGetLoginStats(const std::map<std::s
 
             for (const auto& row : results) {
                 nlohmann::json stat;
-                stat["date"] = StringUtil::cleanDbString(row.count("date") ? row.at("date") : "");
-                stat["successful_logins"] = std::stoi(StringUtil::cleanDbString(row.count("successful_logins") ? row.at("successful_logins") : "0"));
-                stat["failed_logins"] = std::stoi(StringUtil::cleanDbString(row.count("failed_logins") ? row.at("failed_logins") : "0"));
-                stat["unique_users"] = std::stoi(StringUtil::cleanDbString(row.count("unique_users") ? row.at("unique_users") : "0"));
-                stat["unique_ips"] = std::stoi(StringUtil::cleanDbString(row.count("unique_ips") ? row.at("unique_ips") : "0"));
+                stat["date"] = StringUtil::getRowStr(row, "date");
+                stat["successful_logins"] = StringUtil::getRowInt(row, "successful_logins");
+                stat["failed_logins"] = StringUtil::getRowInt(row, "failed_logins");
+                stat["unique_users"] = StringUtil::getRowInt(row, "unique_users");
+                stat["unique_ips"] = StringUtil::getRowInt(row, "unique_ips");
                 stats.push_back(stat);
             }
         }
@@ -1620,7 +1620,7 @@ std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<
             if (!statusFilter.empty()) countStmt.bind(0, statusFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+                total = StringUtil::getRowInt(countResults[0], "total");
             }
 
             // 获取可疑登录列表
@@ -1636,15 +1636,15 @@ std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<
 
             for (const auto& row : results) {
                 nlohmann::json item;
-                item["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                item["username"] = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
-                item["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                item["suspicion_reason"] = StringUtil::cleanDbString(row.count("suspicion_reason") ? row.at("suspicion_reason") : "");
-                item["risk_score"] = std::stoi(StringUtil::cleanDbString(row.count("risk_score") ? row.at("risk_score") : "0"));
-                item["status"] = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "pending");
-                item["reviewed_by"] = StringUtil::cleanDbString(row.count("reviewed_by_username") ? row.at("reviewed_by_username") : "");
-                item["reviewed_at"] = StringUtil::cleanDbString(row.count("reviewed_at") ? row.at("reviewed_at") : "");
-                item["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                item["id"] = StringUtil::getRowInt64(row, "id");
+                item["username"] = StringUtil::getRowStr(row, "username");
+                item["ip_address"] = StringUtil::getRowStr(row, "ip_address");
+                item["suspicion_reason"] = StringUtil::getRowStr(row, "suspicion_reason");
+                item["risk_score"] = StringUtil::getRowInt(row, "risk_score");
+                item["status"] = StringUtil::getRowStr(row, "status", "pending");
+                item["reviewed_by"] = StringUtil::getRowStr(row, "reviewed_by_username");
+                item["reviewed_at"] = StringUtil::getRowStr(row, "reviewed_at");
+                item["created_at"] = StringUtil::getRowStr(row, "created_at");
                 suspicious.push_back(item);
             }
         }
@@ -1691,7 +1691,7 @@ std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::
             std::string countSql = "SELECT COUNT(*) as total FROM ip_blacklist WHERE is_active = 1";
             auto countResults = database_->query(countSql);
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+                total = StringUtil::getRowInt(countResults[0], "total");
             }
 
             // 获取黑名单列表
@@ -1705,14 +1705,14 @@ std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::
 
             for (const auto& row : results) {
                 nlohmann::json entry;
-                entry["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                entry["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                entry["reason"] = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
-                entry["threat_level"] = StringUtil::cleanDbString(row.count("threat_level") ? row.at("threat_level") : "medium");
-                entry["attempt_count"] = std::stoi(StringUtil::cleanDbString(row.count("attempt_count") ? row.at("attempt_count") : "0"));
-                entry["created_by"] = StringUtil::cleanDbString(row.count("created_by_username") ? row.at("created_by_username") : "");
-                entry["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-                entry["expires_at"] = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
+                entry["id"] = StringUtil::getRowInt(row, "id");
+                entry["ip_address"] = StringUtil::getRowStr(row, "ip_address");
+                entry["reason"] = StringUtil::getRowStr(row, "reason");
+                entry["threat_level"] = StringUtil::getRowStr(row, "threat_level", "medium");
+                entry["attempt_count"] = StringUtil::getRowInt(row, "attempt_count");
+                entry["created_by"] = StringUtil::getRowStr(row, "created_by_username");
+                entry["created_at"] = StringUtil::getRowStr(row, "created_at");
+                entry["expires_at"] = StringUtil::getRowStr(row, "expires_at");
                 blacklist.push_back(entry);
             }
         }
@@ -1855,7 +1855,7 @@ std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<s
             std::string countSql = "SELECT COUNT(*) as total FROM account_lockouts WHERE locked_until > NOW()";
             auto countResults = database_->query(countSql);
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+                total = StringUtil::getRowInt(countResults[0], "total");
             }
 
             // 获取锁定列表
@@ -1869,14 +1869,14 @@ std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<s
 
             for (const auto& row : results) {
                 nlohmann::json lockout;
-                lockout["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                lockout["user_id"] = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-                lockout["username"] = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
-                lockout["locked_until"] = StringUtil::cleanDbString(row.count("locked_until") ? row.at("locked_until") : "");
-                lockout["lockout_reason"] = StringUtil::cleanDbString(row.count("lockout_reason") ? row.at("lockout_reason") : "");
-                lockout["failed_attempts"] = std::stoi(StringUtil::cleanDbString(row.count("failed_attempts") ? row.at("failed_attempts") : "0"));
-                lockout["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                lockout["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                lockout["id"] = StringUtil::getRowInt(row, "id");
+                lockout["user_id"] = StringUtil::getRowInt(row, "user_id");
+                lockout["username"] = StringUtil::getRowStr(row, "username");
+                lockout["locked_until"] = StringUtil::getRowStr(row, "locked_until");
+                lockout["lockout_reason"] = StringUtil::getRowStr(row, "lockout_reason");
+                lockout["failed_attempts"] = StringUtil::getRowInt(row, "failed_attempts");
+                lockout["ip_address"] = StringUtil::getRowStr(row, "ip_address");
+                lockout["created_at"] = StringUtil::getRowStr(row, "created_at");
                 lockouts.push_back(lockout);
             }
         }

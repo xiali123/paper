@@ -74,5 +74,44 @@ inline std::string buildJsonResponse(bool success, const std::string& message,
     return buildJsonResponse(success ? 200 : 400, success, message, data);
 }
 
+// Row helper: safely get a string field from a DB row map with NULL/empty handling
+inline std::string getRowStr(const std::map<std::string, std::string>& row,
+                              const std::string& field,
+                              const std::string& defaultVal = "") {
+    auto it = row.find(field);
+    if (it == row.end()) return defaultVal;
+    return cleanDbString(it->second);
+}
+
+// Row helper: safely get an int field from a DB row map
+inline int getRowInt(const std::map<std::string, std::string>& row,
+                      const std::string& field,
+                      int defaultVal = 0) {
+    auto it = row.find(field);
+    if (it == row.end()) return defaultVal;
+    try { return std::stoi(cleanDbString(it->second)); }
+    catch (...) { return defaultVal; }
+}
+
+// Row helper: safely get a int64_t field from a DB row map
+inline int64_t getRowInt64(const std::map<std::string, std::string>& row,
+                            const std::string& field,
+                            int64_t defaultVal = 0) {
+    auto it = row.find(field);
+    if (it == row.end()) return defaultVal;
+    try { return std::stoll(cleanDbString(it->second)); }
+    catch (...) { return defaultVal; }
+}
+
+// Row helper: safely get a double field from a DB row map
+inline double getRowDouble(const std::map<std::string, std::string>& row,
+                            const std::string& field,
+                            double defaultVal = 0.0) {
+    auto it = row.find(field);
+    if (it == row.end()) return defaultVal;
+    try { return std::stod(cleanDbString(it->second)); }
+    catch (...) { return defaultVal; }
+}
+
 } // namespace StringUtil
 } // namespace PaperCrawler

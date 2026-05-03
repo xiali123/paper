@@ -413,8 +413,8 @@ PaginatedResponse<AuditLog> AdminAuditModule::getAuditLogs(int page, int limit, 
         // Filter in-memory if prepared statement binding not available for dynamic query
         std::vector<std::map<std::string, std::string>> filtered;
         for (const auto& row : allResults) {
-            if (!action.empty() && StringUtil::cleanDbString(row.count("action") ? row.at("action") : "") != action) continue;
-            if (userId > 0 && std::stoi(StringUtil::cleanDbString(row.count("actor_id") ? row.at("actor_id") : "0")) != userId) continue;
+            if (!action.empty() && StringUtil::getRowStr(row, "action") != action) continue;
+            if (userId > 0 && StringUtil::getRowInt(row, "actor_id") != userId) continue;
             filtered.push_back(row);
         }
 
@@ -425,14 +425,14 @@ PaginatedResponse<AuditLog> AdminAuditModule::getAuditLogs(int page, int limit, 
         int end = std::min(start + limit, (int)filtered.size());
         for (int i = start; i < end; i++) {
             AuditLog log;
-            log.id = std::stoi(StringUtil::cleanDbString(filtered[i].count("id") ? filtered[i].at("id") : "0"));
-            log.action = StringUtil::cleanDbString(filtered[i].count("action") ? filtered[i].at("action") : "");
-            log.entityType = StringUtil::cleanDbString(filtered[i].count("entity_type") ? filtered[i].at("entity_type") : "");
-            log.entityId = std::stoi(StringUtil::cleanDbString(filtered[i].count("entity_id") ? filtered[i].at("entity_id") : "0"));
-            log.actorUsername = StringUtil::cleanDbString(filtered[i].count("actor_username") ? filtered[i].at("actor_username") : "");
-            log.actorId = std::stoi(StringUtil::cleanDbString(filtered[i].count("actor_id") ? filtered[i].at("actor_id") : "0"));
-            log.details = StringUtil::cleanDbString(filtered[i].count("details") ? filtered[i].at("details") : "");
-            log.ipAddress = StringUtil::cleanDbString(filtered[i].count("ip_address") ? filtered[i].at("ip_address") : "");
+            log.id = StringUtil::getRowInt(filtered[i], "id");
+            log.action = StringUtil::getRowStr(filtered[i], "action");
+            log.entityType = StringUtil::getRowStr(filtered[i], "entity_type");
+            log.entityId = StringUtil::getRowInt(filtered[i], "entity_id");
+            log.actorUsername = StringUtil::getRowStr(filtered[i], "actor_username");
+            log.actorId = StringUtil::getRowInt(filtered[i], "actor_id");
+            log.details = StringUtil::getRowStr(filtered[i], "details");
+            log.ipAddress = StringUtil::getRowStr(filtered[i], "ip_address");
             response.items.push_back(log);
         }
     } catch (const std::exception& e) {
@@ -449,15 +449,15 @@ std::vector<Role> AdminAuditModule::getRoles() {
         auto results = database_->query("SELECT * FROM roles ORDER BY level DESC");
         for (const auto& row : results) {
             Role role;
-            role.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            role.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
-            role.displayName = StringUtil::cleanDbString(row.count("display_name") ? row.at("display_name") : "");
-            role.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
-            role.level = std::stoi(StringUtil::cleanDbString(row.count("level") ? row.at("level") : "0"));
-            role.isSystem = StringUtil::cleanDbString(row.count("is_system") ? row.at("is_system") : "0") == "1";
-            role.isDefault = StringUtil::cleanDbString(row.count("is_default") ? row.at("is_default") : "0") == "1";
-            role.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-            role.updatedAt = StringUtil::cleanDbString(row.count("updated_at") ? row.at("updated_at") : "");
+            role.id = StringUtil::getRowInt(row, "id");
+            role.name = StringUtil::getRowStr(row, "name");
+            role.displayName = StringUtil::getRowStr(row, "display_name");
+            role.description = StringUtil::getRowStr(row, "description");
+            role.level = StringUtil::getRowInt(row, "level");
+            role.isSystem = StringUtil::getRowStr(row, "is_system", "0") == "1";
+            role.isDefault = StringUtil::getRowStr(row, "is_default", "0") == "1";
+            role.createdAt = StringUtil::getRowStr(row, "created_at");
+            role.updatedAt = StringUtil::getRowStr(row, "updated_at");
             roles.push_back(role);
         }
     } catch (const std::exception& e) {
@@ -507,7 +507,7 @@ bool AdminAuditModule::deleteRole(int roleId) {
         checkStmt.bind(0, roleId);
         auto results = checkStmt.query();
         if (!results.empty()) {
-            bool isSystem = StringUtil::cleanDbString(results[0].count("is_system") ? results[0].at("is_system") : "0") == "1";
+            bool isSystem = StringUtil::getRowStr(results[0], "is_system", "0") == "1";
             if (isSystem) return false;
         }
         PreparedStatement delStmt(database_, "DELETE FROM roles WHERE id = ?");
@@ -527,10 +527,10 @@ std::vector<Permission> AdminAuditModule::getPermissions() {
         auto results = database_->query("SELECT * FROM permissions ORDER BY resource, action");
         for (const auto& row : results) {
             Permission perm;
-            perm.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            perm.resource = StringUtil::cleanDbString(row.count("resource") ? row.at("resource") : "");
-            perm.action = StringUtil::cleanDbString(row.count("action") ? row.at("action") : "");
-            perm.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
+            perm.id = StringUtil::getRowInt(row, "id");
+            perm.resource = StringUtil::getRowStr(row, "resource");
+            perm.action = StringUtil::getRowStr(row, "action");
+            perm.description = StringUtil::getRowStr(row, "description");
             permissions.push_back(perm);
         }
     } catch (const std::exception& e) {
@@ -547,8 +547,8 @@ std::vector<PermissionMatrix> AdminAuditModule::getPermissionMatrix() {
         std::string currentRole;
         PermissionMatrix currentMatrix;
         for (const auto& row : results) {
-            std::string roleName = StringUtil::cleanDbString(row.count("role_name") ? row.at("role_name") : "");
-            std::string resource = StringUtil::cleanDbString(row.count("resource") ? row.at("resource") : "");
+            std::string roleName = StringUtil::getRowStr(row, "role_name");
+            std::string resource = StringUtil::getRowStr(row, "resource");
             if (roleName != currentRole) {
                 if (!currentRole.empty()) matrix.push_back(currentMatrix);
                 currentMatrix = PermissionMatrix();
@@ -579,13 +579,13 @@ std::vector<RolePermission> AdminAuditModule::getRolePermissions(int roleId) {
         auto results = stmt.query();
         for (const auto& row : results) {
             RolePermission rp;
-            rp.roleId = std::stoi(StringUtil::cleanDbString(row.count("role_id") ? row.at("role_id") : "0"));
-            rp.roleName = StringUtil::cleanDbString(row.count("role_name") ? row.at("role_name") : "");
-            rp.permissionId = std::stoi(StringUtil::cleanDbString(row.count("permission_id") ? row.at("permission_id") : "0"));
-            rp.resource = StringUtil::cleanDbString(row.count("resource") ? row.at("resource") : "");
-            rp.action = StringUtil::cleanDbString(row.count("action") ? row.at("action") : "");
-            rp.grantedAt = StringUtil::cleanDbString(row.count("granted_at") ? row.at("granted_at") : "");
-            rp.grantedByUsername = StringUtil::cleanDbString(row.count("granted_by_username") ? row.at("granted_by_username") : "");
+            rp.roleId = StringUtil::getRowInt(row, "role_id");
+            rp.roleName = StringUtil::getRowStr(row, "role_name");
+            rp.permissionId = StringUtil::getRowInt(row, "permission_id");
+            rp.resource = StringUtil::getRowStr(row, "resource");
+            rp.action = StringUtil::getRowStr(row, "action");
+            rp.grantedAt = StringUtil::getRowStr(row, "granted_at");
+            rp.grantedByUsername = StringUtil::getRowStr(row, "granted_by_username");
             rolePermissions.push_back(rp);
         }
     } catch (const std::exception& e) {
@@ -629,15 +629,15 @@ std::vector<UserRoleAssignment> AdminAuditModule::getUserRoles(int userId) {
         auto results = stmt.query();
         for (const auto& row : results) {
             UserRoleAssignment userRole;
-            userRole.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            userRole.userId = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-            userRole.username = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
-            userRole.roleId = std::stoi(StringUtil::cleanDbString(row.count("role_id") ? row.at("role_id") : "0"));
-            userRole.roleName = StringUtil::cleanDbString(row.count("role_name") ? row.at("role_name") : "");
-            userRole.roleLevel = std::stoi(StringUtil::cleanDbString(row.count("role_level") ? row.at("role_level") : "0"));
-            userRole.assignedAt = StringUtil::cleanDbString(row.count("assigned_at") ? row.at("assigned_at") : "");
-            userRole.expiresAt = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
-            userRole.reason = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
+            userRole.id = StringUtil::getRowInt64(row, "id");
+            userRole.userId = StringUtil::getRowInt(row, "user_id");
+            userRole.username = StringUtil::getRowStr(row, "username");
+            userRole.roleId = StringUtil::getRowInt(row, "role_id");
+            userRole.roleName = StringUtil::getRowStr(row, "role_name");
+            userRole.roleLevel = StringUtil::getRowInt(row, "role_level");
+            userRole.assignedAt = StringUtil::getRowStr(row, "assigned_at");
+            userRole.expiresAt = StringUtil::getRowStr(row, "expires_at");
+            userRole.reason = StringUtil::getRowStr(row, "reason");
             userRoles.push_back(userRole);
         }
     } catch (const std::exception& e) {
@@ -686,7 +686,7 @@ bool AdminAuditModule::checkUserPermission(int userId, const std::string& resour
         stmt.bind(0, userId);
         auto results = stmt.query();
         if (!results.empty()) {
-            int count = std::stoi(StringUtil::cleanDbString(results[0].count("count") ? results[0].at("count") : "0"));
+            int count = StringUtil::getRowInt(results[0], "count");
             return count > 0;
         }
     } catch (const std::exception& e) {
@@ -701,7 +701,7 @@ PaginatedResponse<PaperModeration> AdminAuditModule::getPendingPapers(int page, 
     if (!database_) return response;
     try {
         auto countResults = database_->query("SELECT COUNT(*) as total FROM paper_moderations WHERE status = 'pending'");
-        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : StringUtil::getRowInt(countResults[0], "total");
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_,
             "SELECT pm.*, u.username as moderator_username FROM paper_moderations pm "
@@ -712,15 +712,15 @@ PaginatedResponse<PaperModeration> AdminAuditModule::getPendingPapers(int page, 
         auto results = stmt.query();
         for (const auto& row : results) {
             PaperModeration m;
-            m.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            m.paperId = std::stoi(StringUtil::cleanDbString(row.count("paper_id") ? row.at("paper_id") : "0"));
-            m.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
-            m.moderatorId = row.count("moderator_id") && row.at("moderator_id") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("moderator_id"))) : 0;
-            m.moderatorUsername = StringUtil::cleanDbString(row.count("moderator_username") ? row.at("moderator_username") : "");
-            m.reason = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
-            m.reviewedAt = StringUtil::cleanDbString(row.count("reviewed_at") ? row.at("reviewed_at") : "");
-            m.flags = StringUtil::cleanDbString(row.count("flags") ? row.at("flags") : "{}");
-            m.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            m.id = StringUtil::getRowInt64(row, "id");
+            m.paperId = StringUtil::getRowInt(row, "paper_id");
+            m.status = StringUtil::getRowStr(row, "status");
+            m.moderatorId = row.count("moderator_id") && row.at("moderator_id") != "NULL" ? StringUtil::getRowInt(row, "moderator_id") : 0;
+            m.moderatorUsername = StringUtil::getRowStr(row, "moderator_username");
+            m.reason = StringUtil::getRowStr(row, "reason");
+            m.reviewedAt = StringUtil::getRowStr(row, "reviewed_at");
+            m.flags = StringUtil::getRowStr(row, "flags", "{}");
+            m.createdAt = StringUtil::getRowStr(row, "created_at");
             response.items.push_back(m);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -740,15 +740,15 @@ std::optional<PaperModeration> AdminAuditModule::getPaperModeration(int64_t id) 
         auto results = stmt.query();
         if (!results.empty()) {
             PaperModeration m;
-            m.id = std::stoll(StringUtil::cleanDbString(results[0].count("id") ? results[0].at("id") : "0"));
-            m.paperId = std::stoi(StringUtil::cleanDbString(results[0].count("paper_id") ? results[0].at("paper_id") : "0"));
-            m.status = StringUtil::cleanDbString(results[0].count("status") ? results[0].at("status") : "");
-            m.moderatorId = results[0].count("moderator_id") && results[0].at("moderator_id") != "NULL" ? std::stoi(StringUtil::cleanDbString(results[0].at("moderator_id"))) : 0;
-            m.moderatorUsername = StringUtil::cleanDbString(results[0].count("moderator_username") ? results[0].at("moderator_username") : "");
-            m.reason = StringUtil::cleanDbString(results[0].count("reason") ? results[0].at("reason") : "");
-            m.reviewedAt = StringUtil::cleanDbString(results[0].count("reviewed_at") ? results[0].at("reviewed_at") : "");
-            m.flags = StringUtil::cleanDbString(results[0].count("flags") ? results[0].at("flags") : "{}");
-            m.createdAt = StringUtil::cleanDbString(results[0].count("created_at") ? results[0].at("created_at") : "");
+            m.id = StringUtil::getRowInt64(results[0], "id");
+            m.paperId = StringUtil::getRowInt(results[0], "paper_id");
+            m.status = StringUtil::getRowStr(results[0], "status");
+            m.moderatorId = results[0].count("moderator_id") && results[0].at("moderator_id") != "NULL" ? StringUtil::getRowInt(results[0], "moderator_id") : 0;
+            m.moderatorUsername = StringUtil::getRowStr(results[0], "moderator_username");
+            m.reason = StringUtil::getRowStr(results[0], "reason");
+            m.reviewedAt = StringUtil::getRowStr(results[0], "reviewed_at");
+            m.flags = StringUtil::getRowStr(results[0], "flags", "{}");
+            m.createdAt = StringUtil::getRowStr(results[0], "created_at");
             return m;
         }
     } catch (const std::exception& e) {
@@ -797,7 +797,7 @@ PaginatedResponse<UserReport> AdminAuditModule::getUserReports(int page, int lim
         PreparedStatement countStmt(database_, countSql);
         if (!status.empty()) { countBindIdx = 0; countStmt.bind(countBindIdx, status); }
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : StringUtil::getRowInt(countResults[0], "total");
         int offset = (page - 1) * limit;
         std::string sql = "SELECT ur.*, reporter.username as reporter_username, reviewer.username as reviewer_username "
                          "FROM user_reports ur LEFT JOIN users reporter ON ur.reporter_id = reporter.id "
@@ -812,19 +812,19 @@ PaginatedResponse<UserReport> AdminAuditModule::getUserReports(int page, int lim
         auto results = stmt.query();
         for (const auto& row : results) {
             UserReport report;
-            report.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            report.reporterId = std::stoi(StringUtil::cleanDbString(row.count("reporter_id") ? row.at("reporter_id") : "0"));
-            report.reporterUsername = StringUtil::cleanDbString(row.count("reporter_username") ? row.at("reporter_username") : "");
-            report.targetType = StringUtil::cleanDbString(row.count("target_type") ? row.at("target_type") : "");
-            report.targetId = std::stoi(StringUtil::cleanDbString(row.count("target_id") ? row.at("target_id") : "0"));
-            report.reason = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
-            report.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
-            report.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
-            report.priority = StringUtil::cleanDbString(row.count("priority") ? row.at("priority") : "medium");
-            report.reviewerId = row.count("reviewer_id") && row.at("reviewer_id") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("reviewer_id"))) : 0;
-            report.reviewerUsername = StringUtil::cleanDbString(row.count("reviewer_username") ? row.at("reviewer_username") : "");
-            report.resolution = StringUtil::cleanDbString(row.count("resolution") ? row.at("resolution") : "");
-            report.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            report.id = StringUtil::getRowInt64(row, "id");
+            report.reporterId = StringUtil::getRowInt(row, "reporter_id");
+            report.reporterUsername = StringUtil::getRowStr(row, "reporter_username");
+            report.targetType = StringUtil::getRowStr(row, "target_type");
+            report.targetId = StringUtil::getRowInt(row, "target_id");
+            report.reason = StringUtil::getRowStr(row, "reason");
+            report.description = StringUtil::getRowStr(row, "description");
+            report.status = StringUtil::getRowStr(row, "status");
+            report.priority = StringUtil::getRowStr(row, "priority", "medium");
+            report.reviewerId = row.count("reviewer_id") && row.at("reviewer_id") != "NULL" ? StringUtil::getRowInt(row, "reviewer_id") : 0;
+            report.reviewerUsername = StringUtil::getRowStr(row, "reviewer_username");
+            report.resolution = StringUtil::getRowStr(row, "resolution");
+            report.createdAt = StringUtil::getRowStr(row, "created_at");
             response.items.push_back(report);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -854,16 +854,16 @@ std::vector<SensitiveWord> AdminAuditModule::getSensitiveWords() {
         auto results = database_->query("SELECT * FROM sensitive_words WHERE is_active = 1 ORDER BY category, severity DESC");
         for (const auto& row : results) {
             SensitiveWord word;
-            word.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            word.word = StringUtil::cleanDbString(row.count("word") ? row.at("word") : "");
-            word.category = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
-            word.severity = StringUtil::cleanDbString(row.count("severity") ? row.at("severity") : "medium");
-            word.isRegex = StringUtil::cleanDbString(row.count("is_regex") ? row.at("is_regex") : "0") == "1";
-            word.replacement = StringUtil::cleanDbString(row.count("replacement") ? row.at("replacement") : "");
-            word.isActive = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
-            word.matchCount = std::stoi(StringUtil::cleanDbString(row.count("match_count") ? row.at("match_count") : "0"));
-            word.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            word.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            word.id = StringUtil::getRowInt(row, "id");
+            word.word = StringUtil::getRowStr(row, "word");
+            word.category = StringUtil::getRowStr(row, "category");
+            word.severity = StringUtil::getRowStr(row, "severity", "medium");
+            word.isRegex = StringUtil::getRowStr(row, "is_regex", "0") == "1";
+            word.replacement = StringUtil::getRowStr(row, "replacement");
+            word.isActive = StringUtil::getRowStr(row, "is_active", "1") == "1";
+            word.matchCount = StringUtil::getRowInt(row, "match_count");
+            word.createdBy = StringUtil::getRowInt(row, "created_by");
+            word.createdAt = StringUtil::getRowStr(row, "created_at");
             words.push_back(word);
         }
     } catch (const std::exception& e) {
@@ -944,11 +944,11 @@ std::map<std::string, int> AdminAuditModule::getSensitiveWordStats() {
     if (!database_) return stats;
     try {
         auto totalResults = database_->query("SELECT COUNT(*) as total FROM sensitive_words WHERE is_active = 1");
-        stats["total_active"] = totalResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(totalResults[0].at("total")));
+        stats["total_active"] = totalResults.empty() ? 0 : StringUtil::getRowInt(totalResults[0], "total");
         auto catResults = database_->query("SELECT category, COUNT(*) as count FROM sensitive_words WHERE is_active = 1 GROUP BY category");
-        for (const auto& row : catResults) stats["category_" + StringUtil::cleanDbString(row.count("category") ? row.at("category") : "")] = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
+        for (const auto& row : catResults) stats["category_" + StringUtil::getRowStr(row, "category")] = StringUtil::getRowInt(row, "count");
         auto matchResults = database_->query("SELECT SUM(match_count) as total FROM sensitive_words WHERE is_active = 1");
-        stats["total_matches"] = matchResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(matchResults[0].at("total")));
+        stats["total_matches"] = matchResults.empty() ? 0 : StringUtil::getRowInt(matchResults[0], "total");
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to get sensitive word stats: {}", e.what());
     }
@@ -965,7 +965,7 @@ PaginatedResponse<ApiKey> AdminAuditModule::getApiKeys(int page, int limit, int 
         PreparedStatement countStmt(database_, countSql);
         if (userId > 0) countStmt.bind(0, userId);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : StringUtil::getRowInt(countResults[0], "total");
         int offset = (page - 1) * limit;
         std::string sql = "SELECT ak.*, u.username FROM api_keys ak LEFT JOIN users u ON ak.user_id = u.id";
         int bindIdx = 0;
@@ -978,19 +978,19 @@ PaginatedResponse<ApiKey> AdminAuditModule::getApiKeys(int page, int limit, int 
         auto results = stmt.query();
         for (const auto& row : results) {
             ApiKey key;
-            key.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            key.userId = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-            key.username = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
-            key.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
-            key.keyPrefix = StringUtil::cleanDbString(row.count("key_prefix") ? row.at("key_prefix") : "");
-            key.scopes = StringUtil::cleanDbString(row.count("scopes") ? row.at("scopes") : "[]");
-            key.rateLimitPerHour = std::stoi(StringUtil::cleanDbString(row.count("rate_limit_per_hour") ? row.at("rate_limit_per_hour") : "1000"));
-            key.expiresAt = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
-            key.lastUsedAt = StringUtil::cleanDbString(row.count("last_used_at") ? row.at("last_used_at") : "");
-            key.requestCount = std::stoll(StringUtil::cleanDbString(row.count("request_count") ? row.at("request_count") : "0"));
-            key.isActive = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
-            key.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            key.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            key.id = StringUtil::getRowInt(row, "id");
+            key.userId = StringUtil::getRowInt(row, "user_id");
+            key.username = StringUtil::getRowStr(row, "username");
+            key.name = StringUtil::getRowStr(row, "name");
+            key.keyPrefix = StringUtil::getRowStr(row, "key_prefix");
+            key.scopes = StringUtil::getRowStr(row, "scopes", "[]");
+            key.rateLimitPerHour = StringUtil::getRowInt(row, "rate_limit_per_hour", 1000);
+            key.expiresAt = StringUtil::getRowStr(row, "expires_at");
+            key.lastUsedAt = StringUtil::getRowStr(row, "last_used_at");
+            key.requestCount = StringUtil::getRowInt64(row, "request_count");
+            key.isActive = StringUtil::getRowStr(row, "is_active", "1") == "1";
+            key.createdBy = StringUtil::getRowInt(row, "created_by");
+            key.createdAt = StringUtil::getRowStr(row, "created_at");
             response.items.push_back(key);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1082,7 +1082,7 @@ PaginatedResponse<ApiUsage> AdminAuditModule::getApiKeyUsage(int page, int limit
         PreparedStatement countStmt(database_, countSql);
         if (keyId > 0) countStmt.bind(0, keyId);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : StringUtil::getRowInt(countResults[0], "total");
         int offset = (page - 1) * limit;
         std::string sql = "SELECT aku.*, ak.name as key_name FROM api_key_usage aku LEFT JOIN api_keys ak ON aku.key_id = ak.id";
         int bindIdx = 0;
@@ -1095,16 +1095,16 @@ PaginatedResponse<ApiUsage> AdminAuditModule::getApiKeyUsage(int page, int limit
         auto results = stmt.query();
         for (const auto& row : results) {
             ApiUsage usage;
-            usage.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            usage.keyId = std::stoi(StringUtil::cleanDbString(row.count("key_id") ? row.at("key_id") : "0"));
-            usage.keyName = StringUtil::cleanDbString(row.count("key_name") ? row.at("key_name") : "");
-            usage.endpoint = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-            usage.method = StringUtil::cleanDbString(row.count("method") ? row.at("method") : "");
-            usage.statusCode = row.count("status_code") && row.at("status_code") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("status_code"))) : 0;
-            usage.responseTimeMs = row.count("response_time_ms") && row.at("response_time_ms") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("response_time_ms"))) : 0;
-            usage.ipAddress = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-            usage.userAgent = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
-            usage.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            usage.id = StringUtil::getRowInt64(row, "id");
+            usage.keyId = StringUtil::getRowInt(row, "key_id");
+            usage.keyName = StringUtil::getRowStr(row, "key_name");
+            usage.endpoint = StringUtil::getRowStr(row, "endpoint");
+            usage.method = StringUtil::getRowStr(row, "method");
+            usage.statusCode = row.count("status_code") && row.at("status_code") != "NULL" ? StringUtil::getRowInt(row, "status_code") : 0;
+            usage.responseTimeMs = row.count("response_time_ms") && row.at("response_time_ms") != "NULL" ? StringUtil::getRowInt(row, "response_time_ms") : 0;
+            usage.ipAddress = StringUtil::getRowStr(row, "ip_address");
+            usage.userAgent = StringUtil::getRowStr(row, "user_agent");
+            usage.createdAt = StringUtil::getRowStr(row, "created_at");
             response.items.push_back(usage);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1123,14 +1123,14 @@ ApiUsageStats AdminAuditModule::getApiKeyStats(int keyId) {
         PreparedStatement totalStmt(database_, totalSql);
         if (keyId > 0) totalStmt.bind(0, keyId);
         auto totalResults = totalStmt.query();
-        stats.totalRequests = totalResults.empty() ? 0 : std::stoll(StringUtil::cleanDbString(totalResults[0].at("total")));
+        stats.totalRequests = totalResults.empty() ? 0 : StringUtil::getRowInt64(totalResults[0], "total");
 
         std::string successSql = "SELECT COUNT(*) as total FROM api_key_usage WHERE status_code >= 200 AND status_code < 400";
         if (keyId > 0) successSql += " AND key_id = ?";
         PreparedStatement successStmt(database_, successSql);
         if (keyId > 0) successStmt.bind(0, keyId);
         auto successResults = successStmt.query();
-        stats.successfulRequests = successResults.empty() ? 0 : std::stoll(StringUtil::cleanDbString(successResults[0].at("total")));
+        stats.successfulRequests = successResults.empty() ? 0 : StringUtil::getRowInt64(successResults[0], "total");
         stats.failedRequests = stats.totalRequests - stats.successfulRequests;
 
         std::string avgSql = "SELECT AVG(response_time_ms) as avg FROM api_key_usage WHERE response_time_ms IS NOT NULL";
@@ -1138,7 +1138,7 @@ ApiUsageStats AdminAuditModule::getApiKeyStats(int keyId) {
         PreparedStatement avgStmt(database_, avgSql);
         if (keyId > 0) avgStmt.bind(0, keyId);
         auto avgResults = avgStmt.query();
-        stats.avgResponseTime = avgResults.empty() ? 0.0 : std::stod(StringUtil::cleanDbString(avgResults[0].at("avg")));
+        stats.avgResponseTime = avgResults.empty() ? 0.0 : StringUtil::getRowDouble(avgResults[0], "avg");
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to get API key stats: {}", e.what());
     }

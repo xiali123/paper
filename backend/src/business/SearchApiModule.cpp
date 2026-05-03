@@ -11,6 +11,7 @@
 #include "messages/DatabaseConnectionMessage.hpp"
 #include "features/search/MeilisearchClient.hpp"
 #include <nlohmann/json.hpp>
+#include "data/StringUtil.hpp"
 #include <spdlog/spdlog.h>
 #include <sstream>
 #include <algorithm>
@@ -100,12 +101,12 @@ public:
                 Paper paper;
                 paper.id = std::stoi(row.at("id"));
                 paper.title = row.at("title");
-                paper.authors = row.count("authors") ? row.at("authors") : "";
-                paper.year = row.count("year") ? row.at("year") : "";
-                paper.abstract = row.count("abstract") ? row.at("abstract") : "";
-                paper.publication = row.count("journal") ? row.at("journal") : "";
-                paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
-                paper.url = row.count("url") ? row.at("url") : "";
+                paper.authors = StringUtil::getRowStr(row, "authors");
+                paper.year = StringUtil::getRowStr(row, "year");
+                paper.abstract = StringUtil::getRowStr(row, "abstract");
+                paper.publication = StringUtil::getRowStr(row, "journal");
+                paper.citationCount = StringUtil::getRowInt(row, "citation_count");
+                paper.url = StringUtil::getRowStr(row, "url");
                 papers.push_back(paper);
             }
 

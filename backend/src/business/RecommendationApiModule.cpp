@@ -272,9 +272,9 @@ public:
             r.paperId = std::stoi(row.at("id"));
             r.title = row.at("title");
             r.authors = row.at("authors");
-            r.publication = row.count("publication") ? row.at("publication") : "";
-            r.year = row.count("year") ? row.at("year") : "";
-            r.score = std::stod(row.at("similarity_score"));
+            r.publication = StringUtil::getRowStr(row, "publication");
+            r.year = StringUtil::getRowStr(row, "year");
+            r.score = StringUtil::getRowDouble(row, "similarity_score");
             r.reason = "与您浏览的论文内容相似（相似度: " +
                       std::to_string(r.score).substr(0, 4) + ")";
             r.algorithm = "content-based";
@@ -316,9 +316,9 @@ public:
             r.paperId = std::stoi(row.at("paper_id"));
             r.title = row.at("title");
             r.authors = row.at("authors");
-            r.publication = row.count("publication") ? row.at("publication") : "";
-            r.year = row.count("year") ? row.at("year") : "";
-            r.score = std::stod(row.at("score"));
+            r.publication = StringUtil::getRowStr(row, "publication");
+            r.year = StringUtil::getRowStr(row, "year");
+            r.score = StringUtil::getRowDouble(row, "score");
             r.reason = row.at("reason");
             r.algorithm = "popularity";
             recommendations.push_back(r);
@@ -337,9 +337,9 @@ public:
                 r.paperId = std::stoi(row.at("id"));
                 r.title = row.at("title");
                 r.authors = row.at("authors");
-                r.publication = row.count("publication") ? row.at("publication") : "";
-                r.year = row.count("year") ? row.at("year") : "";
-                r.score = std::stod(row.at("citation_count")) / 1000.0; // 归一化
+                r.publication = StringUtil::getRowStr(row, "publication");
+                r.year = StringUtil::getRowStr(row, "year");
+                r.score = StringUtil::getRowDouble(row, "citation_count") / 1000.0; // 归一化
                 r.reason = "高被引热门论文";
                 r.algorithm = "popularity";
                 recommendations.push_back(r);
@@ -369,9 +369,9 @@ public:
             r.paperId = std::stoi(row.at("paper_id"));
             r.title = row.at("title");
             r.authors = row.at("authors");
-            r.publication = row.count("publication") ? row.at("publication") : "";
-            r.year = row.count("year") ? row.at("year") : "";
-            r.score = std::stod(row.at("score"));
+            r.publication = StringUtil::getRowStr(row, "publication");
+            r.year = StringUtil::getRowStr(row, "year");
+            r.score = StringUtil::getRowDouble(row, "score");
             r.reason = row.at("reason");
             r.algorithm = "collaborative-filtering";
             recommendations.push_back(r);
@@ -400,9 +400,9 @@ public:
             r.paperId = std::stoi(row.at("paper_id"));
             r.title = row.at("title");
             r.authors = row.at("authors");
-            r.publication = row.count("publication") ? row.at("publication") : "";
-            r.year = row.count("year") ? row.at("year") : "";
-            r.score = std::stod(row.at("score"));
+            r.publication = StringUtil::getRowStr(row, "publication");
+            r.year = StringUtil::getRowStr(row, "year");
+            r.score = StringUtil::getRowDouble(row, "score");
             r.reason = row.at("reason");
             r.algorithm = "content-based";
             recommendations.push_back(r);
@@ -446,7 +446,7 @@ public:
         for (const auto& row : results) {
             UserInterest interest;
             interest.category = row.at("interest_keyword");
-            interest.weight = std::stod(row.at("weight"));
+            interest.weight = StringUtil::getRowDouble(row, "weight");
             interests.push_back(interest);
         }
 
@@ -777,8 +777,7 @@ std::vector<RecommendationResult> RecommendationApiModule::getSimilarPapers(
         return {};
     }
 
-    std::string targetKeywords = (*targetPaper).count("keywords") ?
-        (*targetPaper).at("keywords") : "";
+    std::string targetKeywords = StringUtil::getRowStr(*targetPaper, "keywords");
     auto targetKeywordSet = impl_->parseKeywords(targetKeywords);
 
     // 获取其他论文
@@ -801,7 +800,7 @@ std::vector<RecommendationResult> RecommendationApiModule::getSimilarPapers(
     std::vector<std::pair<double, std::map<std::string, std::string>>> scoredPapers;
 
     for (const auto& paper : allPapers) {
-        std::string keywords = paper.count("keywords") ? paper.at("keywords") : "";
+        std::string keywords = StringUtil::getRowStr(paper, "keywords");
         auto keywordSet = impl_->parseKeywords(keywords);
 
         double score = impl_->jaccardSimilarity(targetKeywordSet, keywordSet);
@@ -824,8 +823,8 @@ std::vector<RecommendationResult> RecommendationApiModule::getSimilarPapers(
         r.paperId = std::stoi(paper.at("id"));
         r.title = paper.at("title");
         r.authors = paper.at("authors");
-        r.publication = paper.count("publication") ? paper.at("publication") : "";
-        r.year = paper.count("year") ? paper.at("year") : "";
+        r.publication = StringUtil::getRowStr(paper, "publication");
+        r.year = StringUtil::getRowStr(paper, "year");
         r.score = score;
         r.reason = "基于关键词相似度推荐（相似度: " + std::to_string(score).substr(0, 4) + ")";
         r.algorithm = "content-based";
@@ -869,7 +868,7 @@ std::string RecommendationApiModule::explainRecommendation(int userId, int paper
         explanation["paperTitle"] = (*paper).at("title");
         explanation["paperAuthors"] = (*paper).at("authors");
 
-        std::string keywords = (*paper).count("keywords") ? (*paper).at("keywords") : "";
+        std::string keywords = StringUtil::getRowStr(*paper, "keywords");
         auto keywordSet = impl_->parseKeywords(keywords);
         explanation["paperKeywords"] = keywordSet;
 
@@ -1197,8 +1196,8 @@ std::vector<RecommendationResult> RecommendationApiModule::contentBasedRecommend
         r.paperId = std::stoi(paper.at("id"));
         r.title = paper.at("title");
         r.authors = paper.at("authors");
-        r.publication = paper.count("publication") ? paper.at("publication") : "";
-        r.year = paper.count("year") ? paper.at("year") : "";
+        r.publication = StringUtil::getRowStr(paper, "publication");
+        r.year = StringUtil::getRowStr(paper, "year");
         r.score = std::min(1.0, score);
         r.reason = "与您浏览过的论文主题相似";
         r.algorithm = "content-based";

@@ -17,6 +17,7 @@
 #include <spdlog/spdlog.h>
 #include "data/PreparedStatement.hpp"
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 
 namespace PaperCrawler {
 
@@ -94,8 +95,8 @@ public:
         user.id = std::stoi(row.at("id"));
         user.username = row.at("username");
         user.email = row.at("email");
-        user.fullName = row.count("full_name") ? row.at("full_name") : "";
-        user.passwordHash = row.count("password_hash") ? row.at("password_hash") : "";
+        user.fullName = StringUtil::getRowStr(row, "full_name");
+        user.passwordHash = StringUtil::getRowStr(row, "password_hash");
 
         // 解析角色
         std::string roleStr = row.at("role");
@@ -109,8 +110,8 @@ public:
         else user.status = UserStatus::INACTIVE;
 
         // 可选字段
-        user.avatarUrl = row.count("avatar_url") ? row.at("avatar_url") : "";
-        user.bio = row.count("biography") ? row.at("biography") : "";
+        user.avatarUrl = StringUtil::getRowStr(row, "avatar_url");
+        user.bio = StringUtil::getRowStr(row, "biography");
 
         return user;
     }
@@ -1108,8 +1109,8 @@ HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
         userJson["id"] = row.at("id");
         userJson["username"] = row.at("username");
         userJson["email"] = row.at("email");
-        userJson["full_name"] = row.count("full_name") ? row.at("full_name") : "";
-        userJson["role"] = row.count("role") ? row.at("role") : "user";
+        userJson["full_name"] = StringUtil::getRowStr(row, "full_name");
+        userJson["role"] = StringUtil::getRowStr(row, "role", "user");
         userJson["is_active"] = row.count("is_active") ? (row.at("is_active") == "1") : true;
 
         HttpResponse response;

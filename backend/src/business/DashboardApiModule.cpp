@@ -222,30 +222,30 @@ std::string DashboardApiModule::handleStats() {
 
     try {
         auto r1 = database_->query("SELECT COUNT(*) as cnt FROM papers");
-        int totalPapers = (!r1.empty() && r1[0].count("cnt")) ? std::stoi(r1[0].at("cnt")) : 0;
+        int totalPapers = r1.empty() ? 0 : StringUtil::getRowInt(r1[0], "cnt");
 
         auto r2 = database_->query(
             "SELECT COUNT(*) as cnt FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
-        int weeklyNewPapers = (!r2.empty() && r2[0].count("cnt")) ? std::stoi(r2[0].at("cnt")) : 0;
+        int weeklyNewPapers = r2.empty() ? 0 : StringUtil::getRowInt(r2[0], "cnt");
 
         auto r3 = database_->query("SELECT COUNT(*) as cnt FROM user_bookmarks");
-        int favoriteCount = (!r3.empty() && r3[0].count("cnt")) ? std::stoi(r3[0].at("cnt")) : 0;
+        int favoriteCount = r3.empty() ? 0 : StringUtil::getRowInt(r3[0], "cnt");
 
         auto r4 = database_->query(
             "SELECT COUNT(*) as cnt FROM distributed_crawl_tasks WHERE status IN ('pending','running')");
-        int pendingTasks = (!r4.empty() && r4[0].count("cnt")) ? std::stoi(r4[0].at("cnt")) : 0;
+        int pendingTasks = r4.empty() ? 0 : StringUtil::getRowInt(r4[0], "cnt");
 
         int toReadCount = 0;
         try {
             auto r5 = database_->query(
                 "SELECT COUNT(*) as cnt FROM user_reading_history WHERE reading_status = 'unread'");
-            if (!r5.empty() && r5[0].count("cnt")) toReadCount = std::stoi(r5[0].at("cnt"));
+            toReadCount = r5.empty() ? 0 : StringUtil::getRowInt(r5[0], "cnt");
         } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
 
         int exportCount = 0;
         try {
             auto r6 = database_->query("SELECT COUNT(*) as cnt FROM exports");
-            if (!r6.empty() && r6[0].count("cnt")) exportCount = std::stoi(r6[0].at("cnt"));
+            exportCount = r6.empty() ? 0 : StringUtil::getRowInt(r6[0], "cnt");
         } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
 
         response["totalPapers"] = totalPapers;
@@ -291,10 +291,10 @@ std::string DashboardApiModule::handleActivities(int limit) {
             for (auto& row : papers) {
                 std::map<std::string, std::string> act;
                 act["type"] = "paper_added";
-                act["title"] = row.count("title") ? row["title"] : "New paper";
+                act["title"] = StringUtil::getRowStr(row, "title", "New paper");
                 act["description"] = "Paper added: " + act["title"];
-                act["timestamp"] = row.count("created_at") ? row["created_at"] : "";
-                act["id"] = row.count("id") ? row["id"] : "0";
+                act["timestamp"] = StringUtil::getRowStr(row, "created_at");
+                act["id"] = StringUtil::getRowStr(row, "id", "0");
                 activities.push_back(act);
             }
         } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
@@ -307,10 +307,10 @@ std::string DashboardApiModule::handleActivities(int limit) {
             for (auto& row : searches) {
                 std::map<std::string, std::string> act;
                 act["type"] = "search";
-                act["title"] = row.count("title") ? row["title"] : "Search";
+                act["title"] = StringUtil::getRowStr(row, "title", "Search");
                 act["description"] = "Searched: " + act["title"];
-                act["timestamp"] = row.count("created_at") ? row["created_at"] : "";
-                act["id"] = row.count("id") ? row["id"] : "0";
+                act["timestamp"] = StringUtil::getRowStr(row, "created_at");
+                act["id"] = StringUtil::getRowStr(row, "id", "0");
                 activities.push_back(act);
             }
         } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
@@ -360,14 +360,14 @@ std::string DashboardApiModule::handleRecommendations(int limit) {
 
         for (auto& row : results) {
             json paper;
-            paper["id"] = row.count("id") ? std::stoi(row["id"]) : 0;
-            paper["title"] = row.count("title") ? row["title"] : "";
-            paper["authors"] = row.count("authors") ? row["authors"] : "";
-            paper["year"] = row.count("year") ? row["year"] : "";
+            paper["id"] = StringUtil::getRowInt(row, "id");
+            paper["title"] = StringUtil::getRowStr(row, "title");
+            paper["authors"] = StringUtil::getRowStr(row, "authors");
+            paper["year"] = StringUtil::getRowStr(row, "year");
 
             json item;
             item["paper"] = paper;
-            item["score"] = row.count("score") ? std::stod(row["score"]) : 0.8;
+            item["score"] = StringUtil::getRowDouble(row, "score", 0.8);
             item["reason"] = "Based on similarity analysis";
             resultsArr.push_back(item);
         }
@@ -408,9 +408,9 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
 
         for (auto& row : results) {
             json item;
-            item["keyword"] = row.count("keyword") ? row["keyword"] : "";
-            item["count"] = row.count("count") ? std::stoi(row["count"]) : 0;
-            item["trend"] = row.count("trend") ? row["trend"] : "stable";
+            item["keyword"] = StringUtil::getRowStr(row, "keyword");
+            item["count"] = StringUtil::getRowInt(row, "count");
+            item["trend"] = StringUtil::getRowStr(row, "trend", "stable");
             resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
@@ -424,8 +424,8 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
                 .bind(0, limit).query();
             for (auto& row : results) {
                 json item;
-                item["keyword"] = row.count("keyword") ? row["keyword"] : "";
-                item["count"] = row.count("count") ? std::stoi(row["count"]) : 0;
+                item["keyword"] = StringUtil::getRowStr(row, "keyword");
+                item["count"] = StringUtil::getRowInt(row, "count");
                 item["trend"] = "stable";
                 resultsArr.push_back(item);
             }
@@ -452,10 +452,10 @@ std::string DashboardApiModule::handleTodos() {
                 json todosArr = json::array();
                 for (auto& row : results) {
                     json item;
-                    item["id"] = row.count("id") ? row["id"] : "0";
-                    item["title"] = row.count("title") ? row["title"] : "";
-                    item["status"] = row.count("status") ? row["status"] : "pending";
-                    item["createdAt"] = row.count("createdAt") ? row["createdAt"] : "";
+                    item["id"] = StringUtil::getRowStr(row, "id", "0");
+                    item["title"] = StringUtil::getRowStr(row, "title");
+                    item["status"] = StringUtil::getRowStr(row, "status", "pending");
+                    item["createdAt"] = StringUtil::getRowStr(row, "createdAt");
                     todosArr.push_back(item);
                 }
                 return todosArr.dump();
@@ -569,12 +569,12 @@ std::string DashboardApiModule::handleCrawlerTasks() {
 
         for (auto& row : results) {
             json item;
-            item["id"] = row.count("id") ? row["id"] : "0";
-            item["name"] = row.count("name") ? row["name"] : "";
-            item["status"] = row.count("status") ? row["status"] : "pending";
-            item["progress"] = row.count("progress") ? std::stoi(row["progress"]) : 0;
-            item["createdAt"] = row.count("createdAt") ? row["createdAt"] : "";
-            item["completedAt"] = row.count("completedAt") ? row["completedAt"] : "";
+            item["id"] = StringUtil::getRowStr(row, "id", "0");
+            item["name"] = StringUtil::getRowStr(row, "name");
+            item["status"] = StringUtil::getRowStr(row, "status", "pending");
+            item["progress"] = StringUtil::getRowInt(row, "progress");
+            item["createdAt"] = StringUtil::getRowStr(row, "createdAt");
+            item["completedAt"] = StringUtil::getRowStr(row, "completedAt");
             resultsArr.push_back(item);
         }
     } catch (const std::exception& e) {
@@ -615,9 +615,9 @@ std::string DashboardApiModule::handleGrowth(int days) {
         auto results = PreparedStatement(database_, sql).bind(0, days).query();
 
         for (auto& row : results) {
-            int count = row.count("count") ? std::stoi(row["count"]) : 0;
+            int count = StringUtil::getRowInt(row, "count");
             json item;
-            item["date"] = row.count("date") ? row["date"] : "";
+            item["date"] = StringUtil::getRowStr(row, "date");
             item["count"] = count;
             item["new"] = count;
             resultsArr.push_back(item);
@@ -663,12 +663,12 @@ std::string DashboardApiModule::handleDistributionJournals() {
         // 计算总数用于百分比
         int total = 0;
         for (auto& row : results) {
-            total += std::stoi(row.count("count") ? row["count"] : "0");
+            total += StringUtil::getRowInt(row, "count");
         }
 
         for (auto& row : results) {
-            std::string journal = row.count("journal") ? row["journal"] : "Unknown";
-            int count = std::stoi(row.count("count") ? row["count"] : "0");
+            std::string journal = StringUtil::getRowStr(row, "journal", "Unknown");
+            int count = StringUtil::getRowInt(row, "count");
             double pct = total > 0 ? (count * 100.0 / total) : 0;
 
             json item;
@@ -717,12 +717,12 @@ std::string DashboardApiModule::handleDistributionCcf() {
 
         int total = 0;
         for (auto& row : results) {
-            total += std::stoi(row.count("count") ? row["count"] : "0");
+            total += StringUtil::getRowInt(row, "count");
         }
 
         for (auto& row : results) {
-            std::string level = row.count("level") ? row["level"] : "Uncategorized";
-            int count = std::stoi(row.count("count") ? row["count"] : "0");
+            std::string level = StringUtil::getRowStr(row, "level", "Uncategorized");
+            int count = StringUtil::getRowInt(row, "count");
             double pct = total > 0 ? (count * 100.0 / total) : 0;
 
             json item;

@@ -426,16 +426,16 @@ std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std:
 
             for (const auto& row : results) {
                 nlohmann::json config;
-                config["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                config["key"] = StringUtil::cleanDbString(row.count("key") ? row.at("key") : "");
-                config["value"] = StringUtil::cleanDbString(row.count("value") ? row.at("value") : "");
-                config["value_type"] = StringUtil::cleanDbString(row.count("value_type") ? row.at("value_type") : "string");
-                config["category"] = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
-                config["description"] = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
-                config["default_value"] = StringUtil::cleanDbString(row.count("default_value") ? row.at("default_value") : "");
-                config["is_public"] = StringUtil::cleanDbString(row.count("is_public") ? row.at("is_public") : "0") == "1";
-                config["updated_by"] = StringUtil::cleanDbString(row.count("updated_by_username") ? row.at("updated_by_username") : "");
-                config["updated_at"] = StringUtil::cleanDbString(row.count("updated_at") ? row.at("updated_at") : "");
+                config["id"] = StringUtil::getRowInt(row, "id");
+                config["key"] = StringUtil::getRowStr(row, "key");
+                config["value"] = StringUtil::getRowStr(row, "value");
+                config["value_type"] = StringUtil::getRowStr(row, "value_type", "string");
+                config["category"] = StringUtil::getRowStr(row, "category");
+                config["description"] = StringUtil::getRowStr(row, "description");
+                config["default_value"] = StringUtil::getRowStr(row, "default_value");
+                config["is_public"] = StringUtil::getRowStr(row, "is_public", "0") == "1";
+                config["updated_by"] = StringUtil::getRowStr(row, "updated_by_username");
+                config["updated_at"] = StringUtil::getRowStr(row, "updated_at");
                 configs.push_back(config);
             }
         }
@@ -475,8 +475,8 @@ std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, st
             auto selectResults = selectStmt.query();
 
             if (!selectResults.empty()) {
-                std::string oldValue = StringUtil::cleanDbString(selectResults[0].count("value") ? selectResults[0].at("value") : "");
-                int configId = std::stoi(StringUtil::cleanDbString(selectResults[0].at("id")));
+                std::string oldValue = StringUtil::getRowStr(selectResults[0], "value");
+                int configId = StringUtil::getRowInt(selectResults[0], "id");
 
                 // 更新配置
                 PreparedStatement updateStmt(database_, "UPDATE system_configs SET value = ?, updated_by = ? WHERE `key` = ?");
@@ -557,7 +557,7 @@ std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string
             if (!configKeyFilter.empty()) countStmt.bind(0, configKeyFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+                total = StringUtil::getRowInt(countResults[0], "total");
             }
 
             // 获取历史记录
@@ -571,14 +571,14 @@ std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json entry;
-                entry["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                entry["config_key"] = StringUtil::cleanDbString(row.count("config_key") ? row.at("config_key") : "");
-                entry["old_value"] = StringUtil::cleanDbString(row.count("old_value") ? row.at("old_value") : "");
-                entry["new_value"] = StringUtil::cleanDbString(row.count("new_value") ? row.at("new_value") : "");
-                entry["changed_by"] = StringUtil::cleanDbString(row.count("changed_by_username") ? row.at("changed_by_username") : "");
-                entry["change_reason"] = StringUtil::cleanDbString(row.count("change_reason") ? row.at("change_reason") : "");
-                entry["change_type"] = StringUtil::cleanDbString(row.count("change_type") ? row.at("change_type") : "");
-                entry["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                entry["id"] = StringUtil::getRowInt64(row, "id");
+                entry["config_key"] = StringUtil::getRowStr(row, "config_key");
+                entry["old_value"] = StringUtil::getRowStr(row, "old_value");
+                entry["new_value"] = StringUtil::getRowStr(row, "new_value");
+                entry["changed_by"] = StringUtil::getRowStr(row, "changed_by_username");
+                entry["change_reason"] = StringUtil::getRowStr(row, "change_reason");
+                entry["change_type"] = StringUtil::getRowStr(row, "change_type");
+                entry["created_at"] = StringUtil::getRowStr(row, "created_at");
                 history.push_back(entry);
             }
         }
@@ -611,9 +611,9 @@ std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json item;
-                item["category"] = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
-                item["config_count"] = std::stoi(StringUtil::cleanDbString(row.count("config_count") ? row.at("config_count") : "0"));
-                item["recently_updated"] = std::stoi(StringUtil::cleanDbString(row.count("recently_updated") ? row.at("recently_updated") : "0"));
+                item["category"] = StringUtil::getRowStr(row, "category");
+                item["config_count"] = StringUtil::getRowInt(row, "config_count");
+                item["recently_updated"] = StringUtil::getRowInt(row, "recently_updated");
                 summary.push_back(item);
             }
         }
@@ -656,18 +656,18 @@ std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, s
 
             for (const auto& row : results) {
                 nlohmann::json job;
-                job["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                job["name"] = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
-                job["job_type"] = StringUtil::cleanDbString(row.count("job_type") ? row.at("job_type") : "");
-                job["description"] = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
-                job["schedule_cron"] = StringUtil::cleanDbString(row.count("schedule_cron") ? row.at("schedule_cron") : "");
-                job["backup_path"] = StringUtil::cleanDbString(row.count("backup_path") ? row.at("backup_path") : "");
-                job["retention_days"] = std::stoi(StringUtil::cleanDbString(row.count("retention_days") ? row.at("retention_days") : "0"));
-                job["is_enabled"] = StringUtil::cleanDbString(row.count("is_enabled") ? row.at("is_enabled") : "1") == "1";
-                job["last_run_at"] = StringUtil::cleanDbString(row.count("last_run_at") ? row.at("last_run_at") : "");
-                job["last_run_status"] = StringUtil::cleanDbString(row.count("last_run_status") ? row.at("last_run_status") : "");
-                job["last_run_message"] = StringUtil::cleanDbString(row.count("last_run_message") ? row.at("last_run_message") : "");
-                job["created_by"] = StringUtil::cleanDbString(row.count("created_by_username") ? row.at("created_by_username") : "");
+                job["id"] = StringUtil::getRowInt(row, "id");
+                job["name"] = StringUtil::getRowStr(row, "name");
+                job["job_type"] = StringUtil::getRowStr(row, "job_type");
+                job["description"] = StringUtil::getRowStr(row, "description");
+                job["schedule_cron"] = StringUtil::getRowStr(row, "schedule_cron");
+                job["backup_path"] = StringUtil::getRowStr(row, "backup_path");
+                job["retention_days"] = StringUtil::getRowInt(row, "retention_days");
+                job["is_enabled"] = StringUtil::getRowStr(row, "is_enabled", "1") == "1";
+                job["last_run_at"] = StringUtil::getRowStr(row, "last_run_at");
+                job["last_run_status"] = StringUtil::getRowStr(row, "last_run_status");
+                job["last_run_message"] = StringUtil::getRowStr(row, "last_run_message");
+                job["created_by"] = StringUtil::getRowStr(row, "created_by_username");
                 jobs.push_back(job);
             }
         }
@@ -826,9 +826,9 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
                 return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Backup job not found");
             }
 
-            std::string jobName = StringUtil::cleanDbString(jobResults[0].count("name") ? jobResults[0].at("name") : "");
-            std::string jobType = StringUtil::cleanDbString(jobResults[0].count("job_type") ? jobResults[0].at("job_type") : "full");
-            std::string backupPath = StringUtil::cleanDbString(jobResults[0].count("backup_path") ? jobResults[0].at("backup_path") : "/backups");
+            std::string jobName = StringUtil::getRowStr(jobResults[0], "name");
+            std::string jobType = StringUtil::getRowStr(jobResults[0], "job_type", "full");
+            std::string backupPath = StringUtil::getRowStr(jobResults[0], "backup_path", "/backups");
 
             // 创建备份文件名
             auto now = std::chrono::system_clock::now();
@@ -934,7 +934,7 @@ std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string
             if (jobIdFilter > 0) countStmt.bind(0, jobIdFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+                total = StringUtil::getRowInt(countResults[0], "total");
             }
 
             // 获取备份记录
@@ -950,18 +950,18 @@ std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json record;
-                record["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                record["job_id"] = std::stoi(StringUtil::cleanDbString(row.count("job_id") ? row.at("job_id") : "0"));
-                record["job_name"] = StringUtil::cleanDbString(row.count("job_name") ? row.at("job_name") : "");
-                record["filename"] = StringUtil::cleanDbString(row.count("filename") ? row.at("filename") : "");
-                record["file_path"] = StringUtil::cleanDbString(row.count("file_path") ? row.at("file_path") : "");
-                record["file_size"] = std::stoll(StringUtil::cleanDbString(row.count("file_size") ? row.at("file_size") : "0"));
-                record["backup_type"] = StringUtil::cleanDbString(row.count("backup_type") ? row.at("backup_type") : "");
-                record["status"] = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
-                record["started_at"] = StringUtil::cleanDbString(row.count("started_at") ? row.at("started_at") : "");
-                record["completed_at"] = StringUtil::cleanDbString(row.count("completed_at") ? row.at("completed_at") : "");
-                record["duration_seconds"] = row.count("duration_seconds") ? std::stoi(StringUtil::cleanDbString(row.at("duration_seconds"))) : 0;
-                record["error_message"] = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
+                record["id"] = StringUtil::getRowInt64(row, "id");
+                record["job_id"] = StringUtil::getRowInt(row, "job_id");
+                record["job_name"] = StringUtil::getRowStr(row, "job_name");
+                record["filename"] = StringUtil::getRowStr(row, "filename");
+                record["file_path"] = StringUtil::getRowStr(row, "file_path");
+                record["file_size"] = StringUtil::getRowInt64(row, "file_size");
+                record["backup_type"] = StringUtil::getRowStr(row, "backup_type");
+                record["status"] = StringUtil::getRowStr(row, "status");
+                record["started_at"] = StringUtil::getRowStr(row, "started_at");
+                record["completed_at"] = StringUtil::getRowStr(row, "completed_at");
+                record["duration_seconds"] = row.count("duration_seconds") ? StringUtil::getRowInt(row, "duration_seconds") : 0;
+                record["error_message"] = StringUtil::getRowStr(row, "error_message");
                 records.push_back(record);
             }
         }
@@ -1000,7 +1000,7 @@ std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string
             auto results = selectStmt.query();
 
             if (!results.empty()) {
-                std::string filePath = StringUtil::cleanDbString(results[0].count("file_path") ? results[0].at("file_path") : "");
+                std::string filePath = StringUtil::getRowStr(results[0], "file_path");
 
                 // 删除实际文件（取消下行注释即可启用文件删除）
                 // std::remove(filePath.c_str());
@@ -1039,7 +1039,7 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
             // 获取备份任务数量
             std::string jobCountSql = "SELECT COUNT(*) as total FROM backup_jobs WHERE is_enabled = 1";
             auto jobResults = database_->query(jobCountSql);
-            stats["total_jobs"] = jobResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(jobResults[0].at("total")));
+            stats["total_jobs"] = jobResults.empty() ? 0 : StringUtil::getRowInt(jobResults[0], "total");
 
             // 获取备份记录统计
             std::string recordStatsSql = "SELECT status, COUNT(*) as count FROM backup_records "
@@ -1050,8 +1050,8 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
             nlohmann::json statusStats = nlohmann::json::object();
             int totalRecentBackups = 0;
             for (const auto& row : recordResults) {
-                std::string status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
-                int count = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
+                std::string status = StringUtil::getRowStr(row, "status");
+                int count = StringUtil::getRowInt(row, "count");
                 statusStats[status] = count;
                 if (status == "success") totalRecentBackups += count;
             }
@@ -1062,12 +1062,12 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
             std::string lastBackupSql = "SELECT started_at FROM backup_records "
                                        "WHERE status = 'success' ORDER BY started_at DESC LIMIT 1";
             auto lastResults = database_->query(lastBackupSql);
-            stats["last_successful_backup"] = lastResults.empty() ? "" : StringUtil::cleanDbString(lastResults[0].at("started_at"));
+            stats["last_successful_backup"] = lastResults.empty() ? "" : StringUtil::getRowStr(lastResults[0], "started_at");
 
             // 计算备份总大小
             std::string sizeSql = "SELECT SUM(file_size) as total_size FROM backup_records WHERE status = 'success'";
             auto sizeResults = database_->query(sizeSql);
-            int64_t totalSize = sizeResults.empty() ? 0 : std::stoll(StringUtil::cleanDbString(sizeResults[0].at("total_size")));
+            int64_t totalSize = sizeResults.empty() ? 0 : StringUtil::getRowInt64(sizeResults[0], "total_size");
             stats["total_backup_size_bytes"] = totalSize;
         }
 
@@ -1586,15 +1586,15 @@ std::vector<NotificationTemplate> AdminConfigModule::getNotificationTemplates() 
         auto results = database_->query("SELECT * FROM notification_templates ORDER BY channel, name");
         for (const auto& row : results) {
             NotificationTemplate tpl;
-            tpl.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            tpl.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
-            tpl.titleTemplate = StringUtil::cleanDbString(row.count("title_template") ? row.at("title_template") : "");
-            tpl.contentTemplate = StringUtil::cleanDbString(row.count("content_template") ? row.at("content_template") : "");
-            tpl.channel = StringUtil::cleanDbString(row.count("channel") ? row.at("channel") : "inapp");
-            tpl.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
-            tpl.language = StringUtil::cleanDbString(row.count("language") ? row.at("language") : "zh-CN");
-            tpl.isActive = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
-            tpl.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            tpl.id = StringUtil::getRowInt(row, "id");
+            tpl.name = StringUtil::getRowStr(row, "name");
+            tpl.titleTemplate = StringUtil::getRowStr(row, "title_template");
+            tpl.contentTemplate = StringUtil::getRowStr(row, "content_template");
+            tpl.channel = StringUtil::getRowStr(row, "channel", "inapp");
+            tpl.description = StringUtil::getRowStr(row, "description");
+            tpl.language = StringUtil::getRowStr(row, "language", "zh-CN");
+            tpl.isActive = StringUtil::getRowStr(row, "is_active", "1") == "1";
+            tpl.createdAt = StringUtil::getRowStr(row, "created_at");
             templates.push_back(tpl);
         }
     } catch (const std::exception& e) {
@@ -1656,7 +1656,7 @@ PaginatedResponse<SystemNotification> AdminConfigModule::getSystemNotifications(
         PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM system_notifications" + whereClause);
         if (!status.empty()) countStmt.bind(0, status);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : StringUtil::getRowInt(countResults[0], "total");
 
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_, "SELECT * FROM system_notifications" + whereClause +
@@ -1668,15 +1668,15 @@ PaginatedResponse<SystemNotification> AdminConfigModule::getSystemNotifications(
         auto results = stmt.query();
         for (const auto& row : results) {
             SystemNotification notif;
-            notif.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            notif.title = StringUtil::cleanDbString(row.count("title") ? row.at("title") : "");
-            notif.content = StringUtil::cleanDbString(row.count("content") ? row.at("content") : "");
-            notif.channel = StringUtil::cleanDbString(row.count("channel") ? row.at("channel") : "inapp");
-            notif.targetRole = StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "");
-            notif.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
-            notif.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            notif.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-            notif.scheduledAt = StringUtil::cleanDbString(row.count("scheduled_at") ? row.at("scheduled_at") : "");
+            notif.id = StringUtil::getRowInt64(row, "id");
+            notif.title = StringUtil::getRowStr(row, "title");
+            notif.content = StringUtil::getRowStr(row, "content");
+            notif.channel = StringUtil::getRowStr(row, "channel", "inapp");
+            notif.targetRole = StringUtil::getRowStr(row, "target_role");
+            notif.status = StringUtil::getRowStr(row, "status");
+            notif.createdBy = StringUtil::getRowInt(row, "created_by");
+            notif.createdAt = StringUtil::getRowStr(row, "created_at");
+            notif.scheduledAt = StringUtil::getRowStr(row, "scheduled_at");
             response.items.push_back(notif);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1714,7 +1714,7 @@ PaginatedResponse<NotificationDelivery> AdminConfigModule::getNotificationDelive
         PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM notification_deliveries" + whereClause);
         if (notificationId > 0) countStmt.bind(0, static_cast<int>(notificationId));
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : StringUtil::getRowInt(countResults[0], "total");
 
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_, "SELECT * FROM notification_deliveries" + whereClause +
@@ -1726,12 +1726,12 @@ PaginatedResponse<NotificationDelivery> AdminConfigModule::getNotificationDelive
         auto results = stmt.query();
         for (const auto& row : results) {
             NotificationDelivery delivery;
-            delivery.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            delivery.notificationId = std::stoll(StringUtil::cleanDbString(row.count("notification_id") ? row.at("notification_id") : "0"));
-            delivery.userId = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-            delivery.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
-            delivery.sentAt = StringUtil::cleanDbString(row.count("sent_at") ? row.at("sent_at") : "");
-            delivery.readAt = StringUtil::cleanDbString(row.count("read_at") ? row.at("read_at") : "");
+            delivery.id = StringUtil::getRowInt64(row, "id");
+            delivery.notificationId = StringUtil::getRowInt64(row, "notification_id");
+            delivery.userId = StringUtil::getRowInt(row, "user_id");
+            delivery.status = StringUtil::getRowStr(row, "status");
+            delivery.sentAt = StringUtil::getRowStr(row, "sent_at");
+            delivery.readAt = StringUtil::getRowStr(row, "read_at");
             response.items.push_back(delivery);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1764,18 +1764,18 @@ std::vector<CleanupTask> AdminConfigModule::getCleanupTasks() {
         auto results = database_->query("SELECT * FROM cleanup_tasks ORDER BY name");
         for (const auto& row : results) {
             CleanupTask task;
-            task.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            task.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
-            task.displayName = StringUtil::cleanDbString(row.count("display_name") ? row.at("display_name") : "");
-            task.taskType = StringUtil::cleanDbString(row.count("task_type") ? row.at("task_type") : "");
-            task.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
-            task.cleanupConfig = StringUtil::cleanDbString(row.count("config") ? row.at("config") : "{}");
-            task.scheduleCron = StringUtil::cleanDbString(row.count("schedule_cron") ? row.at("schedule_cron") : "");
-            task.isSystem = StringUtil::cleanDbString(row.count("is_system") ? row.at("is_system") : "0") == "1";
-            task.isEnabled = StringUtil::cleanDbString(row.count("is_enabled") ? row.at("is_enabled") : "1") == "1";
-            task.lastRunAt = StringUtil::cleanDbString(row.count("last_run_at") ? row.at("last_run_at") : "");
-            task.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            task.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            task.id = StringUtil::getRowInt(row, "id");
+            task.name = StringUtil::getRowStr(row, "name");
+            task.displayName = StringUtil::getRowStr(row, "display_name");
+            task.taskType = StringUtil::getRowStr(row, "task_type");
+            task.description = StringUtil::getRowStr(row, "description");
+            task.cleanupConfig = StringUtil::getRowStr(row, "config", "{}");
+            task.scheduleCron = StringUtil::getRowStr(row, "schedule_cron");
+            task.isSystem = StringUtil::getRowStr(row, "is_system", "0") == "1";
+            task.isEnabled = StringUtil::getRowStr(row, "is_enabled", "1") == "1";
+            task.lastRunAt = StringUtil::getRowStr(row, "last_run_at");
+            task.createdBy = StringUtil::getRowInt(row, "created_by");
+            task.createdAt = StringUtil::getRowStr(row, "created_at");
             tasks.push_back(task);
         }
     } catch (const std::exception& e) {
@@ -1854,7 +1854,7 @@ PaginatedResponse<CleanupExecution> AdminConfigModule::getCleanupHistory(int pag
         PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM cleanup_executions" + whereClause);
         if (taskId > 0) countStmt.bind(0, taskId);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : StringUtil::getRowInt(countResults[0], "total");
 
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_, "SELECT * FROM cleanup_executions" + whereClause +
@@ -1866,14 +1866,14 @@ PaginatedResponse<CleanupExecution> AdminConfigModule::getCleanupHistory(int pag
         auto results = stmt.query();
         for (const auto& row : results) {
             CleanupExecution exec;
-            exec.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-            exec.taskId = std::stoi(StringUtil::cleanDbString(row.count("task_id") ? row.at("task_id") : "0"));
-            exec.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
-            exec.triggeredBy = std::stoi(StringUtil::cleanDbString(row.count("triggered_by") ? row.at("triggered_by") : "0"));
-            exec.startedAt = StringUtil::cleanDbString(row.count("started_at") ? row.at("started_at") : "");
-            exec.completedAt = StringUtil::cleanDbString(row.count("completed_at") ? row.at("completed_at") : "");
-            exec.itemsProcessed = std::stoi(StringUtil::cleanDbString(row.count("items_processed") ? row.at("items_processed") : "0"));
-            exec.errorMessage = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
+            exec.id = StringUtil::getRowInt64(row, "id");
+            exec.taskId = StringUtil::getRowInt(row, "task_id");
+            exec.status = StringUtil::getRowStr(row, "status");
+            exec.triggeredBy = StringUtil::getRowInt(row, "triggered_by");
+            exec.startedAt = StringUtil::getRowStr(row, "started_at");
+            exec.completedAt = StringUtil::getRowStr(row, "completed_at");
+            exec.itemsProcessed = StringUtil::getRowInt(row, "items_processed");
+            exec.errorMessage = StringUtil::getRowStr(row, "error_message");
             response.items.push_back(exec);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1890,8 +1890,8 @@ std::vector<StorageStat> AdminConfigModule::getStorageStats() {
         auto results = database_->query("SELECT table_name as category, table_rows as record_count, data_length as size_bytes FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY data_length DESC");
         for (const auto& row : results) {
             StorageStat stat;
-            stat.tableName = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
-            stat.rowCount = std::stoll(StringUtil::cleanDbString(row.count("record_count") ? row.at("record_count") : "0"));
+            stat.tableName = StringUtil::getRowStr(row, "category");
+            stat.rowCount = StringUtil::getRowInt64(row, "record_count");
             stats.push_back(stat);
         }
     } catch (const std::exception& e) {

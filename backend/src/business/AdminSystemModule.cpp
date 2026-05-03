@@ -640,8 +640,8 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
             "GROUP BY DATE(created_at) ORDER BY d");
         for (const auto& row : trendResults) {
             trendArr.push_back({
-                {"date", StringUtil::cleanDbString(row.count("d") ? row.at("d") : "")},
-                {"count", std::stoi(StringUtil::cleanDbString(row.count("c") ? row.at("c") : "0"))}
+                {"date", StringUtil::getRowStr(row, "d")},
+                {"count", StringUtil::getRowInt(row, "c")}
             });
         }
 
@@ -653,8 +653,8 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
             "GROUP BY DATE(login_time) ORDER BY d");
         for (const auto& row : activeResults) {
             activeArr.push_back({
-                {"date", StringUtil::cleanDbString(row.count("d") ? row.at("d") : "")},
-                {"count", std::stoi(StringUtil::cleanDbString(row.count("c") ? row.at("c") : "0"))}
+                {"date", StringUtil::getRowStr(row, "d")},
+                {"count", StringUtil::getRowInt(row, "c")}
             });
         }
 
@@ -866,18 +866,18 @@ std::string AdminSystemModule::handleGetSystemMetrics(const std::map<std::string
 
             if (!results.empty()) {
                 const auto& row = results[0];
-                data["cpu_percent"] = std::stod(StringUtil::cleanDbString(row.count("cpu_percent") ? row.at("cpu_percent") : "0"));
-                data["memory_used_mb"] = std::stod(StringUtil::cleanDbString(row.count("memory_used_mb") ? row.at("memory_used_mb") : "0"));
-                data["memory_total_mb"] = std::stod(StringUtil::cleanDbString(row.count("memory_total_mb") ? row.at("memory_total_mb") : "0"));
-                data["memory_percent"] = std::stod(StringUtil::cleanDbString(row.count("memory_percent") ? row.at("memory_percent") : "0"));
-                data["disk_used_gb"] = std::stod(StringUtil::cleanDbString(row.count("disk_used_gb") ? row.at("disk_used_gb") : "0"));
-                data["disk_total_gb"] = std::stod(StringUtil::cleanDbString(row.count("disk_total_gb") ? row.at("disk_total_gb") : "0"));
-                data["disk_percent"] = std::stod(StringUtil::cleanDbString(row.count("disk_percent") ? row.at("disk_percent") : "0"));
-                data["network_rx_mbps"] = std::stod(StringUtil::cleanDbString(row.count("network_rx_mbps") ? row.at("network_rx_mbps") : "0"));
-                data["network_tx_mbps"] = std::stod(StringUtil::cleanDbString(row.count("network_tx_mbps") ? row.at("network_tx_mbps") : "0"));
-                data["active_connections"] = std::stoi(StringUtil::cleanDbString(row.count("active_connections") ? row.at("active_connections") : "0"));
-                data["uptime_seconds"] = std::stoll(StringUtil::cleanDbString(row.count("uptime_seconds") ? row.at("uptime_seconds") : "0"));
-                data["timestamp"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                data["cpu_percent"] = StringUtil::getRowDouble(row, "cpu_percent");
+                data["memory_used_mb"] = StringUtil::getRowDouble(row, "memory_used_mb");
+                data["memory_total_mb"] = StringUtil::getRowDouble(row, "memory_total_mb");
+                data["memory_percent"] = StringUtil::getRowDouble(row, "memory_percent");
+                data["disk_used_gb"] = StringUtil::getRowDouble(row, "disk_used_gb");
+                data["disk_total_gb"] = StringUtil::getRowDouble(row, "disk_total_gb");
+                data["disk_percent"] = StringUtil::getRowDouble(row, "disk_percent");
+                data["network_rx_mbps"] = StringUtil::getRowDouble(row, "network_rx_mbps");
+                data["network_tx_mbps"] = StringUtil::getRowDouble(row, "network_tx_mbps");
+                data["active_connections"] = StringUtil::getRowInt(row, "active_connections");
+                data["uptime_seconds"] = StringUtil::getRowInt64(row, "uptime_seconds");
+                data["timestamp"] = StringUtil::getRowStr(row, "created_at");
             } else {
                 // Query returned empty - return default values
                 data["cpu_percent"] = 0.0;
@@ -930,11 +930,11 @@ std::string AdminSystemModule::handleGetServiceHealth(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json service;
-                service["name"] = StringUtil::cleanDbString(row.count("service_name") ? row.at("service_name") : "");
-                service["status"] = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "unknown");
-                service["response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("response_time_ms") ? row.at("response_time_ms") : "0"));
-                service["error_message"] = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
-                service["last_check"] = StringUtil::cleanDbString(row.count("last_check_at") ? row.at("last_check_at") : "");
+                service["name"] = StringUtil::getRowStr(row, "service_name");
+                service["status"] = StringUtil::getRowStr(row, "status", "unknown");
+                service["response_time_ms"] = StringUtil::getRowInt(row, "response_time_ms");
+                service["error_message"] = StringUtil::getRowStr(row, "error_message");
+                service["last_check"] = StringUtil::getRowStr(row, "last_check_at");
                 services.push_back(service);
             }
         } else {
@@ -1019,7 +1019,7 @@ std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, s
             if (!moduleFilter.empty()) countStmt.bind(bindIdx++, moduleFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
+                total = StringUtil::getRowInt(countResults[0], "total");
             }
 
             // 获取日志列表
@@ -1034,14 +1034,14 @@ std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, s
 
             for (const auto& row : results) {
                 nlohmann::json log;
-                log["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                log["level"] = StringUtil::cleanDbString(row.count("level") ? row.at("level") : "info");
-                log["module"] = StringUtil::cleanDbString(row.count("module") ? row.at("module") : "");
-                log["message"] = StringUtil::cleanDbString(row.count("message") ? row.at("message") : "");
-                log["file"] = StringUtil::cleanDbString(row.count("file") ? row.at("file") : "");
-                log["line"] = row.count("line") ? std::stoi(StringUtil::cleanDbString(row.at("line"))) : 0;
-                log["thread_id"] = StringUtil::cleanDbString(row.count("thread_id") ? row.at("thread_id") : "");
-                log["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                log["id"] = StringUtil::getRowInt64(row, "id");
+                log["level"] = StringUtil::getRowStr(row, "level", "info");
+                log["module"] = StringUtil::getRowStr(row, "module");
+                log["message"] = StringUtil::getRowStr(row, "message");
+                log["file"] = StringUtil::getRowStr(row, "file");
+                log["line"] = row.count("line") ? StringUtil::getRowInt(row, "line") : 0;
+                log["thread_id"] = StringUtil::getRowStr(row, "thread_id");
+                log["created_at"] = StringUtil::getRowStr(row, "created_at");
 
                 // 解析JSON上下文
                 if (row.count("context") && row.at("context") != "NULL") {
@@ -1088,8 +1088,8 @@ std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std
                                   "GROUP BY level";
             auto levelResults = database_->query(levelSql);
             for (const auto& row : levelResults) {
-                std::string level = StringUtil::cleanDbString(row.count("level") ? row.at("level") : "unknown");
-                int count = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
+                std::string level = StringUtil::getRowStr(row, "level", "unknown");
+                int count = StringUtil::getRowInt(row, "count");
                 byLevel[level] = count;
             }
 
@@ -1099,8 +1099,8 @@ std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std
                                    "GROUP BY module";
             auto moduleResults = database_->query(moduleSql);
             for (const auto& row : moduleResults) {
-                std::string module = StringUtil::cleanDbString(row.count("module") ? row.at("module") : "unknown");
-                int count = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
+                std::string module = StringUtil::getRowStr(row, "module", "unknown");
+                int count = StringUtil::getRowInt(row, "count");
                 byModule[module] = count;
             }
         }
@@ -1163,17 +1163,17 @@ std::string AdminSystemModule::handleGetPerformanceMetrics(const std::map<std::s
 
             for (const auto& row : results) {
                 nlohmann::json metric;
-                metric["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                metric["method"] = StringUtil::cleanDbString(row.count("method") ? row.at("method") : "GET");
-                metric["request_count"] = std::stoi(StringUtil::cleanDbString(row.count("request_count") ? row.at("request_count") : "0"));
-                metric["success_count"] = std::stoi(StringUtil::cleanDbString(row.count("success_count") ? row.at("success_count") : "0"));
-                metric["error_count"] = std::stoi(StringUtil::cleanDbString(row.count("error_count") ? row.at("error_count") : "0"));
-                metric["avg_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("avg_response_time_ms") ? row.at("avg_response_time_ms") : "0"));
-                metric["max_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("max_response_time_ms") ? row.at("max_response_time_ms") : "0"));
-                metric["min_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("min_response_time_ms") ? row.at("min_response_time_ms") : "0"));
-                metric["p95_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("p95_response_time_ms") ? row.at("p95_response_time_ms") : "0"));
-                metric["p99_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("p99_response_time_ms") ? row.at("p99_response_time_ms") : "0"));
-                metric["last_request_at"] = StringUtil::cleanDbString(row.count("last_request_at") ? row.at("last_request_at") : "");
+                metric["endpoint"] = StringUtil::getRowStr(row, "endpoint");
+                metric["method"] = StringUtil::getRowStr(row, "method", "GET");
+                metric["request_count"] = StringUtil::getRowInt(row, "request_count");
+                metric["success_count"] = StringUtil::getRowInt(row, "success_count");
+                metric["error_count"] = StringUtil::getRowInt(row, "error_count");
+                metric["avg_response_time_ms"] = StringUtil::getRowInt(row, "avg_response_time_ms");
+                metric["max_response_time_ms"] = StringUtil::getRowInt(row, "max_response_time_ms");
+                metric["min_response_time_ms"] = StringUtil::getRowInt(row, "min_response_time_ms");
+                metric["p95_response_time_ms"] = StringUtil::getRowInt(row, "p95_response_time_ms");
+                metric["p99_response_time_ms"] = StringUtil::getRowInt(row, "p99_response_time_ms");
+                metric["last_request_at"] = StringUtil::getRowStr(row, "last_request_at");
 
                 // 计算错误率
                 int requestCount = metric["request_count"].get<int>();
@@ -1222,14 +1222,14 @@ std::string AdminSystemModule::handleGetSlowQueries(const std::map<std::string, 
 
             for (const auto& row : results) {
                 nlohmann::json query;
-                query["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                query["query_text"] = StringUtil::cleanDbString(row.count("query_text") ? row.at("query_text") : "");
-                query["execution_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("execution_time_ms") ? row.at("execution_time_ms") : "0"));
-                query["rows_examined"] = std::stoi(StringUtil::cleanDbString(row.count("rows_examined") ? row.at("rows_examined") : "0"));
-                query["rows_returned"] = std::stoi(StringUtil::cleanDbString(row.count("rows_returned") ? row.at("rows_returned") : "0"));
-                query["module"] = StringUtil::cleanDbString(row.count("module") ? row.at("module") : "");
-                query["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                query["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                query["id"] = StringUtil::getRowInt64(row, "id");
+                query["query_text"] = StringUtil::getRowStr(row, "query_text");
+                query["execution_time_ms"] = StringUtil::getRowInt(row, "execution_time_ms");
+                query["rows_examined"] = StringUtil::getRowInt(row, "rows_examined");
+                query["rows_returned"] = StringUtil::getRowInt(row, "rows_returned");
+                query["module"] = StringUtil::getRowStr(row, "module");
+                query["endpoint"] = StringUtil::getRowStr(row, "endpoint");
+                query["created_at"] = StringUtil::getRowStr(row, "created_at");
                 queries.push_back(query);
             }
         }
@@ -1267,9 +1267,9 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
             for (const auto& row : slowResults) {
                 nlohmann::json bottleneck;
                 bottleneck["type"] = "slow_query";
-                bottleneck["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                bottleneck["count"] = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
-                bottleneck["avg_time_ms"] = std::stod(StringUtil::cleanDbString(row.count("avg_time") ? row.at("avg_time") : "0"));
+                bottleneck["endpoint"] = StringUtil::getRowStr(row, "endpoint");
+                bottleneck["count"] = StringUtil::getRowInt(row, "count");
+                bottleneck["avg_time_ms"] = StringUtil::getRowDouble(row, "avg_time");
                 bottleneck["severity"] = bottleneck["avg_time_ms"] > 1000 ? "high" :
                                          bottleneck["avg_time_ms"] > 500 ? "medium" : "low";
                 bottleneck["description"] = "平均执行时间 " +
@@ -1293,11 +1293,11 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
             for (const auto& row : errorResults) {
                 nlohmann::json bottleneck;
                 bottleneck["type"] = "high_error_rate";
-                bottleneck["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                bottleneck["method"] = StringUtil::cleanDbString(row.count("method") ? row.at("method") : "GET");
+                bottleneck["endpoint"] = StringUtil::getRowStr(row, "endpoint");
+                bottleneck["method"] = StringUtil::getRowStr(row, "method", "GET");
 
-                int total = std::stoi(StringUtil::cleanDbString(row.count("total_requests") ? row.at("total_requests") : "0"));
-                int errors = std::stoi(StringUtil::cleanDbString(row.count("total_errors") ? row.at("total_errors") : "0"));
+                int total = StringUtil::getRowInt(row, "total_requests");
+                int errors = StringUtil::getRowInt(row, "total_errors");
                 double errorRate = total > 0 ? (double)errors / total * 100.0 : 0.0;
 
                 bottleneck["error_rate"] = errorRate;
@@ -1316,12 +1316,12 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
             auto healthResults = database_->query(healthSql);
             for (const auto& row : healthResults) {
                 nlohmann::json bottleneck;
-                std::string status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "down");
+                std::string status = StringUtil::getRowStr(row, "status", "down");
                 bottleneck["type"] = "unhealthy_service";
-                bottleneck["service"] = StringUtil::cleanDbString(row.count("service_name") ? row.at("service_name") : "");
+                bottleneck["service"] = StringUtil::getRowStr(row, "service_name");
                 bottleneck["status"] = status;
-                bottleneck["response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("response_time_ms") ? row.at("response_time_ms") : "0"));
-                bottleneck["error_message"] = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
+                bottleneck["response_time_ms"] = StringUtil::getRowInt(row, "response_time_ms");
+                bottleneck["error_message"] = StringUtil::getRowStr(row, "error_message");
                 bottleneck["severity"] = status == "down" ? "high" : "medium";
                 bottleneck["description"] = "服务状态: " + status;
                 bottlenecks.push_back(bottleneck);
@@ -1381,23 +1381,23 @@ std::string AdminSystemModule::handleListAnnouncements(const std::map<std::strin
         }
         int total = 0;
         if (!countResults.empty()) {
-            total = std::stoi(StringUtil::cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
+            total = StringUtil::getRowInt(countResults[0], "total");
         }
 
         // Build JSON array
         nlohmann::json itemsArr = nlohmann::json::array();
         for (const auto& row : results) {
-            std::string isActiveVal = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
+            std::string isActiveVal = StringUtil::getRowStr(row, "is_active", "0");
             itemsArr.push_back({
-                {"id", std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"))},
-                {"title", StringUtil::cleanDbString(row.count("title") ? row.at("title") : "")},
-                {"content", StringUtil::cleanDbString(row.count("content") ? row.at("content") : "")},
-                {"type", StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info")},
-                {"target_role", StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all")},
-                {"created_by", std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"))},
+                {"id", StringUtil::getRowInt(row, "id")},
+                {"title", StringUtil::getRowStr(row, "title")},
+                {"content", StringUtil::getRowStr(row, "content")},
+                {"type", StringUtil::getRowStr(row, "type", "info")},
+                {"target_role", StringUtil::getRowStr(row, "target_role", "all")},
+                {"created_by", StringUtil::getRowInt(row, "created_by")},
                 {"is_active", isActiveVal == "1" || isActiveVal == "true"},
-                {"created_at", StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")},
-                {"expires_at", StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")}
+                {"created_at", StringUtil::getRowStr(row, "created_at")},
+                {"expires_at", StringUtil::getRowStr(row, "expires_at")}
             });
         }
 
@@ -1456,20 +1456,20 @@ std::string AdminSystemModule::handleCreateAnnouncement(const std::string& body)
 
             if (!newResults.empty()) {
                 const auto& row = newResults[0];
-                std::string isActiveVal = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
+                std::string isActiveVal = StringUtil::getRowStr(row, "is_active", "0");
                 nlohmann::json annObj;
-                annObj["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
-                annObj["title"] = StringUtil::cleanDbString(row.count("title") ? row.at("title") : "");
-                annObj["content"] = StringUtil::cleanDbString(row.count("content") ? row.at("content") : "");
-                annObj["type"] = StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info");
-                annObj["target_role"] = StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all");
-                annObj["created_by"] = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
+                annObj["id"] = StringUtil::getRowInt(row, "id");
+                annObj["title"] = StringUtil::getRowStr(row, "title");
+                annObj["content"] = StringUtil::getRowStr(row, "content");
+                annObj["type"] = StringUtil::getRowStr(row, "type", "info");
+                annObj["target_role"] = StringUtil::getRowStr(row, "target_role", "all");
+                annObj["created_by"] = StringUtil::getRowInt(row, "created_by");
                 annObj["is_active"] = isActiveVal == "1" || isActiveVal == "true";
-                annObj["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-                annObj["expires_at"] = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
+                annObj["created_at"] = StringUtil::getRowStr(row, "created_at");
+                annObj["expires_at"] = StringUtil::getRowStr(row, "expires_at");
 
                 addAuditLog("announcement_created", "announcement",
-                            std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0")),
+                            StringUtil::getRowInt(row, "id"),
                             "admin", 0, "Created announcement: " + title, "127.0.0.1");
 
                 return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcement created", annObj.dump());

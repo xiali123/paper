@@ -8,6 +8,7 @@
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
 #include <nlohmann/json.hpp>
+#include "data/StringUtil.hpp"
 #include <sstream>
 #include <iomanip>
 #include <fstream>
@@ -95,15 +96,15 @@ public:
                 paper.id = std::stoi(row.at("id"));
                 paper.title = row.at("title");
                 paper.authors = row.at("authors");
-                paper.year = row.count("year") ? row.at("year") : "";
-                paper.abstract = row.count("abstract") ? row.at("abstract") : "";
-                paper.publication = row.count("journal") ? row.at("journal") : "";
-                paper.volume = row.count("volume") ? row.at("volume") : "";
-                paper.issue = row.count("issue") ? row.at("issue") : "";
-                paper.pages = row.count("pages") ? row.at("pages") : "";
-                paper.doi = row.count("doi") ? row.at("doi") : "";
-                paper.url = row.count("url") ? row.at("url") : "";
-                paper.citationCount = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                paper.year = StringUtil::getRowStr(row, "year");
+                paper.abstract = StringUtil::getRowStr(row, "abstract");
+                paper.publication = StringUtil::getRowStr(row, "journal");
+                paper.volume = StringUtil::getRowStr(row, "volume");
+                paper.issue = StringUtil::getRowStr(row, "issue");
+                paper.pages = StringUtil::getRowStr(row, "pages");
+                paper.doi = StringUtil::getRowStr(row, "doi");
+                paper.url = StringUtil::getRowStr(row, "url");
+                paper.citationCount = StringUtil::getRowInt(row, "citation_count");
                 papers.push_back(paper);
             }
         } catch (const std::exception& e) {
