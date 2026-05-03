@@ -55,6 +55,11 @@ class PaperStatsChart;
 class QuickNoteWidget;
 class PaperCollectionWidget;
 class SideBySideDiff;
+class ProgressTracker;
+class BackupRestoreWidget;
+class AdvancedTableWidget;
+class PaperRecommendationEngine;
+class PdfThumbnailWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -178,6 +183,7 @@ private:
     FilterChipBar* filterChipBar_{nullptr};
     QuickNoteWidget* quickNotes_{nullptr};
     PaperCollectionWidget* collections_{nullptr};
+    ProgressTracker* progressTracker_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 

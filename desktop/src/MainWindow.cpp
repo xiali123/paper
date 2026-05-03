@@ -52,6 +52,11 @@
 #include "QuickNoteWidget.hpp"
 #include "PaperCollectionWidget.hpp"
 #include "SideBySideDiff.hpp"
+#include "ProgressTracker.hpp"
+#include "BackupRestoreWidget.hpp"
+#include "AdvancedTableWidget.hpp"
+#include "PaperRecommendationEngine.hpp"
+#include "PdfThumbnailWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3008,6 +3013,47 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addSeparator();
+
+    auto* progressAction = toolsMenu->addAction("Reading &Progress");
+    connect(progressAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Progress");
+        dlg->resize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        progressTracker_ = new ProgressTracker();
+        layout->addWidget(progressTracker_);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* backupAction = toolsMenu->addAction("&Backup / Restore");
+    connect(backupAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Backup & Restore");
+        dlg->resize(600, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* backup = new BackupRestoreWidget();
+        layout->addWidget(backup);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* recommendAction = toolsMenu->addAction("&Recommendations");
+    connect(recommendAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Recommendations");
+        dlg->resize(500, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* engine = new PaperRecommendationEngine();
+        if (recentHistory_) {
+            // In real implementation, pass user history data
+        }
+        layout->addWidget(engine);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     auto* doiAction = toolsMenu->addAction("&DOI Lookup");
     connect(doiAction, &QAction::triggered, this, [this]() {
         auto* dlg = new DoiLookupDialog(this);
@@ -3315,6 +3361,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Side-by-Side Diff", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Side-by-Side Diff");
+    });
+    commandPalette_->addAction("Reading Progress", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Progress");
+    });
+    commandPalette_->addAction("Backup / Restore", "", "Tools", [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Backup & Restore");
+        dlg->resize(600, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        layout->addWidget(new BackupRestoreWidget());
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    commandPalette_->addAction("Paper Recommendations", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Recommendations");
     });
     commandPalette_->addAction("LaTeX Editor", "Ctrl+8", "Tabs", [this]() { tabWidget_->setCurrentIndex(7); });
     commandPalette_->addAction("AI Chat", "Ctrl+3", "Tabs", [this]() { tabWidget_->setCurrentIndex(2); });
