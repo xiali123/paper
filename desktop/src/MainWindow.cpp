@@ -92,6 +92,11 @@
 #include "PaperTranslatorWidget.hpp"
 #include "BibliographyBuilderWidget.hpp"
 #include "LanguageDetectorWidget.hpp"
+#include "PaperStoryboardWidget.hpp"
+#include "MarkdownPreviewWidget.hpp"
+#include "SearchQueryBuilder.hpp"
+#include "PaperReportGenerator.hpp"
+#include "PaperNetworkGraph.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3718,6 +3723,101 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* storyboardAction = toolsMenu->addAction("&Storyboard");
+    connect(storyboardAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Storyboard");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStoryboardWidget();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers())
+                papers.append({p.id, p.title});
+            w->addPapers(papers);
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* mdEditorAction = toolsMenu->addAction("&Markdown Editor");
+    connect(mdEditorAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Markdown Editor");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new MarkdownPreviewWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* queryBuilderAction = toolsMenu->addAction("Search &Query Builder");
+    connect(queryBuilderAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Search Query Builder");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new SearchQueryBuilder();
+        connect(w, &SearchQueryBuilder::searchRequested, this, [this](const QString& query) {
+            onSearch(query);
+            ToastWidget::showSuccess("Query executed");
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* reportAction = toolsMenu->addAction("&Report Generator");
+    connect(reportAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Report Generator");
+        dlg->resize(900, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReportGenerator();
+        if (resultView_) {
+            for (const auto& p : resultView_->getPapers()) {
+                ReportPaper rp;
+                rp.id = p.id;
+                rp.title = p.title;
+                rp.authors = p.authors.split(QRegularExpression("[,;]"), Qt::SkipEmptyParts);
+                rp.year = p.year;
+                rp.journal = p.journal;
+                rp.abstractText = p.abstractText;
+                rp.doi = p.doi;
+                w->addPaper(rp);
+            }
+        }
+        connect(w, &PaperReportGenerator::reportGenerated, this, [](const QString& fmt, int count) {
+            ToastWidget::showSuccess(QString("Report: %1 papers, %2 format").arg(count).arg(fmt));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* networkAction = toolsMenu->addAction("Author &Network");
+    connect(networkAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Author Co-authorship Network");
+        dlg->resize(800, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNetworkGraph();
+        if (resultView_) {
+            QList<QPair<int, QStringList>> papers;
+            for (const auto& p : resultView_->getPapers())
+                papers.append({p.id, p.authors.split(QRegularExpression("[,;]"), Qt::SkipEmptyParts)});
+            w->buildFromPapers(papers);
+        }
+        connect(w, &PaperNetworkGraph::nodeClicked, this, [](const QString& name, const QString&) {
+            ToastWidget::showInfo(QString("Author: %1").arg(name));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4153,6 +4253,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Language Detector", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Language Detector");
+    });
+    commandPalette_->addAction("Storyboard", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Storyboard");
+    });
+    commandPalette_->addAction("Markdown Editor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Markdown Editor");
+    });
+    commandPalette_->addAction("Query Builder", "", "Search", [this]() {
+        ToastWidget::showInfo("Open Tools > Search Query Builder");
+    });
+    commandPalette_->addAction("Report Generator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Report Generator");
+    });
+    commandPalette_->addAction("Author Network", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Author Network");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

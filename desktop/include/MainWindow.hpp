@@ -95,6 +95,11 @@ class ClipboardHistoryWidget;
 class PaperTranslatorWidget;
 class BibliographyBuilderWidget;
 class LanguageDetectorWidget;
+class PaperStoryboardWidget;
+class MarkdownPreviewWidget;
+class SearchQueryBuilder;
+class PaperReportGenerator;
+class PaperNetworkGraph;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
