@@ -916,7 +916,7 @@ function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
         )
     endif()
 
-    target_link_libraries(${MODULE_NAME} PRIVATE SystemModules)
+    target_link_libraries(${MODULE_NAME} PRIVATE SystemModules Router)
 
     target_include_directories(${MODULE_NAME}
         PRIVATE
