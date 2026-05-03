@@ -7,7 +7,6 @@
 #include "data/PreparedStatement.hpp"
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
-#include <sstream>
 #include <map>
 #include <algorithm>
 #include <regex>

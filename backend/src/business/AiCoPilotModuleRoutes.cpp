@@ -12,7 +12,8 @@
 
 #include "business/AiCoPilotModule.hpp"
 #include "core/Router.hpp"
-#include "modules/LoggingModule.hpp"
+#include "features/infrastructure/LoggingModule.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -116,126 +117,118 @@ void AiCoPilotModule::registerRoutes() {
 // ============================================================================
 
 std::string AiCoPilotModule::buildJsonResponse(const std::vector<AIReviewResult>& reviews) {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"data\": [\n";
+    nlohmann::json dataArr = nlohmann::json::array();
 
-    for (size_t i = 0; i < reviews.size(); ++i) {
-        const auto& review = reviews[i];
-        json << "    {\n";
-        json << "      \"id\": " << review.paperId << ",\n";
-        json << "      \"type\": \"review\",\n";
-        json << "      \"title\": \"" << review.paperTitle << "\",\n";
-        json << "      \"description\": \"" << review.targetJournal << "审稿报告\",\n";
-        json << "      \"status\": \"completed\",\n";
-        json << "      \"timestamp\": \"" << formatTimestamp(review.reviewedAt) << "\",\n";
-        json << "      \"duration\": " << review.generationTimeMs / 1000 << ",\n";
-        json << "      \"cost\": " << review.estimatedCost << ",\n";
-        json << "      \"tokenCount\": " << review.tokenCount << ",\n";
-        json << "      \"data\": {\n";
-        json << "        \"reviewScore\": " << review.reviewScore << ",\n";
-        json << "        \"acceptanceProbability\": " << review.acceptanceProbability << ",\n";
-        json << "        \"methodologyScore\": " << review.methodologyScore << ",\n";
-        json << "        \"innovationScore\": " << review.innovationScore << ",\n";
-        json << "        \"presentationScore\": " << review.presentationScore << ",\n";
-        json << "        \"strengths\": " << formatStringArray(review.strengths) << ",\n";
-        json << "        \"weaknesses\": " << formatStringArray(review.weaknesses) << "\n";
-        json << "      }\n";
-        json << "    }";
+    for (const auto& review : reviews) {
+        nlohmann::json item;
+        item["id"] = review.paperId;
+        item["type"] = "review";
+        item["title"] = review.paperTitle;
+        item["description"] = review.targetJournal + "审稿报告";
+        item["status"] = "completed";
+        item["timestamp"] = formatTimestamp(review.reviewedAt);
+        item["duration"] = review.generationTimeMs / 1000;
+        item["cost"] = review.estimatedCost;
+        item["tokenCount"] = review.tokenCount;
 
-        if (i < reviews.size() - 1) json << ",";
-        json << "\n";
+        nlohmann::json inner;
+        inner["reviewScore"] = review.reviewScore;
+        inner["acceptanceProbability"] = review.acceptanceProbability;
+        inner["methodologyScore"] = review.methodologyScore;
+        inner["innovationScore"] = review.innovationScore;
+        inner["presentationScore"] = review.presentationScore;
+        inner["strengths"] = review.strengths;
+        inner["weaknesses"] = review.weaknesses;
+        item["data"] = inner;
+
+        dataArr.push_back(item);
     }
 
-    json << "  ]\n";
-    json << "}";
-    return json.str();
+    nlohmann::json response;
+    response["success"] = true;
+    response["data"] = dataArr;
+    return response.dump();
 }
 
 std::string AiCoPilotModule::buildJsonResponse(const std::vector<LiteratureReviewResult>& reviews) {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"data\": [\n";
+    nlohmann::json dataArr = nlohmann::json::array();
 
-    for (size_t i = 0; i < reviews.size(); ++i) {
-        const auto& review = reviews[i];
-        json << "    {\n";
-        json << "      \"id\": " << review.id << ",\n";
-        json << "      \"type\": \"literature-review\",\n";
-        json << "      \"title\": \"" << review.researchTopic << "\",\n";
-        json << "      \"description\": \"" << review.paperCount << "篇论文的系统性综述\",\n";
-        json << "      \"status\": \"completed\",\n";
-        json << "      \"timestamp\": \"" << formatTimestamp(review.generatedAt) << "\",\n";
-        json << "      \"duration\": " << review.generationTimeMs / 1000 << ",\n";
-        json << "      \"cost\": " << review.estimatedCost << ",\n";
-        json << "      \"tokenCount\": " << review.tokenCount << ",\n";
-        json << "      \"data\": {\n";
-        json << "        \"paperCount\": " << review.paperCount << ",\n";
-        json << "        \"researchField\": \"" << review.researchField << "\"\n";
-        json << "      }\n";
-        json << "    }";
+    for (const auto& review : reviews) {
+        nlohmann::json item;
+        item["id"] = review.id;
+        item["type"] = "literature-review";
+        item["title"] = review.researchTopic;
+        item["description"] = std::to_string(review.paperCount) + "篇论文的系统性综述";
+        item["status"] = "completed";
+        item["timestamp"] = formatTimestamp(review.generatedAt);
+        item["duration"] = review.generationTimeMs / 1000;
+        item["cost"] = review.estimatedCost;
+        item["tokenCount"] = review.tokenCount;
 
-        if (i < reviews.size() - 1) json << ",";
-        json << "\n";
+        nlohmann::json inner;
+        inner["paperCount"] = review.paperCount;
+        inner["researchField"] = review.researchField;
+        item["data"] = inner;
+
+        dataArr.push_back(item);
     }
 
-    json << "  ]\n";
-    json << "}";
-    return json.str();
+    nlohmann::json response;
+    response["success"] = true;
+    response["data"] = dataArr;
+    return response.dump();
 }
 
 std::string AiCoPilotModule::buildJsonResponse(const std::vector<ResearchPlanResult>& plans) {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"data\": [\n";
+    nlohmann::json dataArr = nlohmann::json::array();
 
-    for (size_t i = 0; i < plans.size(); ++i) {
-        const auto& plan = plans[i];
-        json << "    {\n";
-        json << "      \"id\": " << plan.id << ",\n";
-        json << "      \"type\": \"research-plan\",\n";
-        json << "      \"title\": \"" << plan.projectTitle << "\",\n";
-        json << "      \"description\": \"" << plan.durationWeeks / 4 << "个月研究计划\",\n";
-        json << "      \"status\": \"completed\",\n";
-        json << "      \"timestamp\": \"" << formatTimestamp(plan.generatedAt) << "\",\n";
-        json << "      \"duration\": " << plan.generationTimeMs / 1000 << ",\n";
-        json << "      \"cost\": " << plan.estimatedCost << ",\n";
-        json << "      \"tokenCount\": " << plan.tokenCount << ",\n";
-        json << "      \"data\": {\n";
-        json << "        \"duration\": " << plan.durationWeeks / 4 << ",\n";
-        json << "        \"feasibilityScore\": " << plan.feasibilityScore << "\n";
-        json << "      }\n";
-        json << "    }";
+    for (const auto& plan : plans) {
+        nlohmann::json item;
+        item["id"] = plan.id;
+        item["type"] = "research-plan";
+        item["title"] = plan.projectTitle;
+        item["description"] = std::to_string(plan.durationWeeks / 4) + "个月研究计划";
+        item["status"] = "completed";
+        item["timestamp"] = formatTimestamp(plan.generatedAt);
+        item["duration"] = plan.generationTimeMs / 1000;
+        item["cost"] = plan.estimatedCost;
+        item["tokenCount"] = plan.tokenCount;
 
-        if (i < plans.size() - 1) json << ",";
-        json << "\n";
+        nlohmann::json inner;
+        inner["duration"] = plan.durationWeeks / 4;
+        inner["feasibilityScore"] = plan.feasibilityScore;
+        item["data"] = inner;
+
+        dataArr.push_back(item);
     }
 
-    json << "  ]\n";
-    json << "}";
-    return json.str();
+    nlohmann::json response;
+    response["success"] = true;
+    response["data"] = dataArr;
+    return response.dump();
 }
 
 std::string AiCoPilotModule::buildJsonResponse(const std::map<std::string, std::string>& stats) {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"data\": {\n";
-
-    size_t count = 0;
+    nlohmann::json data;
     for (const auto& [key, value] : stats) {
-        json << "    \"" << key << "\": " << value;
-        if (count < stats.size() - 1) json << ",";
-        json << "\n";
-        count++;
+        // Try to parse as number; fall back to string
+        try {
+            double numVal = std::stod(value);
+            // Check if it's actually an integer
+            if (value.find('.') == std::string::npos) {
+                data[key] = std::stoi(value);
+            } else {
+                data[key] = numVal;
+            }
+        } catch (...) {
+            data[key] = value;
+        }
     }
 
-    json << "  }\n";
-    json << "}";
-    return json.str();
+    nlohmann::json response;
+    response["success"] = true;
+    response["data"] = data;
+    return response.dump();
 }
 
 std::string AiCoPilotModule::formatTimestamp(const std::chrono::system_clock::time_point& timePoint) {
@@ -246,14 +239,7 @@ std::string AiCoPilotModule::formatTimestamp(const std::chrono::system_clock::ti
 }
 
 std::string AiCoPilotModule::formatStringArray(const std::vector<std::string>& arr) {
-    std::ostringstream json;
-    json << "[";
-    for (size_t i = 0; i < arr.size(); ++i) {
-        json << "\"" << arr[i] << "\"";
-        if (i < arr.size() - 1) json << ", ";
-    }
-    json << "]";
-    return json.str();
+    return nlohmann::json(arr).dump();
 }
 
 // ============================================================================
@@ -273,62 +259,56 @@ std::string AiCoPilotModule::handleGenerateReview(const std::string& body) {
     // 生成mock响应
     auto result = generateReview(request);
 
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"data\": {\n";
-    json << "    \"id\": " << result.paperId << ",\n";
-    json << "    \"type\": \"review\",\n";
-    json << "    \"title\": \"AI-Generated Paper Review\",\n";
-    json << "    \"description\": \"" << result.targetJournal << "审稿报告\",\n";
-    json << "    \"status\": \"completed\",\n";
-    json << "    \"timestamp\": \"" << formatTimestamp(result.reviewedAt) << "\",\n";
-    json << "    \"duration\": " << result.generationTimeMs / 1000 << ",\n";
-    json << "    \"cost\": " << result.estimatedCost << ",\n";
-    json << "    \"tokenCount\": " << result.tokenCount << ",\n";
-    json << "    \"data\": {\n";
-    json << "      \"reviewScore\": " << result.reviewScore << ",\n";
-    json << "      \"acceptanceProbability\": " << result.acceptanceProbability << ",\n";
-    json << "      \"methodologyScore\": " << result.methodologyScore << ",\n";
-    json << "      \"innovationScore\": " << result.innovationScore << ",\n";
-    json << "      \"presentationScore\": " << result.presentationScore << ",\n";
-    json << "      \"strengths\": " << formatStringArray(result.strengths) << ",\n";
-    json << "      \"weaknesses\": " << formatStringArray(result.weaknesses) << "\n";
-    json << "    }\n";
-    json << "  }\n";
-    json << "}";
+    nlohmann::json inner;
+    inner["reviewScore"] = result.reviewScore;
+    inner["acceptanceProbability"] = result.acceptanceProbability;
+    inner["methodologyScore"] = result.methodologyScore;
+    inner["innovationScore"] = result.innovationScore;
+    inner["presentationScore"] = result.presentationScore;
+    inner["strengths"] = result.strengths;
+    inner["weaknesses"] = result.weaknesses;
 
-    return json.str();
+    nlohmann::json data;
+    data["id"] = result.paperId;
+    data["type"] = "review";
+    data["title"] = "AI-Generated Paper Review";
+    data["description"] = result.targetJournal + "审稿报告";
+    data["status"] = "completed";
+    data["timestamp"] = formatTimestamp(result.reviewedAt);
+    data["duration"] = result.generationTimeMs / 1000;
+    data["cost"] = result.estimatedCost;
+    data["tokenCount"] = result.tokenCount;
+    data["data"] = inner;
+
+    nlohmann::json response;
+    response["success"] = true;
+    response["data"] = data;
+
+    return response.dump();
 }
 
 std::string AiCoPilotModule::handleGenerateLiteratureReview(const std::string& body) {
     // 文献综述生成（前端对接完成后实现具体逻辑）
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"message\": \"Literature review generation started\"\n";
-    json << "}";
-    return json.str();
+    nlohmann::json response;
+    response["success"] = true;
+    response["message"] = "Literature review generation started";
+    return response.dump();
 }
 
 std::string AiCoPilotModule::handleGenerateResearchPlan(const std::string& body) {
     // 研究计划生成（前端对接完成后实现具体逻辑）
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"message\": \"Research plan generation started\"\n";
-    json << "}";
-    return json.str();
+    nlohmann::json response;
+    response["success"] = true;
+    response["message"] = "Research plan generation started";
+    return response.dump();
 }
 
 std::string AiCoPilotModule::handleChat(const std::string& body) {
     // AI对话（前端对接完成后实现具体逻辑）
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"response\": \"AI chat response\"\n";
-    json << "}";
-    return json.str();
+    nlohmann::json response;
+    response["success"] = true;
+    response["response"] = "AI chat response";
+    return response.dump();
 }
 
 // ============================================================================

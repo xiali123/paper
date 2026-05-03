@@ -27,19 +27,6 @@ namespace PaperCrawler {
 // ============================================================================
 
 std::string ExportTask::toJson() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"task_id\": \"" << taskId << "\",\n";
-    json << "  \"user_id\": \"" << userId << "\",\n";
-    json << "  \"paper_ids\": [";
-
-    for (size_t i = 0; i < paperIds.size(); ++i) {
-        if (i > 0) json << ",";
-        json << paperIds[i];
-    }
-
-    json << "],\n";
-
     // 状态转换
     std::string statusStr;
     switch (status) {
@@ -48,11 +35,15 @@ std::string ExportTask::toJson() const {
         case ExportTaskStatus::COMPLETED: statusStr = "completed"; break;
         case ExportTaskStatus::FAILED: statusStr = "failed"; break;
     }
-    json << "  \"status\": \"" << statusStr << "\",\n";
-    json << "  \"download_url\": \"" << downloadUrl << "\",\n";
-    json << "  \"file_size\": " << fileSize << "\n";
-    json << "}";
-    return json.str();
+
+    nlohmann::json json;
+    json["task_id"] = taskId;
+    json["user_id"] = userId;
+    json["paper_ids"] = paperIds;
+    json["status"] = statusStr;
+    json["download_url"] = downloadUrl;
+    json["file_size"] = fileSize;
+    return json.dump();
 }
 
 // ============================================================================
@@ -283,16 +274,11 @@ std::vector<ExportFormat> ExportApiModule::getSupportedFormats() {
 }
 
 std::string ExportApiModule::exportToJSON(const std::vector<Paper>& papers, const ExportOptions& options) {
-    std::ostringstream json;
-    json << "[\n";
-
-    for (size_t i = 0; i < papers.size(); ++i) {
-        if (i > 0) json << ",\n";
-        json << "  " << papers[i].toJson().dump();
+    nlohmann::json json = nlohmann::json::array();
+    for (const auto& paper : papers) {
+        json.push_back(paper.toJson());
     }
-
-    json << "\n]";
-    return json.str();
+    return json.dump();
 }
 
 std::string ExportApiModule::exportToBibTeX(const std::vector<Paper>& papers, const ExportOptions& options) {

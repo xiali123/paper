@@ -35,13 +35,6 @@ namespace {
 // ============================================================================
 
 std::string User::toJson() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"id\": " << id << ",\n";
-    json << "  \"username\": \"" << username << "\",\n";
-    json << "  \"email\": \"" << email << "\",\n";
-    json << "  \"full_name\": \"" << fullName << "\",\n";
-
     // 角色转换
     std::string roleStr;
     switch (role) {
@@ -49,7 +42,6 @@ std::string User::toJson() const {
         case UserRole::USER: roleStr = "user"; break;
         case UserRole::GUEST: roleStr = "guest"; break;
     }
-    json << "  \"role\": \"" << roleStr << "\",\n";
 
     // 状态转换
     std::string statusStr;
@@ -59,11 +51,17 @@ std::string User::toJson() const {
         case UserStatus::SUSPENDED: statusStr = "suspended"; break;
         case UserStatus::PENDING: statusStr = "pending"; break;
     }
-    json << "  \"status\": \"" << statusStr << "\",\n";
-    json << "  \"avatar_url\": \"" << avatarUrl << "\",\n";
-    json << "  \"bio\": \"" << bio << "\"\n";
-    json << "}";
-    return json.str();
+
+    nlohmann::json json;
+    json["id"] = id;
+    json["username"] = username;
+    json["email"] = email;
+    json["full_name"] = fullName;
+    json["role"] = roleStr;
+    json["status"] = statusStr;
+    json["avatar_url"] = avatarUrl;
+    json["bio"] = bio;
+    return json.dump();
 }
 
 // ============================================================================

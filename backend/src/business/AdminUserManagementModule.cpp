@@ -106,7 +106,7 @@ public:
         if (subIt == result.claims.end()) return 0;
 
         try { return std::stoi(subIt->second); }
-        catch (...) { return 0; }
+        catch (...) { spdlog::warn("[AdminUserMgmt] Invalid JWT sub claim: {}", subIt->second); return 0; }
     }
 };
 

@@ -9,6 +9,7 @@
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
 #include "business/JsonHelper.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <map>
 #include <chrono>
@@ -33,39 +34,35 @@ namespace PaperCrawler {
 // ============================================================================
 
 std::string SystemResources::toJSON() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"cpu_usage_percent\": " << cpuUsagePercent << ",\n";
-    json << "  \"memory_usage_percent\": " << memoryUsagePercent << ",\n";
-    json << "  \"memory_total\": " << memoryTotal << ",\n";
-    json << "  \"memory_used\": " << memoryUsed << ",\n";
-    json << "  \"memory_available\": " << memoryAvailable << ",\n";
-    json << "  \"disk_usage_percent\": " << diskUsagePercent << ",\n";
-    json << "  \"disk_total\": " << diskTotal << ",\n";
-    json << "  \"disk_used\": " << diskUsed << ",\n";
-    json << "  \"disk_available\": " << diskAvailable << ",\n";
-    json << "  \"load_average_1m\": " << loadAverage1m << ",\n";
-    json << "  \"load_average_5m\": " << loadAverage5m << ",\n";
-    json << "  \"load_average_15m\": " << loadAverage15m << "\n";
-    json << "}";
-    return json.str();
+    nlohmann::json json;
+    json["cpu_usage_percent"] = cpuUsagePercent;
+    json["memory_usage_percent"] = memoryUsagePercent;
+    json["memory_total"] = memoryTotal;
+    json["memory_used"] = memoryUsed;
+    json["memory_available"] = memoryAvailable;
+    json["disk_usage_percent"] = diskUsagePercent;
+    json["disk_total"] = diskTotal;
+    json["disk_used"] = diskUsed;
+    json["disk_available"] = diskAvailable;
+    json["load_average_1m"] = loadAverage1m;
+    json["load_average_5m"] = loadAverage5m;
+    json["load_average_15m"] = loadAverage15m;
+    return json.dump();
 }
 
 std::string SystemInfo::toJSON() const {
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"hostname\": \"" << hostname << "\",\n";
-    json << "  \"os_type\": \"" << osType << "\",\n";
-    json << "  \"os_version\": \"" << osVersion << "\",\n";
-    json << "  \"os_architecture\": \"" << osArchitecture << "\",\n";
-    json << "  \"cpu_model\": \"" << cpuModel << "\",\n";
-    json << "  \"cpu_cores\": " << cpuCores << ",\n";
-    json << "  \"cpu_frequency\": " << cpuFrequency << ",\n";
-    json << "  \"total_memory\": " << totalMemory << ",\n";
-    json << "  \"kernel_version\": \"" << kernelVersion << "\",\n";
-    json << "  \"cpp_version\": \"" << cppVersion << "\"\n";
-    json << "}";
-    return json.str();
+    nlohmann::json json;
+    json["hostname"] = hostname;
+    json["os_type"] = osType;
+    json["os_version"] = osVersion;
+    json["os_architecture"] = osArchitecture;
+    json["cpu_model"] = cpuModel;
+    json["cpu_cores"] = cpuCores;
+    json["cpu_frequency"] = cpuFrequency;
+    json["total_memory"] = totalMemory;
+    json["kernel_version"] = kernelVersion;
+    json["cpp_version"] = cppVersion;
+    return json.dump();
 }
 
 // ============================================================================
@@ -590,30 +587,24 @@ std::string StatsApiModule::handleStats() {
             recentPapersCount = recentPapers.empty() ? 0 : std::stoul(recentPapers[0].at("count"));
         }
 
-        // 手动构建 JSON 响应
-        std::ostringstream json;
-        json << "{\n";
-        json << "  \"success\": true,\n";
-        json << "  \"stats\": {\n";
-        json << "    \"totalPapers\": " << totalPapers << ",\n";
-        json << "    \"totalJournals\": " << totalJournals << ",\n";
-        json << "    \"totalAuthors\": " << totalAuthors << ",\n";
-        json << "    \"totalCollections\": " << totalCollections << ",\n";
-        json << "    \"recentPapers\": " << recentPapersCount << "\n";
-        json << "  }\n";
-        json << "}";
+        // 构建 JSON 响应
+        nlohmann::json json;
+        json["success"] = true;
+        json["stats"]["totalPapers"] = totalPapers;
+        json["stats"]["totalJournals"] = totalJournals;
+        json["stats"]["totalAuthors"] = totalAuthors;
+        json["stats"]["totalCollections"] = totalCollections;
+        json["stats"]["recentPapers"] = recentPapersCount;
 
-        std::string responseBody = json.str();
+        std::string responseBody = json.dump();
         QueryCache::instance().put(cacheKey, responseBody, CacheTTL::STATS);
         return responseBody;
     } catch (const std::exception& e) {
         spdlog::error("[StatsApi] Error in handleStats: {}", e.what());
-        std::ostringstream json;
-        json << "{\n";
-        json << "  \"success\": false,\n";
-        json << "  \"error\": \"" << e.what() << "\"\n";
-        json << "}";
-        return json.str();
+        nlohmann::json json;
+        json["success"] = false;
+        json["error"] = e.what();
+        return json.dump();
     }
 }
 
@@ -647,26 +638,20 @@ std::string StatsApiModule::handleUptime() {
 std::string StatsApiModule::handleModules() {
     auto modules = getAllModules();
 
-    std::ostringstream json;
-    json << "[";
-    bool first = true;
+    nlohmann::json modulesArray = nlohmann::json::array();
     for (const auto& module : modules) {
-        if (!first) json << ",";
-        first = false;
-
-        json << "{\n";
-        json << "  \"name\": \"" << module.name << "\",\n";
-        json << "  \"version\": \"" << module.version << "\",\n";
-        json << "  \"type\": \"" << (module.type == ModuleType::SERVER ? "SERVER" : "BUSINESS") << "\",\n";
-        json << "  \"state\": \"" << (module.state == ModuleState::STARTED ? "STARTED" :
-                  module.state == ModuleState::STOPPED ? "STOPPED" : "UNLOADED") << "\",\n";
-        json << "  \"reference_count\": " << module.referenceCount.load() << "\n";
-        json << "}";
+        nlohmann::json mod;
+        mod["name"] = module.name;
+        mod["version"] = module.version;
+        mod["type"] = (module.type == ModuleType::SERVER ? "SERVER" : "BUSINESS");
+        mod["state"] = (module.state == ModuleState::STARTED ? "STARTED" :
+                  module.state == ModuleState::STOPPED ? "STOPPED" : "UNLOADED");
+        mod["reference_count"] = module.referenceCount.load();
+        modulesArray.push_back(mod);
     }
-    json << "]";
 
     return JsonHelper::buildJsonResponse({
-        {"modules", json.str()}
+        {"modules", modulesArray.dump()}
     });
 }
 
@@ -693,32 +678,22 @@ std::string StatsApiModule::handleModule(const std::string& moduleName) {
 std::string StatsApiModule::handlePerformance() {
     auto metrics = getPerformanceMetrics();
 
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"request_counts\": {\n";
-
-    bool first = true;
+    nlohmann::json json;
+    nlohmann::json requestCounts;
     for (const auto& pair : metrics.requestCounts) {
-        if (!first) json << ",\n";
-        first = false;
-        json << "    \"" << pair.first << "\": " << pair.second;
+        requestCounts[pair.first] = pair.second;
     }
 
-    json << "\n  },\n";
-    json << "  \"throughput\": {\n";
-
-    first = true;
+    nlohmann::json throughput;
     for (const auto& pair : metrics.throughput) {
-        if (!first) json << ",\n";
-        first = false;
-        json << "    \"" << pair.first << "\": " << pair.second;
+        throughput[pair.first] = pair.second;
     }
 
-    json << "\n  }\n";
-    json << "}";
+    json["request_counts"] = requestCounts;
+    json["throughput"] = throughput;
 
     return JsonHelper::buildJsonResponse({
-        {"performance_metrics", json.str()}
+        {"performance_metrics", json.dump()}
     });
 }
 

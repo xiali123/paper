@@ -13,7 +13,6 @@
 #include <nlohmann/json.hpp>
 #include "data/StringUtil.hpp"
 #include <spdlog/spdlog.h>
-#include <sstream>
 #include <algorithm>
 #include <cmath>
 #include <chrono>
@@ -439,6 +438,7 @@ SearchResult SearchApiModule::search(const std::string& query, SearchType type, 
                     try {
                         item.id = std::stoi(hit.id);
                     } catch (...) {
+                        spdlog::warn("[SearchApi] Non-numeric Meilisearch hit id: {}", hit.id);
                         item.id = 0;
                     }
                     item.type           = "paper";
@@ -868,6 +868,7 @@ void SearchApiModule::registerRoutes() {
             resp["message"] = success ? "Search saved" : "Failed to save search";
             response.body = resp.dump();
         } catch (...) {
+            spdlog::warn("[SearchApi] Failed to parse save-search request body");
             response.statusCode = HTTP::BAD_REQUEST;
             response.body = "{\"success\":false,\"error\":\"Invalid JSON\"}";
         }

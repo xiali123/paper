@@ -57,6 +57,7 @@ static int safeStoi(const std::string& s, int defaultValue = 0) {
     try {
         return std::stoi(s);
     } catch (...) {
+        spdlog::warn("[CollabWriting] safeStoi failed for input: '{}'", s);
         return defaultValue;
     }
 }
@@ -1355,14 +1356,14 @@ bool CollaborativeWritingModule::resolveComment(int commentId) {
 // ============================================================================
 
 std::string OTOperation::toJSON() const {
-    std::ostringstream json;
-    json << "{\"type\":" << static_cast<int>(type) << ","
-         << "\"position\":" << position << ","
-         << "\"length\":" << length << ","
-         << "\"content\":\"" << escapeJson(content) << "\","
-         << "\"clientId\":" << clientId << ","
-         << "\"timestamp\":" << timestamp << "}";
-    return json.str();
+    nlohmann::json json;
+    json["type"] = static_cast<int>(type);
+    json["position"] = position;
+    json["length"] = length;
+    json["content"] = content;
+    json["clientId"] = clientId;
+    json["timestamp"] = timestamp;
+    return json.dump();
 }
 
 } // namespace PaperCrawler

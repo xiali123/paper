@@ -8,6 +8,7 @@
 #include "data/PreparedStatement.hpp"
 #include "features/security/SecurityModule.hpp"
 #include <spdlog/spdlog.h>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <iomanip>
 #include <random>
@@ -321,7 +322,7 @@ std::vector<AIReviewResult> AiCoPilotModule::getReviewHistory(int userId, int pa
                     }
                 }
             } catch (...) {
-                // JSON解析失败，保留空列表
+                spdlog::warn("[AiCoPilot] Failed to parse improvements JSON for review result");
             }
         }
 
@@ -662,18 +663,16 @@ std::string AiCoPilotModule::handleGenerateReview(const std::string& body) {
     auto result = generateReview(request);
 
     // 构建JSON响应
-    std::ostringstream json;
-    json << "{";
-    json << "\"success\":" << (result.success ? "true" : "false") << ",";
+    nlohmann::json json;
+    json["success"] = result.success;
     if (result.success) {
-        json << "\"reviewScore\":" << result.reviewScore << ",";
-        json << "\"acceptanceProbability\":" << result.acceptanceProbability << ",";
-        json << "\"reviewerComments\":\"" << escapeJson(result.reviewerComments) << "\",";
-        json << "\"costUsd\":" << result.costUsd;
+        json["reviewScore"] = result.reviewScore;
+        json["acceptanceProbability"] = result.acceptanceProbability;
+        json["reviewerComments"] = result.reviewerComments;
+        json["costUsd"] = result.costUsd;
     }
-    json << "}";
 
-    return json.str();
+    return json.dump();
 }
 
 // 其他HTTP处理器的实现类似...
@@ -896,15 +895,13 @@ HttpResponse AiCoPilotModule::handleStreamStatus(const HttpRequest& req) {
     resp.statusCode = 200;
     resp.headers["Content-Type"] = "application/json";
 
-    std::ostringstream json;
-    json << "{";
-    json << "\"success\":true,";
-    json << "\"activeStreamCount\":" << activeStreamCount_.load() << ",";
-    json << "\"totalStreamedRequests\":" << totalStreamedRequests_.load() << ",";
-    json << "\"activeSseConnections\":" << sseBroadcaster_.connectionCount();
-    json << "}";
+    nlohmann::json json;
+    json["success"] = true;
+    json["activeStreamCount"] = activeStreamCount_.load();
+    json["totalStreamedRequests"] = totalStreamedRequests_.load();
+    json["activeSseConnections"] = sseBroadcaster_.connectionCount();
 
-    resp.body = json.str();
+    resp.body = json.dump();
 
     spdlog::debug("[AiCoPilot] Stream status queried: active={}, total={}, connections={}",
                   activeStreamCount_.load(), totalStreamedRequests_.load(),

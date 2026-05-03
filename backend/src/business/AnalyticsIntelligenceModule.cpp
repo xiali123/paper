@@ -5,6 +5,7 @@
 #include "core/EventDrivenIntegration.hpp"
 #include "business/UnifiedAIWorkflow.hpp"
 #include "modules/LoggingModule.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <iomanip>
 #include <cmath>
@@ -42,23 +43,20 @@ void AnalyticsIntelligenceModule::registerRoutes() {
         auto metrics = getImpactMetrics(userId, timeframe);
 
         // 构建JSON响应
-        std::ostringstream json;
-        json << "[";
+        nlohmann::json json = nlohmann::json::array();
         for (size_t i = 0; i < metrics.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "{";
-            json << "\"metricType\":\"" << metrics[i].metricType << "\",";
-            json << "\"metricValue\":" << metrics[i].metricValue << ",";
-            json << "\"comparisonValue\":" << metrics[i].comparisonValue << ",";
-            json << "\"percentile\":" << metrics[i].percentile << ",";
-            json << "\"trend\":" << metrics[i].trend;
-            json << "}";
+            nlohmann::json item;
+            item["metricType"] = metrics[i].metricType;
+            item["metricValue"] = metrics[i].metricValue;
+            item["comparisonValue"] = metrics[i].comparisonValue;
+            item["percentile"] = metrics[i].percentile;
+            item["trend"] = metrics[i].trend;
+            json.push_back(item);
         }
-        json << "]";
 
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(json.str());
+        response.setJson(json.dump());
         return response;
     });
 
@@ -70,23 +68,20 @@ void AnalyticsIntelligenceModule::registerRoutes() {
         auto interests = getResearchInterests(userId);
 
         // 构建JSON响应
-        std::ostringstream json;
-        json << "[";
+        nlohmann::json json = nlohmann::json::array();
         for (size_t i = 0; i < interests.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "{";
-            json << "\"keyword\":\"" << interests[i].keyword << "\",";
-            json << "\"category\":\"" << interests[i].category << "\",";
-            json << "\"weight\":" << interests[i].weight << ",";
-            json << "\"trendScore\":" << interests[i].trendScore << ",";
-            json << "\"occurrenceCount\":" << interests[i].occurrenceCount;
-            json << "}";
+            nlohmann::json item;
+            item["keyword"] = interests[i].keyword;
+            item["category"] = interests[i].category;
+            item["weight"] = interests[i].weight;
+            item["trendScore"] = interests[i].trendScore;
+            item["occurrenceCount"] = interests[i].occurrenceCount;
+            json.push_back(item);
         }
-        json << "]";
 
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(json.str());
+        response.setJson(json.dump());
         return response;
     });
 
@@ -100,23 +95,16 @@ void AnalyticsIntelligenceModule::registerRoutes() {
         auto briefing = generateDailyBriefing(userId, date);
 
         // 构建JSON响应
-        std::ostringstream json;
-        json << "{";
-        json << "\"userId\":" << briefing.userId << ",";
-        json << "\"briefingDate\":\"" << briefing.briefingDate << "\",";
-        json << "\"summary\":\"" << escapeJson(briefing.summary) << "\",";
-        json << "\"highlights\":[";
-        for (size_t i = 0; i < briefing.highlights.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "\"" << escapeJson(briefing.highlights[i]) << "\"";
-        }
-        json << "],";
-        json << "\"isSent\":" << (briefing.isSent ? "true" : "false");
-        json << "}";
+        nlohmann::json json;
+        json["userId"] = briefing.userId;
+        json["briefingDate"] = briefing.briefingDate;
+        json["summary"] = briefing.summary;
+        json["highlights"] = briefing.highlights;
+        json["isSent"] = briefing.isSent;
 
         HttpResponse response;
         response.statusCode = 200;
-        response.setJson(json.str());
+        response.setJson(json.dump());
         return response;
     });
 

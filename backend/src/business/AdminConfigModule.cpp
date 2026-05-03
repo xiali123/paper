@@ -5,7 +5,6 @@
 #include "data/PreparedStatement.hpp"
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
-#include <sstream>
 #include <map>
 #include <algorithm>
 #include <chrono>
@@ -37,7 +36,7 @@ public:
         auto subIt = result.claims.find("sub");
         if (subIt == result.claims.end()) return 0;
         try { return std::stoi(subIt->second); }
-        catch (...) { return 0; }
+        catch (...) { spdlog::warn("[AdminConfig] Invalid JWT sub claim: {}", subIt->second); return 0; }
     }
 };
 
