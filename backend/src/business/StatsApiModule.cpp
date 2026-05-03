@@ -502,7 +502,7 @@ void StatsApiModule::registerRoutes() {
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         response.body = handleStats();
         return response;
     });
@@ -511,7 +511,7 @@ void StatsApiModule::registerRoutes() {
     router.get(prefix + "/system", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         response.body = handleSystemInfo();
         return response;
     });
@@ -520,7 +520,7 @@ void StatsApiModule::registerRoutes() {
     router.get(prefix + "/resources", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         response.body = handleResources();
         return response;
     });
@@ -529,7 +529,7 @@ void StatsApiModule::registerRoutes() {
     router.get(prefix + "/uptime", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         response.body = handleUptime();
         return response;
     });
@@ -538,7 +538,7 @@ void StatsApiModule::registerRoutes() {
     router.get(prefix + "/modules", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         response.body = handleModules();
         return response;
     });
@@ -547,7 +547,7 @@ void StatsApiModule::registerRoutes() {
     router.get(prefix + "/performance", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         response.body = handlePerformance();
         return response;
     });

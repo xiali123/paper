@@ -682,7 +682,7 @@ void ExportApiModule::registerRoutes() {
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         json j;
         j["success"] = true;
@@ -719,7 +719,7 @@ void ExportApiModule::registerRoutes() {
     // POST /api/export - 创建导出任务
     router.post(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         // Parse request body
         std::vector<int> paperIds;
@@ -825,7 +825,7 @@ void ExportApiModule::registerRoutes() {
     router.get(prefix + "/formats", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto formats = getSupportedFormats();
         json j;
@@ -855,7 +855,7 @@ void ExportApiModule::registerRoutes() {
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto stats = getStats();
         json j;

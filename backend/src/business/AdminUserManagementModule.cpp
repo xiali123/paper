@@ -732,7 +732,7 @@ void AdminUserManagementModule::registerRoutes() {
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
         resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.setHeader("Content-Type", "application/json");
+        resp.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
         return resp;
     };
@@ -743,7 +743,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetStats(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -754,7 +754,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleListUsers(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -764,7 +764,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetUser(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -774,7 +774,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleCreateUser(req.body);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -784,7 +784,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleUpdateUser(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -794,7 +794,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleDeleteUser(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -804,7 +804,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleActivateUser(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -814,7 +814,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleDeactivateUser(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -825,7 +825,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleChangePassword(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -835,7 +835,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleResetPassword(req.pathParams, req.body);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -846,7 +846,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetUserHistory(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -856,7 +856,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetUserSessions(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -866,7 +866,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleKickUserSession(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -889,7 +889,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetLoginHistory(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -899,7 +899,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetLoginStats(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -909,7 +909,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetSuspiciousLogins(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -919,7 +919,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetIpBlacklist(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -929,7 +929,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleAddIpBlacklist(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -939,7 +939,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleRemoveIpBlacklist(req.pathParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -949,7 +949,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleGetAccountLockouts(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -959,7 +959,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleLockUserAccount(req.queryParams, req.body);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -969,7 +969,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleUnlockUserAccount(req.queryParams);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });
@@ -979,7 +979,7 @@ void AdminUserManagementModule::registerRoutes() {
         std::string body = handleHandleSuspiciousLogin(req.pathParams, req.body, req.headers);
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = body;
         return response;
     });

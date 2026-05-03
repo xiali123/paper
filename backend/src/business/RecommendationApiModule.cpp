@@ -1446,7 +1446,7 @@ void RecommendationApiModule::registerRoutes() {
     // GET /api/recommendations/papers - 论文推荐
     router.get(prefix + "/papers", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         // 解析查询参数
         int userId = 1; // 默认用户
@@ -1533,7 +1533,7 @@ void RecommendationApiModule::registerRoutes() {
     // GET /api/recommendations/trending - 热门内容
     router.get(prefix + "/trending", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         int limit = 10;
         std::string timeWindow = "month";
@@ -1586,7 +1586,7 @@ void RecommendationApiModule::registerRoutes() {
     // GET /api/recommendations/similar/:paperId - 相似论文
     router.get(prefix + "/similar/:paperId", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto paperIdIt = req.pathParams.find("paperId");
         if (paperIdIt == req.pathParams.end()) {
@@ -1641,7 +1641,7 @@ void RecommendationApiModule::registerRoutes() {
     // POST /api/recommendations/feedback - 推荐反馈
     router.post(prefix + "/feedback", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto body = json::parse(req.body);
@@ -1685,7 +1685,7 @@ void RecommendationApiModule::registerRoutes() {
     // GET /api/recommendations/explain/:paperId - 推荐解释
     router.get(prefix + "/explain/:paperId", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto paperIdIt = req.pathParams.find("paperId");
         if (paperIdIt == req.pathParams.end()) {
@@ -1721,7 +1721,7 @@ void RecommendationApiModule::registerRoutes() {
     // GET /api/recommendations/stats - 推荐统计
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto stats = getStats();
@@ -1745,7 +1745,7 @@ void RecommendationApiModule::registerRoutes() {
     // GET /api/recommendations/embedding - 基于嵌入向量的推荐
     router.get(prefix + "/embedding", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         int userId = 1;
         int limit = 10;

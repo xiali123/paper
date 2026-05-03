@@ -15,5 +15,7 @@ constexpr int INTERNAL_ERROR = 500;
 constexpr int NOT_IMPLEMENTED = 501;
 constexpr int SERVICE_UNAVAILABLE = 503;
 
+constexpr const char* CONTENT_TYPE_JSON = "application/json";
+
 } // namespace HTTP
 } // namespace PaperCrawler

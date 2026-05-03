@@ -96,7 +96,7 @@ void AdminConfigModule::registerRoutes() {
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
         resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.setHeader("Content-Type", "application/json");
+        resp.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
         return resp;
     };
@@ -106,7 +106,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetConfigCategories(req.queryParams);
         return response;
     });
@@ -115,7 +115,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetConfigs(req.queryParams);
         return response;
     });
@@ -124,7 +124,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleUpdateConfig(req.queryParams, req.body, req.headers);
         return response;
     });
@@ -133,7 +133,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetConfigHistory(req.queryParams);
         return response;
     });
@@ -142,7 +142,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetConfigSummary(req.queryParams);
         return response;
     });
@@ -151,7 +151,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleReloadConfigs(req.queryParams);
         return response;
     });
@@ -161,7 +161,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetBackupJobs(req.queryParams);
         return response;
     });
@@ -170,7 +170,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleCreateBackupJob(req.queryParams, req.body, req.headers);
         return response;
     });
@@ -179,7 +179,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleUpdateBackupJob(req.pathParams, req.body);
         return response;
     });
@@ -188,7 +188,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleDeleteBackupJob(req.pathParams);
         return response;
     });
@@ -197,7 +197,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleTriggerBackup(req.pathParams, req.body);
         return response;
     });
@@ -206,7 +206,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetBackupRecords(req.queryParams);
         return response;
     });
@@ -215,7 +215,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleDeleteBackupFile(req.pathParams);
         return response;
     });
@@ -224,7 +224,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetBackupStats(req.queryParams);
         return response;
     });
@@ -234,7 +234,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetNotificationTemplates(req.queryParams);
         return response;
     });
@@ -243,7 +243,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleCreateNotificationTemplate(req.queryParams, req.body);
         return response;
     });
@@ -252,7 +252,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleUpdateNotificationTemplate(req.pathParams, req.body);
         return response;
     });
@@ -261,7 +261,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleDeleteNotificationTemplate(req.pathParams);
         return response;
     });
@@ -270,7 +270,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetSystemNotifications(req.queryParams);
         return response;
     });
@@ -279,7 +279,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleSendNotification(req.queryParams, req.body);
         return response;
     });
@@ -288,7 +288,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetNotificationHistory(req.queryParams);
         return response;
     });
@@ -297,7 +297,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetNotificationStats(req.queryParams);
         return response;
     });
@@ -307,7 +307,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetCleanupTasks(req.queryParams);
         return response;
     });
@@ -316,7 +316,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleCreateCleanupTask(req.queryParams, req.body);
         return response;
     });
@@ -325,7 +325,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleUpdateCleanupTask(req.pathParams, req.body);
         return response;
     });
@@ -334,7 +334,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleDeleteCleanupTask(req.pathParams);
         return response;
     });
@@ -343,7 +343,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleTriggerCleanup(req.pathParams, req.body);
         return response;
     });
@@ -352,7 +352,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetCleanupHistory(req.queryParams);
         return response;
     });
@@ -361,7 +361,7 @@ void AdminConfigModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", "application/json");
+        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
         response.body = handleGetStorageStats(req.queryParams);
         return response;
     });

@@ -1114,7 +1114,7 @@ HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
 
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         nlohmann::json respJson;
         respJson["success"] = true;
         respJson["user"] = userJson;
@@ -1163,7 +1163,7 @@ HttpResponse UserApiModule::buildJsonResponse(bool success, const std::string& m
     HttpResponse response;
     response.statusCode = success ? HTTP::OK : HTTP::BAD_REQUEST;
     response.statusText = success ? "OK" : "Bad Request";
-    response.headers["Content-Type"] = "application/json";
+    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
     nlohmann::json json;
     json["success"] = success;
@@ -1188,7 +1188,7 @@ HttpResponse UserApiModule::buildJsonResponse(int statusCode, const std::string&
         default: response.statusText = "Unknown"; break;
     }
 
-    response.headers["Content-Type"] = "application/json";
+    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
     nlohmann::json json;
     json["success"] = (statusCode >= 200 && statusCode < 300);

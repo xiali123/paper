@@ -42,7 +42,7 @@ static std::string getParam(const std::map<std::string, std::string>& params, co
 static HttpResponse buildErrorResponse(int code, const std::string& message) {
     HttpResponse resp;
     resp.statusCode = code;
-    resp.headers["Content-Type"] = "application/json";
+    resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
     resp.body = buildJsonResponse(false, message);
     return resp;
 }
@@ -112,7 +112,7 @@ void CollaborativeWritingModule::registerRoutes() {
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
         resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.headers["Content-Type"] = "application/json";
+        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         resp.body = R"({"success":false,"message":"Unauthorized"})";
         return resp;
     };
@@ -131,7 +131,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (doc.has_value()) {
                 HttpResponse resp;
                 resp.statusCode = HTTP::CREATED;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json data;
                 data["id"] = doc->id;
                 data["title"] = doc->title;
@@ -180,7 +180,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
             for (const auto& doc : docs) {
@@ -216,7 +216,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (doc.has_value()) {
                 HttpResponse resp;
                 resp.statusCode = HTTP::OK;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json data;
                 data["id"] = doc->id;
                 data["title"] = doc->title;
@@ -253,7 +253,7 @@ void CollaborativeWritingModule::registerRoutes() {
                 auto doc = getDocument(docId);
                 HttpResponse resp;
                 resp.statusCode = HTTP::OK;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json data;
                 if (doc.has_value()) {
                     data["id"] = doc->id;
@@ -293,7 +293,7 @@ void CollaborativeWritingModule::registerRoutes() {
             std::string newContent = applyOperation(docId, op);
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json data;
             data["content"] = newContent;
             data["word_count"] = static_cast<int>(
@@ -317,7 +317,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
             for (const auto& s : suggestions) {
@@ -359,7 +359,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json data;
             data["id"] = suggestion.id;
             data["document_id"] = suggestion.documentId;
@@ -388,7 +388,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
             for (const auto& v : versions) {
@@ -429,7 +429,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::CREATED;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json data;
             data["id"] = commentId;
             resp.body = buildJsonResponse(true, "Comment added", data);
@@ -451,7 +451,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (ok) {
                 HttpResponse resp;
                 resp.statusCode = HTTP::OK;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 resp.body = buildJsonResponse(true, "Document deleted");
                 return resp;
             }
@@ -471,7 +471,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
             for (const auto& comment : comments) {
@@ -526,7 +526,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (ok) {
                 HttpResponse resp;
                 resp.statusCode = HTTP::CREATED;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 resp.body = buildJsonResponse(true, "Version created");
                 return resp;
             }
@@ -548,7 +548,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (ok) {
                 HttpResponse resp;
                 resp.statusCode = HTTP::OK;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 resp.body = buildJsonResponse(true, "Suggestion accepted");
                 return resp;
             }
@@ -568,7 +568,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (ok) {
                 HttpResponse resp;
                 resp.statusCode = HTTP::OK;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 resp.body = buildJsonResponse(true, "Suggestion rejected");
                 return resp;
             }
@@ -588,7 +588,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (ok) {
                 HttpResponse resp;
                 resp.statusCode = HTTP::OK;
-                resp.headers["Content-Type"] = "application/json";
+                resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 resp.body = buildJsonResponse(true, "Comment resolved");
                 return resp;
             }
@@ -649,7 +649,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             resp.body = buildJsonResponse(true, "Cursor updated");
             return resp;
         } catch (const nlohmann::json::parse_error&) {
@@ -696,7 +696,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             HttpResponse resp;
             resp.statusCode = HTTP::OK;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             resp.body = buildJsonResponse(true, "", data);
             return resp;
         } catch (const std::exception& e) {

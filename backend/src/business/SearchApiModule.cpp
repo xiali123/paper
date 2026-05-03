@@ -706,7 +706,7 @@ void SearchApiModule::registerRoutes() {
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto queryIt = req.queryParams.find("q");
         std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
@@ -722,7 +722,7 @@ void SearchApiModule::registerRoutes() {
         if (cached) {
             HttpResponse resp;
             resp.statusCode = 200;
-            resp.headers["Content-Type"] = "application/json";
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             resp.headers["X-Cache"] = "HIT";
             resp.body = *cached;
             return resp;
@@ -738,7 +738,7 @@ void SearchApiModule::registerRoutes() {
     router.post(prefix + "/advanced", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         AdvancedSearchQuery query;
         try {
@@ -757,7 +757,7 @@ void SearchApiModule::registerRoutes() {
     router.get(prefix + "/suggest", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto queryIt = req.queryParams.find("q");
         std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
@@ -782,7 +782,7 @@ void SearchApiModule::registerRoutes() {
     router.get(prefix + "/trending", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         int limit = 10;
         auto limitIt = req.queryParams.find("limit");
@@ -805,7 +805,7 @@ void SearchApiModule::registerRoutes() {
     router.get(prefix + "/history", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         int userId = 0, limit = 20;
         auto userIt = req.queryParams.find("user_id");
@@ -833,7 +833,7 @@ void SearchApiModule::registerRoutes() {
     router.del(prefix + "/history", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         int userId = 0;
         auto userIt = req.queryParams.find("user_id");
@@ -852,7 +852,7 @@ void SearchApiModule::registerRoutes() {
     router.post(prefix + "/save", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto j = nlohmann::json::parse(req.body);
@@ -877,7 +877,7 @@ void SearchApiModule::registerRoutes() {
     router.get(prefix + "/saved", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         int userId = 0;
         auto userIt = req.queryParams.find("user_id");
@@ -897,7 +897,7 @@ void SearchApiModule::registerRoutes() {
     router.del(prefix + "/saved", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         int userId = 0;
         auto userIt = req.queryParams.find("user_id");
@@ -923,7 +923,7 @@ void SearchApiModule::registerRoutes() {
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
         HttpResponse response;
         response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto stats = getStats();
 

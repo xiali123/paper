@@ -157,7 +157,7 @@ void CrawlerApiModule::registerRoutes() {
     // POST /api/crawler/marketplace/publish - 发布模板到市场
     router.post(prefix + "/marketplace/publish", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         // 检查认证
         auto authIt = req.headers.find("Authorization");
@@ -215,7 +215,7 @@ void CrawlerApiModule::registerRoutes() {
     // GET /api/crawler/marketplace/templates - 浏览市场模板
     router.get(prefix + "/marketplace/templates", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
@@ -284,7 +284,7 @@ void CrawlerApiModule::registerRoutes() {
     // POST /api/crawler/marketplace/templates/:id/install - 安装市场模板
     router.post(prefix + "/marketplace/templates/:id/install", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
@@ -344,7 +344,7 @@ void CrawlerApiModule::registerRoutes() {
     // POST /api/crawler/marketplace/templates/:id/rate - 评分
     router.post(prefix + "/marketplace/templates/:id/rate", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
@@ -405,7 +405,7 @@ void CrawlerApiModule::registerRoutes() {
     // GET /api/crawler/marketplace/search - 搜索市场模板
     router.get(prefix + "/marketplace/search", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
@@ -1219,7 +1219,7 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
 
     HttpResponse response;
     response.statusCode = success ? HTTP::OK : HTTP::BAD_REQUEST;
-    response.headers["Content-Type"] = "application/json";
+    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
     nlohmann::json jsonBody;
     jsonBody["success"] = success;
@@ -1241,7 +1241,7 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
 
     HttpResponse response;
     response.statusCode = statusCode;
-    response.headers["Content-Type"] = "application/json";
+    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
     nlohmann::json jsonBody;
     jsonBody["success"] = (statusCode >= 200 && statusCode < 300);

@@ -790,7 +790,7 @@ void AiApiModule::registerRoutes() {
     // POST /api/ai/summarize - 生成摘要
     router.post(prefix + "/summarize", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto body = json::parse(req.body);
@@ -818,7 +818,7 @@ void AiApiModule::registerRoutes() {
     // POST /api/ai/chat - AI对话
     router.post(prefix + "/chat", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto body = json::parse(req.body);
@@ -856,7 +856,7 @@ void AiApiModule::registerRoutes() {
     // POST /api/ai/keywords - 提取关键词
     router.post(prefix + "/keywords", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto body = json::parse(req.body);
@@ -888,7 +888,7 @@ void AiApiModule::registerRoutes() {
     // POST /api/ai/contributions - 总结贡献点
     router.post(prefix + "/contributions", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto body = json::parse(req.body);
@@ -918,7 +918,7 @@ void AiApiModule::registerRoutes() {
     // POST /api/ai/compare - 比较论文
     router.post(prefix + "/compare", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto body = json::parse(req.body);
@@ -948,7 +948,7 @@ void AiApiModule::registerRoutes() {
     // GET /api/ai/status - AI服务状态
     router.get(prefix + "/status", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.headers["Content-Type"] = "application/json";
+        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
         try {
             auto stats = getStats();
