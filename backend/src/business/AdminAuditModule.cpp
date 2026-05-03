@@ -1210,7 +1210,7 @@ std::string AdminAuditModule::handleGetRoles(const std::map<std::string, std::st
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Roles retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get roles: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get roles: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve roles: " + std::string(e.what()));
     }
 }
@@ -1242,7 +1242,7 @@ std::string AdminAuditModule::handleCreateRole(const std::map<std::string, std::
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create role");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to create role: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to create role: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create role: " + std::string(e.what()));
     }
 }
@@ -1271,7 +1271,7 @@ std::string AdminAuditModule::handleUpdateRole(const std::map<std::string, std::
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to update role: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to update role: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role: " + std::string(e.what()));
     }
 }
@@ -1295,7 +1295,7 @@ std::string AdminAuditModule::handleDeleteRole(const std::map<std::string, std::
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete role or role is system role");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete role: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to delete role: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete role: " + std::string(e.what()));
     }
 }
@@ -1319,7 +1319,7 @@ std::string AdminAuditModule::handleGetPermissions(const std::map<std::string, s
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Permissions retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get permissions: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get permissions: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve permissions: " + std::string(e.what()));
     }
 }
@@ -1342,7 +1342,7 @@ std::string AdminAuditModule::handleGetPermissionMatrix(const std::map<std::stri
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Permission matrix retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get permission matrix: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get permission matrix: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve permission matrix: " + std::string(e.what()));
     }
 }
@@ -1373,7 +1373,7 @@ std::string AdminAuditModule::handleGetRolePermissions(const std::map<std::strin
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Role permissions retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get role permissions: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get role permissions: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve role permissions: " + std::string(e.what()));
     }
 }
@@ -1401,7 +1401,7 @@ std::string AdminAuditModule::handleUpdateRolePermissions(const std::map<std::st
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role permissions");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to update role permissions: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to update role permissions: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role permissions: " + std::string(e.what()));
     }
 }
@@ -1436,7 +1436,7 @@ std::string AdminAuditModule::handleGetUserRoles(const std::map<std::string, std
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "User roles retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get user roles: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get user roles: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve user roles: " + std::string(e.what()));
     }
 }
@@ -1470,7 +1470,7 @@ std::string AdminAuditModule::handleAssignUserRole(const std::map<std::string, s
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to assign user role");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to assign user role: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to assign user role: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to assign user role: " + std::string(e.what()));
     }
 }
@@ -1500,7 +1500,7 @@ std::string AdminAuditModule::handleRemoveUserRole(const std::map<std::string, s
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to remove user role");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to remove user role: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to remove user role: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to remove user role: " + std::string(e.what()));
     }
 }
@@ -1526,7 +1526,7 @@ std::string AdminAuditModule::handleCheckPermission(const std::map<std::string, 
         data["hasPermission"] = hasPermission;
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Permission checked", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to check permission: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to check permission: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to check permission: " + std::string(e.what()));
     }
 }
@@ -1568,7 +1568,7 @@ std::string AdminAuditModule::handleGetPendingPapers(const std::map<std::string,
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Pending papers retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get pending papers: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get pending papers: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve pending papers: " + std::string(e.what()));
     }
 }
@@ -1603,7 +1603,7 @@ std::string AdminAuditModule::handleGetPaperModeration(const std::map<std::strin
             return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Paper moderation not found");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get paper moderation: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get paper moderation: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve moderation: " + std::string(e.what()));
     }
 }
@@ -1630,7 +1630,7 @@ std::string AdminAuditModule::handleApprovePaper(const std::map<std::string, std
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to approve paper");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to approve paper: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to approve paper: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to approve paper: " + std::string(e.what()));
     }
 }
@@ -1658,7 +1658,7 @@ std::string AdminAuditModule::handleRejectPaper(const std::map<std::string, std:
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to reject paper");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to reject paper: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to reject paper: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to reject paper: " + std::string(e.what()));
     }
 }
@@ -1701,7 +1701,7 @@ std::string AdminAuditModule::handleGetUserReports(const std::map<std::string, s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "User reports retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get user reports: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get user reports: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve reports: " + std::string(e.what()));
     }
 }
@@ -1730,7 +1730,7 @@ std::string AdminAuditModule::handleResolveReport(const std::map<std::string, st
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to resolve report");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to resolve report: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to resolve report: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to resolve report: " + std::string(e.what()));
     }
 }
@@ -1760,7 +1760,7 @@ std::string AdminAuditModule::handleGetSensitiveWords(const std::map<std::string
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Sensitive words retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get sensitive words: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get sensitive words: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve words: " + std::string(e.what()));
     }
 }
@@ -1789,7 +1789,7 @@ std::string AdminAuditModule::handleCreateSensitiveWord(const std::map<std::stri
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create sensitive word");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to create sensitive word: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to create sensitive word: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create word: " + std::string(e.what()));
     }
 }
@@ -1814,7 +1814,7 @@ std::string AdminAuditModule::handleDeleteSensitiveWord(const std::map<std::stri
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete sensitive word");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete sensitive word: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to delete sensitive word: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete word: " + std::string(e.what()));
     }
 }
@@ -1843,7 +1843,7 @@ std::string AdminAuditModule::handleCheckSensitiveWords(const std::map<std::stri
         }
         return StringUtil::buildJsonResponse(HTTP::OK, true, "Sensitive words checked", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to check sensitive words: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to check sensitive words: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to check words: " + std::string(e.what()));
     }
 }
@@ -1910,7 +1910,7 @@ std::string AdminAuditModule::handleGetApiKeys(const std::map<std::string, std::
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "API keys retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get API keys: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get API keys: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve API keys: " + std::string(e.what()));
     }
 }
@@ -1939,7 +1939,7 @@ std::string AdminAuditModule::handleCreateApiKey(const std::map<std::string, std
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create API key");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to create API key: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to create API key: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create API key: " + std::string(e.what()));
     }
 }
@@ -1964,7 +1964,7 @@ std::string AdminAuditModule::handleDeleteApiKey(const std::map<std::string, std
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete API key");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to delete API key: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to delete API key: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete API key: " + std::string(e.what()));
     }
 }
@@ -1990,7 +1990,7 @@ std::string AdminAuditModule::handleRegenerateApiKey(const std::map<std::string,
             return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to regenerate API key");
         }
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to regenerate API key: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to regenerate API key: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to regenerate API key: " + std::string(e.what()));
     }
 }
@@ -2031,7 +2031,7 @@ std::string AdminAuditModule::handleGetApiKeyUsage(const std::map<std::string, s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "API key usage retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get API key usage: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get API key usage: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve usage: " + std::string(e.what()));
     }
 }
@@ -2065,7 +2065,7 @@ std::string AdminAuditModule::handleGetApiKeyStats(const std::map<std::string, s
 
         return StringUtil::buildJsonResponse(HTTP::OK, true, "API key statistics retrieved", data.dump());
     } catch (const std::exception& e) {
-        spdlog::error("[AdminApiModule] Failed to get API key stats: {}", e.what());
+        spdlog::error("[AdminAudit] Failed to get API key stats: {}", e.what());
         return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }

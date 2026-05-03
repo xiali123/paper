@@ -743,19 +743,14 @@ void UserApiModule::ensureDatabaseConnection() {
                 // 测试连接
                 if (dbInterface->testConnection()) {
                     // 将所有权转移给database_
-                    database_ = std::shared_ptr<IDatabase>(tempDb.release(), [](IDatabase* ptr) {
-                        // 负责删除
-                        delete ptr;
-                    });
+                    database_ = std::shared_ptr<IDatabase>(tempDb.release());
                     impl_ = std::make_unique<Impl>(database_);
                     spdlog::info("[UserApi] Database connection acquired (lazy)!");
                 } else {
                     spdlog::warn("[UserApi] testConnection() failed");
-                    delete tempDb.release();  // 清理
                 }
             } else {
                 spdlog::warn("[UserApi] DatabaseModule initialization failed");
-                delete tempDb.release();  // 清理
             }
         } catch (const std::exception& e) {
             spdlog::error("[UserApi] Exception in ensureDatabaseConnection: {}", e.what());
