@@ -1,4 +1,5 @@
 #include <iostream>
+#include "core/HttpStatus.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
 #include "business/PaperApiModule.hpp"
@@ -226,7 +227,7 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setJson(handleListPapers(params));
         return response;
     });
@@ -238,9 +239,9 @@ void PaperApiModule::registerRoutes() {
         auto jsonResult = handleGetPaper(params);
         HttpResponse response;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
-                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
-        } else { response.statusCode = 200; }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        } else { response.statusCode = HTTP::OK; }
         response.setJson(jsonResult);
         return response;
     });
@@ -250,7 +251,7 @@ void PaperApiModule::registerRoutes() {
         auto jsonResult = handleCreatePaper(req.body);
         HttpResponse response;
         response.statusCode = (jsonResult.find("\"error\"") != std::string::npos &&
-                              jsonResult.find("validation") != std::string::npos) ? 400 : 201;
+                              jsonResult.find("validation") != std::string::npos) ? HTTP::BAD_REQUEST : HTTP::CREATED;
         response.setJson(jsonResult);
         return response;
     });
@@ -260,7 +261,7 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         params["id"] = req.getPathParam("id", "0");
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setJson(handleUpdatePaper(params, req.body));
         return response;
     });
@@ -272,9 +273,9 @@ void PaperApiModule::registerRoutes() {
         auto jsonResult = handleDeletePaper(params);
         HttpResponse response;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
-                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
-        } else { response.statusCode = 200; }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        } else { response.statusCode = HTTP::OK; }
         response.setJson(jsonResult);
         return response;
     });
@@ -284,7 +285,7 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setJson(handleSearch(params));
         return response;
     });
@@ -292,7 +293,7 @@ void PaperApiModule::registerRoutes() {
     // GET /api/papers/stats
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setJson(handleStats());
         return response;
     });
@@ -302,7 +303,7 @@ void PaperApiModule::registerRoutes() {
         std::map<std::string, std::string> params;
         for (const auto& pair : req.queryParams) params[pair.first] = pair.second;
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setJson(handleExport(params));
         return response;
     });
@@ -314,9 +315,9 @@ void PaperApiModule::registerRoutes() {
         auto jsonResult = handleFavorite(params, req.body);
         HttpResponse response;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
-                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
-        } else { response.statusCode = 200; }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        } else { response.statusCode = HTTP::OK; }
         response.setJson(jsonResult);
         return response;
     });
@@ -328,9 +329,9 @@ void PaperApiModule::registerRoutes() {
         auto jsonResult = handleRead(params, req.body);
         HttpResponse response;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
-                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
-        } else { response.statusCode = 200; }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        } else { response.statusCode = HTTP::OK; }
         response.setJson(jsonResult);
         return response;
     });
@@ -342,9 +343,9 @@ void PaperApiModule::registerRoutes() {
         auto jsonResult = handleTags(params, req.body, "POST");
         HttpResponse response;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
-                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
-        } else { response.statusCode = 200; }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        } else { response.statusCode = HTTP::OK; }
         response.setJson(jsonResult);
         return response;
     });
@@ -357,9 +358,9 @@ void PaperApiModule::registerRoutes() {
         auto jsonResult = handleTags(params, "", "DELETE");
         HttpResponse response;
         if (jsonResult.find("\"error\"") != std::string::npos) {
-            response.statusCode = jsonResult.find("not found") != std::string::npos ? 404 :
-                                  jsonResult.find("Invalid") != std::string::npos ? 400 : 500;
-        } else { response.statusCode = 200; }
+            response.statusCode = jsonResult.find("not found") != std::string::npos ? HTTP::NOT_FOUND :
+                                  jsonResult.find("Invalid") != std::string::npos ? HTTP::BAD_REQUEST : HTTP::INTERNAL_ERROR;
+        } else { response.statusCode = HTTP::OK; }
         response.setJson(jsonResult);
         return response;
     });
@@ -384,56 +385,56 @@ std::string PaperApiModule::handleListPapers(const std::map<std::string, std::st
 
 std::string PaperApiModule::handleGetPaper(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, HTTP::BAD_REQUEST);
     int id;
-    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, HTTP::BAD_REQUEST); }
 
     auto paper = getPaper(id);
-    if (!paper) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    if (!paper) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, HTTP::NOT_FOUND);
     return JsonHelper::buildPapersJsonResponse("[" + paper->toJson().dump() + "]", 1, 1, 1);
 }
 
 std::string PaperApiModule::handleCreatePaper(const std::string& body) {
     if (body.empty() || body == "{}")
-        return JsonHelper::buildJsonResponse({{"error", "Invalid request: paper data is required"}}, 400);
+        return JsonHelper::buildJsonResponse({{"error", "Invalid request: paper data is required"}}, HTTP::BAD_REQUEST);
 
     try {
         auto jsonBody = nlohmann::json::parse(body);
         if (!jsonBody.contains("title") || jsonBody["title"].empty())
-            return JsonHelper::buildJsonResponse({{"error", "Validation failed: title is required"}}, 400);
+            return JsonHelper::buildJsonResponse({{"error", "Validation failed: title is required"}}, HTTP::BAD_REQUEST);
     } catch (...) {
-        return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, 400);
+        return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, HTTP::BAD_REQUEST);
     }
 
     Paper paper;
     auto newPaper = createPaper(paper);
     if (newPaper)
-        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Paper created"}, {"id", std::to_string(newPaper->id)}}, 201);
-    return JsonHelper::buildJsonResponse({{"error", "Failed to create paper"}}, 500);
+        return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Paper created"}, {"id", std::to_string(newPaper->id)}}, HTTP::CREATED);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to create paper"}}, HTTP::INTERNAL_ERROR);
 }
 
 std::string PaperApiModule::handleUpdatePaper(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, HTTP::BAD_REQUEST);
     int id;
-    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, HTTP::BAD_REQUEST); }
 
     Paper paper;
     if (updatePaper(id, paper))
         return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Paper updated"}});
-    return JsonHelper::buildJsonResponse({{"error", "Failed to update paper"}}, 500);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to update paper"}}, HTTP::INTERNAL_ERROR);
 }
 
 std::string PaperApiModule::handleDeletePaper(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, HTTP::BAD_REQUEST);
     int id;
-    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, HTTP::BAD_REQUEST); }
 
-    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, HTTP::NOT_FOUND);
     if (deletePaper(id))
         return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Paper deleted"}});
-    return JsonHelper::buildJsonResponse({{"error", "Failed to delete paper"}}, 500);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to delete paper"}}, HTTP::INTERNAL_ERROR);
 }
 
 std::string PaperApiModule::handleSearch(const std::map<std::string, std::string>& params) {
@@ -486,43 +487,43 @@ std::string PaperApiModule::handleExport(const std::map<std::string, std::string
 
 std::string PaperApiModule::handleFavorite(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, HTTP::BAD_REQUEST);
     int id;
-    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, HTTP::BAD_REQUEST); }
 
-    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, HTTP::NOT_FOUND);
 
     bool favorite = true;
     try { auto j = nlohmann::json::parse(body); if (j.contains("favorite")) favorite = j["favorite"]; } catch (...) {}
 
     if (markAsFavorite(id, favorite))
         return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", std::string("Paper ") + (favorite ? "added to" : "removed from") + " favorites"}});
-    return JsonHelper::buildJsonResponse({{"error", "Failed to update favorite status"}}, 500);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to update favorite status"}}, HTTP::INTERNAL_ERROR);
 }
 
 std::string PaperApiModule::handleRead(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, HTTP::BAD_REQUEST);
     int id;
-    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, HTTP::BAD_REQUEST); }
 
-    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, HTTP::NOT_FOUND);
 
     bool isRead = true;
     try { auto j = nlohmann::json::parse(body); if (j.contains("is_read")) isRead = j["is_read"]; } catch (...) {}
 
     if (markAsRead(id, isRead))
         return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", std::string("Paper ") + (isRead ? "marked as read" : "marked as unread")}});
-    return JsonHelper::buildJsonResponse({{"error", "Failed to update read status"}}, 500);
+    return JsonHelper::buildJsonResponse({{"error", "Failed to update read status"}}, HTTP::INTERNAL_ERROR);
 }
 
 std::string PaperApiModule::handleTags(const std::map<std::string, std::string>& params, const std::string& body, const std::string& method) {
     auto idIt = params.find("id");
-    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, 400);
+    if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, HTTP::BAD_REQUEST);
     int id;
-    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, 400); }
+    try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, HTTP::BAD_REQUEST); }
 
-    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, 404);
+    if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, HTTP::NOT_FOUND);
 
     if (method == "POST") {
         try {
@@ -530,13 +531,13 @@ std::string PaperApiModule::handleTags(const std::map<std::string, std::string>&
             if (jsonBody.contains("tags") && jsonBody["tags"].is_array()) {
                 return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Tags added successfully"}});
             }
-        } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, 400); }
-        return JsonHelper::buildJsonResponse({{"error", "Tags array required"}}, 400);
+        } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, HTTP::BAD_REQUEST); }
+        return JsonHelper::buildJsonResponse({{"error", "Tags array required"}}, HTTP::BAD_REQUEST);
     }
 
     if (method == "DELETE") {
         auto tagIt = params.find("tag");
-        if (tagIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing tag name"}}, 400);
+        if (tagIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing tag name"}}, HTTP::BAD_REQUEST);
         return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Tag removed successfully"}});
     }
 

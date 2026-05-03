@@ -1,4 +1,5 @@
 #include "business/CrawlerApiModule.hpp"
+#include "core/HttpStatus.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/StringUtil.hpp"
 #include <spdlog/spdlog.h>
@@ -161,7 +162,7 @@ void CrawlerApiModule::registerRoutes() {
         // 检查认证
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = 401;
+            response.statusCode = HTTP::UNAUTHORIZED;
             response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
             return response;
         }
@@ -169,7 +170,7 @@ void CrawlerApiModule::registerRoutes() {
         try {
             auto jsonOpt = JsonUtils::parse(req.body);
             if (!jsonOpt.has_value()) {
-                return buildJsonResponse(400, "Invalid JSON format");
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
             }
 
             auto jsonObj = jsonOpt.value();
@@ -178,7 +179,7 @@ void CrawlerApiModule::registerRoutes() {
             std::string tags = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "tags").value_or(""));
 
             if (templateId.empty()) {
-                return buildJsonResponse(400, "Missing templateId");
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Missing templateId");
             }
 
             // 尝试数据库操作
@@ -207,7 +208,7 @@ void CrawlerApiModule::registerRoutes() {
             return buildJsonResponse(true, "Template published to marketplace (stub mode)", data);
 
         } catch (const std::exception& e) {
-            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
         }
     });
 
@@ -218,7 +219,7 @@ void CrawlerApiModule::registerRoutes() {
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = 401;
+            response.statusCode = HTTP::UNAUTHORIZED;
             response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
             return response;
         }
@@ -276,7 +277,7 @@ void CrawlerApiModule::registerRoutes() {
             return buildJsonResponse(true, "Marketplace templates retrieved (no database)", data);
 
         } catch (const std::exception& e) {
-            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
         }
     });
 
@@ -287,7 +288,7 @@ void CrawlerApiModule::registerRoutes() {
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = 401;
+            response.statusCode = HTTP::UNAUTHORIZED;
             response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
             return response;
         }
@@ -295,7 +296,7 @@ void CrawlerApiModule::registerRoutes() {
         try {
             auto idIt = req.pathParams.find("id");
             if (idIt == req.pathParams.end()) {
-                return buildJsonResponse(400, "Missing template ID");
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Missing template ID");
             }
             std::string templateId = idIt->second;
 
@@ -316,7 +317,7 @@ void CrawlerApiModule::registerRoutes() {
                 auto rows = stmt.query();
 
                 if (rows.empty()) {
-                    return buildJsonResponse(404, "Template not found in marketplace");
+                    return buildJsonResponse(HTTP::NOT_FOUND, "Template not found in marketplace");
                 }
 
                 auto& row = rows[0];
@@ -336,7 +337,7 @@ void CrawlerApiModule::registerRoutes() {
             return buildJsonResponse(true, "Template installed (stub mode)", data);
 
         } catch (const std::exception& e) {
-            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
         }
     });
 
@@ -347,7 +348,7 @@ void CrawlerApiModule::registerRoutes() {
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = 401;
+            response.statusCode = HTTP::UNAUTHORIZED;
             response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
             return response;
         }
@@ -355,20 +356,20 @@ void CrawlerApiModule::registerRoutes() {
         try {
             auto idIt = req.pathParams.find("id");
             if (idIt == req.pathParams.end()) {
-                return buildJsonResponse(400, "Missing template ID");
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Missing template ID");
             }
             std::string templateId = idIt->second;
 
             auto jsonOpt = JsonUtils::parse(req.body);
             if (!jsonOpt.has_value()) {
-                return buildJsonResponse(400, "Invalid JSON format");
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
             }
 
             auto jsonObj = jsonOpt.value();
             int rating = JsonUtils::getValue<int>(jsonObj, "rating").value_or(0);
 
             if (rating < 1 || rating > 5) {
-                return buildJsonResponse(400, "Rating must be between 1 and 5");
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Rating must be between 1 and 5");
             }
 
             if (database_) {
@@ -397,7 +398,7 @@ void CrawlerApiModule::registerRoutes() {
             return buildJsonResponse(true, "Rating submitted (stub mode)", data);
 
         } catch (const std::exception& e) {
-            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
         }
     });
 
@@ -408,7 +409,7 @@ void CrawlerApiModule::registerRoutes() {
 
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = 401;
+            response.statusCode = HTTP::UNAUTHORIZED;
             response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
             return response;
         }
@@ -474,7 +475,7 @@ void CrawlerApiModule::registerRoutes() {
             return buildJsonResponse(true, "Marketplace search (no database)", data);
 
         } catch (const std::exception& e) {
-            return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
         }
     });
 
@@ -575,7 +576,7 @@ HttpResponse CrawlerApiModule::handleCreateTemplate(const HttpRequest& req) {
         // 解析JSON
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(400, "Invalid JSON format");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -588,7 +589,7 @@ HttpResponse CrawlerApiModule::handleCreateTemplate(const HttpRequest& req) {
         bool requiresJsRendering = JsonUtils::getValue<bool>(jsonObj, "requiresJsRendering").value_or(false);
 
         if (name.empty() || baseUrl.empty()) {
-            return buildJsonResponse(400, "Missing required fields: name, baseUrl");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing required fields: name, baseUrl");
         }
 
         // 如果没有templateCrawler，使用stub实现
@@ -637,7 +638,7 @@ HttpResponse CrawlerApiModule::handleCreateTemplate(const HttpRequest& req) {
         }
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -680,13 +681,13 @@ HttpResponse CrawlerApiModule::handleGetTemplate(const HttpRequest& req) {
     try {
         auto taskIdIt = req.pathParams.find("id");
         if (taskIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing template ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing template ID");
         }
         std::string templateId = taskIdIt->second;
 
         // 如果没有templateCrawler，返回404
         if (!templateCrawler_) {
-            return buildJsonResponse(404, "Template not found (no template crawler)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Template not found (no template crawler)");
         }
 
         auto tmplOpt = templateCrawler_->loadTemplate(templateId);
@@ -696,11 +697,11 @@ HttpResponse CrawlerApiModule::handleGetTemplate(const HttpRequest& req) {
             nlohmann::json data = nlohmann::json::parse(tmpl.toJson());
             return buildJsonResponse(true, "Template retrieved", data);
         } else {
-            return buildJsonResponse(404, "Template not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Template not found");
         }
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -708,23 +709,23 @@ HttpResponse CrawlerApiModule::handleDeleteTemplate(const HttpRequest& req) {
     try {
         auto templateIdIt = req.pathParams.find("id");
         if (templateIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing template ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing template ID");
         }
         std::string templateId = templateIdIt->second;
 
         // 如果没有templateCrawler，返回404
         if (!templateCrawler_) {
-            return buildJsonResponse(404, "Template not found (no template crawler)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Template not found (no template crawler)");
         }
 
         if (templateCrawler_->deleteTemplate(templateId)) {
             return buildJsonResponse(true, "Template deleted successfully");
         } else {
-            return buildJsonResponse(404, "Template not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Template not found");
         }
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -732,12 +733,12 @@ HttpResponse CrawlerApiModule::handleValidateTemplate(const HttpRequest& req) {
     try {
         // 如果没有templateCrawler，返回404
         if (!templateCrawler_) {
-            return buildJsonResponse(404, "Template crawler not available");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Template crawler not available");
         }
 
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(400, "Invalid JSON format");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -760,7 +761,7 @@ HttpResponse CrawlerApiModule::handleValidateTemplate(const HttpRequest& req) {
         return buildJsonResponse(true, "Template validation completed", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -769,13 +770,13 @@ HttpResponse CrawlerApiModule::handleTestTemplate(const HttpRequest& req) {
         // 从路径参数获取templateId
         auto templateIdIt = req.pathParams.find("id");
         if (templateIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing template ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing template ID");
         }
         std::string templateId = templateIdIt->second;
 
         // 如果没有database，返回404
         if (!database_) {
-            return buildJsonResponse(404, "Template not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Template not found (no database)");
         }
         // 从数据库加载模板
         PreparedStatement tmplStmt(database_, "SELECT template_id, name, base_url, url_template FROM crawler_templates WHERE template_id = ?");
@@ -815,7 +816,7 @@ HttpResponse CrawlerApiModule::handleCreateTask(const HttpRequest& req) {
     try {
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(400, "Invalid JSON format");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -1217,7 +1218,7 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
     const nlohmann::json& data) {
 
     HttpResponse response;
-    response.statusCode = success ? 200 : 400;
+    response.statusCode = success ? HTTP::OK : HTTP::BAD_REQUEST;
     response.headers["Content-Type"] = "application/json";
 
     nlohmann::json jsonBody;
@@ -1306,13 +1307,13 @@ HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
     try {
         auto taskIdIt = req.pathParams.find("id");
         if (taskIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing task ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing task ID");
         }
         std::string taskId = taskIdIt->second;
 
         // 如果没有数据库，返回404
         if (!database_) {
-            return buildJsonResponse(404, "Task not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Task not found (no database)");
         }
 
         // 查询任务详情
@@ -1322,7 +1323,7 @@ HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
         auto tasks = taskStmt.query();
 
         if (tasks.empty()) {
-            return buildJsonResponse(404, "Task not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Task not found");
         }
 
         auto& task = tasks[0];
@@ -1338,7 +1339,7 @@ HttpResponse CrawlerApiModule::handleGetTask(const HttpRequest& req) {
         return buildJsonResponse(true, "Task retrieved successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1346,13 +1347,13 @@ HttpResponse CrawlerApiModule::handleCancelTask(const HttpRequest& req) {
     try {
         auto taskIdIt = req.pathParams.find("id");
         if (taskIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing task ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing task ID");
         }
         std::string taskId = taskIdIt->second;
 
         // 如果没有database，返回404
         if (!database_) {
-            return buildJsonResponse(404, "Task not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Task not found (no database)");
         }
 
         // 更新任务状态为已取消
@@ -1363,7 +1364,7 @@ HttpResponse CrawlerApiModule::handleCancelTask(const HttpRequest& req) {
         return buildJsonResponse(true, "Task cancelled successfully");
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1371,13 +1372,13 @@ HttpResponse CrawlerApiModule::handleRetryTask(const HttpRequest& req) {
     try {
         auto taskIdIt = req.pathParams.find("id");
         if (taskIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing task ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing task ID");
         }
         std::string taskId = taskIdIt->second;
 
         // 如果没有database，返回404
         if (!database_) {
-            return buildJsonResponse(404, "Task not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Task not found (no database)");
         }
 
         // 查询原任务信息
@@ -1386,7 +1387,7 @@ HttpResponse CrawlerApiModule::handleRetryTask(const HttpRequest& req) {
         auto tasks = taskStmt.query();
 
         if (tasks.empty()) {
-            return buildJsonResponse(404, "Task not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Task not found");
         }
 
         auto& task = tasks[0];
@@ -1527,20 +1528,20 @@ HttpResponse CrawlerApiModule::handleUpdateTemplate(const HttpRequest& req) {
     try {
         auto templateIdIt = req.pathParams.find("id");
         if (templateIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing template ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing template ID");
         }
         std::string templateId = templateIdIt->second;
 
         // 如果没有templateCrawler，返回404
         if (!templateCrawler_) {
-            return buildJsonResponse(404, "Template not found (no template crawler)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Template not found (no template crawler)");
         }
 
         // 模板更新逻辑（当前返回未实现提示）
-        return buildJsonResponse(404, "Update not implemented yet");
+        return buildJsonResponse(HTTP::NOT_FOUND, "Update not implemented yet");
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1558,7 +1559,7 @@ HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
     try {
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(400, "Invalid JSON format");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -1568,7 +1569,7 @@ HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
         std::string parameters = JsonUtils::getValue<std::string>(jsonObj, "parameters").value_or("{}");
 
         if (name.empty() || templateId.empty()) {
-            return buildJsonResponse(400, "Missing required fields: name, templateId");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing required fields: name, templateId");
         }
 
         // 生成定时任务ID
@@ -1607,7 +1608,7 @@ HttpResponse CrawlerApiModule::handleCreateSchedule(const HttpRequest& req) {
         return buildJsonResponse(true, "Schedule created successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1790,13 +1791,13 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
     try {
         auto scheduleIdIt = req.pathParams.find("id");
         if (scheduleIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing schedule ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing schedule ID");
         }
         std::string scheduleId = scheduleIdIt->second;
 
         // 如果没有database，返回404
         if (!database_) {
-            return buildJsonResponse(404, "Schedule not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Schedule not found (no database)");
         }
 
         // 查询定时任务配置
@@ -1805,7 +1806,7 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
         auto schedules = schedStmt.query();
 
         if (schedules.empty()) {
-            return buildJsonResponse(404, "Schedule not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Schedule not found");
         }
 
         auto& schedule = schedules[0];
@@ -1829,7 +1830,7 @@ HttpResponse CrawlerApiModule::handleTriggerSchedule(const HttpRequest& req) {
         return buildJsonResponse(true, "Schedule triggered successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1880,13 +1881,13 @@ HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
     try {
         auto workerIdIt = req.pathParams.find("id");
         if (workerIdIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing worker ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing worker ID");
         }
         std::string workerId = workerIdIt->second;
 
         // 如果没有database，返回404
         if (!database_) {
-            return buildJsonResponse(404, "Worker not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Worker not found (no database)");
         }
 
         // 查询工作节点详情
@@ -1895,7 +1896,7 @@ HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
         auto workers = workerStmt.query();
 
         if (workers.empty()) {
-            return buildJsonResponse(404, "Worker not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "Worker not found");
         }
 
         auto& worker = workers[0];
@@ -1914,7 +1915,7 @@ HttpResponse CrawlerApiModule::handleGetWorker(const HttpRequest& req) {
         return buildJsonResponse(true, "Worker retrieved successfully", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 

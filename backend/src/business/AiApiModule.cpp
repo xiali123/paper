@@ -1,4 +1,5 @@
 #include "business/AiApiModule.hpp"
+#include "core/HttpStatus.hpp"
 #include "data/StringUtil.hpp"
 #include "data/DatabaseModule.hpp"
 #include "network/HttpClient.hpp"
@@ -801,13 +802,13 @@ void AiApiModule::registerRoutes() {
 
             std::string result = generatePaperSummary(summaryReq);
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result;
         } catch (const json::exception& e) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
         }
 
@@ -834,18 +835,18 @@ void AiApiModule::registerRoutes() {
                 qReq.language = language;
 
                 std::string result = askQuestion(qReq);
-                response.statusCode = 200;
+                response.statusCode = HTTP::OK;
                 response.body = result;
             } else {
                 // 通用对话（需要paper_id，这里返回错误）
-                response.statusCode = 400;
+                response.statusCode = HTTP::BAD_REQUEST;
                 response.body = json{{"success", false}, {"error", "paper_id is required"}}.dump();
             }
         } catch (const json::exception& e) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
         }
 
@@ -871,13 +872,13 @@ void AiApiModule::registerRoutes() {
             result["keywords"] = keywords;
             result["count"] = keywords.size();
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result.dump();
         } catch (const json::exception& e) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
         }
 
@@ -901,13 +902,13 @@ void AiApiModule::registerRoutes() {
             result["contributions"] = contributions;
             result["count"] = contributions.size();
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result.dump();
         } catch (const json::exception& e) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
         }
 
@@ -931,13 +932,13 @@ void AiApiModule::registerRoutes() {
 
             std::string result = comparePapers(paperIds);
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result;
         } catch (const json::exception& e) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
         }
 
@@ -966,10 +967,10 @@ void AiApiModule::registerRoutes() {
             result["allow_mock_fallback"] = impl_->config_.allowMockFallback;
             result["stats"] = stats;
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
         }
 

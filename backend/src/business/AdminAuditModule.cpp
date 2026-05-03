@@ -15,6 +15,7 @@
 #include <openssl/rand.h>
 #include "data/ValidationHelper.hpp"
 #include "data/StringUtil.hpp"
+#include "core/HttpStatus.hpp"
 
 namespace PaperCrawler {
 
@@ -105,7 +106,7 @@ void AdminAuditModule::registerRoutes() {
 
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
-        resp.statusCode = 401;
+        resp.statusCode = HTTP::UNAUTHORIZED;
         resp.setHeader("Content-Type", "application/json");
         resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
         return resp;
@@ -115,7 +116,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/audit-logs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetAuditLogs(req.queryParams);
         return response;
@@ -125,7 +126,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetRoles(req.queryParams);
         return response;
@@ -134,7 +135,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCreateRole(req.queryParams, req.body);
         return response;
@@ -143,7 +144,7 @@ void AdminAuditModule::registerRoutes() {
     router.put(prefix + "/roles/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUpdateRole(req.pathParams, req.body);
         return response;
@@ -152,7 +153,7 @@ void AdminAuditModule::registerRoutes() {
     router.del(prefix + "/roles/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteRole(req.pathParams);
         return response;
@@ -162,7 +163,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetPermissions(req.queryParams);
         return response;
@@ -171,7 +172,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/permission-matrix", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetPermissionMatrix(req.queryParams);
         return response;
@@ -180,7 +181,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/roles/:id/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetRolePermissions(req.pathParams);
         return response;
@@ -189,7 +190,7 @@ void AdminAuditModule::registerRoutes() {
     router.put(prefix + "/roles/:id/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUpdateRolePermissions(req.pathParams, req.body);
         return response;
@@ -198,7 +199,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/users/:id/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetUserRoles(req.pathParams);
         return response;
@@ -207,7 +208,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/users/:id/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleAssignUserRole(req.pathParams, req.body);
         return response;
@@ -216,7 +217,7 @@ void AdminAuditModule::registerRoutes() {
     router.del(prefix + "/users/:id/roles/:roleid", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleRemoveUserRole(req.pathParams);
         return response;
@@ -225,7 +226,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/permissions/check", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCheckPermission(req.queryParams, req.body);
         return response;
@@ -235,7 +236,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/content/pending", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetPendingPapers(req.queryParams);
         return response;
@@ -244,7 +245,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/content/pending/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetPaperModeration(req.pathParams);
         return response;
@@ -253,7 +254,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/content/pending/:id/approve", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleApprovePaper(req.pathParams, req.body);
         return response;
@@ -262,7 +263,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/content/pending/:id/reject", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleRejectPaper(req.pathParams, req.body);
         return response;
@@ -271,7 +272,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/content/reports", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetUserReports(req.queryParams);
         return response;
@@ -280,7 +281,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/content/reports/:id/resolve", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleResolveReport(req.pathParams, req.body);
         return response;
@@ -289,7 +290,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/content/sensitive-words", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetSensitiveWords(req.queryParams);
         return response;
@@ -298,7 +299,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/content/sensitive-words", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCreateSensitiveWord(req.queryParams, req.body);
         return response;
@@ -307,7 +308,7 @@ void AdminAuditModule::registerRoutes() {
     router.del(prefix + "/content/sensitive-words/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteSensitiveWord(req.pathParams);
         return response;
@@ -316,7 +317,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/content/sensitive-words/check", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCheckSensitiveWords(req.queryParams, req.body);
         return response;
@@ -325,7 +326,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/content/sensitive-words/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetSensitiveWordStats(req.queryParams);
         return response;
@@ -335,7 +336,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/api-keys", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetApiKeys(req.queryParams);
         return response;
@@ -344,7 +345,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/api-keys", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCreateApiKey(req.queryParams, req.body);
         return response;
@@ -353,7 +354,7 @@ void AdminAuditModule::registerRoutes() {
     router.del(prefix + "/api-keys/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteApiKey(req.pathParams);
         return response;
@@ -362,7 +363,7 @@ void AdminAuditModule::registerRoutes() {
     router.post(prefix + "/api-keys/:id/regenerate", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleRegenerateApiKey(req.pathParams, req.body);
         return response;
@@ -371,7 +372,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/api-keys/usage", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetApiKeyUsage(req.queryParams);
         return response;
@@ -380,7 +381,7 @@ void AdminAuditModule::registerRoutes() {
     router.get(prefix + "/api-keys/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetApiKeyStats(req.queryParams);
         return response;
@@ -1183,12 +1184,12 @@ std::string AdminAuditModule::handleGetAuditLogs(const std::map<std::string, std
     result << "\"totalPages\":" << response.totalPages;
     result << "}}";
 
-    return StringUtil::buildJsonResponse(200, true, "Audit logs retrieved", result.str());
+    return StringUtil::buildJsonResponse(HTTP::OK, true, "Audit logs retrieved", result.str());
 }
 
 std::string AdminAuditModule::handleGetRoles(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1207,17 +1208,17 @@ std::string AdminAuditModule::handleGetRoles(const std::map<std::string, std::st
             j["updatedAt"] = role.updatedAt;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Roles retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Roles retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get roles: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve roles: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve roles: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleCreateRole(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1229,33 +1230,33 @@ std::string AdminAuditModule::handleCreateRole(const std::map<std::string, std::
         int createdBy = jsonBody.value("createdBy", 1);
 
         if (name.empty() || displayName.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "Name and display name are required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Name and display name are required");
         }
 
         int roleId = createRole(name, displayName, description, level, createdBy);
         if (roleId > 0) {
             nlohmann::json data;
             data["roleId"] = roleId;
-            return StringUtil::buildJsonResponse(200, true, "Role created successfully", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Role created successfully", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to create role");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create role: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to create role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleUpdateRole(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
@@ -1267,42 +1268,42 @@ std::string AdminAuditModule::handleUpdateRole(const std::map<std::string, std::
         if (updateRole(roleId, displayName, description, level)) {
             return StringUtil::buildJsonResponse(true, "Role updated successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to update role");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update role: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to update role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleDeleteRole(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
         if (deleteRole(roleId)) {
             return StringUtil::buildJsonResponse(true, "Role deleted successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to delete role or role is system role");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete role or role is system role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete role: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to delete role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetPermissions(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1316,17 +1317,17 @@ std::string AdminAuditModule::handleGetPermissions(const std::map<std::string, s
             j["description"] = perm.description;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Permissions retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Permissions retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get permissions: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve permissions: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve permissions: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetPermissionMatrix(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1339,23 +1340,23 @@ std::string AdminAuditModule::handleGetPermissionMatrix(const std::map<std::stri
             j["permissionsByResource"] = item.permissionsByResource;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Permission matrix retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Permission matrix retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get permission matrix: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve permission matrix: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve permission matrix: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetRolePermissions(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
@@ -1370,23 +1371,23 @@ std::string AdminAuditModule::handleGetRolePermissions(const std::map<std::strin
             j["grantedByUsername"] = perm.grantedByUsername;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Role permissions retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Role permissions retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get role permissions: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve role permissions: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve role permissions: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleUpdateRolePermissions(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
@@ -1397,24 +1398,24 @@ std::string AdminAuditModule::handleUpdateRolePermissions(const std::map<std::st
         if (updateRolePermissions(roleId, permissionIds, updatedBy)) {
             return StringUtil::buildJsonResponse(true, "Role permissions updated successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to update role permissions");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role permissions");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update role permissions: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to update role permissions: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update role permissions: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetUserRoles(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "User ID is required");
         }
         int userId = std::stoi(idIt->second);
 
@@ -1433,23 +1434,23 @@ std::string AdminAuditModule::handleGetUserRoles(const std::map<std::string, std
             j["reason"] = role.reason;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "User roles retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "User roles retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get user roles: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve user roles: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve user roles: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleAssignUserRole(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "User ID is required");
         }
         int userId = std::stoi(idIt->second);
 
@@ -1460,54 +1461,54 @@ std::string AdminAuditModule::handleAssignUserRole(const std::map<std::string, s
         std::string expiresAt = jsonBody.value("expiresAt", "");
 
         if (roleId == 0) {
-            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Role ID is required");
         }
 
         if (assignUserRole(userId, roleId, reason, assignedBy, expiresAt)) {
             return StringUtil::buildJsonResponse(true, "User role assigned successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to assign user role");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to assign user role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to assign user role: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to assign user role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to assign user role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleRemoveUserRole(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "User ID is required");
         }
         int userId = std::stoi(idIt->second);
 
         auto roleIdIt = params.find("roleid");
         if (roleIdIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Role ID is required");
         }
         int roleId = std::stoi(roleIdIt->second);
 
         if (removeUserRole(userId, roleId)) {
             return StringUtil::buildJsonResponse(true, "User role removed successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to remove user role");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to remove user role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to remove user role: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to remove user role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to remove user role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleCheckPermission(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1517,16 +1518,16 @@ std::string AdminAuditModule::handleCheckPermission(const std::map<std::string, 
         std::string action = jsonBody.value("action", "");
 
         if (userId == 0 || resource.empty() || action.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "User ID, resource and action are required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "User ID, resource and action are required");
         }
 
         bool hasPermission = checkUserPermission(userId, resource, action);
         nlohmann::json data;
         data["hasPermission"] = hasPermission;
-        return StringUtil::buildJsonResponse(200, true, "Permission checked", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Permission checked", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to check permission: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to check permission: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to check permission: " + std::string(e.what()));
     }
 }
 
@@ -1537,7 +1538,7 @@ std::string AdminAuditModule::handleCheckPermission(const std::map<std::string, 
 
 std::string AdminAuditModule::handleGetPendingPapers(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1565,23 +1566,23 @@ std::string AdminAuditModule::handleGetPendingPapers(const std::map<std::string,
         data["limit"] = papers.limit;
         data["totalPages"] = papers.totalPages;
 
-        return StringUtil::buildJsonResponse(200, true, "Pending papers retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Pending papers retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get pending papers: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve pending papers: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve pending papers: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetPaperModeration(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Moderation ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Moderation ID is required");
         }
         int64_t id = std::stoll(idIt->second);
 
@@ -1597,26 +1598,26 @@ std::string AdminAuditModule::handleGetPaperModeration(const std::map<std::strin
             data["reviewedAt"] = moderation->reviewedAt;
             data["flags"] = moderation->flags;
             data["createdAt"] = moderation->createdAt;
-            return StringUtil::buildJsonResponse(200, true, "Paper moderation retrieved", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Paper moderation retrieved", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(404, false, "Paper moderation not found");
+            return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Paper moderation not found");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get paper moderation: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve moderation: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve moderation: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleApprovePaper(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Paper ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Paper ID is required");
         }
         int paperId = std::stoi(idIt->second);
 
@@ -1626,24 +1627,24 @@ std::string AdminAuditModule::handleApprovePaper(const std::map<std::string, std
         if (approvePaper(paperId, moderatorId)) {
             return StringUtil::buildJsonResponse(true, "Paper approved successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to approve paper");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to approve paper");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to approve paper: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to approve paper: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to approve paper: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleRejectPaper(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Paper ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Paper ID is required");
         }
         int paperId = std::stoi(idIt->second);
 
@@ -1654,18 +1655,18 @@ std::string AdminAuditModule::handleRejectPaper(const std::map<std::string, std:
         if (rejectPaper(paperId, moderatorId, reason)) {
             return StringUtil::buildJsonResponse(true, "Paper rejected successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to reject paper");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to reject paper");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to reject paper: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to reject paper: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to reject paper: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetUserReports(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1698,23 +1699,23 @@ std::string AdminAuditModule::handleGetUserReports(const std::map<std::string, s
         data["limit"] = reports.limit;
         data["totalPages"] = reports.totalPages;
 
-        return StringUtil::buildJsonResponse(200, true, "User reports retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "User reports retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get user reports: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve reports: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve reports: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleResolveReport(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Report ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Report ID is required");
         }
         int64_t reportId = std::stoll(idIt->second);
 
@@ -1726,18 +1727,18 @@ std::string AdminAuditModule::handleResolveReport(const std::map<std::string, st
         if (resolveReport(reportId, reviewerId, resolution, status)) {
             return StringUtil::buildJsonResponse(true, "Report resolved successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to resolve report");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to resolve report");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to resolve report: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to resolve report: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to resolve report: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetSensitiveWords(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1757,17 +1758,17 @@ std::string AdminAuditModule::handleGetSensitiveWords(const std::map<std::string
             j["createdAt"] = word.createdAt;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Sensitive words retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Sensitive words retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get sensitive words: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve words: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve words: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleCreateSensitiveWord(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1783,44 +1784,44 @@ std::string AdminAuditModule::handleCreateSensitiveWord(const std::map<std::stri
         if (wordId > 0) {
             nlohmann::json data;
             data["wordId"] = wordId;
-            return StringUtil::buildJsonResponse(200, true, "Sensitive word created", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Sensitive word created", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to create sensitive word");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create sensitive word");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create sensitive word: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to create word: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create word: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleDeleteSensitiveWord(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
 
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Word ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Word ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteSensitiveWord(id)) {
             return StringUtil::buildJsonResponse(true, "Sensitive word deleted");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to delete sensitive word");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete sensitive word");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete sensitive word: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to delete word: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete word: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleCheckSensitiveWords(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1840,16 +1841,16 @@ std::string AdminAuditModule::handleCheckSensitiveWords(const std::map<std::stri
             j["matchedText"] = match.matchedText;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Sensitive words checked", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Sensitive words checked", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to check sensitive words: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to check words: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to check words: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleGetSensitiveWordStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1859,10 +1860,10 @@ std::string AdminAuditModule::handleGetSensitiveWordStats(const std::map<std::st
         for (const auto& [key, value] : stats) {
             data["stats"][key] = value;
         }
-        return StringUtil::buildJsonResponse(200, true, "Sensitive word statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Sensitive word statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to get sensitive word stats: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }
 
@@ -1872,7 +1873,7 @@ std::string AdminAuditModule::handleGetSensitiveWordStats(const std::map<std::st
 
 std::string AdminAuditModule::handleGetApiKeys(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1907,16 +1908,16 @@ std::string AdminAuditModule::handleGetApiKeys(const std::map<std::string, std::
         data["limit"] = keys.limit;
         data["totalPages"] = keys.totalPages;
 
-        return StringUtil::buildJsonResponse(200, true, "API keys retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "API keys retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get API keys: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve API keys: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve API keys: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleCreateApiKey(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1933,19 +1934,19 @@ std::string AdminAuditModule::handleCreateApiKey(const std::map<std::string, std
             nlohmann::json data;
             data["keyId"] = keyId;
             data["apiKey"] = fullKey;  // Only show full key on creation
-            return StringUtil::buildJsonResponse(200, true, "API key created successfully", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "API key created successfully", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to create API key");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create API key");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create API key: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to create API key: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create API key: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleDeleteApiKey(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
 
@@ -1953,30 +1954,30 @@ std::string AdminAuditModule::handleDeleteApiKey(const std::map<std::string, std
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "API key ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "API key ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteApiKey(id)) {
             return StringUtil::buildJsonResponse(true, "API key deleted successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to delete API key");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete API key");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete API key: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to delete API key: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete API key: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleRegenerateApiKey(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "API key ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "API key ID is required");
         }
         int id = std::stoi(idIt->second);
 
@@ -1984,19 +1985,19 @@ std::string AdminAuditModule::handleRegenerateApiKey(const std::map<std::string,
         if (!newKey.empty()) {
             nlohmann::json data;
             data["apiKey"] = newKey;
-            return StringUtil::buildJsonResponse(200, true, "API key regenerated successfully", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "API key regenerated successfully", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to regenerate API key");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to regenerate API key");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to regenerate API key: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to regenerate API key: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to regenerate API key: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleGetApiKeyUsage(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
 
@@ -2028,16 +2029,16 @@ std::string AdminAuditModule::handleGetApiKeyUsage(const std::map<std::string, s
         data["limit"] = usage.limit;
         data["totalPages"] = usage.totalPages;
 
-        return StringUtil::buildJsonResponse(200, true, "API key usage retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "API key usage retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get API key usage: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve usage: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve usage: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleGetApiKeyStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -2062,10 +2063,10 @@ std::string AdminAuditModule::handleGetApiKeyStats(const std::map<std::string, s
         }
         data["requestsByDay"] = byDay;
 
-        return StringUtil::buildJsonResponse(200, true, "API key statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "API key statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get API key stats: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }
 

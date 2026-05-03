@@ -1,4 +1,5 @@
 #include <iostream>
+#include "core/HttpStatus.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
 #include "data/QueryCache.hpp"
@@ -704,7 +705,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search - 基础搜索
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         auto queryIt = req.queryParams.find("q");
@@ -736,7 +737,7 @@ void SearchApiModule::registerRoutes() {
     // POST /api/search/advanced - 高级搜索
     router.post(prefix + "/advanced", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         AdvancedSearchQuery query;
@@ -755,7 +756,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search/suggest - 搜索建议
     router.get(prefix + "/suggest", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         auto queryIt = req.queryParams.find("q");
@@ -780,7 +781,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search/trending - 热门搜索
     router.get(prefix + "/trending", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         int limit = 10;
@@ -803,7 +804,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search/history - 搜索历史
     router.get(prefix + "/history", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         int userId = 0, limit = 20;
@@ -831,7 +832,7 @@ void SearchApiModule::registerRoutes() {
     // DELETE /api/search/history - 清空历史
     router.del(prefix + "/history", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         int userId = 0;
@@ -850,7 +851,7 @@ void SearchApiModule::registerRoutes() {
     // POST /api/search/save - 保存搜索
     router.post(prefix + "/save", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         try {
@@ -866,7 +867,7 @@ void SearchApiModule::registerRoutes() {
             resp["message"] = success ? "Search saved" : "Failed to save search";
             response.body = resp.dump();
         } catch (...) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = "{\"success\":false,\"error\":\"Invalid JSON\"}";
         }
         return response;
@@ -875,7 +876,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search/saved - 已保存的搜索
     router.get(prefix + "/saved", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         int userId = 0;
@@ -895,7 +896,7 @@ void SearchApiModule::registerRoutes() {
     // DELETE /api/search/saved - 删除保存的搜索
     router.del(prefix + "/saved", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         int userId = 0;
@@ -904,7 +905,7 @@ void SearchApiModule::registerRoutes() {
 
         auto nameIt = req.queryParams.find("name");
         if (nameIt == req.queryParams.end()) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = "{\"success\":false,\"error\":\"Name required\"}";
             return response;
         }
@@ -921,7 +922,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search/stats - 搜索统计
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         auto stats = getStats();

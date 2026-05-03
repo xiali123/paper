@@ -1,4 +1,5 @@
 #include "business/RecommendationApiModule.hpp"
+#include "core/HttpStatus.hpp"
 #include "data/StringUtil.hpp"
 #include "data/PreparedStatement.hpp"
 #include "data/DatabaseModule.hpp"
@@ -1481,7 +1482,7 @@ void RecommendationApiModule::registerRoutes() {
         auto cached = QueryCache::instance().get(cacheKey);
         if (cached) {
             spdlog::debug("[RecommendationApi] Papers cache HIT for user={}, limit={}", userId, limit);
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.headers["X-Cache"] = "HIT";
             response.body = *cached;
             return response;
@@ -1515,11 +1516,11 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["recommendations"] = items;
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result.dump();
             QueryCache::instance().put(cacheKey, response.body, CacheTTL::RECOMMENDATIONS);
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", false},
                 {"error", std::string(e.what())}
@@ -1569,10 +1570,10 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["trending"] = items;
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", false},
                 {"error", std::string(e.what())}
@@ -1589,7 +1590,7 @@ void RecommendationApiModule::registerRoutes() {
 
         auto paperIdIt = req.pathParams.find("paperId");
         if (paperIdIt == req.pathParams.end()) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{{"success", false}, {"error", "Missing paper_id"}}.dump();
             return response;
         }
@@ -1624,10 +1625,10 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["similar"] = items;
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", false},
                 {"error", std::string(e.what())}
@@ -1659,19 +1660,19 @@ void RecommendationApiModule::registerRoutes() {
             QueryCache::instance().invalidatePattern("rec:" + std::to_string(userId) + ":");
             spdlog::debug("[RecommendationApi] Cache invalidated for user {} after feedback", userId);
 
-            response.statusCode = success ? 200 : 500;
+            response.statusCode = success ? HTTP::OK : HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", success},
                 {"message", success ? "Feedback recorded" : "Failed to record feedback"}
             }.dump();
         } catch (const json::exception& e) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{
                 {"success", false},
                 {"error", "Invalid JSON: " + std::string(e.what())}
             }.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", false},
                 {"error", std::string(e.what())}
@@ -1688,7 +1689,7 @@ void RecommendationApiModule::registerRoutes() {
 
         auto paperIdIt = req.pathParams.find("paperId");
         if (paperIdIt == req.pathParams.end()) {
-            response.statusCode = 400;
+            response.statusCode = HTTP::BAD_REQUEST;
             response.body = json{{"success", false}, {"error", "Missing paper_id"}}.dump();
             return response;
         }
@@ -1704,10 +1705,10 @@ void RecommendationApiModule::registerRoutes() {
         try {
             std::string explanation = explainRecommendation(userId, paperId);
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = explanation;
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", false},
                 {"error", std::string(e.what())}
@@ -1725,13 +1726,13 @@ void RecommendationApiModule::registerRoutes() {
         try {
             auto stats = getStats();
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = json{
                 {"success", true},
                 {"stats", stats}
             }.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", false},
                 {"error", std::string(e.what())}
@@ -1782,10 +1783,10 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["recommendations"] = items;
 
-            response.statusCode = 200;
+            response.statusCode = HTTP::OK;
             response.body = result.dump();
         } catch (const std::exception& e) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.body = json{
                 {"success", false},
                 {"error", std::string(e.what())}

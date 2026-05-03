@@ -21,6 +21,7 @@
 #include <chrono>
 #include "data/ValidationHelper.hpp"
 #include "data/StringUtil.hpp"
+#include "core/HttpStatus.hpp"
 
 namespace PaperCrawler {
 
@@ -354,7 +355,7 @@ void AdminSystemModule::registerRoutes() {
 
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
-        resp.statusCode = 401;
+        resp.statusCode = HTTP::UNAUTHORIZED;
         resp.setHeader("Content-Type", "application/json");
         resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
         return resp;
@@ -364,7 +365,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/dashboard", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetDashboard(req.queryParams);
         return response;
@@ -374,7 +375,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/modules", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleListModules(req.queryParams);
         return response;
@@ -383,7 +384,7 @@ void AdminSystemModule::registerRoutes() {
     router.post(prefix + "/modules/:name/enable", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleEnableModule(req.pathParams, req.body);
         return response;
@@ -392,7 +393,7 @@ void AdminSystemModule::registerRoutes() {
     router.post(prefix + "/modules/:name/disable", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDisableModule(req.pathParams, req.body);
         return response;
@@ -401,7 +402,7 @@ void AdminSystemModule::registerRoutes() {
     router.post(prefix + "/modules/upload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUploadModule(req.queryParams, req.body);
         return response;
@@ -410,7 +411,7 @@ void AdminSystemModule::registerRoutes() {
     router.post(prefix + "/modules/install", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleInstallModule(req.queryParams, req.body);
         return response;
@@ -419,7 +420,7 @@ void AdminSystemModule::registerRoutes() {
     router.del(prefix + "/modules/:name/uninstall", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUninstallModule(req.pathParams);
         return response;
@@ -428,7 +429,7 @@ void AdminSystemModule::registerRoutes() {
     router.post(prefix + "/modules/:name/reload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleReloadModule(req.pathParams);
         return response;
@@ -437,7 +438,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/modules/scan", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleScanModules(req.queryParams);
         return response;
@@ -447,7 +448,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/monitor/system", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetSystemMetrics(req.queryParams);
         return response;
@@ -456,7 +457,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/monitor/services", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetServiceHealth(req.queryParams);
         return response;
@@ -465,7 +466,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/monitor/logs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetSystemLogs(req.queryParams);
         return response;
@@ -474,7 +475,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/monitor/logs/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetLogStats(req.queryParams);
         return response;
@@ -483,7 +484,7 @@ void AdminSystemModule::registerRoutes() {
     router.del(prefix + "/monitor/logs/before/:date", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCleanLogs(req.pathParams);
         return response;
@@ -492,7 +493,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/performance/metrics", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetPerformanceMetrics(req.queryParams);
         return response;
@@ -501,7 +502,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/performance/slow-queries", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetSlowQueries(req.queryParams);
         return response;
@@ -510,7 +511,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/performance/bottlenecks", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetPerformanceBottlenecks(req.queryParams);
         return response;
@@ -520,7 +521,7 @@ void AdminSystemModule::registerRoutes() {
     router.get(prefix + "/announcements", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleListAnnouncements(req.queryParams);
         return response;
@@ -529,7 +530,7 @@ void AdminSystemModule::registerRoutes() {
     router.post(prefix + "/announcements", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCreateAnnouncement(req.body);
         return response;
@@ -538,7 +539,7 @@ void AdminSystemModule::registerRoutes() {
     router.put(prefix + "/announcements/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUpdateAnnouncement(req.pathParams, req.body);
         return response;
@@ -547,7 +548,7 @@ void AdminSystemModule::registerRoutes() {
     router.del(prefix + "/announcements/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteAnnouncement(req.pathParams);
         return response;
@@ -556,7 +557,7 @@ void AdminSystemModule::registerRoutes() {
     router.post(prefix + "/announcements/:id/toggle", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleToggleAnnouncement(req.pathParams);
         return response;
@@ -626,7 +627,7 @@ AdminStats AdminSystemModule::getStats() {
 
 std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, std::string>& params) {
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         // Get existing stats
         auto stats = getStats();
@@ -680,9 +681,9 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
              << "\"active_trend\":" << activeJson.str() << ","
              << "\"system_health\":" << healthJson.str() << "}";
 
-        return StringUtil::buildJsonResponse(200, true, "Dashboard data", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Dashboard data", data.str());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -712,7 +713,7 @@ std::string AdminSystemModule::handleListModules(const std::map<std::string, std
 std::string AdminSystemModule::handleEnableModule(const std::map<std::string, std::string>& params, const std::string& body) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
@@ -721,13 +722,13 @@ std::string AdminSystemModule::handleEnableModule(const std::map<std::string, st
         return StringUtil::buildJsonResponse(true, "Module enabled: " + moduleName);
     }
 
-    return StringUtil::buildJsonResponse(404, false, "Module not found: " + moduleName);
+    return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Module not found: " + moduleName);
 }
 
 std::string AdminSystemModule::handleDisableModule(const std::map<std::string, std::string>& params, const std::string& body) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
@@ -736,7 +737,7 @@ std::string AdminSystemModule::handleDisableModule(const std::map<std::string, s
         return StringUtil::buildJsonResponse(true, "Module disabled: " + moduleName);
     }
 
-    return StringUtil::buildJsonResponse(404, false, "Module not found: " + moduleName);
+    return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Module not found: " + moduleName);
 }
 
 std::string AdminSystemModule::handleUploadModule(const std::map<std::string, std::string>& params, const std::string& body) {
@@ -746,14 +747,14 @@ std::string AdminSystemModule::handleUploadModule(const std::map<std::string, st
         std::string filename = jsonBody.value("filename", "");
 
         if (fileData.empty() || filename.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing file data or filename");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing file data or filename");
         }
 
         // 验证文件扩展名
         if (filename.find(".dll") == std::string::npos &&
             filename.find(".so") == std::string::npos &&
             filename.find(".dylib") == std::string::npos) {
-            return StringUtil::buildJsonResponse(400, false, "Invalid file type. Only .dll, .so, .dylib files are allowed");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid file type. Only .dll, .so, .dylib files are allowed");
         }
 
         std::string savedPath = uploadModule(fileData, filename);
@@ -764,11 +765,11 @@ std::string AdminSystemModule::handleUploadModule(const std::map<std::string, st
         addAuditLog("module_uploaded", "module", 0, "admin", 0,
                     "Uploaded module file: " + filename, "127.0.0.1");
 
-        return StringUtil::buildJsonResponse(200, true, "Module uploaded successfully", result.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Module uploaded successfully", result.dump());
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -779,7 +780,7 @@ std::string AdminSystemModule::handleInstallModule(const std::map<std::string, s
         std::string modulePath = jsonBody.value("module_path", "");
 
         if (moduleName.empty() || modulePath.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing module name or path");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing module name or path");
         }
 
         if (installModule(moduleName, modulePath)) {
@@ -788,18 +789,18 @@ std::string AdminSystemModule::handleInstallModule(const std::map<std::string, s
             return StringUtil::buildJsonResponse(true, "Module installed successfully: " + moduleName);
         }
 
-        return StringUtil::buildJsonResponse(500, false, "Failed to install module: " + moduleName);
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to install module: " + moduleName);
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleUninstallModule(const std::map<std::string, std::string>& params) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
@@ -807,7 +808,7 @@ std::string AdminSystemModule::handleUninstallModule(const std::map<std::string,
     // 防止卸载核心模块
     if (moduleName == "AuthApiModule" || moduleName == "AdminApiModule" ||
         moduleName == "UserApiModule" || moduleName == "DatabaseModule") {
-        return StringUtil::buildJsonResponse(400, false, "Cannot uninstall core module: " + moduleName);
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Cannot uninstall core module: " + moduleName);
     }
 
     if (uninstallModule(moduleName)) {
@@ -816,13 +817,13 @@ std::string AdminSystemModule::handleUninstallModule(const std::map<std::string,
         return StringUtil::buildJsonResponse(true, "Module uninstalled: " + moduleName);
     }
 
-    return StringUtil::buildJsonResponse(500, false, "Failed to uninstall module: " + moduleName);
+    return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to uninstall module: " + moduleName);
 }
 
 std::string AdminSystemModule::handleReloadModule(const std::map<std::string, std::string>& params) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
@@ -833,7 +834,7 @@ std::string AdminSystemModule::handleReloadModule(const std::map<std::string, st
         return StringUtil::buildJsonResponse(true, "Module reloaded: " + moduleName);
     }
 
-    return StringUtil::buildJsonResponse(500, false, "Failed to reload module: " + moduleName);
+    return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to reload module: " + moduleName);
 }
 
 std::string AdminSystemModule::handleScanModules(const std::map<std::string, std::string>& params) {
@@ -855,15 +856,15 @@ std::string AdminSystemModule::handleScanModules(const std::map<std::string, std
         }
         modulesJson << "]";
 
-        return StringUtil::buildJsonResponse(200, true, "Modules scanned", modulesJson.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Modules scanned", modulesJson.str());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleGetSystemMetrics(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -920,16 +921,16 @@ std::string AdminSystemModule::handleGetSystemMetrics(const std::map<std::string
             data["timestamp"] = "";
         }
 
-        return StringUtil::buildJsonResponse(200, true, "System metrics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "System metrics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get system metrics: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve system metrics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve system metrics: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetServiceHealth(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -965,16 +966,16 @@ std::string AdminSystemModule::handleGetServiceHealth(const std::map<std::string
         data["healthy"] = std::count_if(services.begin(), services.end(),
             [](const nlohmann::json& s) { return s["status"] == "healthy"; });
 
-        return StringUtil::buildJsonResponse(200, true, "Service health retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Service health retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get service health: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve service health: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve service health: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1075,16 +1076,16 @@ std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, s
         data["page"] = page;
         data["pageSize"] = pageSize;
 
-        return StringUtil::buildJsonResponse(200, true, "System logs retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "System logs retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get system logs: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve system logs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve system logs: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1122,22 +1123,22 @@ std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std
         nlohmann::json data;
         data["stats"] = stats;
 
-        return StringUtil::buildJsonResponse(200, true, "Log statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Log statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get log stats: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve log statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve log statistics: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleCleanLogs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto dateIt = params.find("date");
         if (dateIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing date parameter");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing date parameter");
         }
 
         std::string date = dateIt->second;
@@ -1152,17 +1153,17 @@ std::string AdminSystemModule::handleCleanLogs(const std::map<std::string, std::
 
             return StringUtil::buildJsonResponse(true, "Old logs cleaned successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to clean logs: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to clean logs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to clean logs: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetPerformanceMetrics(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1204,16 +1205,16 @@ std::string AdminSystemModule::handleGetPerformanceMetrics(const std::map<std::s
         data["metrics"] = metrics;
         data["total"] = metrics.size();
 
-        return StringUtil::buildJsonResponse(200, true, "Performance metrics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Performance metrics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get performance metrics: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve performance metrics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve performance metrics: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetSlowQueries(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1249,16 +1250,16 @@ std::string AdminSystemModule::handleGetSlowQueries(const std::map<std::string, 
         data["queries"] = queries;
         data["total"] = queries.size();
 
-        return StringUtil::buildJsonResponse(200, true, "Slow queries retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Slow queries retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get slow queries: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve slow queries: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve slow queries: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1343,16 +1344,16 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
         data["bottlenecks"] = bottlenecks;
         data["total"] = bottlenecks.size();
 
-        return StringUtil::buildJsonResponse(200, true, "Performance bottlenecks analyzed", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Performance bottlenecks analyzed", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to analyze bottlenecks: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to analyze bottlenecks: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to analyze bottlenecks: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleListAnnouncements(const std::map<std::string, std::string>& params) {
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         int page = 1, limit = 20;
         std::string search;
@@ -1426,21 +1427,21 @@ std::string AdminSystemModule::handleListAnnouncements(const std::map<std::strin
              << "\"limit\":" << limit << ","
              << "\"total_pages\":" << totalPages << "}";
 
-        return StringUtil::buildJsonResponse(200, true, "Announcements retrieved", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcements retrieved", data.str());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleCreateAnnouncement(const std::string& body) {
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         auto jsonBody = nlohmann::json::parse(body);
 
         // Validate required fields
         if (!jsonBody.contains("title") || !jsonBody.contains("content")) {
-            return StringUtil::buildJsonResponse(400, false, "Missing required fields: title and content are required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required fields: title and content are required");
         }
 
         std::string title = ValidationHelper::sanitize(jsonBody["title"].get<std::string>());
@@ -1489,26 +1490,26 @@ std::string AdminSystemModule::handleCreateAnnouncement(const std::string& body)
                             std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0")),
                             "admin", 0, "Created announcement: " + title, "127.0.0.1");
 
-                return StringUtil::buildJsonResponse(200, true, "Announcement created", annJson.str());
+                return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcement created", annJson.str());
             }
         }
 
-        return StringUtil::buildJsonResponse(500, false, "Failed to create announcement");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create announcement");
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleUpdateAnnouncement(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing announcement ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing announcement ID");
     }
 
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         int annId = std::stoi(idIt->second);
         auto jsonBody = nlohmann::json::parse(body);
@@ -1549,7 +1550,7 @@ std::string AdminSystemModule::handleUpdateAnnouncement(const std::map<std::stri
         }
 
         if (setClauses.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "No fields to update");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "No fields to update");
         }
 
         for (size_t i = 0; i < setClauses.size(); i++) {
@@ -1572,22 +1573,22 @@ std::string AdminSystemModule::handleUpdateAnnouncement(const std::map<std::stri
             return StringUtil::buildJsonResponse(true, "Announcement updated");
         }
 
-        return StringUtil::buildJsonResponse(404, false, "Announcement not found");
+        return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Announcement not found");
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleDeleteAnnouncement(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing announcement ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing announcement ID");
     }
 
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         int annId = std::stoi(idIt->second);
         PreparedStatement stmt(database_, "DELETE FROM announcements WHERE id = ?");
@@ -1599,20 +1600,20 @@ std::string AdminSystemModule::handleDeleteAnnouncement(const std::map<std::stri
             return StringUtil::buildJsonResponse(true, "Announcement deleted");
         }
 
-        return StringUtil::buildJsonResponse(404, false, "Announcement not found");
+        return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Announcement not found");
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleToggleAnnouncement(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing announcement ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing announcement ID");
     }
 
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         int annId = std::stoi(idIt->second);
 
@@ -1639,12 +1640,12 @@ std::string AdminSystemModule::handleToggleAnnouncement(const std::map<std::stri
 
             std::ostringstream data;
             data << "{\"id\":" << annId << ",\"is_active\":" << (newState ? "true" : "false") << "}";
-            return StringUtil::buildJsonResponse(200, true, "Announcement toggled", data.str());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Announcement toggled", data.str());
         }
 
-        return StringUtil::buildJsonResponse(404, false, "Announcement not found");
+        return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Announcement not found");
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 

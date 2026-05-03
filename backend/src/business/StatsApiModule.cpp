@@ -1,4 +1,5 @@
 #include <iostream>
+#include "core/HttpStatus.hpp"
 #include "business/StatsApiModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/IDatabase.hpp"
@@ -500,7 +501,7 @@ void StatsApiModule::registerRoutes() {
     // GET /api/stats - 论文统计信息（根路由）
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
         response.body = handleStats();
         return response;
@@ -509,7 +510,7 @@ void StatsApiModule::registerRoutes() {
     // GET /api/stats/system - 系统信息
     router.get(prefix + "/system", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
         response.body = handleSystemInfo();
         return response;
@@ -518,7 +519,7 @@ void StatsApiModule::registerRoutes() {
     // GET /api/stats/resources - 资源使用情况
     router.get(prefix + "/resources", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
         response.body = handleResources();
         return response;
@@ -527,7 +528,7 @@ void StatsApiModule::registerRoutes() {
     // GET /api/stats/uptime - 运行时间
     router.get(prefix + "/uptime", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
         response.body = handleUptime();
         return response;
@@ -536,7 +537,7 @@ void StatsApiModule::registerRoutes() {
     // GET /api/stats/modules - 模块状态
     router.get(prefix + "/modules", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
         response.body = handleModules();
         return response;
@@ -545,7 +546,7 @@ void StatsApiModule::registerRoutes() {
     // GET /api/stats/performance - 性能指标
     router.get(prefix + "/performance", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
         response.body = handlePerformance();
         return response;
@@ -674,7 +675,7 @@ std::string StatsApiModule::handleModule(const std::string& moduleName) {
     if (!module.has_value()) {
         return JsonHelper::buildJsonResponse({
             {"error", "Module not found"}
-        }, 404);
+        }, HTTP::NOT_FOUND);
     }
 
     std::map<std::string, std::string> data;

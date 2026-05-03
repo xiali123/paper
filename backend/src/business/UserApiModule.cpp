@@ -1,4 +1,5 @@
 #include <iostream>
+#include "core/HttpStatus.hpp"
 #include <fstream>
 #include "business/UserApiModule.hpp"
 #include "data/DatabaseModule.hpp"
@@ -778,7 +779,7 @@ HttpResponse UserApiModule::handleListUsers(const HttpRequest& req) {
             response["limit"] = 20;
 
             spdlog::info("[UserApi] handleListUsers: Calling buildJsonResponse with statusCode 200...");
-            auto result = buildJsonResponse(200, "Users retrieved (no database)", response);
+            auto result = buildJsonResponse(HTTP::OK, "Users retrieved (no database)", response);
             spdlog::info("[UserApi] handleListUsers: Built response statusCode={} statusText={}", result.statusCode, result.statusText);
             return result;
         }
@@ -809,10 +810,10 @@ HttpResponse UserApiModule::handleListUsers(const HttpRequest& req) {
         response["page"] = page;
         response["limit"] = limit;
 
-        return buildJsonResponse(200, "Users retrieved", response);
+        return buildJsonResponse(HTTP::OK, "Users retrieved", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -820,26 +821,26 @@ HttpResponse UserApiModule::handleGetUser(const HttpRequest& req) {
     try {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing user ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing user ID");
         }
 
         int userId = std::stoi(idIt->second);
 
         // 优雅降级：没有数据库时返回404
         if (!database_) {
-            return buildJsonResponse(404, "User not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found (no database)");
         }
 
         auto userOpt = getUser(userId);
         if (!userOpt) {
-            return buildJsonResponse(404, "User not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found");
         }
 
         nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
-        return buildJsonResponse(200, "User retrieved", data);
+        return buildJsonResponse(HTTP::OK, "User retrieved", data);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -850,7 +851,7 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
             spdlog::info("[UserApi] handleCreateUser: Invalid JSON format");
-            return buildJsonResponse(400, "Invalid JSON format");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -860,7 +861,7 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
         std::string fullName = ValidationHelper::sanitize(JsonUtils::getValue<std::string>(jsonObj, "fullName").value_or(""));
 
         if (username.empty() || email.empty() || password.empty()) {
-            return buildJsonResponse(400, "Missing required fields: username, email, password");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing required fields: username, email, password");
         }
 
         // 优雅降级：没有数据库时使用stub实现
@@ -875,7 +876,7 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
             data["status"] = "active";
             data["createdAt"] = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
-            return buildJsonResponse(200, "User created successfully (stub mode)", data);
+            return buildJsonResponse(HTTP::OK, "User created successfully (stub mode)", data);
         }
 
         UserCreateRequest request;
@@ -886,14 +887,14 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
 
         auto userOpt = createUser(request);
         if (!userOpt) {
-            return buildJsonResponse(500, "Failed to create user");
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Failed to create user");
         }
 
         nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
-        return buildJsonResponse(200, "User created successfully", data);
+        return buildJsonResponse(HTTP::OK, "User created successfully", data);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -901,19 +902,19 @@ HttpResponse UserApiModule::handleUpdateUser(const HttpRequest& req) {
     try {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing user ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing user ID");
         }
 
         int userId = std::stoi(idIt->second);
 
         // 优雅降级：没有数据库时返回404
         if (!database_) {
-            return buildJsonResponse(404, "User not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found (no database)");
         }
 
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(400, "Invalid JSON format");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -925,19 +926,19 @@ HttpResponse UserApiModule::handleUpdateUser(const HttpRequest& req) {
 
         bool success = updateUser(userId, request);
         if (!success) {
-            return buildJsonResponse(500, "Failed to update user");
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Failed to update user");
         }
 
         auto userOpt = getUser(userId);
         if (!userOpt) {
-            return buildJsonResponse(404, "User not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found");
         }
 
         nlohmann::json data = nlohmann::json::parse(userOpt->toJson());
-        return buildJsonResponse(200, "User updated successfully", data);
+        return buildJsonResponse(HTTP::OK, "User updated successfully", data);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -945,25 +946,25 @@ HttpResponse UserApiModule::handleDeleteUser(const HttpRequest& req) {
     try {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing user ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing user ID");
         }
 
         int userId = std::stoi(idIt->second);
 
         // 优雅降级：没有数据库时返回404
         if (!database_) {
-            return buildJsonResponse(404, "User not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found (no database)");
         }
 
         bool success = deleteUser(userId);
         if (!success) {
-            return buildJsonResponse(404, "User not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found");
         }
 
-        return buildJsonResponse(200, "User deleted successfully");
+        return buildJsonResponse(HTTP::OK, "User deleted successfully");
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -971,25 +972,25 @@ HttpResponse UserApiModule::handleActivateUser(const HttpRequest& req) {
     try {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing user ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing user ID");
         }
 
         int userId = std::stoi(idIt->second);
 
         // 优雅降级：没有数据库时返回404
         if (!database_) {
-            return buildJsonResponse(404, "User not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found (no database)");
         }
 
         bool success = activateUser(userId);
         if (!success) {
-            return buildJsonResponse(404, "User not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found");
         }
 
-        return buildJsonResponse(200, "User activated successfully");
+        return buildJsonResponse(HTTP::OK, "User activated successfully");
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -997,25 +998,25 @@ HttpResponse UserApiModule::handleSuspendUser(const HttpRequest& req) {
     try {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing user ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing user ID");
         }
 
         int userId = std::stoi(idIt->second);
 
         // 优雅降级：没有数据库时返回404
         if (!database_) {
-            return buildJsonResponse(404, "User not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found (no database)");
         }
 
         bool success = suspendUser(userId);
         if (!success) {
-            return buildJsonResponse(404, "User not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found");
         }
 
-        return buildJsonResponse(200, "User suspended successfully");
+        return buildJsonResponse(HTTP::OK, "User suspended successfully");
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1023,19 +1024,19 @@ HttpResponse UserApiModule::handleChangePassword(const HttpRequest& req) {
     try {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end()) {
-            return buildJsonResponse(400, "Missing user ID");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing user ID");
         }
 
         int userId = std::stoi(idIt->second);
 
         // 优雅降级：没有数据库时返回404
         if (!database_) {
-            return buildJsonResponse(404, "User not found (no database)");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found (no database)");
         }
 
         auto jsonOpt = JsonUtils::parse(req.body);
         if (!jsonOpt.has_value()) {
-            return buildJsonResponse(400, "Invalid JSON format");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         }
 
         auto jsonObj = jsonOpt.value();
@@ -1043,7 +1044,7 @@ HttpResponse UserApiModule::handleChangePassword(const HttpRequest& req) {
         std::string newPassword = JsonUtils::getValue<std::string>(jsonObj, "newPassword").value_or("");
 
         if (oldPassword.empty() || newPassword.empty()) {
-            return buildJsonResponse(400, "Missing required fields: oldPassword, newPassword");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Missing required fields: oldPassword, newPassword");
         }
 
         PasswordChangeRequest request;
@@ -1052,13 +1053,13 @@ HttpResponse UserApiModule::handleChangePassword(const HttpRequest& req) {
 
         bool success = changePassword(userId, request);
         if (!success) {
-            return buildJsonResponse(400, "Failed to change password");
+            return buildJsonResponse(HTTP::BAD_REQUEST, "Failed to change password");
         }
 
-        return buildJsonResponse(200, "Password changed successfully");
+        return buildJsonResponse(HTTP::OK, "Password changed successfully");
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1067,36 +1068,36 @@ HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
         // Extract Bearer token from Authorization header
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end()) {
-            return buildJsonResponse(401, "Authorization header required");
+            return buildJsonResponse(HTTP::UNAUTHORIZED, "Authorization header required");
         }
 
         const std::string& authHeader = authIt->second;
         if (authHeader.substr(0, 7) != "Bearer ") {
-            return buildJsonResponse(401, "Invalid authorization format. Use: Bearer <token>");
+            return buildJsonResponse(HTTP::UNAUTHORIZED, "Invalid authorization format. Use: Bearer <token>");
         }
 
         std::string token = authHeader.substr(7);
         if (token.empty()) {
-            return buildJsonResponse(401, "Token is empty");
+            return buildJsonResponse(HTTP::UNAUTHORIZED, "Token is empty");
         }
 
         // Verify JWT token
         auto jwtResult = impl_->securityModule_->verifyJWT(token);
         if (!jwtResult.valid) {
-            return buildJsonResponse(401, "Invalid or expired token");
+            return buildJsonResponse(HTTP::UNAUTHORIZED, "Invalid or expired token");
         }
 
         // Extract user ID from claims
         auto subIt = jwtResult.claims.find("sub");
         if (subIt == jwtResult.claims.end()) {
-            return buildJsonResponse(401, "Token missing subject claim");
+            return buildJsonResponse(HTTP::UNAUTHORIZED, "Token missing subject claim");
         }
 
         int userId = std::stoi(subIt->second);
 
         // Query user from database
         if (!impl_->database_) {
-            return buildJsonResponse(503, "Database not available");
+            return buildJsonResponse(HTTP::SERVICE_UNAVAILABLE, "Database not available");
         }
 
         PreparedStatement stmt(impl_->database_, "SELECT * FROM users WHERE id = ?");
@@ -1104,7 +1105,7 @@ HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
         auto results = stmt.query();
 
         if (results.empty()) {
-            return buildJsonResponse(404, "User not found");
+            return buildJsonResponse(HTTP::NOT_FOUND, "User not found");
         }
 
         const auto& row = results[0];
@@ -1117,7 +1118,7 @@ HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
         userJson["is_active"] = row.count("is_active") ? (row.at("is_active") == "1") : true;
 
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
         nlohmann::json respJson;
         respJson["success"] = true;
@@ -1126,7 +1127,7 @@ HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
         return response;
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
@@ -1142,7 +1143,7 @@ HttpResponse UserApiModule::handleGetStats(const HttpRequest& req) {
             stats["adminCount"] = 0;
             stats["userCount"] = 0;
             stats["guestCount"] = 0;
-            return buildJsonResponse(200, "Stats retrieved (no database)", stats);
+            return buildJsonResponse(HTTP::OK, "Stats retrieved (no database)", stats);
         }
 
         UserStats stats = getStats();
@@ -1156,16 +1157,16 @@ HttpResponse UserApiModule::handleGetStats(const HttpRequest& req) {
         response["userCount"] = stats.userCount;
         response["guestCount"] = stats.guestCount;
 
-        return buildJsonResponse(200, "Stats retrieved", response);
+        return buildJsonResponse(HTTP::OK, "Stats retrieved", response);
 
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, "Exception: " + std::string(e.what()));
+        return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
     }
 }
 
 HttpResponse UserApiModule::buildJsonResponse(bool success, const std::string& message) {
     HttpResponse response;
-    response.statusCode = success ? 200 : 400;
+    response.statusCode = success ? HTTP::OK : HTTP::BAD_REQUEST;
     response.statusText = success ? "OK" : "Bad Request";
     response.headers["Content-Type"] = "application/json";
 
@@ -1183,12 +1184,12 @@ HttpResponse UserApiModule::buildJsonResponse(int statusCode, const std::string&
 
     // Set appropriate status text
     switch (statusCode) {
-        case 200: response.statusText = "OK"; break;
-        case 201: response.statusText = "Created"; break;
-        case 204: response.statusText = "No Content"; break;
-        case 400: response.statusText = "Bad Request"; break;
-        case 404: response.statusText = "Not Found"; break;
-        case 500: response.statusText = "Internal Server Error"; break;
+        case HTTP::OK: response.statusText = "OK"; break;
+        case HTTP::CREATED: response.statusText = "Created"; break;
+        case HTTP::NO_CONTENT: response.statusText = "No Content"; break;
+        case HTTP::BAD_REQUEST: response.statusText = "Bad Request"; break;
+        case HTTP::NOT_FOUND: response.statusText = "Not Found"; break;
+        case HTTP::INTERNAL_ERROR: response.statusText = "Internal Server Error"; break;
         default: response.statusText = "Unknown"; break;
     }
 

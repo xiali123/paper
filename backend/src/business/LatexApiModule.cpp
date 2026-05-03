@@ -1,4 +1,5 @@
 #include "business/LatexApiModule.hpp"
+#include "core/HttpStatus.hpp"
 #include "data/StringUtil.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
@@ -202,7 +203,7 @@ void LatexApiModule::registerRoutes() {
         }
         std::string body = handleListDocuments(params);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -211,7 +212,7 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/documents/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetDocument(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -220,7 +221,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/documents", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCreateDocument(req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -229,7 +230,7 @@ void LatexApiModule::registerRoutes() {
     router.put(prefix + "/documents/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleUpdateDocument(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -238,7 +239,7 @@ void LatexApiModule::registerRoutes() {
     router.del(prefix + "/documents/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleDeleteDocument(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -248,7 +249,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/documents/:id/compile", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCompileDocument(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -262,7 +263,7 @@ void LatexApiModule::registerRoutes() {
         }
         std::string body = handleListProjects(params);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -271,7 +272,7 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetProject(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -280,7 +281,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/projects", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCreateProject(req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -290,7 +291,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/projects/:id/compile", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCompileProject(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -300,7 +301,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/projects/files", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleAddProjectFile(req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -309,7 +310,7 @@ void LatexApiModule::registerRoutes() {
     router.put(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleUpdateProjectFile(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -318,7 +319,7 @@ void LatexApiModule::registerRoutes() {
     router.del(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleDeleteProjectFile(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -327,7 +328,7 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetProjectFile(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -337,7 +338,7 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/:id/files", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleListProjectFiles(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -347,7 +348,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/projects/:id/upload", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleUploadProjectFile(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -356,7 +357,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/projects/:id/batch-upload", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleBatchUploadProjectFiles(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -365,7 +366,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/projects/:id/import", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleImportFilesFromProject(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -383,7 +384,7 @@ void LatexApiModule::registerRoutes() {
     // PDF debug endpoint (returns info about PDF request)
     router.get(prefix + "/debug/pdf/:type/:id", [this](const HttpRequest& req) -> HttpResponse {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
 
         auto typeIt = req.pathParams.find("type");
@@ -409,7 +410,7 @@ void LatexApiModule::registerRoutes() {
             debugInfo["fileSize"] = std::filesystem::file_size(pdfPath);
         }
 
-        response.body = impl_->buildJsonResponse(200, true, "PDF debug info", debugInfo.dump());
+        response.body = impl_->buildJsonResponse(HTTP::OK, true, "PDF debug info", debugInfo.dump());
         return response;
     });
 
@@ -417,7 +418,7 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/cache/stats", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetCacheStats();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -426,7 +427,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/cache/clear", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleClearCache();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -436,7 +437,7 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/templates", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleListTemplates(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -445,7 +446,7 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleStats();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -455,7 +456,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/versions/save", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleSaveVersion(req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -468,7 +469,7 @@ void LatexApiModule::registerRoutes() {
         }
         std::string body = handleGetVersionHistory(params);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -481,7 +482,7 @@ void LatexApiModule::registerRoutes() {
         }
         std::string body = handleGetVersionTree(params);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -490,7 +491,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/versions/restore", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleRestoreVersion(req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -499,7 +500,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/versions/branch", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCreateBranch(req.body);
         HttpResponse response;
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -508,7 +509,7 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/versions/merge", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleMergeBranch(req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -517,7 +518,7 @@ void LatexApiModule::registerRoutes() {
     router.del(prefix + "/versions/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleDeleteVersion(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -530,7 +531,7 @@ void LatexApiModule::registerRoutes() {
         }
         std::string body = handleCompareVersions(params);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -813,7 +814,7 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
     auto idIt = params.find("id");
     if (idIt == params.end()) {
         spdlog::error("[LatexApiModule] Missing document ID in PDF download request");
-        response.statusCode = 400;
+        response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Missing document ID");
         return response;
@@ -864,7 +865,7 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         // Read PDF file
         std::ifstream file(pdfPath, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.setHeader("Content-Type", "application/json");
             response.body = impl_->buildJsonResponse(false, "Failed to open PDF file");
             return response;
@@ -875,7 +876,7 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
 
         std::vector<uint8_t> fileData(fileSize);
         if (!file.read(reinterpret_cast<char*>(fileData.data()), fileSize)) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.setHeader("Content-Type", "application/json");
             response.body = impl_->buildJsonResponse(false, "Failed to read PDF file");
             return response;
@@ -895,13 +896,13 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         return response;
     } catch (const std::invalid_argument& e) {
         spdlog::error("[LatexApiModule] Invalid document ID: {}", idIt->second);
-        response.statusCode = 400;
+        response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Invalid document ID: " + idIt->second);
         return response;
     } catch (const std::exception& e) {
         spdlog::error("[LatexApiModule] PDF download error: {}", e.what());
-        response.statusCode = 500;
+        response.statusCode = HTTP::INTERNAL_ERROR;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
         return response;
@@ -914,7 +915,7 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
     auto idIt = params.find("id");
     if (idIt == params.end()) {
         spdlog::error("[LatexApiModule] Missing project ID in PDF download request");
-        response.statusCode = 400;
+        response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Missing project ID");
         return response;
@@ -965,7 +966,7 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
         // Read PDF file
         std::ifstream file(pdfPath, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.setHeader("Content-Type", "application/json");
             response.body = impl_->buildJsonResponse(false, "Failed to open PDF file");
             return response;
@@ -976,7 +977,7 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
 
         std::vector<uint8_t> fileData(fileSize);
         if (!file.read(reinterpret_cast<char*>(fileData.data()), fileSize)) {
-            response.statusCode = 500;
+            response.statusCode = HTTP::INTERNAL_ERROR;
             response.setHeader("Content-Type", "application/json");
             response.body = impl_->buildJsonResponse(false, "Failed to read PDF file");
             return response;
@@ -995,13 +996,13 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
         return response;
     } catch (const std::invalid_argument& e) {
         spdlog::error("[LatexApiModule] Invalid project ID: {}", idIt->second);
-        response.statusCode = 400;
+        response.statusCode = HTTP::BAD_REQUEST;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, "Invalid project ID: " + idIt->second);
         return response;
     } catch (const std::exception& e) {
         spdlog::error("[LatexApiModule] Project PDF download error: {}", e.what());
-        response.statusCode = 500;
+        response.statusCode = HTTP::INTERNAL_ERROR;
         response.setHeader("Content-Type", "application/json");
         response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
         return response;
@@ -1045,20 +1046,20 @@ std::string LatexApiModule::handleListDocuments(const std::map<std::string, std:
     result["page"] = page;
     result["limit"] = limit;
 
-    return impl_->buildJsonResponse(200, true, "Documents retrieved", result.dump());
+    return impl_->buildJsonResponse(HTTP::OK, true, "Documents retrieved", result.dump());
 }
 
 std::string LatexApiModule::handleGetDocument(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing document ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing document ID");
     }
 
     try {
         int id = std::stoi(idIt->second);
         auto doc = getDocument(id);
         if (!doc) {
-            return impl_->buildJsonResponse(404, false, "Document not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Document not found");
         }
 
         nlohmann::json result;
@@ -1070,9 +1071,9 @@ std::string LatexApiModule::handleGetDocument(const std::map<std::string, std::s
         result["version"] = doc->version;
         result["is_compiled"] = doc->isCompiled;
 
-        return impl_->buildJsonResponse(200, true, "Document retrieved", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Document retrieved", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1094,19 +1095,19 @@ std::string LatexApiModule::handleCreateDocument(const std::string& body) {
             result["title"] = newDoc->title;
             result["owner_id"] = newDoc->ownerId;
 
-            return impl_->buildJsonResponse(201, true, "Document created", result.dump());
+            return impl_->buildJsonResponse(HTTP::CREATED, true, "Document created", result.dump());
         }
 
-        return impl_->buildJsonResponse(500, false, "Failed to create document");
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create document");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleUpdateDocument(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing document ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing document ID");
     }
 
     try {
@@ -1122,16 +1123,16 @@ std::string LatexApiModule::handleUpdateDocument(const std::map<std::string, std
             return impl_->buildJsonResponse(true, "Document updated");
         }
 
-        return impl_->buildJsonResponse(404, false, "Document not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Document not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleDeleteDocument(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing document ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing document ID");
     }
 
     try {
@@ -1140,16 +1141,16 @@ std::string LatexApiModule::handleDeleteDocument(const std::map<std::string, std
             return impl_->buildJsonResponse(true, "Document deleted");
         }
 
-        return impl_->buildJsonResponse(404, false, "Document not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Document not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleCompileDocument(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing document ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing document ID");
     }
 
     try {
@@ -1177,18 +1178,18 @@ std::string LatexApiModule::handleCompileDocument(const std::map<std::string, st
         }
         responseData["compile_time_ms"] = result.compileTime;
 
-        return impl_->buildJsonResponse(200, result.success,
+        return impl_->buildJsonResponse(HTTP::OK, result.success,
             result.success ? "Compilation successful" : "Compilation failed",
             responseData.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleCompileProject(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing project ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing project ID");
     }
 
     try {
@@ -1216,11 +1217,11 @@ std::string LatexApiModule::handleCompileProject(const std::map<std::string, std
         }
         responseData["compile_time_ms"] = result.compileTime;
 
-        return impl_->buildJsonResponse(200, result.success,
+        return impl_->buildJsonResponse(HTTP::OK, result.success,
             result.success ? "Compilation successful" : "Compilation failed",
             responseData.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1275,20 +1276,20 @@ std::string LatexApiModule::handleListProjects(const std::map<std::string, std::
     result["page"] = page;
     result["limit"] = limit;
 
-    return impl_->buildJsonResponse(200, true, "Projects retrieved", result.dump());
+    return impl_->buildJsonResponse(HTTP::OK, true, "Projects retrieved", result.dump());
 }
 
 std::string LatexApiModule::handleGetProject(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing project ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing project ID");
     }
 
     try {
         int id = std::stoi(idIt->second);
         auto project = getProject(id);
         if (!project) {
-            return impl_->buildJsonResponse(404, false, "Project not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project not found");
         }
 
         nlohmann::json result;
@@ -1315,9 +1316,9 @@ std::string LatexApiModule::handleGetProject(const std::map<std::string, std::st
         }
         result["files"] = files;
 
-        return impl_->buildJsonResponse(200, true, "Project retrieved", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Project retrieved", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1344,12 +1345,12 @@ std::string LatexApiModule::handleCreateProject(const std::string& body) {
             spdlog::info("[LatexApi] Project created: id={}, name={}, mainFile={}, files={}",
                 newProject->id, newProject->name, newProject->mainFile, newProject->files.size());
 
-            return impl_->buildJsonResponse(201, true, "Project created", result.dump());
+            return impl_->buildJsonResponse(HTTP::CREATED, true, "Project created", result.dump());
         }
 
-        return impl_->buildJsonResponse(500, false, "Failed to create project");
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create project");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1368,7 +1369,7 @@ std::string LatexApiModule::handleAddProjectFile(const std::string& body) {
         std::string type = jsonBody.value("type", "other");
 
         if (projectId == 0 || name.empty()) {
-            return impl_->buildJsonResponse(400, false, "Missing required fields: project_id, name");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required fields: project_id, name");
         }
 
         LatexProjectFile file;
@@ -1384,7 +1385,7 @@ std::string LatexApiModule::handleAddProjectFile(const std::string& body) {
         // Find project and add file
         auto projectIt = impl_->projects_.find(projectId);
         if (projectIt == impl_->projects_.end()) {
-            return impl_->buildJsonResponse(404, false, "Project not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project not found");
         }
 
         // Assign ID (simple increment)
@@ -1397,16 +1398,16 @@ std::string LatexApiModule::handleAddProjectFile(const std::string& body) {
         result["path"] = file.path;
         result["project_id"] = file.projectId;
 
-        return impl_->buildJsonResponse(201, true, "Project file created", result.dump());
+        return impl_->buildJsonResponse(HTTP::CREATED, true, "Project file created", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing file ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing file ID");
     }
 
     try {
@@ -1445,21 +1446,21 @@ std::string LatexApiModule::handleUpdateProjectFile(const std::map<std::string, 
                         saveVersion(fileId, project.id, userId, content, "文件更新", false);
                     }
 
-                    return impl_->buildJsonResponse(200, true, "Project file updated");
+                    return impl_->buildJsonResponse(HTTP::OK, true, "Project file updated");
                 }
             }
         }
 
-        return impl_->buildJsonResponse(404, false, "Project file not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project file not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleDeleteProjectFile(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing file ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing file ID");
     }
 
     try {
@@ -1474,20 +1475,20 @@ std::string LatexApiModule::handleDeleteProjectFile(const std::map<std::string, 
 
             if (it != files.end()) {
                 files.erase(it);
-                return impl_->buildJsonResponse(200, true, "Project file deleted");
+                return impl_->buildJsonResponse(HTTP::OK, true, "Project file deleted");
             }
         }
 
-        return impl_->buildJsonResponse(404, false, "Project file not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project file not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleGetProjectFile(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing file ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing file ID");
     }
 
     try {
@@ -1507,14 +1508,14 @@ std::string LatexApiModule::handleGetProjectFile(const std::map<std::string, std
                     result["created_at"] = std::chrono::system_clock::to_time_t(file.createdAt);
                     result["updated_at"] = std::chrono::system_clock::to_time_t(file.updatedAt);
 
-                    return impl_->buildJsonResponse(200, true, "Project file retrieved", result.dump());
+                    return impl_->buildJsonResponse(HTTP::OK, true, "Project file retrieved", result.dump());
                 }
             }
         }
 
-        return impl_->buildJsonResponse(404, false, "Project file not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project file not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1525,7 +1526,7 @@ std::string LatexApiModule::handleGetProjectFile(const std::map<std::string, std
 std::string LatexApiModule::handleListProjectFiles(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing project ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing project ID");
     }
 
     try {
@@ -1533,7 +1534,7 @@ std::string LatexApiModule::handleListProjectFiles(const std::map<std::string, s
         auto project = getProject(projectId);
 
         if (!project) {
-            return impl_->buildJsonResponse(404, false, "Project not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project not found");
         }
 
         nlohmann::json result;
@@ -1552,23 +1553,23 @@ std::string LatexApiModule::handleListProjectFiles(const std::map<std::string, s
             result["files"].push_back(fileObj);
         }
 
-        return impl_->buildJsonResponse(200, true, "Project files retrieved", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Project files retrieved", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleUploadProjectFile(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing project ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing project ID");
     }
 
     try {
         int projectId = std::stoi(idIt->second);
         auto projectIt = impl_->projects_.find(projectId);
         if (projectIt == impl_->projects_.end()) {
-            return impl_->buildJsonResponse(404, false, "Project not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project not found");
         }
 
         // Parse request body (JSON format with base64 content)
@@ -1582,7 +1583,7 @@ std::string LatexApiModule::handleUploadProjectFile(const std::map<std::string, 
         std::string fileType = jsonBody.value("type", "other");
 
         if (filename.empty()) {
-            return impl_->buildJsonResponse(400, false, "Missing filename");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing filename");
         }
 
         // Decode base64 content (simplified - in production use proper base64 decoder)
@@ -1610,32 +1611,32 @@ std::string LatexApiModule::handleUploadProjectFile(const std::map<std::string, 
 
         spdlog::info("[LatexApi] File uploaded: {} to project {}", filename, projectId);
 
-        return impl_->buildJsonResponse(201, true, "File uploaded successfully", result.dump());
+        return impl_->buildJsonResponse(HTTP::CREATED, true, "File uploaded successfully", result.dump());
     } catch (const nlohmann::json::exception& e) {
-        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleBatchUploadProjectFiles(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing project ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing project ID");
     }
 
     try {
         int projectId = std::stoi(idIt->second);
         auto projectIt = impl_->projects_.find(projectId);
         if (projectIt == impl_->projects_.end()) {
-            return impl_->buildJsonResponse(404, false, "Project not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Project not found");
         }
 
         auto jsonBody = nlohmann::json::parse(body);
         std::string targetPath = jsonBody.value("path", "");
 
         if (!jsonBody.contains("files") || !jsonBody["files"].is_array()) {
-            return impl_->buildJsonResponse(400, false, "Missing files array");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing files array");
         }
 
         nlohmann::json result;
@@ -1683,25 +1684,25 @@ std::string LatexApiModule::handleBatchUploadProjectFiles(const std::map<std::st
             }
         }
 
-        return impl_->buildJsonResponse(201, true, "Batch upload completed", result.dump());
+        return impl_->buildJsonResponse(HTTP::CREATED, true, "Batch upload completed", result.dump());
     } catch (const nlohmann::json::exception& e) {
-        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing target project ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing target project ID");
     }
 
     try {
         int targetProjectId = std::stoi(idIt->second);
         auto targetProjectIt = impl_->projects_.find(targetProjectId);
         if (targetProjectIt == impl_->projects_.end()) {
-            return impl_->buildJsonResponse(404, false, "Target project not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Target project not found");
         }
 
         auto jsonBody = nlohmann::json::parse(body);
@@ -1711,12 +1712,12 @@ std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::str
         std::string targetPath = jsonBody.value("target_path", jsonBody.value("targetPath", ""));
 
         if (sourceProjectId == 0) {
-            return impl_->buildJsonResponse(400, false, "Missing source_project_id");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing source_project_id");
         }
 
         auto sourceProjectIt = impl_->projects_.find(sourceProjectId);
         if (sourceProjectIt == impl_->projects_.end()) {
-            return impl_->buildJsonResponse(404, false, "Source project not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Source project not found");
         }
 
         // Get files to import - support both file_ids and sourceFileIds
@@ -1780,11 +1781,11 @@ std::string LatexApiModule::handleImportFilesFromProject(const std::map<std::str
             }
         }
 
-        return impl_->buildJsonResponse(201, true, "Files imported successfully", result.dump());
+        return impl_->buildJsonResponse(HTTP::CREATED, true, "Files imported successfully", result.dump());
     } catch (const nlohmann::json::exception& e) {
-        return impl_->buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1813,20 +1814,20 @@ std::string LatexApiModule::handleListTemplates(const std::map<std::string, std:
     }
     result["total"] = templates.size();
 
-    return impl_->buildJsonResponse(200, true, "Templates retrieved", result.dump());
+    return impl_->buildJsonResponse(HTTP::OK, true, "Templates retrieved", result.dump());
 }
 
 std::string LatexApiModule::handleGetTemplate(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing template ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing template ID");
     }
 
     try {
         int id = std::stoi(idIt->second);
         auto tmpl = getTemplate(id);
         if (!tmpl) {
-            return impl_->buildJsonResponse(404, false, "Template not found");
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Template not found");
         }
 
         nlohmann::json result;
@@ -1836,9 +1837,9 @@ std::string LatexApiModule::handleGetTemplate(const std::map<std::string, std::s
         result["category"] = tmpl->category;
         result["content"] = tmpl->content;
 
-        return impl_->buildJsonResponse(200, true, "Template retrieved", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Template retrieved", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1856,7 +1857,7 @@ std::string LatexApiModule::handleStats() {
     result["total_words"] = stats.totalWords;
     result["total_characters"] = stats.totalCharacters;
 
-    return impl_->buildJsonResponse(200, true, "Statistics retrieved", result.dump());
+    return impl_->buildJsonResponse(HTTP::OK, true, "Statistics retrieved", result.dump());
 }
 
 // ============================================================================
@@ -1894,9 +1895,9 @@ std::string LatexApiModule::handleGetCacheStats() {
         }
         result["cache_size_formatted"] = sizeStr;
 
-        return impl_->buildJsonResponse(200, true, "Cache statistics retrieved", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Cache statistics retrieved", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, "Failed to get cache stats: " + std::string(e.what()));
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to get cache stats: " + std::string(e.what()));
     }
 }
 
@@ -1917,9 +1918,9 @@ std::string LatexApiModule::handleClearCache() {
         result["deleted_count"] = deletedCount;
         result["message"] = "Cache cleared successfully";
 
-        return impl_->buildJsonResponse(200, true, "Cache cleared", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Cache cleared", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, "Failed to clear cache: " + std::string(e.what()));
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to clear cache: " + std::string(e.what()));
     }
 }
 
@@ -1968,7 +1969,7 @@ std::string LatexApiModule::handleSaveVersion(const std::string& body) {
         bool isAutoSave = jsonBody.value("is_auto_save", false);
 
         if (fileId == 0 || projectId == 0 || userId.empty()) {
-            return impl_->buildJsonResponse(400, false, "Missing required fields: file_id, project_id, user_id");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required fields: file_id, project_id, user_id");
         }
 
         auto version = saveVersion(fileId, projectId, userId, content, summary, isAutoSave);
@@ -1977,12 +1978,12 @@ std::string LatexApiModule::handleSaveVersion(const std::string& body) {
             nlohmann::json result;
             result["version"] = nlohmann::json::parse(versionToJson(*version));
 
-            return impl_->buildJsonResponse(201, true, "Version saved", result.dump());
+            return impl_->buildJsonResponse(HTTP::CREATED, true, "Version saved", result.dump());
         }
 
-        return impl_->buildJsonResponse(500, false, "Failed to save version");
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to save version");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1992,7 +1993,7 @@ std::string LatexApiModule::handleGetVersionHistory(const std::map<std::string, 
     auto userIdIt = params.find("user_id");
 
     if (fileIdIt == params.end() || projectIdIt == params.end() || userIdIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing required parameters: file_id, project_id, user_id");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required parameters: file_id, project_id, user_id");
     }
 
     try {
@@ -2009,9 +2010,9 @@ std::string LatexApiModule::handleGetVersionHistory(const std::map<std::string, 
         }
         result["total"] = versions.size();
 
-        return impl_->buildJsonResponse(200, true, "Version history retrieved", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Version history retrieved", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -2021,7 +2022,7 @@ std::string LatexApiModule::handleGetVersionTree(const std::map<std::string, std
     auto userIdIt = params.find("user_id");
 
     if (fileIdIt == params.end() || projectIdIt == params.end() || userIdIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing required parameters: file_id, project_id, user_id");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required parameters: file_id, project_id, user_id");
     }
 
     try {
@@ -2038,9 +2039,9 @@ std::string LatexApiModule::handleGetVersionTree(const std::map<std::string, std
         }
         result["total"] = versions.size();
 
-        return impl_->buildJsonResponse(200, true, "Version tree retrieved", result.dump());
+        return impl_->buildJsonResponse(HTTP::OK, true, "Version tree retrieved", result.dump());
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -2050,7 +2051,7 @@ std::string LatexApiModule::handleRestoreVersion(const std::string& body) {
         std::string versionId = jsonBody.value("version_id", "");
 
         if (versionId.empty()) {
-            return impl_->buildJsonResponse(400, false, "Missing required field: version_id");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required field: version_id");
         }
 
         auto newVersion = restoreVersion(versionId);
@@ -2059,12 +2060,12 @@ std::string LatexApiModule::handleRestoreVersion(const std::string& body) {
             nlohmann::json result;
             result["version"] = nlohmann::json::parse(versionToJson(*newVersion));
 
-            return impl_->buildJsonResponse(200, true, "Version restored", result.dump());
+            return impl_->buildJsonResponse(HTTP::OK, true, "Version restored", result.dump());
         }
 
-        return impl_->buildJsonResponse(404, false, "Version not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Version not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -2075,7 +2076,7 @@ std::string LatexApiModule::handleCreateBranch(const std::string& body) {
         std::string branchName = jsonBody.value("branch_name", "新分支");
 
         if (parentVersionId.empty()) {
-            return impl_->buildJsonResponse(400, false, "Missing required field: parent_version_id");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required field: parent_version_id");
         }
 
         auto branch = createBranch(parentVersionId, branchName);
@@ -2084,12 +2085,12 @@ std::string LatexApiModule::handleCreateBranch(const std::string& body) {
             nlohmann::json result;
             result["branch"] = nlohmann::json::parse(versionToJson(*branch));
 
-            return impl_->buildJsonResponse(201, true, "Branch created", result.dump());
+            return impl_->buildJsonResponse(HTTP::CREATED, true, "Branch created", result.dump());
         }
 
-        return impl_->buildJsonResponse(404, false, "Parent version not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Parent version not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -2099,7 +2100,7 @@ std::string LatexApiModule::handleMergeBranch(const std::string& body) {
         std::string branchId = jsonBody.value("branch_id", "");
 
         if (branchId.empty()) {
-            return impl_->buildJsonResponse(400, false, "Missing required field: branch_id");
+            return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required field: branch_id");
         }
 
         auto mergedVersion = mergeBranch(branchId);
@@ -2108,28 +2109,28 @@ std::string LatexApiModule::handleMergeBranch(const std::string& body) {
             nlohmann::json result;
             result["version"] = nlohmann::json::parse(versionToJson(*mergedVersion));
 
-            return impl_->buildJsonResponse(200, true, "Branch merged", result.dump());
+            return impl_->buildJsonResponse(HTTP::OK, true, "Branch merged", result.dump());
         }
 
-        return impl_->buildJsonResponse(404, false, "Branch not found");
+        return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Branch not found");
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string LatexApiModule::handleDeleteVersion(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing version ID");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing version ID");
     }
 
     std::string versionId = idIt->second;
 
     if (deleteVersion(versionId)) {
-        return impl_->buildJsonResponse(200, true, "Version deleted");
+        return impl_->buildJsonResponse(HTTP::OK, true, "Version deleted");
     }
 
-    return impl_->buildJsonResponse(404, false, "Version not found");
+    return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, "Version not found");
 }
 
 std::string LatexApiModule::handleCompareVersions(const std::map<std::string, std::string>& params) {
@@ -2137,7 +2138,7 @@ std::string LatexApiModule::handleCompareVersions(const std::map<std::string, st
     auto v2It = params.find("version2");
 
     if (v1It == params.end() || v2It == params.end()) {
-        return impl_->buildJsonResponse(400, false, "Missing required parameters: version1, version2");
+        return impl_->buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required parameters: version1, version2");
     }
 
     try {
@@ -2149,12 +2150,12 @@ std::string LatexApiModule::handleCompareVersions(const std::map<std::string, st
         // 检查是否包含错误
         auto comparisonJson = nlohmann::json::parse(comparison);
         if (comparisonJson.contains("error")) {
-            return impl_->buildJsonResponse(404, false, comparisonJson["error"]);
+            return impl_->buildJsonResponse(HTTP::NOT_FOUND, false, comparisonJson["error"]);
         }
 
-        return impl_->buildJsonResponse(200, true, "Versions compared", comparison);
+        return impl_->buildJsonResponse(HTTP::OK, true, "Versions compared", comparison);
     } catch (const std::exception& e) {
-        return impl_->buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return impl_->buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 

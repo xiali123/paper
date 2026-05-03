@@ -1,4 +1,5 @@
 #include <iostream>
+#include "core/HttpStatus.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
 #include "business/ExportApiModule.hpp"
@@ -680,7 +681,7 @@ void ExportApiModule::registerRoutes() {
     // GET /api/export - 获取导出任务列表
     router.get(prefix, [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         json j;
@@ -804,7 +805,7 @@ void ExportApiModule::registerRoutes() {
         // Update stats
         updateStats(options.format, true, static_cast<int>(content.size()));
 
-        response.statusCode = 201;
+        response.statusCode = HTTP::CREATED;
         json result;
         result["success"] = true;
         result["message"] = "Export completed successfully";
@@ -823,7 +824,7 @@ void ExportApiModule::registerRoutes() {
     // GET /api/export/formats - 支持的导出格式
     router.get(prefix + "/formats", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         auto formats = getSupportedFormats();
@@ -853,7 +854,7 @@ void ExportApiModule::registerRoutes() {
     // GET /api/export/stats - 导出统计
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.headers["Content-Type"] = "application/json";
 
         auto stats = getStats();

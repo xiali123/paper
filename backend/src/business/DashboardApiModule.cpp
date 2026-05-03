@@ -1,4 +1,5 @@
 #include "business/DashboardApiModule.hpp"
+#include "core/HttpStatus.hpp"
 #include "data/StringUtil.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/IDatabase.hpp"
@@ -118,72 +119,72 @@ void DashboardApiModule::registerRoutes() {
 
     // 1. GET /stats
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleStats());
+        return makeJsonResponse(HTTP::OK, handleStats());
     });
 
     // 2. GET /activities
     router.get(prefix + "/activities", [this](const HttpRequest& req) {
         int limit = std::stoi(getQueryParam(req, "limit", "10"));
-        return makeJsonResponse(200, handleActivities(limit));
+        return makeJsonResponse(HTTP::OK, handleActivities(limit));
     });
 
     // 3. GET /recommendations/papers
     router.get(prefix + "/recommendations/papers", [this](const HttpRequest& req) {
         int limit = std::stoi(getQueryParam(req, "limit", "5"));
-        return makeJsonResponse(200, handleRecommendations(limit));
+        return makeJsonResponse(HTTP::OK, handleRecommendations(limit));
     });
 
     // 4. GET /trending/searches
     router.get(prefix + "/trending/searches", [this](const HttpRequest& req) {
         int limit = std::stoi(getQueryParam(req, "limit", "10"));
-        return makeJsonResponse(200, handleTrendingSearches(limit));
+        return makeJsonResponse(HTTP::OK, handleTrendingSearches(limit));
     });
 
     // 5. GET /todos
     router.get(prefix + "/todos", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleTodos());
+        return makeJsonResponse(HTTP::OK, handleTodos());
     });
 
     // 6. PUT /todos/:id/status
     router.put(prefix + "/todos/:id/status", [this](const HttpRequest& req) {
         std::string id = req.getPathParam("id", "0");
-        return makeJsonResponse(200, handleUpdateTodoStatus(id, req.body));
+        return makeJsonResponse(HTTP::OK, handleUpdateTodoStatus(id, req.body));
     });
 
     // 7. GET /crawler-tasks
     router.get(prefix + "/crawler-tasks", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleCrawlerTasks());
+        return makeJsonResponse(HTTP::OK, handleCrawlerTasks());
     });
 
     // 8. GET /growth
     router.get(prefix + "/growth", [this](const HttpRequest& req) {
         int days = std::stoi(getQueryParam(req, "days", "30"));
-        return makeJsonResponse(200, handleGrowth(days));
+        return makeJsonResponse(HTTP::OK, handleGrowth(days));
     });
 
     // 9. GET /distribution/journals
     router.get(prefix + "/distribution/journals", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleDistributionJournals());
+        return makeJsonResponse(HTTP::OK, handleDistributionJournals());
     });
 
     // 10. GET /distribution/ccf
     router.get(prefix + "/distribution/ccf", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleDistributionCcf());
+        return makeJsonResponse(HTTP::OK, handleDistributionCcf());
     });
 
     // 11. POST /refresh
     router.post(prefix + "/refresh", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleRefresh());
+        return makeJsonResponse(HTTP::OK, handleRefresh());
     });
 
     // 12. GET /config
     router.get(prefix + "/config", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleGetConfig());
+        return makeJsonResponse(HTTP::OK, handleGetConfig());
     });
 
     // 13. PUT /config
     router.put(prefix + "/config", [this](const HttpRequest& req) {
-        return makeJsonResponse(200, handleUpdateConfig(req.body));
+        return makeJsonResponse(HTTP::OK, handleUpdateConfig(req.body));
     });
 
     spdlog::info("[DashboardApi] Registered 13 routes under {}", prefix);

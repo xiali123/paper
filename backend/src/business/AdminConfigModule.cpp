@@ -11,6 +11,7 @@
 #include <chrono>
 #include "data/ValidationHelper.hpp"
 #include "data/StringUtil.hpp"
+#include "core/HttpStatus.hpp"
 
 namespace PaperCrawler {
 
@@ -94,7 +95,7 @@ void AdminConfigModule::registerRoutes() {
 
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
-        resp.statusCode = 401;
+        resp.statusCode = HTTP::UNAUTHORIZED;
         resp.setHeader("Content-Type", "application/json");
         resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
         return resp;
@@ -104,7 +105,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/config/categories", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetConfigCategories(req.queryParams);
         return response;
@@ -113,7 +114,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/config", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetConfigs(req.queryParams);
         return response;
@@ -122,7 +123,7 @@ void AdminConfigModule::registerRoutes() {
     router.put(prefix + "/config", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUpdateConfig(req.queryParams, req.body, req.headers);
         return response;
@@ -131,7 +132,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/config/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetConfigHistory(req.queryParams);
         return response;
@@ -140,7 +141,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/config/summary", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetConfigSummary(req.queryParams);
         return response;
@@ -149,7 +150,7 @@ void AdminConfigModule::registerRoutes() {
     router.post(prefix + "/config/reload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleReloadConfigs(req.queryParams);
         return response;
@@ -159,7 +160,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/backup/jobs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetBackupJobs(req.queryParams);
         return response;
@@ -168,7 +169,7 @@ void AdminConfigModule::registerRoutes() {
     router.post(prefix + "/backup/jobs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCreateBackupJob(req.queryParams, req.body, req.headers);
         return response;
@@ -177,7 +178,7 @@ void AdminConfigModule::registerRoutes() {
     router.put(prefix + "/backup/jobs/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUpdateBackupJob(req.pathParams, req.body);
         return response;
@@ -186,7 +187,7 @@ void AdminConfigModule::registerRoutes() {
     router.del(prefix + "/backup/jobs/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteBackupJob(req.pathParams);
         return response;
@@ -195,7 +196,7 @@ void AdminConfigModule::registerRoutes() {
     router.post(prefix + "/backup/jobs/:id/trigger", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleTriggerBackup(req.pathParams, req.body);
         return response;
@@ -204,7 +205,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/backup/records", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetBackupRecords(req.queryParams);
         return response;
@@ -213,7 +214,7 @@ void AdminConfigModule::registerRoutes() {
     router.del(prefix + "/backup/records/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteBackupFile(req.pathParams);
         return response;
@@ -222,7 +223,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/backup/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetBackupStats(req.queryParams);
         return response;
@@ -232,7 +233,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/notifications/templates", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetNotificationTemplates(req.queryParams);
         return response;
@@ -241,7 +242,7 @@ void AdminConfigModule::registerRoutes() {
     router.post(prefix + "/notifications/templates", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCreateNotificationTemplate(req.queryParams, req.body);
         return response;
@@ -250,7 +251,7 @@ void AdminConfigModule::registerRoutes() {
     router.put(prefix + "/notifications/templates/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUpdateNotificationTemplate(req.pathParams, req.body);
         return response;
@@ -259,7 +260,7 @@ void AdminConfigModule::registerRoutes() {
     router.del(prefix + "/notifications/templates/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteNotificationTemplate(req.pathParams);
         return response;
@@ -268,7 +269,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/notifications", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetSystemNotifications(req.queryParams);
         return response;
@@ -277,7 +278,7 @@ void AdminConfigModule::registerRoutes() {
     router.post(prefix + "/notifications/send", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleSendNotification(req.queryParams, req.body);
         return response;
@@ -286,7 +287,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/notifications/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetNotificationHistory(req.queryParams);
         return response;
@@ -295,7 +296,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/notifications/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetNotificationStats(req.queryParams);
         return response;
@@ -305,7 +306,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/cleanup/tasks", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetCleanupTasks(req.queryParams);
         return response;
@@ -314,7 +315,7 @@ void AdminConfigModule::registerRoutes() {
     router.post(prefix + "/cleanup/tasks", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleCreateCleanupTask(req.queryParams, req.body);
         return response;
@@ -323,7 +324,7 @@ void AdminConfigModule::registerRoutes() {
     router.put(prefix + "/cleanup/tasks/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleUpdateCleanupTask(req.pathParams, req.body);
         return response;
@@ -332,7 +333,7 @@ void AdminConfigModule::registerRoutes() {
     router.del(prefix + "/cleanup/tasks/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleDeleteCleanupTask(req.pathParams);
         return response;
@@ -341,7 +342,7 @@ void AdminConfigModule::registerRoutes() {
     router.post(prefix + "/cleanup/tasks/:id/trigger", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleTriggerCleanup(req.pathParams, req.body);
         return response;
@@ -350,7 +351,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/cleanup/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetCleanupHistory(req.queryParams);
         return response;
@@ -359,7 +360,7 @@ void AdminConfigModule::registerRoutes() {
     router.get(prefix + "/cleanup/storage-stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = handleGetStorageStats(req.queryParams);
         return response;
@@ -370,7 +371,7 @@ void AdminConfigModule::registerRoutes() {
 
 std::string AdminConfigModule::handleGetConfigCategories(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -388,17 +389,17 @@ std::string AdminConfigModule::handleGetConfigCategories(const std::map<std::str
         nlohmann::json data;
         data["categories"] = categories;
 
-        return StringUtil::buildJsonResponse(200, true, "Config categories retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Config categories retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get config categories: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve config categories: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve config categories: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -442,10 +443,10 @@ std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std:
         nlohmann::json data;
         data["configs"] = configs;
 
-        return StringUtil::buildJsonResponse(200, true, "Configs retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Configs retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get configs: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve configs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve configs: " + std::string(e.what()));
     }
 }
 
@@ -453,7 +454,7 @@ std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std:
 std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, std::string>& params, const std::string& body,
                                                const std::map<std::string, std::string>& headers) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -464,7 +465,7 @@ std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, st
         int updatedBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (key.empty() || value.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "Key and value are required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Key and value are required");
         }
 
         if (database_) {
@@ -500,21 +501,21 @@ std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, st
 
                 return StringUtil::buildJsonResponse(true, "Configuration updated successfully");
             } else {
-                return StringUtil::buildJsonResponse(404, false, "Configuration key not found");
+                return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Configuration key not found");
             }
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update config: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to update config: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update config: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -588,17 +589,17 @@ std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string
         data["page"] = page;
         data["limit"] = limit;
 
-        return StringUtil::buildJsonResponse(200, true, "Config history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Config history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get config history: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve config history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve config history: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -620,10 +621,10 @@ std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string
         nlohmann::json data;
         data["summary"] = summary;
 
-        return StringUtil::buildJsonResponse(200, true, "Config summary retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Config summary retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get config summary: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve config summary: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve config summary: " + std::string(e.what()));
     }
 }
 
@@ -641,7 +642,7 @@ std::string AdminConfigModule::handleReloadConfigs(const std::map<std::string, s
 
 std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -674,10 +675,10 @@ std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, s
         nlohmann::json data;
         data["jobs"] = jobs;
 
-        return StringUtil::buildJsonResponse(200, true, "Backup jobs retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Backup jobs retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get backup jobs: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve backup jobs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve backup jobs: " + std::string(e.what()));
     }
 }
 
@@ -685,7 +686,7 @@ std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, s
 std::string AdminConfigModule::handleCreateBackupJob(const std::map<std::string, std::string>& params, const std::string& body,
                                                    const std::map<std::string, std::string>& headers) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -698,7 +699,7 @@ std::string AdminConfigModule::handleCreateBackupJob(const std::map<std::string,
         int createdBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (name.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "Job name is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Job name is required");
         }
 
         if (database_) {
@@ -717,24 +718,24 @@ std::string AdminConfigModule::handleCreateBackupJob(const std::map<std::string,
 
             return StringUtil::buildJsonResponse(true, "Backup job created successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create backup job: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to create backup job: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create backup job: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleUpdateBackupJob(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing job ID");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing job ID");
         }
 
         int id = std::stoi(idIt->second);
@@ -760,24 +761,24 @@ std::string AdminConfigModule::handleUpdateBackupJob(const std::map<std::string,
 
             return StringUtil::buildJsonResponse(true, "Backup job updated successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update backup job: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to update backup job: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update backup job: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteBackupJob(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing job ID");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing job ID");
         }
 
         int id = std::stoi(idIt->second);
@@ -792,24 +793,24 @@ std::string AdminConfigModule::handleDeleteBackupJob(const std::map<std::string,
 
             return StringUtil::buildJsonResponse(true, "Backup job deleted successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete backup job: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to delete backup job: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete backup job: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing job ID");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing job ID");
         }
 
         int jobId = std::stoi(idIt->second);
@@ -822,7 +823,7 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
             auto jobResults = selectStmt.query();
 
             if (jobResults.empty()) {
-                return StringUtil::buildJsonResponse(404, false, "Backup job not found");
+                return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Backup job not found");
             }
 
             std::string jobName = StringUtil::cleanDbString(jobResults[0].count("name") ? jobResults[0].at("name") : "");
@@ -880,20 +881,20 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
             data["filename"] = filename;
             data["file_path"] = fullPath;
 
-            return StringUtil::buildJsonResponse(200, true, "Backup triggered successfully", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Backup triggered successfully", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to trigger backup: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to trigger backup: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to trigger backup: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -971,23 +972,23 @@ std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string
         data["page"] = page;
         data["limit"] = limit;
 
-        return StringUtil::buildJsonResponse(200, true, "Backup records retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Backup records retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get backup records: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve backup records: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve backup records: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing record ID");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing record ID");
         }
 
         int id = std::stoi(idIt->second);
@@ -1014,21 +1015,21 @@ std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string
 
                 return StringUtil::buildJsonResponse(true, "Backup file deleted successfully");
             } else {
-                return StringUtil::buildJsonResponse(404, false, "Backup record not found");
+                return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Backup record not found");
             }
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete backup file: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to delete backup file: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete backup file: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1073,10 +1074,10 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
         nlohmann::json data;
         data["stats"] = stats;
 
-        return StringUtil::buildJsonResponse(200, true, "Backup statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Backup statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get backup stats: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve backup statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve backup statistics: " + std::string(e.what()));
     }
 }
 
@@ -1086,7 +1087,7 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
 
 std::string AdminConfigModule::handleGetNotificationTemplates(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1105,17 +1106,17 @@ std::string AdminConfigModule::handleGetNotificationTemplates(const std::map<std
             j["createdAt"] = tpl.createdAt;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Notification templates retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification templates retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get notification templates: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve templates: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve templates: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleCreateNotificationTemplate(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1132,26 +1133,26 @@ std::string AdminConfigModule::handleCreateNotificationTemplate(const std::map<s
         if (templateId > 0) {
             nlohmann::json data;
             data["templateId"] = templateId;
-            return StringUtil::buildJsonResponse(200, true, "Notification template created", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification template created", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to create notification template");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create notification template");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create notification template: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to create template: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create template: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleUpdateNotificationTemplate(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Template ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Template ID is required");
         }
         int id = std::stoi(idIt->second);
 
@@ -1163,42 +1164,42 @@ std::string AdminConfigModule::handleUpdateNotificationTemplate(const std::map<s
         if (updateNotificationTemplate(id, titleTemplate, contentTemplate, description)) {
             return StringUtil::buildJsonResponse(true, "Notification template updated");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to update notification template");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update notification template");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update notification template: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to update template: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update template: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteNotificationTemplate(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Template ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Template ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteNotificationTemplate(id)) {
             return StringUtil::buildJsonResponse(true, "Notification template deleted");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to delete notification template");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete notification template");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete notification template: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to delete template: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete template: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetSystemNotifications(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1232,17 +1233,17 @@ std::string AdminConfigModule::handleGetSystemNotifications(const std::map<std::
         data["limit"] = notifications.limit;
         data["totalPages"] = notifications.totalPages;
 
-        return StringUtil::buildJsonResponse(200, true, "System notifications retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "System notifications retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get system notifications: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve notifications: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve notifications: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleSendNotification(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1260,20 +1261,20 @@ std::string AdminConfigModule::handleSendNotification(const std::map<std::string
         if (notificationId > 0) {
             nlohmann::json data;
             data["notificationId"] = notificationId;
-            return StringUtil::buildJsonResponse(200, true, "Notification sent successfully", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification sent successfully", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to send notification");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to send notification");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to send notification: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to send notification: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to send notification: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetNotificationHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1302,17 +1303,17 @@ std::string AdminConfigModule::handleGetNotificationHistory(const std::map<std::
         data["limit"] = deliveries.limit;
         data["totalPages"] = deliveries.totalPages;
 
-        return StringUtil::buildJsonResponse(200, true, "Notification history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get notification history: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve history: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetNotificationStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1322,10 +1323,10 @@ std::string AdminConfigModule::handleGetNotificationStats(const std::map<std::st
         for (const auto& [key, value] : stats) {
             data["stats"][key] = value;
         }
-        return StringUtil::buildJsonResponse(200, true, "Notification statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Notification statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get notification stats: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }
 
@@ -1336,7 +1337,7 @@ std::string AdminConfigModule::handleGetNotificationStats(const std::map<std::st
 
 std::string AdminConfigModule::handleGetCleanupTasks(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1360,17 +1361,17 @@ std::string AdminConfigModule::handleGetCleanupTasks(const std::map<std::string,
             j["createdAt"] = task.createdAt;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Cleanup tasks retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Cleanup tasks retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get cleanup tasks: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve tasks: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve tasks: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleCreateCleanupTask(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1388,26 +1389,26 @@ std::string AdminConfigModule::handleCreateCleanupTask(const std::map<std::strin
         if (taskId > 0) {
             nlohmann::json data;
             data["taskId"] = taskId;
-            return StringUtil::buildJsonResponse(200, true, "Cleanup task created", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Cleanup task created", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to create cleanup task");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create cleanup task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create cleanup task: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to create task: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to create task: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleUpdateCleanupTask(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Task ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Task ID is required");
         }
         int id = std::stoi(idIt->second);
 
@@ -1421,48 +1422,48 @@ std::string AdminConfigModule::handleUpdateCleanupTask(const std::map<std::strin
         if (updateCleanupTask(id, displayName, description, cleanupConfig, scheduleCron, isEnabled)) {
             return StringUtil::buildJsonResponse(true, "Cleanup task updated");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to update cleanup task");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update cleanup task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update cleanup task: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to update task: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to update task: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteCleanupTask(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Task ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Task ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteCleanupTask(id)) {
             return StringUtil::buildJsonResponse(true, "Cleanup task deleted");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to delete cleanup task or task is system task");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete cleanup task or task is system task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete cleanup task: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to delete task: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to delete task: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleTriggerCleanup(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Task ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Task ID is required");
         }
         int taskId = std::stoi(idIt->second);
 
@@ -1473,20 +1474,20 @@ std::string AdminConfigModule::handleTriggerCleanup(const std::map<std::string, 
         if (executionId > 0) {
             nlohmann::json data;
             data["executionId"] = executionId;
-            return StringUtil::buildJsonResponse(200, true, "Cleanup task triggered", data.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Cleanup task triggered", data.dump());
         } else {
-            return StringUtil::buildJsonResponse(500, false, "Failed to trigger cleanup task");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to trigger cleanup task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to trigger cleanup: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to trigger cleanup: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to trigger cleanup: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetCleanupHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1519,17 +1520,17 @@ std::string AdminConfigModule::handleGetCleanupHistory(const std::map<std::strin
         data["limit"] = history.limit;
         data["totalPages"] = history.totalPages;
 
-        return StringUtil::buildJsonResponse(200, true, "Cleanup history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Cleanup history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get cleanup history: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve history: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetStorageStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1547,10 +1548,10 @@ std::string AdminConfigModule::handleGetStorageStats(const std::map<std::string,
             j["recordedAt"] = stat.recordedAt;
             data.push_back(j);
         }
-        return StringUtil::buildJsonResponse(200, true, "Storage statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Storage statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get storage stats: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve storage statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve storage statistics: " + std::string(e.what()));
     }
 }
 

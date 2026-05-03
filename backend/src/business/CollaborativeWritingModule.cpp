@@ -1,4 +1,5 @@
 #include "business/CollaborativeWritingModule.hpp"
+#include "core/HttpStatus.hpp"
 #include "data/StringUtil.hpp"
 #include "core/Router.hpp"
 #include "core/ModuleExports.hpp"
@@ -110,7 +111,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
-        resp.statusCode = 401;
+        resp.statusCode = HTTP::UNAUTHORIZED;
         resp.headers["Content-Type"] = "application/json";
         resp.body = R"({"success":false,"message":"Unauthorized"})";
         return resp;
@@ -129,7 +130,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto doc = createDocument(ownerId, title, docType, templateId);
             if (doc.has_value()) {
                 HttpResponse resp;
-                resp.statusCode = 201;
+                resp.statusCode = HTTP::CREATED;
                 resp.headers["Content-Type"] = "application/json";
                 nlohmann::json data;
                 data["id"] = doc->id;
@@ -144,12 +145,12 @@ void CollaborativeWritingModule::registerRoutes() {
                 resp.body = buildJsonResponse(true, "Document created", data);
                 return resp;
             }
-            return buildErrorResponse(500, "Failed to create document");
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, "Failed to create document");
         } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+            return buildErrorResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] createDocument error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
     // GET /api/writing/documents — 获取文档列表
@@ -178,7 +179,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto docs = getDocuments(ownerId, page, limit);
 
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
@@ -203,7 +204,7 @@ void CollaborativeWritingModule::registerRoutes() {
             return resp;
         } catch (const std::exception& e) {
             spdlog::error("[Writing] getDocuments error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
     // GET /api/writing/documents/:id — 获取文档
@@ -214,7 +215,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto doc = getDocument(docId);
             if (doc.has_value()) {
                 HttpResponse resp;
-                resp.statusCode = 200;
+                resp.statusCode = HTTP::OK;
                 resp.headers["Content-Type"] = "application/json";
                 nlohmann::json data;
                 data["id"] = doc->id;
@@ -230,10 +231,10 @@ void CollaborativeWritingModule::registerRoutes() {
                 resp.body = buildJsonResponse(true, "", data);
                 return resp;
             }
-            return buildErrorResponse(404, "Document not found");
+            return buildErrorResponse(HTTP::NOT_FOUND, "Document not found");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] getDocument error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -251,7 +252,7 @@ void CollaborativeWritingModule::registerRoutes() {
             if (ok) {
                 auto doc = getDocument(docId);
                 HttpResponse resp;
-                resp.statusCode = 200;
+                resp.statusCode = HTTP::OK;
                 resp.headers["Content-Type"] = "application/json";
                 nlohmann::json data;
                 if (doc.has_value()) {
@@ -265,12 +266,12 @@ void CollaborativeWritingModule::registerRoutes() {
                 resp.body = buildJsonResponse(true, "Document updated", data);
                 return resp;
             }
-            return buildErrorResponse(404, "Document not found or update failed");
+            return buildErrorResponse(HTTP::NOT_FOUND, "Document not found or update failed");
         } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+            return buildErrorResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] updateDocument error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -291,7 +292,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             std::string newContent = applyOperation(docId, op);
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             nlohmann::json data;
             data["content"] = newContent;
@@ -300,10 +301,10 @@ void CollaborativeWritingModule::registerRoutes() {
             resp.body = buildJsonResponse(true, "Operation applied", data);
             return resp;
         } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+            return buildErrorResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] applyOperation error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -315,7 +316,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto suggestions = getWritingSuggestions(docId);
 
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
@@ -339,7 +340,7 @@ void CollaborativeWritingModule::registerRoutes() {
             return resp;
         } catch (const std::exception& e) {
             spdlog::error("[Writing] getSuggestions error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -357,7 +358,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto suggestion = generateSuggestion(docId, userId, sugType, posStart, posEnd);
 
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             nlohmann::json data;
             data["id"] = suggestion.id;
@@ -371,10 +372,10 @@ void CollaborativeWritingModule::registerRoutes() {
             resp.body = buildJsonResponse(true, "Suggestion generated", data);
             return resp;
         } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+            return buildErrorResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] generateSuggestion error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -386,7 +387,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto versions = getVersions(docId);
 
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
@@ -408,7 +409,7 @@ void CollaborativeWritingModule::registerRoutes() {
             return resp;
         } catch (const std::exception& e) {
             spdlog::error("[Writing] getVersions error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -427,17 +428,17 @@ void CollaborativeWritingModule::registerRoutes() {
             int commentId = addComment(docId, userId, content, posStart, posEnd, parentId);
 
             HttpResponse resp;
-            resp.statusCode = 201;
+            resp.statusCode = HTTP::CREATED;
             resp.headers["Content-Type"] = "application/json";
             nlohmann::json data;
             data["id"] = commentId;
             resp.body = buildJsonResponse(true, "Comment added", data);
             return resp;
         } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+            return buildErrorResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] addComment error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -449,15 +450,15 @@ void CollaborativeWritingModule::registerRoutes() {
             bool ok = deleteDocument(docId);
             if (ok) {
                 HttpResponse resp;
-                resp.statusCode = 200;
+                resp.statusCode = HTTP::OK;
                 resp.headers["Content-Type"] = "application/json";
                 resp.body = buildJsonResponse(true, "Document deleted");
                 return resp;
             }
-            return buildErrorResponse(404, "Document not found");
+            return buildErrorResponse(HTTP::NOT_FOUND, "Document not found");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] deleteDocument error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -469,7 +470,7 @@ void CollaborativeWritingModule::registerRoutes() {
             auto comments = getComments(docId);
 
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             nlohmann::json data;
             nlohmann::json arr = nlohmann::json::array();
@@ -502,7 +503,7 @@ void CollaborativeWritingModule::registerRoutes() {
             return resp;
         } catch (const std::exception& e) {
             spdlog::error("[Writing] getComments error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -517,24 +518,24 @@ void CollaborativeWritingModule::registerRoutes() {
             // 获取文档的owner_id作为created_by
             auto docOpt = getDocument(docId);
             if (!docOpt.has_value()) {
-                return buildErrorResponse(404, "Document not found");
+                return buildErrorResponse(HTTP::NOT_FOUND, "Document not found");
             }
             int userId = docOpt->ownerId;
 
             bool ok = createVersion(docId, userId, summary);
             if (ok) {
                 HttpResponse resp;
-                resp.statusCode = 201;
+                resp.statusCode = HTTP::CREATED;
                 resp.headers["Content-Type"] = "application/json";
                 resp.body = buildJsonResponse(true, "Version created");
                 return resp;
             }
-            return buildErrorResponse(500, "Failed to create version");
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, "Failed to create version");
         } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+            return buildErrorResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] createVersion error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -546,15 +547,15 @@ void CollaborativeWritingModule::registerRoutes() {
             bool ok = acceptSuggestion(suggestionId);
             if (ok) {
                 HttpResponse resp;
-                resp.statusCode = 200;
+                resp.statusCode = HTTP::OK;
                 resp.headers["Content-Type"] = "application/json";
                 resp.body = buildJsonResponse(true, "Suggestion accepted");
                 return resp;
             }
-            return buildErrorResponse(404, "Suggestion not found");
+            return buildErrorResponse(HTTP::NOT_FOUND, "Suggestion not found");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] acceptSuggestion error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -566,15 +567,15 @@ void CollaborativeWritingModule::registerRoutes() {
             bool ok = rejectSuggestion(suggestionId);
             if (ok) {
                 HttpResponse resp;
-                resp.statusCode = 200;
+                resp.statusCode = HTTP::OK;
                 resp.headers["Content-Type"] = "application/json";
                 resp.body = buildJsonResponse(true, "Suggestion rejected");
                 return resp;
             }
-            return buildErrorResponse(404, "Suggestion not found");
+            return buildErrorResponse(HTTP::NOT_FOUND, "Suggestion not found");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] rejectSuggestion error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -586,15 +587,15 @@ void CollaborativeWritingModule::registerRoutes() {
             bool ok = resolveComment(commentId);
             if (ok) {
                 HttpResponse resp;
-                resp.statusCode = 200;
+                resp.statusCode = HTTP::OK;
                 resp.headers["Content-Type"] = "application/json";
                 resp.body = buildJsonResponse(true, "Comment resolved");
                 return resp;
             }
-            return buildErrorResponse(404, "Comment not found");
+            return buildErrorResponse(HTTP::NOT_FOUND, "Comment not found");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] resolveComment error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -611,7 +612,7 @@ void CollaborativeWritingModule::registerRoutes() {
             int column = json.value<int>("column", 0);
 
             if (userId == 0) {
-                return buildErrorResponse(400, "Missing user_id");
+                return buildErrorResponse(HTTP::BAD_REQUEST, "Missing user_id");
             }
 
             // 存储光标位置
@@ -647,15 +648,15 @@ void CollaborativeWritingModule::registerRoutes() {
                           docIdStr, userId, line, column);
 
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             resp.body = buildJsonResponse(true, "Cursor updated");
             return resp;
         } catch (const nlohmann::json::parse_error&) {
-            return buildErrorResponse(400, "Invalid JSON format");
+            return buildErrorResponse(HTTP::BAD_REQUEST, "Invalid JSON format");
         } catch (const std::exception& e) {
             spdlog::error("[Writing] cursor update error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 
@@ -694,13 +695,13 @@ void CollaborativeWritingModule::registerRoutes() {
             data["count"] = users.size();
 
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = "application/json";
             resp.body = buildJsonResponse(true, "", data);
             return resp;
         } catch (const std::exception& e) {
             spdlog::error("[Writing] presence error: {}", e.what());
-            return buildErrorResponse(500, e.what());
+            return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
 }

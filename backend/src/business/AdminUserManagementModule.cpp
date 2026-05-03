@@ -21,6 +21,7 @@
 #include <chrono>
 #include "data/ValidationHelper.hpp"
 #include "data/StringUtil.hpp"
+#include "core/HttpStatus.hpp"
 
 namespace PaperCrawler {
 
@@ -730,7 +731,7 @@ void AdminUserManagementModule::registerRoutes() {
 
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
-        resp.statusCode = 401;
+        resp.statusCode = HTTP::UNAUTHORIZED;
         resp.setHeader("Content-Type", "application/json");
         resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
         return resp;
@@ -741,7 +742,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetStats(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -752,7 +753,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleListUsers(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -762,7 +763,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUser(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -772,7 +773,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleCreateUser(req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -782,7 +783,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUpdateUser(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -792,7 +793,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeleteUser(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -802,7 +803,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleActivateUser(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -812,7 +813,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleDeactivateUser(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -823,7 +824,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleChangePassword(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -833,7 +834,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleResetPassword(req.pathParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -844,7 +845,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUserHistory(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -854,7 +855,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetUserSessions(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -864,7 +865,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleKickUserSession(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -875,7 +876,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string csv = handleExportUsers(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "text/csv; charset=utf-8");
         response.setHeader("Content-Disposition", "attachment; filename=\"users_export.csv\"");
         response.body = csv;
@@ -887,7 +888,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetLoginHistory(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -897,7 +898,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetLoginStats(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -907,7 +908,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetSuspiciousLogins(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -917,7 +918,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetIpBlacklist(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -927,7 +928,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleAddIpBlacklist(req.queryParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -937,7 +938,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleRemoveIpBlacklist(req.pathParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -947,7 +948,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleGetAccountLockouts(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -957,7 +958,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleLockUserAccount(req.queryParams, req.body);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -967,7 +968,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleUnlockUserAccount(req.queryParams);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -977,7 +978,7 @@ void AdminUserManagementModule::registerRoutes() {
         if (!requireAdminAuth(req)) return unauthorizedResp();
         std::string body = handleHandleSuspiciousLogin(req.pathParams, req.body, req.headers);
         HttpResponse response;
-        response.statusCode = 200;
+        response.statusCode = HTTP::OK;
         response.setHeader("Content-Type", "application/json");
         response.body = body;
         return response;
@@ -1050,7 +1051,7 @@ std::string AdminUserManagementModule::handleListUsers(const std::map<std::strin
 std::string AdminUserManagementModule::handleGetUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
@@ -1058,12 +1059,12 @@ std::string AdminUserManagementModule::handleGetUser(const std::map<std::string,
         auto user = getUser(id);
 
         if (!user) {
-            return StringUtil::buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "User not found");
         }
 
-        return StringUtil::buildJsonResponse(200, true, "User retrieved", user->toJSON());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "User retrieved", user->toJSON());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1073,7 +1074,7 @@ std::string AdminUserManagementModule::handleCreateUser(const std::string& body)
 
         // 验证必填字段
         if (!jsonBody.contains("username") || !jsonBody.contains("email")) {
-            return StringUtil::buildJsonResponse(400, false, "Missing required fields: username and email are required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing required fields: username and email are required");
         }
 
         AdminUser newUser;
@@ -1106,21 +1107,21 @@ std::string AdminUserManagementModule::handleCreateUser(const std::string& body)
         auto createdUser = createUser(newUser);
 
         if (!createdUser) {
-            return StringUtil::buildJsonResponse(400, false, "Failed to create user - username or email may already exist");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Failed to create user - username or email may already exist");
         }
 
-        return StringUtil::buildJsonResponse(200, true, "User created successfully", createdUser->toJSON());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "User created successfully", createdUser->toJSON());
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleUpdateUser(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
@@ -1137,21 +1138,21 @@ std::string AdminUserManagementModule::handleUpdateUser(const std::map<std::stri
         auto updatedUser = updateUser(id, user);
 
         if (!updatedUser) {
-            return StringUtil::buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "User not found");
         }
 
-        return StringUtil::buildJsonResponse(200, true, "User updated", updatedUser->toJSON());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "User updated", updatedUser->toJSON());
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleDeleteUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
@@ -1161,16 +1162,16 @@ std::string AdminUserManagementModule::handleDeleteUser(const std::map<std::stri
             return StringUtil::buildJsonResponse(true, "User deleted");
         }
 
-        return StringUtil::buildJsonResponse(404, false, "User not found");
+        return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "User not found");
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleActivateUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
@@ -1178,19 +1179,19 @@ std::string AdminUserManagementModule::handleActivateUser(const std::map<std::st
         auto user = activateUser(id);
 
         if (!user) {
-            return StringUtil::buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "User not found");
         }
 
-        return StringUtil::buildJsonResponse(200, true, "User activated", user->toJSON());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "User activated", user->toJSON());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleDeactivateUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
@@ -1198,19 +1199,19 @@ std::string AdminUserManagementModule::handleDeactivateUser(const std::map<std::
         auto user = deactivateUser(id);
 
         if (!user) {
-            return StringUtil::buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "User not found");
         }
 
-        return StringUtil::buildJsonResponse(200, true, "User deactivated", user->toJSON());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "User deactivated", user->toJSON());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleChangePassword(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
@@ -1221,29 +1222,29 @@ std::string AdminUserManagementModule::handleChangePassword(const std::map<std::
         std::string newPassword = jsonBody.value("new_password", "");
 
         if (oldPassword.empty() || newPassword.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing old_password or new_password");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing old_password or new_password");
         }
 
         if (newPassword.length() < 6) {
-            return StringUtil::buildJsonResponse(400, false, "New password must be at least 6 characters");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "New password must be at least 6 characters");
         }
 
         if (changeUserPassword(id, oldPassword, newPassword)) {
             return StringUtil::buildJsonResponse(true, "Password changed successfully");
         }
 
-        return StringUtil::buildJsonResponse(400, false, "Old password is incorrect");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Old password is incorrect");
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleResetPassword(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
@@ -1258,7 +1259,7 @@ std::string AdminUserManagementModule::handleResetPassword(const std::map<std::s
         }
 
         if (newPassword.length() < 6) {
-            return StringUtil::buildJsonResponse(400, false, "Password must be at least 6 characters");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Password must be at least 6 characters");
         }
 
         if (resetUserPassword(id, newPassword)) {
@@ -1268,25 +1269,25 @@ std::string AdminUserManagementModule::handleResetPassword(const std::map<std::s
             if (jsonBody.value("new_password", "").empty()) {
                 result["generated_password"] = newPassword;
             }
-            return StringUtil::buildJsonResponse(200, true, "Password reset successfully", result.dump());
+            return StringUtil::buildJsonResponse(HTTP::OK, true, "Password reset successfully", result.dump());
         }
 
-        return StringUtil::buildJsonResponse(404, false, "User not found");
+        return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "User not found");
     } catch (const nlohmann::json::exception& e) {
-        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         int userId = std::stoi(idIt->second);
         int page = 1, limit = 20;
@@ -1343,20 +1344,20 @@ std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::
              << "\"limit\":" << limit << ","
              << "\"total_pages\":" << totalPages << "}";
 
-        return StringUtil::buildJsonResponse(200, true, "Login history retrieved", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Login history retrieved", data.str());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleGetUserSessions(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID");
     }
 
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         int userId = std::stoi(idIt->second);
 
@@ -1387,9 +1388,9 @@ std::string AdminUserManagementModule::handleGetUserSessions(const std::map<std:
         data << "{\"sessions\":" << itemsJson.str() << ","
              << "\"total\":" << results.size() << "}";
 
-        return StringUtil::buildJsonResponse(200, true, "Active sessions retrieved", data.str());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Active sessions retrieved", data.str());
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1397,11 +1398,11 @@ std::string AdminUserManagementModule::handleKickUserSession(const std::map<std:
     auto idIt = params.find("id");
     auto sidIt = params.find("sid");
     if (idIt == params.end() || sidIt == params.end()) {
-        return StringUtil::buildJsonResponse(400, false, "Missing user ID or session ID");
+        return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user ID or session ID");
     }
 
     try {
-        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database");
 
         int userId = std::stoi(idIt->second);
         int sessionId = std::stoi(sidIt->second);
@@ -1416,9 +1417,9 @@ std::string AdminUserManagementModule::handleKickUserSession(const std::map<std:
             return StringUtil::buildJsonResponse(true, "Session kicked successfully");
         }
 
-        return StringUtil::buildJsonResponse(404, false, "Session not found");
+        return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "Session not found");
     } catch (const std::exception& e) {
-        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1473,7 +1474,7 @@ std::string AdminUserManagementModule::handleExportUsers(const std::map<std::str
 
 std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1544,16 +1545,16 @@ std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std:
         data["page"] = page;
         data["limit"] = limit;
 
-        return StringUtil::buildJsonResponse(200, true, "Login history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Login history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get login history: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve login history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve login history: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetLoginStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1584,16 +1585,16 @@ std::string AdminUserManagementModule::handleGetLoginStats(const std::map<std::s
         nlohmann::json data;
         data["stats"] = stats;
 
-        return StringUtil::buildJsonResponse(200, true, "Login statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Login statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get login stats: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve login statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve login statistics: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1668,16 +1669,16 @@ std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<
         data["page"] = page;
         data["limit"] = limit;
 
-        return StringUtil::buildJsonResponse(200, true, "Suspicious logins retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Suspicious logins retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get suspicious logins: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve suspicious logins: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve suspicious logins: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1736,16 +1737,16 @@ std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::
         data["page"] = page;
         data["limit"] = limit;
 
-        return StringUtil::buildJsonResponse(200, true, "IP blacklist retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "IP blacklist retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get IP blacklist: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve IP blacklist: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve IP blacklist: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleAddIpBlacklist(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1756,7 +1757,7 @@ std::string AdminUserManagementModule::handleAddIpBlacklist(const std::map<std::
         std::string expiresAt = jsonBody.value("expires_at", "");
 
         if (ipAddress.empty() || reason.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "IP address and reason are required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "IP address and reason are required");
         }
 
         if (database_) {
@@ -1799,23 +1800,23 @@ std::string AdminUserManagementModule::handleAddIpBlacklist(const std::map<std::
 
             return StringUtil::buildJsonResponse(true, "IP address added to blacklist");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to add IP to blacklist: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to add IP to blacklist: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to add IP to blacklist: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleRemoveIpBlacklist(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing ID parameter");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing ID parameter");
         }
 
         int id = std::stoi(idIt->second);
@@ -1831,17 +1832,17 @@ std::string AdminUserManagementModule::handleRemoveIpBlacklist(const std::map<st
 
             return StringUtil::buildJsonResponse(true, "IP address removed from blacklist");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to remove IP from blacklist: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to remove IP from blacklist: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to remove IP from blacklist: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1900,16 +1901,16 @@ std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<s
         data["page"] = page;
         data["limit"] = limit;
 
-        return StringUtil::buildJsonResponse(200, true, "Account lockouts retrieved", data.dump());
+        return StringUtil::buildJsonResponse(HTTP::OK, true, "Account lockouts retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get account lockouts: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve account lockouts: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to retrieve account lockouts: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
@@ -1920,7 +1921,7 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
         std::string ipAddress = jsonBody.value("ip_address", "");
 
         if (userId == 0) {
-            return StringUtil::buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "User ID is required");
         }
 
         if (database_) {
@@ -1929,7 +1930,7 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
             checkStmt.bind(0, userId);
             auto checkResults = checkStmt.query();
             if (checkResults.empty()) {
-                return StringUtil::buildJsonResponse(404, false, "User not found");
+                return StringUtil::buildJsonResponse(HTTP::NOT_FOUND, false, "User not found");
             }
 
             // 插入或更新锁定记录
@@ -1953,23 +1954,23 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
 
             return StringUtil::buildJsonResponse(true, "User account locked successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to lock user account: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to lock user account: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to lock user account: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleUnlockUserAccount(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto userIdIt = params.find("user_id");
         if (userIdIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing user_id parameter");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing user_id parameter");
         }
 
         int userId = std::stoi(userIdIt->second);
@@ -1985,24 +1986,24 @@ std::string AdminUserManagementModule::handleUnlockUserAccount(const std::map<st
 
             return StringUtil::buildJsonResponse(true, "User account unlocked successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to unlock user account: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to unlock user account: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to unlock user account: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::map<std::string, std::string>& params, const std::string& body,
                                                        const std::map<std::string, std::string>& headers) {
     if (!impl_) {
-        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return StringUtil::buildJsonResponse(400, false, "Missing ID parameter");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Missing ID parameter");
         }
 
         int id = std::stoi(idIt->second);
@@ -2012,7 +2013,7 @@ std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::ma
         int reviewedBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (action.empty()) {
-            return StringUtil::buildJsonResponse(400, false, "Action is required");
+            return StringUtil::buildJsonResponse(HTTP::BAD_REQUEST, false, "Action is required");
         }
 
         if (database_) {
@@ -2031,11 +2032,11 @@ std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::ma
 
             return StringUtil::buildJsonResponse(true, "Suspicious login handled successfully");
         } else {
-            return StringUtil::buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to handle suspicious login: {}", e.what());
-        return StringUtil::buildJsonResponse(500, false, "Failed to handle suspicious login: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(HTTP::INTERNAL_ERROR, false, "Failed to handle suspicious login: " + std::string(e.what()));
     }
 }
 
