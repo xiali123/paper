@@ -32,6 +32,11 @@
 #include "CitationGraphWidget.hpp"
 #include "PaperTimelineWidget.hpp"
 #include "ShortcutConfigDialog.hpp"
+#include "NotificationCenter.hpp"
+#include "DragDropHandler.hpp"
+#include "DoiLookupDialog.hpp"
+#include "PaperDeduplicator.hpp"
+#include "MarkdownNoteEditor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -2863,6 +2868,43 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addSeparator();
+
+    auto* doiAction = toolsMenu->addAction("&DOI Lookup");
+    connect(doiAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new DoiLookupDialog(this);
+        connect(dlg, &DoiLookupDialog::paperFound, this, [this](const QJsonObject& data) {
+            apiManager_->createPaper(data);
+            ToastWidget::showSuccess("Paper imported via DOI");
+        });
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* dedupAction = toolsMenu->addAction("Find &Duplicates");
+    connect(dedupAction, &QAction::triggered, this, [this]() {
+        if (!resultView_) return;
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Deduplicator");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* dedup = new PaperDeduplicator();
+        dedup->setPapers(resultView_->getPapers());
+        connect(dedup, &PaperDeduplicator::mergeRequested, this, [this](int keepId, int removeId) {
+            apiManager_->deletePaper(removeId);
+            Q_UNUSED(keepId);
+        });
+        connect(dedup, &PaperDeduplicator::papersMerged, this, [this](int count) {
+            ToastWidget::showSuccess(QString("Merged %1 pairs").arg(count));
+            if (!currentKeyword_.isEmpty()) {
+                apiManager_->searchPapers(currentKeyword_, "", "", currentOffset_, currentLimit_);
+            }
+        });
+        layout->addWidget(dedup);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -3024,6 +3066,34 @@ void MainWindow::connectSignals() {
     });
     connect(trayManager_, &SystemTrayManager::quitRequested, this, []() {
         QApplication::quit();
+    });
+
+    // Notification center
+    notificationCenter_ = new NotificationCenter(this);
+    connect(notificationCenter_, &NotificationCenter::actionTriggered, this,
+            [this](const QString& action) {
+        if (action.startsWith("openPaper:")) {
+            int paperId = action.mid(10).toInt();
+            apiManager_->getPaperDetails(paperId);
+        }
+    });
+    connect(notificationCenter_, &NotificationCenter::unreadCountChanged, this,
+            [this](int count) {
+        if (trayManager_) trayManager_->setUnreadCount(count);
+    });
+
+    // Drag & drop
+    auto* dragDrop = new DragDropHandler(this);
+    dragDrop->enableFor(this);
+    connect(dragDrop, &DragDropHandler::textDropped, this, [this](const QString& text) {
+        onSearch(text.trimmed());
+        ToastWidget::showInfo("Searching dropped text...");
+    });
+    connect(dragDrop, &DragDropHandler::urlDropped, this, [this](const QUrl& url) {
+        QString path = url.toString();
+        if (path.contains("doi.org")) {
+            ToastWidget::showInfo("DOI URL detected — use DOI Lookup to import");
+        }
     });
 
     if (resultView_) {
@@ -3602,6 +3672,10 @@ void MainWindow::onSearchSuccess(const SearchResult& result) {
              << "Total cache size:" << paperCache_->getCacheSize();
 
     ToastWidget::showSuccess(QString("Found %1 results for \"%2\"").arg(totalResults_).arg(currentKeyword_));
+    if (notificationCenter_) {
+        notificationCenter_->addNotification(Notification::Success, "Search Complete",
+            QString("Found %1 results for \"%2\"").arg(totalResults_).arg(currentKeyword_));
+    }
 }
 
 void MainWindow::onSearchFailed(const QString& error) {

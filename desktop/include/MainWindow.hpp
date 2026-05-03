@@ -42,6 +42,8 @@ class RecentHistoryWidget;
 class BatchOperationsBar;
 class SystemTrayManager;
 class WelcomeWidget;
+class NotificationCenter;
+class DragDropHandler;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -156,6 +158,7 @@ private:
     BatchOperationsBar* batchBar_{nullptr};
     SystemTrayManager* trayManager_{nullptr};
     WelcomeWidget* welcomeWidget_{nullptr};
+    NotificationCenter* notificationCenter_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 
