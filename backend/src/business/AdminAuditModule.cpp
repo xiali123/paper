@@ -547,12 +547,16 @@ bool AdminAuditModule::updateRole(int roleId, const std::string& displayName, co
 bool AdminAuditModule::deleteRole(int roleId) {
     if (!database_) return false;
     try {
-        auto results = database_->query("SELECT is_system FROM roles WHERE id = " + std::to_string(roleId));
+        PreparedStatement checkStmt(database_, "SELECT is_system FROM roles WHERE id = ?");
+        checkStmt.bind(0, roleId);
+        auto results = checkStmt.query();
         if (!results.empty()) {
             bool isSystem = cleanDbString(results[0].count("is_system") ? results[0].at("is_system") : "0") == "1";
             if (isSystem) return false;
         }
-        database_->execute("DELETE FROM roles WHERE id = " + std::to_string(roleId));
+        PreparedStatement delStmt(database_, "DELETE FROM roles WHERE id = ?");
+        delStmt.bind(0, roleId);
+        delStmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to delete role: {}", e.what());
@@ -610,11 +614,13 @@ std::vector<RolePermission> AdminAuditModule::getRolePermissions(int roleId) {
     std::vector<RolePermission> rolePermissions;
     if (!database_) return rolePermissions;
     try {
-        std::string sql = "SELECT rp.*, r.name as role_name, p.resource, p.action, u.username as granted_by_username "
-                        "FROM role_permissions rp JOIN roles r ON rp.role_id = r.id "
-                        "JOIN permissions p ON rp.permission_id = p.id "
-                        "LEFT JOIN users u ON rp.granted_by = u.id WHERE rp.role_id = " + std::to_string(roleId);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_,
+            "SELECT rp.*, r.name as role_name, p.resource, p.action, u.username as granted_by_username "
+            "FROM role_permissions rp JOIN roles r ON rp.role_id = r.id "
+            "JOIN permissions p ON rp.permission_id = p.id "
+            "LEFT JOIN users u ON rp.granted_by = u.id WHERE rp.role_id = ?");
+        stmt.bind(0, roleId);
+        auto results = stmt.query();
         for (const auto& row : results) {
             RolePermission rp;
             rp.roleId = std::stoi(cleanDbString(row.count("role_id") ? row.at("role_id") : "0"));
@@ -636,10 +642,15 @@ bool AdminAuditModule::updateRolePermissions(int roleId, const std::vector<int>&
     if (!database_) return false;
     try {
         database_->execute("START TRANSACTION");
-        database_->execute("DELETE FROM role_permissions WHERE role_id = " + std::to_string(roleId));
+        PreparedStatement delStmt(database_, "DELETE FROM role_permissions WHERE role_id = ?");
+        delStmt.bind(0, roleId);
+        delStmt.execute();
         for (int permId : permissionIds) {
-            database_->execute("INSERT INTO role_permissions (role_id, permission_id, granted_by) VALUES ("
-                + std::to_string(roleId) + ", " + std::to_string(permId) + ", " + std::to_string(updatedBy) + ")");
+            PreparedStatement insStmt(database_, "INSERT INTO role_permissions (role_id, permission_id, granted_by) VALUES (?, ?, ?)");
+            insStmt.bind(0, roleId);
+            insStmt.bind(1, permId);
+            insStmt.bind(2, updatedBy);
+            insStmt.execute();
         }
         database_->execute("COMMIT");
         return true;
@@ -654,10 +665,12 @@ std::vector<UserRoleAssignment> AdminAuditModule::getUserRoles(int userId) {
     std::vector<UserRoleAssignment> userRoles;
     if (!database_) return userRoles;
     try {
-        std::string sql = "SELECT ur.*, u.username, r.name as role_name, r.level as role_level "
-                        "FROM user_roles ur JOIN users u ON ur.user_id = u.id "
-                        "JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = " + std::to_string(userId);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_,
+            "SELECT ur.*, u.username, r.name as role_name, r.level as role_level "
+            "FROM user_roles ur JOIN users u ON ur.user_id = u.id "
+            "JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = ?");
+        stmt.bind(0, userId);
+        auto results = stmt.query();
         for (const auto& row : results) {
             UserRoleAssignment userRole;
             userRole.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
@@ -699,7 +712,10 @@ bool AdminAuditModule::assignUserRole(int userId, int roleId, const std::string&
 bool AdminAuditModule::removeUserRole(int userId, int roleId) {
     if (!database_) return false;
     try {
-        database_->execute("DELETE FROM user_roles WHERE user_id = " + std::to_string(userId) + " AND role_id = " + std::to_string(roleId));
+        PreparedStatement stmt(database_, "DELETE FROM user_roles WHERE user_id = ? AND role_id = ?");
+        stmt.bind(0, userId);
+        stmt.bind(1, roleId);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to remove user role: {}", e.what());
@@ -710,7 +726,9 @@ bool AdminAuditModule::removeUserRole(int userId, int roleId) {
 bool AdminAuditModule::checkUserPermission(int userId, const std::string& resource, const std::string& action) {
     if (!database_) return false;
     try {
-        auto results = database_->query("SELECT COUNT(*) as count FROM v_user_permissions WHERE user_id = " + std::to_string(userId));
+        PreparedStatement stmt(database_, "SELECT COUNT(*) as count FROM v_user_permissions WHERE user_id = ?");
+        stmt.bind(0, userId);
+        auto results = stmt.query();
         if (!results.empty()) {
             int count = std::stoi(cleanDbString(results[0].count("count") ? results[0].at("count") : "0"));
             return count > 0;
@@ -729,10 +747,13 @@ PaginatedResponse<PaperModeration> AdminAuditModule::getPendingPapers(int page, 
         auto countResults = database_->query("SELECT COUNT(*) as total FROM paper_moderations WHERE status = 'pending'");
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
-        std::string sql = "SELECT pm.*, u.username as moderator_username FROM paper_moderations pm "
-                         "LEFT JOIN users u ON pm.moderator_id = u.id WHERE pm.status = 'pending' "
-                         "ORDER BY pm.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_,
+            "SELECT pm.*, u.username as moderator_username FROM paper_moderations pm "
+            "LEFT JOIN users u ON pm.moderator_id = u.id WHERE pm.status = 'pending' "
+            "ORDER BY pm.created_at DESC LIMIT ? OFFSET ?");
+        stmt.bind(0, limit);
+        stmt.bind(1, offset);
+        auto results = stmt.query();
         for (const auto& row : results) {
             PaperModeration m;
             m.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
@@ -756,9 +777,11 @@ PaginatedResponse<PaperModeration> AdminAuditModule::getPendingPapers(int page, 
 std::optional<PaperModeration> AdminAuditModule::getPaperModeration(int64_t id) {
     if (!database_) return std::nullopt;
     try {
-        std::string sql = "SELECT pm.*, u.username as moderator_username FROM paper_moderations pm "
-                         "LEFT JOIN users u ON pm.moderator_id = u.id WHERE pm.id = " + std::to_string(id);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_,
+            "SELECT pm.*, u.username as moderator_username FROM paper_moderations pm "
+            "LEFT JOIN users u ON pm.moderator_id = u.id WHERE pm.id = ?");
+        stmt.bind(0, static_cast<int>(id));
+        auto results = stmt.query();
         if (!results.empty()) {
             PaperModeration m;
             m.id = std::stoll(cleanDbString(results[0].count("id") ? results[0].at("id") : "0"));
@@ -781,8 +804,12 @@ std::optional<PaperModeration> AdminAuditModule::getPaperModeration(int64_t id) 
 bool AdminAuditModule::approvePaper(int paperId, int moderatorId) {
     if (!database_) return false;
     try {
-        database_->execute("UPDATE paper_moderations SET status = 'approved', moderator_id = "
-            + std::to_string(moderatorId) + ", reviewed_at = NOW() WHERE paper_id = " + std::to_string(paperId) + " AND status = 'pending'");
+        PreparedStatement stmt(database_,
+            "UPDATE paper_moderations SET status = 'approved', moderator_id = ?, reviewed_at = NOW() "
+            "WHERE paper_id = ? AND status = 'pending'");
+        stmt.bind(0, moderatorId);
+        stmt.bind(1, paperId);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to approve paper: {}", e.what());
@@ -809,16 +836,24 @@ PaginatedResponse<UserReport> AdminAuditModule::getUserReports(int page, int lim
     if (!database_) return response;
     try {
         std::string countSql = "SELECT COUNT(*) as total FROM user_reports";
-        if (!status.empty()) countSql += " WHERE status = '" + escapeSql(status) + "'";
-        auto countResults = database_->query(countSql);
+        int countBindIdx = -1;
+        if (!status.empty()) countSql += " WHERE status = ?";
+        PreparedStatement countStmt(database_, countSql);
+        if (!status.empty()) { countBindIdx = 0; countStmt.bind(countBindIdx, status); }
+        auto countResults = countStmt.query();
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
         std::string sql = "SELECT ur.*, reporter.username as reporter_username, reviewer.username as reviewer_username "
                          "FROM user_reports ur LEFT JOIN users reporter ON ur.reporter_id = reporter.id "
                          "LEFT JOIN users reviewer ON ur.reviewer_id = reviewer.id";
-        if (!status.empty()) sql += " WHERE ur.status = '" + escapeSql(status) + "'";
-        sql += " ORDER BY ur.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        int bindIdx = 0;
+        if (!status.empty()) { sql += " WHERE ur.status = ?"; }
+        sql += " ORDER BY ur.created_at DESC LIMIT ? OFFSET ?";
+        PreparedStatement stmt(database_, sql);
+        if (!status.empty()) { stmt.bind(bindIdx, status); bindIdx++; }
+        stmt.bind(bindIdx, limit); bindIdx++;
+        stmt.bind(bindIdx, offset);
+        auto results = stmt.query();
         for (const auto& row : results) {
             UserReport report;
             report.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
@@ -898,7 +933,9 @@ int AdminAuditModule::createSensitiveWord(const std::string& word, const std::st
 bool AdminAuditModule::deleteSensitiveWord(int id) {
     if (!database_) return false;
     try {
-        database_->execute("DELETE FROM sensitive_words WHERE id = " + std::to_string(id));
+        PreparedStatement stmt(database_, "DELETE FROM sensitive_words WHERE id = ?");
+        stmt.bind(0, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to delete sensitive word: {}", e.what());
@@ -968,14 +1005,21 @@ PaginatedResponse<ApiKey> AdminAuditModule::getApiKeys(int page, int limit, int 
     if (!database_) return response;
     try {
         std::string countSql = "SELECT COUNT(*) as total FROM api_keys";
-        if (userId > 0) countSql += " WHERE user_id = " + std::to_string(userId);
-        auto countResults = database_->query(countSql);
+        if (userId > 0) countSql += " WHERE user_id = ?";
+        PreparedStatement countStmt(database_, countSql);
+        if (userId > 0) countStmt.bind(0, userId);
+        auto countResults = countStmt.query();
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
         std::string sql = "SELECT ak.*, u.username FROM api_keys ak LEFT JOIN users u ON ak.user_id = u.id";
-        if (userId > 0) sql += " WHERE ak.user_id = " + std::to_string(userId);
-        sql += " ORDER BY ak.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        int bindIdx = 0;
+        if (userId > 0) { sql += " WHERE ak.user_id = ?"; }
+        sql += " ORDER BY ak.created_at DESC LIMIT ? OFFSET ?";
+        PreparedStatement stmt(database_, sql);
+        if (userId > 0) { stmt.bind(bindIdx, userId); bindIdx++; }
+        stmt.bind(bindIdx, limit); bindIdx++;
+        stmt.bind(bindIdx, offset);
+        auto results = stmt.query();
         for (const auto& row : results) {
             ApiKey key;
             key.id = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
@@ -1035,7 +1079,9 @@ std::pair<int, std::string> AdminAuditModule::createApiKey(int userId, const std
 bool AdminAuditModule::deleteApiKey(int id) {
     if (!database_) return false;
     try {
-        database_->execute("DELETE FROM api_keys WHERE id = " + std::to_string(id));
+        PreparedStatement stmt(database_, "DELETE FROM api_keys WHERE id = ?");
+        stmt.bind(0, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to delete API key: {}", e.what());
@@ -1057,7 +1103,12 @@ std::string AdminAuditModule::regenerateApiKey(int id) {
         for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) hashSS << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
         std::string keyHash = hashSS.str();
         std::string keyPrefix = fullKey.substr(0, 10);
-        database_->execute("UPDATE api_keys SET key_hash = '" + keyHash + "', key_prefix = '" + keyPrefix + "', request_count = 0, last_used_at = NULL WHERE id = " + std::to_string(id));
+        PreparedStatement stmt(database_,
+            "UPDATE api_keys SET key_hash = ?, key_prefix = ?, request_count = 0, last_used_at = NULL WHERE id = ?");
+        stmt.bind(0, keyHash);
+        stmt.bind(1, keyPrefix);
+        stmt.bind(2, id);
+        stmt.execute();
         return fullKey;
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to regenerate API key: {}", e.what());
@@ -1071,14 +1122,21 @@ PaginatedResponse<ApiUsage> AdminAuditModule::getApiKeyUsage(int page, int limit
     if (!database_) return response;
     try {
         std::string countSql = "SELECT COUNT(*) as total FROM api_key_usage";
-        if (keyId > 0) countSql += " WHERE key_id = " + std::to_string(keyId);
-        auto countResults = database_->query(countSql);
+        if (keyId > 0) countSql += " WHERE key_id = ?";
+        PreparedStatement countStmt(database_, countSql);
+        if (keyId > 0) countStmt.bind(0, keyId);
+        auto countResults = countStmt.query();
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
         std::string sql = "SELECT aku.*, ak.name as key_name FROM api_key_usage aku LEFT JOIN api_keys ak ON aku.key_id = ak.id";
-        if (keyId > 0) sql += " WHERE aku.key_id = " + std::to_string(keyId);
-        sql += " ORDER BY aku.created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        int bindIdx = 0;
+        if (keyId > 0) { sql += " WHERE aku.key_id = ?"; }
+        sql += " ORDER BY aku.created_at DESC LIMIT ? OFFSET ?";
+        PreparedStatement stmt(database_, sql);
+        if (keyId > 0) { stmt.bind(bindIdx, keyId); bindIdx++; }
+        stmt.bind(bindIdx, limit); bindIdx++;
+        stmt.bind(bindIdx, offset);
+        auto results = stmt.query();
         for (const auto& row : results) {
             ApiUsage usage;
             usage.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
@@ -1104,13 +1162,26 @@ ApiUsageStats AdminAuditModule::getApiKeyStats(int keyId) {
     ApiUsageStats stats;
     if (!database_) return stats;
     try {
-        std::string filter = keyId > 0 ? " WHERE key_id = " + std::to_string(keyId) : "";
-        auto totalResults = database_->query("SELECT COUNT(*) as total FROM api_key_usage" + filter);
+        std::string totalSql = "SELECT COUNT(*) as total FROM api_key_usage";
+        if (keyId > 0) totalSql += " WHERE key_id = ?";
+        PreparedStatement totalStmt(database_, totalSql);
+        if (keyId > 0) totalStmt.bind(0, keyId);
+        auto totalResults = totalStmt.query();
         stats.totalRequests = totalResults.empty() ? 0 : std::stoll(cleanDbString(totalResults[0].at("total")));
-        auto successResults = database_->query("SELECT COUNT(*) as total FROM api_key_usage" + filter + " WHERE status_code >= 200 AND status_code < 400");
+
+        std::string successSql = "SELECT COUNT(*) as total FROM api_key_usage WHERE status_code >= 200 AND status_code < 400";
+        if (keyId > 0) successSql += " AND key_id = ?";
+        PreparedStatement successStmt(database_, successSql);
+        if (keyId > 0) successStmt.bind(0, keyId);
+        auto successResults = successStmt.query();
         stats.successfulRequests = successResults.empty() ? 0 : std::stoll(cleanDbString(successResults[0].at("total")));
         stats.failedRequests = stats.totalRequests - stats.successfulRequests;
-        auto avgResults = database_->query("SELECT AVG(response_time_ms) as avg FROM api_key_usage" + filter + " WHERE response_time_ms IS NOT NULL");
+
+        std::string avgSql = "SELECT AVG(response_time_ms) as avg FROM api_key_usage WHERE response_time_ms IS NOT NULL";
+        if (keyId > 0) avgSql += " AND key_id = ?";
+        PreparedStatement avgStmt(database_, avgSql);
+        if (keyId > 0) avgStmt.bind(0, keyId);
+        auto avgResults = avgStmt.query();
         stats.avgResponseTime = avgResults.empty() ? 0.0 : std::stod(cleanDbString(avgResults[0].at("avg")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to get API key stats: {}", e.what());

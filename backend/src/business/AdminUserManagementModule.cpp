@@ -1979,9 +1979,6 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
                 return buildJsonResponse(404, false, "User not found");
             }
 
-            // 计算锁定时间
-            std::string lockUntilSql = "DATE_ADD(NOW(), INTERVAL " + std::to_string(lockMinutes) + " MINUTE)";
-
             // 插入或更新锁定记录
             PreparedStatement stmt(database_, "INSERT INTO account_lockouts (user_id, locked_until, lockout_reason, ip_address) "
                              "VALUES (?, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?, ?) "

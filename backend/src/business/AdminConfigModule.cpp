@@ -1701,7 +1701,9 @@ bool AdminConfigModule::updateNotificationTemplate(int id, const std::string& ti
 bool AdminConfigModule::deleteNotificationTemplate(int id) {
     if (!database_) return false;
     try {
-        database_->execute("DELETE FROM notification_templates WHERE id = " + std::to_string(id));
+        PreparedStatement stmt(database_, "DELETE FROM notification_templates WHERE id = ?");
+        stmt.bind(0, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminConfig] Failed to delete notification template: {}", e.what());
@@ -1714,15 +1716,22 @@ PaginatedResponse<SystemNotification> AdminConfigModule::getSystemNotifications(
     response.page = page; response.limit = limit;
     if (!database_) return response;
     try {
-        std::string countSql = "SELECT COUNT(*) as total FROM system_notifications";
-        if (!status.empty()) countSql += " WHERE status = '" + escapeSql(status) + "'";
-        auto countResults = database_->query(countSql);
+        std::string whereClause;
+        if (!status.empty()) whereClause = " WHERE status = ?";
+
+        PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM system_notifications" + whereClause);
+        if (!status.empty()) countStmt.bind(0, status);
+        auto countResults = countStmt.query();
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+
         int offset = (page - 1) * limit;
-        std::string sql = "SELECT * FROM system_notifications";
-        if (!status.empty()) sql += " WHERE status = '" + escapeSql(status) + "'";
-        sql += " ORDER BY created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM system_notifications" + whereClause +
+                                 " ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        int bindIdx = 0;
+        if (!status.empty()) stmt.bind(bindIdx++, status);
+        stmt.bind(bindIdx++, limit);
+        stmt.bind(bindIdx, offset);
+        auto results = stmt.query();
         for (const auto& row : results) {
             SystemNotification notif;
             notif.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
@@ -1765,15 +1774,22 @@ PaginatedResponse<NotificationDelivery> AdminConfigModule::getNotificationDelive
     response.page = page; response.limit = limit;
     if (!database_) return response;
     try {
-        std::string countSql = "SELECT COUNT(*) as total FROM notification_deliveries";
-        if (notificationId > 0) countSql += " WHERE notification_id = " + std::to_string(notificationId);
-        auto countResults = database_->query(countSql);
+        std::string whereClause;
+        if (notificationId > 0) whereClause = " WHERE notification_id = ?";
+
+        PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM notification_deliveries" + whereClause);
+        if (notificationId > 0) countStmt.bind(0, static_cast<int>(notificationId));
+        auto countResults = countStmt.query();
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+
         int offset = (page - 1) * limit;
-        std::string sql = "SELECT * FROM notification_deliveries";
-        if (notificationId > 0) sql += " WHERE notification_id = " + std::to_string(notificationId);
-        sql += " ORDER BY created_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM notification_deliveries" + whereClause +
+                                 " ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        int bindIdx = 0;
+        if (notificationId > 0) stmt.bind(bindIdx++, static_cast<int>(notificationId));
+        stmt.bind(bindIdx++, limit);
+        stmt.bind(bindIdx, offset);
+        auto results = stmt.query();
         for (const auto& row : results) {
             NotificationDelivery delivery;
             delivery.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
@@ -1869,7 +1885,9 @@ bool AdminConfigModule::updateCleanupTask(int id, const std::string& displayName
 bool AdminConfigModule::deleteCleanupTask(int id) {
     if (!database_) return false;
     try {
-        database_->execute("DELETE FROM cleanup_tasks WHERE id = " + std::to_string(id) + " AND is_system = 0");
+        PreparedStatement stmt(database_, "DELETE FROM cleanup_tasks WHERE id = ? AND is_system = 0");
+        stmt.bind(0, id);
+        stmt.execute();
         return true;
     } catch (const std::exception& e) {
         spdlog::error("[AdminConfig] Failed to delete cleanup task: {}", e.what());
@@ -1896,15 +1914,22 @@ PaginatedResponse<CleanupExecution> AdminConfigModule::getCleanupHistory(int pag
     response.page = page; response.limit = limit;
     if (!database_) return response;
     try {
-        std::string countSql = "SELECT COUNT(*) as total FROM cleanup_executions";
-        if (taskId > 0) countSql += " WHERE task_id = " + std::to_string(taskId);
-        auto countResults = database_->query(countSql);
+        std::string whereClause;
+        if (taskId > 0) whereClause = " WHERE task_id = ?";
+
+        PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM cleanup_executions" + whereClause);
+        if (taskId > 0) countStmt.bind(0, taskId);
+        auto countResults = countStmt.query();
         response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+
         int offset = (page - 1) * limit;
-        std::string sql = "SELECT * FROM cleanup_executions";
-        if (taskId > 0) sql += " WHERE task_id = " + std::to_string(taskId);
-        sql += " ORDER BY started_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string(offset);
-        auto results = database_->query(sql);
+        PreparedStatement stmt(database_, "SELECT * FROM cleanup_executions" + whereClause +
+                                 " ORDER BY started_at DESC LIMIT ? OFFSET ?");
+        int bindIdx = 0;
+        if (taskId > 0) stmt.bind(bindIdx++, taskId);
+        stmt.bind(bindIdx++, limit);
+        stmt.bind(bindIdx, offset);
+        auto results = stmt.query();
         for (const auto& row : results) {
             CleanupExecution exec;
             exec.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
