@@ -97,6 +97,11 @@
 #include "SearchQueryBuilder.hpp"
 #include "PaperReportGenerator.hpp"
 #include "PaperNetworkGraph.hpp"
+#include "PaperChecklistWidget.hpp"
+#include "SessionStatisticsWidget.hpp"
+#include "ColorSchemeEditor.hpp"
+#include "PaperMergerWidget.hpp"
+#include "AbstractSummaryWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3818,6 +3823,98 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* checklistAction = toolsMenu->addAction("Reading &Checklist");
+    connect(checklistAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Checklist");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperChecklistWidget();
+        if (resultView_ && !resultView_->getPapers().isEmpty()) {
+            const auto& p = resultView_->getPapers().first();
+            w->setPaper(p.id, p.title);
+            w->addDefaultItems();
+        }
+        connect(w, &PaperChecklistWidget::checklistCompleted, this, [](int id) {
+            ToastWidget::showSuccess(QString("Checklist #%1 completed!").arg(id));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* sessionStatsAction = toolsMenu->addAction("Session &Statistics");
+    connect(sessionStatsAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Session Statistics");
+        dlg->resize(750, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new SessionStatisticsWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* colorSchemeAction = toolsMenu->addAction("&Color Scheme");
+    connect(colorSchemeAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Color Scheme Editor");
+        dlg->resize(850, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ColorSchemeEditor();
+        connect(w, &ColorSchemeEditor::schemeApplied, this, [](const QString& name) {
+            ToastWidget::showSuccess(QString("Applied scheme: %1").arg(name));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* mergerAction = toolsMenu->addAction("Paper &Merger");
+    connect(mergerAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Merger");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMergerWidget();
+        if (resultView_ && resultView_->getPapers().size() >= 2) {
+            const auto& pA = resultView_->getPapers()[0];
+            const auto& pB = resultView_->getPapers()[1];
+            MergePaper mA{pA.id, pA.title, pA.authors, pA.year, pA.journal, pA.doi, pA.abstractText, "", pA.pdfUrl, 0};
+            MergePaper mB{pB.id, pB.title, pB.authors, pB.year, pB.journal, pB.doi, pB.abstractText, "", pB.pdfUrl, 0};
+            w->setPapers(mA, mB);
+        }
+        connect(w, &PaperMergerWidget::mergeCompleted, this, [this](int keepId, int removeId) {
+            apiManager_->deletePaper(removeId);
+            ToastWidget::showSuccess(QString("Merged: keep #%1, remove #%2").arg(keepId).arg(removeId));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* summaryAction = toolsMenu->addAction("Abstract &Summarizer");
+    connect(summaryAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Abstract Summarizer");
+        dlg->resize(850, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new AbstractSummaryWidget();
+        if (resultView_ && !resultView_->getPapers().isEmpty()) {
+            QStringList abstracts;
+            for (const auto& p : resultView_->getPapers()) {
+                if (!p.abstractText.isEmpty()) abstracts << p.abstractText;
+            }
+            if (!abstracts.isEmpty()) w->setAbstract(abstracts.join("\n\n"));
+        }
+        connect(w, &AbstractSummaryWidget::extractionCompleted, this, [](const ExtractedInfo& info) {
+            ToastWidget::showInfo(QString("Domain: %1 | %2 keywords").arg(info.domain).arg(info.keywords.size()));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4268,6 +4365,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Author Network", "", "View", [this]() {
         ToastWidget::showInfo("Open Tools > Author Network");
+    });
+    commandPalette_->addAction("Reading Checklist", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Checklist");
+    });
+    commandPalette_->addAction("Session Statistics", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Session Statistics");
+    });
+    commandPalette_->addAction("Color Scheme", "", "Settings", [this]() {
+        ToastWidget::showInfo("Open Tools > Color Scheme");
+    });
+    commandPalette_->addAction("Paper Merger", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Merger");
+    });
+    commandPalette_->addAction("Abstract Summarizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Abstract Summarizer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

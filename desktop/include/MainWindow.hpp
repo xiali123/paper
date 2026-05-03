@@ -100,6 +100,11 @@ class MarkdownPreviewWidget;
 class SearchQueryBuilder;
 class PaperReportGenerator;
 class PaperNetworkGraph;
+class PaperChecklistWidget;
+class SessionStatisticsWidget;
+class ColorSchemeEditor;
+class PaperMergerWidget;
+class AbstractSummaryWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
