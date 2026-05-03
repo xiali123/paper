@@ -1,5 +1,6 @@
 #include "business/UnifiedAIWorkflow.hpp"
 #include "data/StringUtil.hpp"
+#include "core/HttpStatus.hpp"
 // #include "core/EventDrivenIntegration.hpp"  // EventDrivenIntegration has missing dependencies
 // #include "modules/LoggingModule.hpp"        // LoggingModule not implemented yet
 #include "features/ai/VectorStore.hpp"
@@ -537,7 +538,7 @@ std::string UnifiedAIWorkflow::callOpenAIAPI(const std::string& prompt, const st
         throw std::runtime_error("HttpClient not available");
     }
 
-    impl_->httpClient_->setDefaultHeader("Content-Type", "application/json");
+    impl_->httpClient_->setDefaultHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
     impl_->httpClient_->setDefaultHeader("Authorization", "Bearer " + impl_->openaiApiKey_);
 
     auto response = impl_->httpClient_->post(
@@ -545,7 +546,7 @@ std::string UnifiedAIWorkflow::callOpenAIAPI(const std::string& prompt, const st
         jsonBody
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != HTTP::OK) {
         throw std::runtime_error("OpenAI API error: " + response.body);
     }
 
@@ -595,7 +596,7 @@ std::string UnifiedAIWorkflow::callClaudeAPI(const std::string& prompt, const st
         throw std::runtime_error("HttpClient not available");
     }
 
-    impl_->httpClient_->setDefaultHeader("Content-Type", "application/json");
+    impl_->httpClient_->setDefaultHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
     impl_->httpClient_->setDefaultHeader("x-api-key", impl_->claudeApiKey_);
     impl_->httpClient_->setDefaultHeader("anthropic-version", "2023-06-01");
 
@@ -604,7 +605,7 @@ std::string UnifiedAIWorkflow::callClaudeAPI(const std::string& prompt, const st
         jsonBody
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != HTTP::OK) {
         throw std::runtime_error("Claude API error (HTTP " + std::to_string(response.statusCode) + "): " + response.body);
     }
 
@@ -641,13 +642,13 @@ AIResult UnifiedAIWorkflow::callLocalModel(const std::string& prompt) {
             requestBody["max_tokens"] = 2000;
             requestBody["temperature"] = 0.7;
 
-            impl_->httpClient_->setDefaultHeader("Content-Type", "application/json");
+            impl_->httpClient_->setDefaultHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
             auto response = impl_->httpClient_->post(
                 std::string(localModelUrl) + "/generate",
                 requestBody.dump()
             );
 
-            if (response.statusCode == 200) {
+            if (response.statusCode == HTTP::OK) {
                 auto j = nlohmann::json::parse(response.body);
                 result.success = true;
                 result.content = j.value("content", j.value("response", j.value("text", "")));

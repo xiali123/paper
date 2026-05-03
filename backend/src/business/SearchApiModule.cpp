@@ -717,7 +717,7 @@ void SearchApiModule::registerRoutes() {
         auto cached = QueryCache::instance().get(cacheKey);
         if (cached) {
             HttpResponse resp;
-            resp.statusCode = 200;
+            resp.statusCode = HTTP::OK;
             resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             resp.headers["X-Cache"] = "HIT";
             resp.body = *cached;

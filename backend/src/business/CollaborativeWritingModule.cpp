@@ -18,14 +18,6 @@ namespace PaperCrawler {
 // 辅助函数
 // ============================================================================
 
-static std::string escapeJson(const std::string& s) {
-    return StringUtil::escapeJson(s);
-}
-
-static std::string escapeSql(const std::string& s) {
-    return StringUtil::escapeSql(s);
-}
-
 static std::string buildJsonResponse(bool success, const std::string& message, const nlohmann::json& data = nullptr) {
     nlohmann::json resp;
     resp["success"] = success;
@@ -629,7 +621,7 @@ void CollaborativeWritingModule::registerRoutes() {
                 std::string message = "{\"type\":\"cursor_update\","
                     "\"document_id\":" + docIdStr + ","
                     "\"user_id\":" + std::to_string(userId) + ","
-                    "\"username\":\"" + escapeJson(username) + "\","
+                    "\"username\":\"" + StringUtil::escapeJson(username) + "\","
                     "\"line\":" + std::to_string(line) + ","
                     "\"column\":" + std::to_string(column) + "}";
 
