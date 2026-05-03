@@ -80,6 +80,11 @@ class PaperClusteringWidget;
 class ScheduledTaskWidget;
 class UserProfileWidget;
 class MiniBrowserWidget;
+class PaperSimilarityWidget;
+class ExportTemplateManager;
+class KeyboardMacroWidget;
+class PluginLoaderWidget;
+class WidgetGallery;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

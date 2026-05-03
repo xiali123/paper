@@ -77,6 +77,11 @@
 #include "ScheduledTaskWidget.hpp"
 #include "UserProfileWidget.hpp"
 #include "MiniBrowserWidget.hpp"
+#include "PaperSimilarityWidget.hpp"
+#include "ExportTemplateManager.hpp"
+#include "KeyboardMacroWidget.hpp"
+#include "PluginLoaderWidget.hpp"
+#include "WidgetGallery.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3427,6 +3432,94 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* similarityAction = toolsMenu->addAction("Paper &Similarity");
+    connect(similarityAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Similarity Analysis");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSimilarityWidget();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers())
+                papers.append({p.id, p.title + " " + p.abstractText});
+            w->setPapers(papers);
+        }
+        connect(w, &PaperSimilarityWidget::pairClicked, this, [](int a, int b) {
+            ToastWidget::showInfo(QString("Similar pair: #%1 ↔ #%2").arg(a).arg(b));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* exportTplAction = toolsMenu->addAction("Export &Templates");
+    connect(exportTplAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Export Template Manager");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ExportTemplateManager();
+        connect(w, &ExportTemplateManager::templateSelected, this, [](const ExportTemplate& t) {
+            ToastWidget::showInfo(QString("Template: %1 (%2)").arg(t.name, t.format));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* macroAction = toolsMenu->addAction("Keyboard &Macros");
+    connect(macroAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Keyboard Macros");
+        dlg->resize(600, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new KeyboardMacroWidget();
+        connect(w, &KeyboardMacroWidget::macroPlayed, this, [](int id) {
+            ToastWidget::showSuccess(QString("Macro #%1 played").arg(id));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* pluginAction = toolsMenu->addAction("&Plugin Manager");
+    connect(pluginAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Plugin Manager");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PluginLoaderWidget();
+        w->scanPlugins(QCoreApplication::applicationDirPath() + "/plugins");
+        connect(w, &PluginLoaderWidget::pluginLoaded, this, [](const QString& name) {
+            ToastWidget::showSuccess(QString("Plugin loaded: %1").arg(name));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* galleryAction = toolsMenu->addAction("Widget &Gallery");
+    connect(galleryAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Widget Gallery");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new WidgetGallery();
+        w->addWidget("Analysis", "Similarity", "Jaccard / Cosine pair analysis");
+        w->addWidget("Analysis", "Clustering", "K-means paper grouping");
+        w->addWidget("Export", "CSV Template", "Standard CSV export format");
+        w->addWidget("Export", "BibTeX Template", "BibTeX citation format");
+        w->addWidget("Tools", "Macro Recorder", "Record and replay keyboard macros");
+        w->addWidget("Tools", "Plugin Manager", "Load and manage plugins");
+        connect(w, &WidgetGallery::widgetSelected, this, [](const QString& cat, const QString& name) {
+            ToastWidget::showInfo(QString("Selected: %1 / %2").arg(cat, name));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -3817,6 +3910,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Find Duplicates", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Find Duplicates");
+    });
+    commandPalette_->addAction("Paper Similarity", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Similarity");
+    });
+    commandPalette_->addAction("Export Templates", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Export Templates");
+    });
+    commandPalette_->addAction("Keyboard Macros", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Keyboard Macros");
+    });
+    commandPalette_->addAction("Plugin Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Plugin Manager");
+    });
+    commandPalette_->addAction("Widget Gallery", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Widget Gallery");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
