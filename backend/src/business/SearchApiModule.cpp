@@ -746,7 +746,7 @@ void SearchApiModule::registerRoutes() {
             if (j.contains("query")) query.query = ValidationHelper::sanitize(j["query"].get<std::string>());
             if (j.contains("page")) query.page = j["page"];
             if (j.contains("limit")) query.limit = j["limit"];
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[SearchApi] Failed to parse parameter"); }
 
         auto result = advancedSearch(query);
         response.body = result.toJson();

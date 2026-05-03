@@ -180,7 +180,7 @@ public:
             if (!results.empty()) {
                 return std::stoi(results[0]["count"]);
             }
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[StatsApi] Failed to parse numeric parameter"); }
         return 0;
     }
 
@@ -191,7 +191,7 @@ public:
             if (!results.empty()) {
                 return std::stoi(results[0]["count"]);
             }
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[StatsApi] Failed to parse numeric parameter"); }
         return 0;
     }
 
@@ -202,7 +202,7 @@ public:
             if (!results.empty()) {
                 return std::stoi(results[0]["count"]);
             }
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[StatsApi] Failed to parse numeric parameter"); }
         return 0;
     }
 

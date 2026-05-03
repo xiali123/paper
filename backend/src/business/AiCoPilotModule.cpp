@@ -790,7 +790,7 @@ HttpResponse AiCoPilotModule::handleStreamRequest(const HttpRequest& req) {
             // Determine user id from query (default 0 for anonymous)
             int userId = 0;
             std::string userIdStr = req.getQuery("userId", "0");
-            try { userId = std::stoi(userIdStr); } catch (...) {}
+            try { userId = std::stoi(userIdStr); } catch (...) { spdlog::warn("[AiCoPilot] Invalid userId format: {}", userIdStr); }
 
             // Determine model type (default GPT_4_MINI for streaming chat)
             RAGContext ragContext = impl_->aiWorkflow_->buildRAGContext(prompt, userId);

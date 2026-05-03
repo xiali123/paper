@@ -31,16 +31,11 @@ AuthApiModule::AuthApiModule()
 // 简单JSON构建辅助函数
 namespace {
     std::string buildJsonResponse(const std::map<std::string, std::string>& data, int statusCode = HTTP::OK) {
-        std::ostringstream json;
-        json << "{";
-        bool first = true;
+        nlohmann::json jsonObj;
         for (const auto& [key, value] : data) {
-            if (!first) json << ",";
-            json << "\n  \"" << key << "\": \"" << value << "\"";
-            first = false;
+            jsonObj[key] = value;
         }
-        json << "\n}";
-        return json.str();
+        return jsonObj.dump();
     }
 
     std::string generateRandomToken(const std::string& prefix) {
@@ -1438,16 +1433,14 @@ std::string AuthApiModule::handleLogin(const std::string& body) {
     loginResponse.user = user;
 
     // 转换为JSON响应 - 包含user和expires_in
-    std::ostringstream json;
-    json << "{\n";
-    json << "  \"success\": true,\n";
-    json << "  \"message\": \"" << loginResponse.message << "\",\n";
-    json << "  \"access_token\": \"" << loginResponse.accessToken << "\",\n";
-    json << "  \"refresh_token\": \"" << loginResponse.refreshToken << "\",\n";
-    json << "  \"expires_in\": " << loginResponse.expiresIn.count() << ",\n";
-    json << "  \"user\": " << user.toJSON() << "\n";
-    json << "}";
-    return json.str();
+    nlohmann::json loginJson;
+    loginJson["success"] = true;
+    loginJson["message"] = loginResponse.message;
+    loginJson["access_token"] = loginResponse.accessToken;
+    loginJson["refresh_token"] = loginResponse.refreshToken;
+    loginJson["expires_in"] = loginResponse.expiresIn.count();
+    loginJson["user"] = nlohmann::json::parse(user.toJSON());
+    return loginJson.dump();
 }
 
 bool AuthApiModule::logout(const std::string& accessToken) {

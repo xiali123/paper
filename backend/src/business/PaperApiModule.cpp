@@ -472,7 +472,7 @@ std::string PaperApiModule::handleExport(const std::map<std::string, std::string
         std::istringstream iss(it->second);
         std::string idStr;
         while (std::getline(iss, idStr, ',')) {
-            try { ids.push_back(std::stoi(idStr)); } catch (...) {}
+            try { ids.push_back(std::stoi(idStr)); } catch (...) { spdlog::warn("[PaperApi] Invalid ID format: {}", idStr); }
         }
     }
 
@@ -494,7 +494,7 @@ std::string PaperApiModule::handleFavorite(const std::map<std::string, std::stri
     if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, HTTP::NOT_FOUND);
 
     bool favorite = true;
-    try { auto j = nlohmann::json::parse(body); if (j.contains("favorite")) favorite = j["favorite"]; } catch (...) {}
+    try { auto j = nlohmann::json::parse(body); if (j.contains("favorite")) favorite = j["favorite"]; } catch (...) { spdlog::warn("[PaperApi] Failed to parse request body"); }
 
     if (markAsFavorite(id, favorite))
         return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", std::string("Paper ") + (favorite ? "added to" : "removed from") + " favorites"}});
@@ -510,7 +510,7 @@ std::string PaperApiModule::handleRead(const std::map<std::string, std::string>&
     if (!getPaper(id)) return JsonHelper::buildJsonResponse({{"error", "Paper not found"}}, HTTP::NOT_FOUND);
 
     bool isRead = true;
-    try { auto j = nlohmann::json::parse(body); if (j.contains("is_read")) isRead = j["is_read"]; } catch (...) {}
+    try { auto j = nlohmann::json::parse(body); if (j.contains("is_read")) isRead = j["is_read"]; } catch (...) { spdlog::warn("[PaperApi] Failed to parse request body"); }
 
     if (markAsRead(id, isRead))
         return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", std::string("Paper ") + (isRead ? "marked as read" : "marked as unread")}});

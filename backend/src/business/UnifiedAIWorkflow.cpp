@@ -315,7 +315,7 @@ RAGContext UnifiedAIWorkflow::buildRAGContext(const std::string& query, int user
                 "SELECT COUNT(*) as cnt FROM paper_embeddings");
             int count = 0;
             if (!existingRows.empty() && existingRows[0].count("cnt")) {
-                try { count = std::stoi(existingRows[0].at("cnt")); } catch (...) {}
+                try { count = std::stoi(existingRows[0].at("cnt")); } catch (...) { spdlog::warn("[UnifiedAIWorkflow] Failed to parse count from cache"); }
             }
             if (count == 0) {
                 spdlog::info("[UnifiedAIWorkflow] Embeddings table empty, indexing papers...");

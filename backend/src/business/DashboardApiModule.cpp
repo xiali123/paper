@@ -240,13 +240,13 @@ std::string DashboardApiModule::handleStats() {
             auto r5 = database_->query(
                 "SELECT COUNT(*) as cnt FROM user_reading_history WHERE reading_status = 'unread'");
             if (!r5.empty() && r5[0].count("cnt")) toReadCount = std::stoi(r5[0].at("cnt"));
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
 
         int exportCount = 0;
         try {
             auto r6 = database_->query("SELECT COUNT(*) as cnt FROM exports");
             if (!r6.empty() && r6[0].count("cnt")) exportCount = std::stoi(r6[0].at("cnt"));
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
 
         response["totalPapers"] = totalPapers;
         response["weeklyNewPapers"] = weeklyNewPapers;
@@ -297,7 +297,7 @@ std::string DashboardApiModule::handleActivities(int limit) {
                 act["id"] = row.count("id") ? row["id"] : "0";
                 activities.push_back(act);
             }
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
 
         // 搜索活动
         try {
@@ -313,7 +313,7 @@ std::string DashboardApiModule::handleActivities(int limit) {
                 act["id"] = row.count("id") ? row["id"] : "0";
                 activities.push_back(act);
             }
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
 
         // 按时间排序取limit条（简化：直接截取）
         int count = 0;
@@ -429,7 +429,7 @@ std::string DashboardApiModule::handleTrendingSearches(int limit) {
                 item["trend"] = "stable";
                 resultsArr.push_back(item);
             }
-        } catch (...) {}
+        } catch (...) { spdlog::warn("[DashboardApi] Failed to parse numeric parameter"); }
     }
 
     std::string responseBody = resultsArr.dump();
