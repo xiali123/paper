@@ -1,4 +1,5 @@
 #include "business/AiApiModule.hpp"
+#include "data/StringUtil.hpp"
 #include "data/DatabaseModule.hpp"
 #include "network/HttpClient.hpp"
 #include "core/Router.hpp"
@@ -18,33 +19,6 @@
 namespace PaperCrawler {
 
 using json = nlohmann::json;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * @brief 简单的SQL字符串转义
- */
-static std::string escapeSqlString(const std::string& input) {
-    std::string result;
-    result.reserve(input.length() * 2);
-
-    for (char c : input) {
-        switch (c) {
-            case '\'': result.append("\\'"); break;
-            case '\"': result.append("\\\""); break;
-            case '\\': result.append("\\\\"); break;
-            case '\n': result.append("\\n"); break;
-            case '\r': result.append("\\r"); break;
-            case '\t': result.append("\\t"); break;
-            case '\0': result.append("\\0"); break;
-            default: result.push_back(c); break;
-        }
-    }
-
-    return result;
-}
 
 // ============================================================================
 // AiApiModule::Impl - 内部实现

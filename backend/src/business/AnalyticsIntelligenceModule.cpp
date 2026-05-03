@@ -1,4 +1,5 @@
 #include "business/AnalyticsIntelligenceModule.hpp"
+#include "data/StringUtil.hpp"
 #include "data/PreparedStatement.hpp"
 #include "core/Router.hpp"
 #include "core/EventDrivenIntegration.hpp"
@@ -654,8 +655,7 @@ std::vector<AcademicGeneNode> AnalyticsIntelligenceModule::buildAcademicGenealog
 // ============================================================================
 
 std::string AnalyticsIntelligenceModule::escapeJson(const std::string& str) {
-    json j = str;
-    return j.dump();
+    return StringUtil::escapeJson(str);
 }
 
 } // namespace PaperCrawler

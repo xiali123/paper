@@ -1,5 +1,6 @@
 #include "business/CrawlerApiModule.hpp"
 #include "data/DatabaseModule.hpp"
+#include "data/StringUtil.hpp"
 #include <spdlog/spdlog.h>
 #include "modules/TemplateCrawlerModule.hpp"
 #include "modules/DistributedTaskModule.hpp"
@@ -1294,31 +1295,7 @@ std::string CrawlerApiModule::extractPathParam(
 }
 
 std::string CrawlerApiModule::escapeJson(const std::string& str) {
-    std::string escaped;
-    escaped.reserve(str.length() * 2);
-
-    for (char c : str) {
-        switch (c) {
-            case '"':  escaped += "\\\""; break;
-            case '\\': escaped += "\\\\"; break;
-            case '\b': escaped += "\\b"; break;
-            case '\f': escaped += "\\f"; break;
-            case '\n': escaped += "\\n"; break;
-            case '\r': escaped += "\\r"; break;
-            case '\t': escaped += "\\t"; break;
-            default:
-                if (c < 32) {
-                    char buf[7];
-                    snprintf(buf, sizeof(buf), "\\u%04x", c);
-                    escaped += buf;
-                } else {
-                    escaped += c;
-                }
-                break;
-        }
-    }
-
-    return escaped;
+    return StringUtil::escapeJson(str);
 }
 
 // ============================================================================

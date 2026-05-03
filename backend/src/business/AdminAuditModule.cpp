@@ -14,13 +14,9 @@
 #include <openssl/sha.h>
 #include <openssl/rand.h>
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 
 namespace PaperCrawler {
-
-static std::string cleanDbString(const std::string& val) {
-    if (val.empty() || val == "NULL") return "";
-    return val;
-}
 
 class AdminAuditModule::Impl {
 public:
@@ -30,47 +26,6 @@ public:
 
     explicit Impl(std::shared_ptr<IDatabase> database)
         : database_(database) {}
-
-    std::string escapeJson(const std::string& str) {
-        std::string result;
-        result.reserve(str.length() * 1.2);
-        for (char c : str) {
-            switch (c) {
-                case '"': result += "\\\""; break;
-                case '\\': result += "\\\\"; break;
-                case '\n': result += "\\n"; break;
-                case '\r': result += "\\r"; break;
-                case '\t': result += "\\t"; break;
-                case '\b': result += "\\b"; break;
-                case '\f': result += "\\f"; break;
-                default:
-                    if (c < ' ') {
-                        char buf[7];
-                        snprintf(buf, sizeof(buf), "\\u%04x", (unsigned int)c);
-                        result += buf;
-                    } else {
-                        result += c;
-                    }
-                    break;
-            }
-        }
-        return result;
-    }
-
-    std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "") {
-        std::ostringstream json;
-        json << "{";
-        json << "\"statusCode\":" << statusCode << ",";
-        json << "\"success\":" << (success ? "true" : "false") << ",";
-        json << "\"message\":\"" << escapeJson(message) << "\"";
-        if (!data.empty()) json << ",\"data\":" << data;
-        json << "}";
-        return json.str();
-    }
-
-    std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "") {
-        return buildJsonResponse(200, success, message, data);
-    }
 };
 
 // ============================================================================
@@ -457,8 +412,8 @@ PaginatedResponse<AuditLog> AdminAuditModule::getAuditLogs(int page, int limit, 
         // Filter in-memory if prepared statement binding not available for dynamic query
         std::vector<std::map<std::string, std::string>> filtered;
         for (const auto& row : allResults) {
-            if (!action.empty() && cleanDbString(row.count("action") ? row.at("action") : "") != action) continue;
-            if (userId > 0 && std::stoi(cleanDbString(row.count("actor_id") ? row.at("actor_id") : "0")) != userId) continue;
+            if (!action.empty() && StringUtil::cleanDbString(row.count("action") ? row.at("action") : "") != action) continue;
+            if (userId > 0 && std::stoi(StringUtil::cleanDbString(row.count("actor_id") ? row.at("actor_id") : "0")) != userId) continue;
             filtered.push_back(row);
         }
 
@@ -469,14 +424,14 @@ PaginatedResponse<AuditLog> AdminAuditModule::getAuditLogs(int page, int limit, 
         int end = std::min(start + limit, (int)filtered.size());
         for (int i = start; i < end; i++) {
             AuditLog log;
-            log.id = std::stoi(cleanDbString(filtered[i].count("id") ? filtered[i].at("id") : "0"));
-            log.action = cleanDbString(filtered[i].count("action") ? filtered[i].at("action") : "");
-            log.entityType = cleanDbString(filtered[i].count("entity_type") ? filtered[i].at("entity_type") : "");
-            log.entityId = std::stoi(cleanDbString(filtered[i].count("entity_id") ? filtered[i].at("entity_id") : "0"));
-            log.actorUsername = cleanDbString(filtered[i].count("actor_username") ? filtered[i].at("actor_username") : "");
-            log.actorId = std::stoi(cleanDbString(filtered[i].count("actor_id") ? filtered[i].at("actor_id") : "0"));
-            log.details = cleanDbString(filtered[i].count("details") ? filtered[i].at("details") : "");
-            log.ipAddress = cleanDbString(filtered[i].count("ip_address") ? filtered[i].at("ip_address") : "");
+            log.id = std::stoi(StringUtil::cleanDbString(filtered[i].count("id") ? filtered[i].at("id") : "0"));
+            log.action = StringUtil::cleanDbString(filtered[i].count("action") ? filtered[i].at("action") : "");
+            log.entityType = StringUtil::cleanDbString(filtered[i].count("entity_type") ? filtered[i].at("entity_type") : "");
+            log.entityId = std::stoi(StringUtil::cleanDbString(filtered[i].count("entity_id") ? filtered[i].at("entity_id") : "0"));
+            log.actorUsername = StringUtil::cleanDbString(filtered[i].count("actor_username") ? filtered[i].at("actor_username") : "");
+            log.actorId = std::stoi(StringUtil::cleanDbString(filtered[i].count("actor_id") ? filtered[i].at("actor_id") : "0"));
+            log.details = StringUtil::cleanDbString(filtered[i].count("details") ? filtered[i].at("details") : "");
+            log.ipAddress = StringUtil::cleanDbString(filtered[i].count("ip_address") ? filtered[i].at("ip_address") : "");
             response.items.push_back(log);
         }
     } catch (const std::exception& e) {
@@ -493,15 +448,15 @@ std::vector<Role> AdminAuditModule::getRoles() {
         auto results = database_->query("SELECT * FROM roles ORDER BY level DESC");
         for (const auto& row : results) {
             Role role;
-            role.id = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            role.name = cleanDbString(row.count("name") ? row.at("name") : "");
-            role.displayName = cleanDbString(row.count("display_name") ? row.at("display_name") : "");
-            role.description = cleanDbString(row.count("description") ? row.at("description") : "");
-            role.level = std::stoi(cleanDbString(row.count("level") ? row.at("level") : "0"));
-            role.isSystem = cleanDbString(row.count("is_system") ? row.at("is_system") : "0") == "1";
-            role.isDefault = cleanDbString(row.count("is_default") ? row.at("is_default") : "0") == "1";
-            role.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-            role.updatedAt = cleanDbString(row.count("updated_at") ? row.at("updated_at") : "");
+            role.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            role.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
+            role.displayName = StringUtil::cleanDbString(row.count("display_name") ? row.at("display_name") : "");
+            role.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
+            role.level = std::stoi(StringUtil::cleanDbString(row.count("level") ? row.at("level") : "0"));
+            role.isSystem = StringUtil::cleanDbString(row.count("is_system") ? row.at("is_system") : "0") == "1";
+            role.isDefault = StringUtil::cleanDbString(row.count("is_default") ? row.at("is_default") : "0") == "1";
+            role.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            role.updatedAt = StringUtil::cleanDbString(row.count("updated_at") ? row.at("updated_at") : "");
             roles.push_back(role);
         }
     } catch (const std::exception& e) {
@@ -521,7 +476,7 @@ int AdminAuditModule::createRole(const std::string& name, const std::string& dis
         stmt.bind(4, createdBy);
         stmt.execute();
         auto lastId = database_->query("SELECT LAST_INSERT_ID() as id");
-        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(cleanDbString(lastId[0].at("id")));
+        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(StringUtil::cleanDbString(lastId[0].at("id")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to create role: {}", e.what());
     }
@@ -551,7 +506,7 @@ bool AdminAuditModule::deleteRole(int roleId) {
         checkStmt.bind(0, roleId);
         auto results = checkStmt.query();
         if (!results.empty()) {
-            bool isSystem = cleanDbString(results[0].count("is_system") ? results[0].at("is_system") : "0") == "1";
+            bool isSystem = StringUtil::cleanDbString(results[0].count("is_system") ? results[0].at("is_system") : "0") == "1";
             if (isSystem) return false;
         }
         PreparedStatement delStmt(database_, "DELETE FROM roles WHERE id = ?");
@@ -571,10 +526,10 @@ std::vector<Permission> AdminAuditModule::getPermissions() {
         auto results = database_->query("SELECT * FROM permissions ORDER BY resource, action");
         for (const auto& row : results) {
             Permission perm;
-            perm.id = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            perm.resource = cleanDbString(row.count("resource") ? row.at("resource") : "");
-            perm.action = cleanDbString(row.count("action") ? row.at("action") : "");
-            perm.description = cleanDbString(row.count("description") ? row.at("description") : "");
+            perm.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            perm.resource = StringUtil::cleanDbString(row.count("resource") ? row.at("resource") : "");
+            perm.action = StringUtil::cleanDbString(row.count("action") ? row.at("action") : "");
+            perm.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
             permissions.push_back(perm);
         }
     } catch (const std::exception& e) {
@@ -591,8 +546,8 @@ std::vector<PermissionMatrix> AdminAuditModule::getPermissionMatrix() {
         std::string currentRole;
         PermissionMatrix currentMatrix;
         for (const auto& row : results) {
-            std::string roleName = cleanDbString(row.count("role_name") ? row.at("role_name") : "");
-            std::string resource = cleanDbString(row.count("resource") ? row.at("resource") : "");
+            std::string roleName = StringUtil::cleanDbString(row.count("role_name") ? row.at("role_name") : "");
+            std::string resource = StringUtil::cleanDbString(row.count("resource") ? row.at("resource") : "");
             if (roleName != currentRole) {
                 if (!currentRole.empty()) matrix.push_back(currentMatrix);
                 currentMatrix = PermissionMatrix();
@@ -623,13 +578,13 @@ std::vector<RolePermission> AdminAuditModule::getRolePermissions(int roleId) {
         auto results = stmt.query();
         for (const auto& row : results) {
             RolePermission rp;
-            rp.roleId = std::stoi(cleanDbString(row.count("role_id") ? row.at("role_id") : "0"));
-            rp.roleName = cleanDbString(row.count("role_name") ? row.at("role_name") : "");
-            rp.permissionId = std::stoi(cleanDbString(row.count("permission_id") ? row.at("permission_id") : "0"));
-            rp.resource = cleanDbString(row.count("resource") ? row.at("resource") : "");
-            rp.action = cleanDbString(row.count("action") ? row.at("action") : "");
-            rp.grantedAt = cleanDbString(row.count("granted_at") ? row.at("granted_at") : "");
-            rp.grantedByUsername = cleanDbString(row.count("granted_by_username") ? row.at("granted_by_username") : "");
+            rp.roleId = std::stoi(StringUtil::cleanDbString(row.count("role_id") ? row.at("role_id") : "0"));
+            rp.roleName = StringUtil::cleanDbString(row.count("role_name") ? row.at("role_name") : "");
+            rp.permissionId = std::stoi(StringUtil::cleanDbString(row.count("permission_id") ? row.at("permission_id") : "0"));
+            rp.resource = StringUtil::cleanDbString(row.count("resource") ? row.at("resource") : "");
+            rp.action = StringUtil::cleanDbString(row.count("action") ? row.at("action") : "");
+            rp.grantedAt = StringUtil::cleanDbString(row.count("granted_at") ? row.at("granted_at") : "");
+            rp.grantedByUsername = StringUtil::cleanDbString(row.count("granted_by_username") ? row.at("granted_by_username") : "");
             rolePermissions.push_back(rp);
         }
     } catch (const std::exception& e) {
@@ -673,15 +628,15 @@ std::vector<UserRoleAssignment> AdminAuditModule::getUserRoles(int userId) {
         auto results = stmt.query();
         for (const auto& row : results) {
             UserRoleAssignment userRole;
-            userRole.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            userRole.userId = std::stoi(cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-            userRole.username = cleanDbString(row.count("username") ? row.at("username") : "");
-            userRole.roleId = std::stoi(cleanDbString(row.count("role_id") ? row.at("role_id") : "0"));
-            userRole.roleName = cleanDbString(row.count("role_name") ? row.at("role_name") : "");
-            userRole.roleLevel = std::stoi(cleanDbString(row.count("role_level") ? row.at("role_level") : "0"));
-            userRole.assignedAt = cleanDbString(row.count("assigned_at") ? row.at("assigned_at") : "");
-            userRole.expiresAt = cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
-            userRole.reason = cleanDbString(row.count("reason") ? row.at("reason") : "");
+            userRole.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            userRole.userId = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
+            userRole.username = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
+            userRole.roleId = std::stoi(StringUtil::cleanDbString(row.count("role_id") ? row.at("role_id") : "0"));
+            userRole.roleName = StringUtil::cleanDbString(row.count("role_name") ? row.at("role_name") : "");
+            userRole.roleLevel = std::stoi(StringUtil::cleanDbString(row.count("role_level") ? row.at("role_level") : "0"));
+            userRole.assignedAt = StringUtil::cleanDbString(row.count("assigned_at") ? row.at("assigned_at") : "");
+            userRole.expiresAt = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
+            userRole.reason = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
             userRoles.push_back(userRole);
         }
     } catch (const std::exception& e) {
@@ -730,7 +685,7 @@ bool AdminAuditModule::checkUserPermission(int userId, const std::string& resour
         stmt.bind(0, userId);
         auto results = stmt.query();
         if (!results.empty()) {
-            int count = std::stoi(cleanDbString(results[0].count("count") ? results[0].at("count") : "0"));
+            int count = std::stoi(StringUtil::cleanDbString(results[0].count("count") ? results[0].at("count") : "0"));
             return count > 0;
         }
     } catch (const std::exception& e) {
@@ -745,7 +700,7 @@ PaginatedResponse<PaperModeration> AdminAuditModule::getPendingPapers(int page, 
     if (!database_) return response;
     try {
         auto countResults = database_->query("SELECT COUNT(*) as total FROM paper_moderations WHERE status = 'pending'");
-        response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_,
             "SELECT pm.*, u.username as moderator_username FROM paper_moderations pm "
@@ -756,15 +711,15 @@ PaginatedResponse<PaperModeration> AdminAuditModule::getPendingPapers(int page, 
         auto results = stmt.query();
         for (const auto& row : results) {
             PaperModeration m;
-            m.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            m.paperId = std::stoi(cleanDbString(row.count("paper_id") ? row.at("paper_id") : "0"));
-            m.status = cleanDbString(row.count("status") ? row.at("status") : "");
-            m.moderatorId = row.count("moderator_id") && row.at("moderator_id") != "NULL" ? std::stoi(cleanDbString(row.at("moderator_id"))) : 0;
-            m.moderatorUsername = cleanDbString(row.count("moderator_username") ? row.at("moderator_username") : "");
-            m.reason = cleanDbString(row.count("reason") ? row.at("reason") : "");
-            m.reviewedAt = cleanDbString(row.count("reviewed_at") ? row.at("reviewed_at") : "");
-            m.flags = cleanDbString(row.count("flags") ? row.at("flags") : "{}");
-            m.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            m.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            m.paperId = std::stoi(StringUtil::cleanDbString(row.count("paper_id") ? row.at("paper_id") : "0"));
+            m.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
+            m.moderatorId = row.count("moderator_id") && row.at("moderator_id") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("moderator_id"))) : 0;
+            m.moderatorUsername = StringUtil::cleanDbString(row.count("moderator_username") ? row.at("moderator_username") : "");
+            m.reason = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
+            m.reviewedAt = StringUtil::cleanDbString(row.count("reviewed_at") ? row.at("reviewed_at") : "");
+            m.flags = StringUtil::cleanDbString(row.count("flags") ? row.at("flags") : "{}");
+            m.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             response.items.push_back(m);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -784,15 +739,15 @@ std::optional<PaperModeration> AdminAuditModule::getPaperModeration(int64_t id) 
         auto results = stmt.query();
         if (!results.empty()) {
             PaperModeration m;
-            m.id = std::stoll(cleanDbString(results[0].count("id") ? results[0].at("id") : "0"));
-            m.paperId = std::stoi(cleanDbString(results[0].count("paper_id") ? results[0].at("paper_id") : "0"));
-            m.status = cleanDbString(results[0].count("status") ? results[0].at("status") : "");
-            m.moderatorId = results[0].count("moderator_id") && results[0].at("moderator_id") != "NULL" ? std::stoi(cleanDbString(results[0].at("moderator_id"))) : 0;
-            m.moderatorUsername = cleanDbString(results[0].count("moderator_username") ? results[0].at("moderator_username") : "");
-            m.reason = cleanDbString(results[0].count("reason") ? results[0].at("reason") : "");
-            m.reviewedAt = cleanDbString(results[0].count("reviewed_at") ? results[0].at("reviewed_at") : "");
-            m.flags = cleanDbString(results[0].count("flags") ? results[0].at("flags") : "{}");
-            m.createdAt = cleanDbString(results[0].count("created_at") ? results[0].at("created_at") : "");
+            m.id = std::stoll(StringUtil::cleanDbString(results[0].count("id") ? results[0].at("id") : "0"));
+            m.paperId = std::stoi(StringUtil::cleanDbString(results[0].count("paper_id") ? results[0].at("paper_id") : "0"));
+            m.status = StringUtil::cleanDbString(results[0].count("status") ? results[0].at("status") : "");
+            m.moderatorId = results[0].count("moderator_id") && results[0].at("moderator_id") != "NULL" ? std::stoi(StringUtil::cleanDbString(results[0].at("moderator_id"))) : 0;
+            m.moderatorUsername = StringUtil::cleanDbString(results[0].count("moderator_username") ? results[0].at("moderator_username") : "");
+            m.reason = StringUtil::cleanDbString(results[0].count("reason") ? results[0].at("reason") : "");
+            m.reviewedAt = StringUtil::cleanDbString(results[0].count("reviewed_at") ? results[0].at("reviewed_at") : "");
+            m.flags = StringUtil::cleanDbString(results[0].count("flags") ? results[0].at("flags") : "{}");
+            m.createdAt = StringUtil::cleanDbString(results[0].count("created_at") ? results[0].at("created_at") : "");
             return m;
         }
     } catch (const std::exception& e) {
@@ -841,7 +796,7 @@ PaginatedResponse<UserReport> AdminAuditModule::getUserReports(int page, int lim
         PreparedStatement countStmt(database_, countSql);
         if (!status.empty()) { countBindIdx = 0; countStmt.bind(countBindIdx, status); }
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
         std::string sql = "SELECT ur.*, reporter.username as reporter_username, reviewer.username as reviewer_username "
                          "FROM user_reports ur LEFT JOIN users reporter ON ur.reporter_id = reporter.id "
@@ -856,19 +811,19 @@ PaginatedResponse<UserReport> AdminAuditModule::getUserReports(int page, int lim
         auto results = stmt.query();
         for (const auto& row : results) {
             UserReport report;
-            report.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            report.reporterId = std::stoi(cleanDbString(row.count("reporter_id") ? row.at("reporter_id") : "0"));
-            report.reporterUsername = cleanDbString(row.count("reporter_username") ? row.at("reporter_username") : "");
-            report.targetType = cleanDbString(row.count("target_type") ? row.at("target_type") : "");
-            report.targetId = std::stoi(cleanDbString(row.count("target_id") ? row.at("target_id") : "0"));
-            report.reason = cleanDbString(row.count("reason") ? row.at("reason") : "");
-            report.description = cleanDbString(row.count("description") ? row.at("description") : "");
-            report.status = cleanDbString(row.count("status") ? row.at("status") : "");
-            report.priority = cleanDbString(row.count("priority") ? row.at("priority") : "medium");
-            report.reviewerId = row.count("reviewer_id") && row.at("reviewer_id") != "NULL" ? std::stoi(cleanDbString(row.at("reviewer_id"))) : 0;
-            report.reviewerUsername = cleanDbString(row.count("reviewer_username") ? row.at("reviewer_username") : "");
-            report.resolution = cleanDbString(row.count("resolution") ? row.at("resolution") : "");
-            report.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            report.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            report.reporterId = std::stoi(StringUtil::cleanDbString(row.count("reporter_id") ? row.at("reporter_id") : "0"));
+            report.reporterUsername = StringUtil::cleanDbString(row.count("reporter_username") ? row.at("reporter_username") : "");
+            report.targetType = StringUtil::cleanDbString(row.count("target_type") ? row.at("target_type") : "");
+            report.targetId = std::stoi(StringUtil::cleanDbString(row.count("target_id") ? row.at("target_id") : "0"));
+            report.reason = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
+            report.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
+            report.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
+            report.priority = StringUtil::cleanDbString(row.count("priority") ? row.at("priority") : "medium");
+            report.reviewerId = row.count("reviewer_id") && row.at("reviewer_id") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("reviewer_id"))) : 0;
+            report.reviewerUsername = StringUtil::cleanDbString(row.count("reviewer_username") ? row.at("reviewer_username") : "");
+            report.resolution = StringUtil::cleanDbString(row.count("resolution") ? row.at("resolution") : "");
+            report.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             response.items.push_back(report);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -898,16 +853,16 @@ std::vector<SensitiveWord> AdminAuditModule::getSensitiveWords() {
         auto results = database_->query("SELECT * FROM sensitive_words WHERE is_active = 1 ORDER BY category, severity DESC");
         for (const auto& row : results) {
             SensitiveWord word;
-            word.id = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            word.word = cleanDbString(row.count("word") ? row.at("word") : "");
-            word.category = cleanDbString(row.count("category") ? row.at("category") : "");
-            word.severity = cleanDbString(row.count("severity") ? row.at("severity") : "medium");
-            word.isRegex = cleanDbString(row.count("is_regex") ? row.at("is_regex") : "0") == "1";
-            word.replacement = cleanDbString(row.count("replacement") ? row.at("replacement") : "");
-            word.isActive = cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
-            word.matchCount = std::stoi(cleanDbString(row.count("match_count") ? row.at("match_count") : "0"));
-            word.createdBy = std::stoi(cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            word.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            word.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            word.word = StringUtil::cleanDbString(row.count("word") ? row.at("word") : "");
+            word.category = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
+            word.severity = StringUtil::cleanDbString(row.count("severity") ? row.at("severity") : "medium");
+            word.isRegex = StringUtil::cleanDbString(row.count("is_regex") ? row.at("is_regex") : "0") == "1";
+            word.replacement = StringUtil::cleanDbString(row.count("replacement") ? row.at("replacement") : "");
+            word.isActive = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
+            word.matchCount = std::stoi(StringUtil::cleanDbString(row.count("match_count") ? row.at("match_count") : "0"));
+            word.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
+            word.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             words.push_back(word);
         }
     } catch (const std::exception& e) {
@@ -923,7 +878,7 @@ int AdminAuditModule::createSensitiveWord(const std::string& word, const std::st
         stmt.bind(0, word); stmt.bind(1, category); stmt.bind(2, severity); stmt.bind(3, isRegex ? 1 : 0); stmt.bind(4, replacement); stmt.bind(5, createdBy);
         stmt.execute();
         auto lastId = database_->query("SELECT LAST_INSERT_ID() as id");
-        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(cleanDbString(lastId[0].at("id")));
+        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(StringUtil::cleanDbString(lastId[0].at("id")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to create sensitive word: {}", e.what());
     }
@@ -988,11 +943,11 @@ std::map<std::string, int> AdminAuditModule::getSensitiveWordStats() {
     if (!database_) return stats;
     try {
         auto totalResults = database_->query("SELECT COUNT(*) as total FROM sensitive_words WHERE is_active = 1");
-        stats["total_active"] = totalResults.empty() ? 0 : std::stoi(cleanDbString(totalResults[0].at("total")));
+        stats["total_active"] = totalResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(totalResults[0].at("total")));
         auto catResults = database_->query("SELECT category, COUNT(*) as count FROM sensitive_words WHERE is_active = 1 GROUP BY category");
-        for (const auto& row : catResults) stats["category_" + cleanDbString(row.count("category") ? row.at("category") : "")] = std::stoi(cleanDbString(row.count("count") ? row.at("count") : "0"));
+        for (const auto& row : catResults) stats["category_" + StringUtil::cleanDbString(row.count("category") ? row.at("category") : "")] = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
         auto matchResults = database_->query("SELECT SUM(match_count) as total FROM sensitive_words WHERE is_active = 1");
-        stats["total_matches"] = matchResults.empty() ? 0 : std::stoi(cleanDbString(matchResults[0].at("total")));
+        stats["total_matches"] = matchResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(matchResults[0].at("total")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to get sensitive word stats: {}", e.what());
     }
@@ -1009,7 +964,7 @@ PaginatedResponse<ApiKey> AdminAuditModule::getApiKeys(int page, int limit, int 
         PreparedStatement countStmt(database_, countSql);
         if (userId > 0) countStmt.bind(0, userId);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
         std::string sql = "SELECT ak.*, u.username FROM api_keys ak LEFT JOIN users u ON ak.user_id = u.id";
         int bindIdx = 0;
@@ -1022,19 +977,19 @@ PaginatedResponse<ApiKey> AdminAuditModule::getApiKeys(int page, int limit, int 
         auto results = stmt.query();
         for (const auto& row : results) {
             ApiKey key;
-            key.id = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            key.userId = std::stoi(cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-            key.username = cleanDbString(row.count("username") ? row.at("username") : "");
-            key.name = cleanDbString(row.count("name") ? row.at("name") : "");
-            key.keyPrefix = cleanDbString(row.count("key_prefix") ? row.at("key_prefix") : "");
-            key.scopes = cleanDbString(row.count("scopes") ? row.at("scopes") : "[]");
-            key.rateLimitPerHour = std::stoi(cleanDbString(row.count("rate_limit_per_hour") ? row.at("rate_limit_per_hour") : "1000"));
-            key.expiresAt = cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
-            key.lastUsedAt = cleanDbString(row.count("last_used_at") ? row.at("last_used_at") : "");
-            key.requestCount = std::stoll(cleanDbString(row.count("request_count") ? row.at("request_count") : "0"));
-            key.isActive = cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
-            key.createdBy = std::stoi(cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            key.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            key.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            key.userId = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
+            key.username = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
+            key.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
+            key.keyPrefix = StringUtil::cleanDbString(row.count("key_prefix") ? row.at("key_prefix") : "");
+            key.scopes = StringUtil::cleanDbString(row.count("scopes") ? row.at("scopes") : "[]");
+            key.rateLimitPerHour = std::stoi(StringUtil::cleanDbString(row.count("rate_limit_per_hour") ? row.at("rate_limit_per_hour") : "1000"));
+            key.expiresAt = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
+            key.lastUsedAt = StringUtil::cleanDbString(row.count("last_used_at") ? row.at("last_used_at") : "");
+            key.requestCount = std::stoll(StringUtil::cleanDbString(row.count("request_count") ? row.at("request_count") : "0"));
+            key.isActive = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
+            key.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
+            key.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             response.items.push_back(key);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1068,7 +1023,7 @@ std::pair<int, std::string> AdminAuditModule::createApiKey(int userId, const std
         stmt.execute();
         auto lastId = database_->query("SELECT LAST_INSERT_ID() as id");
         int keyId = 0;
-        if (!lastId.empty() && lastId[0].count("id")) keyId = std::stoi(cleanDbString(lastId[0].at("id")));
+        if (!lastId.empty() && lastId[0].count("id")) keyId = std::stoi(StringUtil::cleanDbString(lastId[0].at("id")));
         return {keyId, fullKey};
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to create API key: {}", e.what());
@@ -1126,7 +1081,7 @@ PaginatedResponse<ApiUsage> AdminAuditModule::getApiKeyUsage(int page, int limit
         PreparedStatement countStmt(database_, countSql);
         if (keyId > 0) countStmt.bind(0, keyId);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
         int offset = (page - 1) * limit;
         std::string sql = "SELECT aku.*, ak.name as key_name FROM api_key_usage aku LEFT JOIN api_keys ak ON aku.key_id = ak.id";
         int bindIdx = 0;
@@ -1139,16 +1094,16 @@ PaginatedResponse<ApiUsage> AdminAuditModule::getApiKeyUsage(int page, int limit
         auto results = stmt.query();
         for (const auto& row : results) {
             ApiUsage usage;
-            usage.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            usage.keyId = std::stoi(cleanDbString(row.count("key_id") ? row.at("key_id") : "0"));
-            usage.keyName = cleanDbString(row.count("key_name") ? row.at("key_name") : "");
-            usage.endpoint = cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-            usage.method = cleanDbString(row.count("method") ? row.at("method") : "");
-            usage.statusCode = row.count("status_code") && row.at("status_code") != "NULL" ? std::stoi(cleanDbString(row.at("status_code"))) : 0;
-            usage.responseTimeMs = row.count("response_time_ms") && row.at("response_time_ms") != "NULL" ? std::stoi(cleanDbString(row.at("response_time_ms"))) : 0;
-            usage.ipAddress = cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-            usage.userAgent = cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
-            usage.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            usage.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            usage.keyId = std::stoi(StringUtil::cleanDbString(row.count("key_id") ? row.at("key_id") : "0"));
+            usage.keyName = StringUtil::cleanDbString(row.count("key_name") ? row.at("key_name") : "");
+            usage.endpoint = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
+            usage.method = StringUtil::cleanDbString(row.count("method") ? row.at("method") : "");
+            usage.statusCode = row.count("status_code") && row.at("status_code") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("status_code"))) : 0;
+            usage.responseTimeMs = row.count("response_time_ms") && row.at("response_time_ms") != "NULL" ? std::stoi(StringUtil::cleanDbString(row.at("response_time_ms"))) : 0;
+            usage.ipAddress = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
+            usage.userAgent = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
+            usage.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             response.items.push_back(usage);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1167,14 +1122,14 @@ ApiUsageStats AdminAuditModule::getApiKeyStats(int keyId) {
         PreparedStatement totalStmt(database_, totalSql);
         if (keyId > 0) totalStmt.bind(0, keyId);
         auto totalResults = totalStmt.query();
-        stats.totalRequests = totalResults.empty() ? 0 : std::stoll(cleanDbString(totalResults[0].at("total")));
+        stats.totalRequests = totalResults.empty() ? 0 : std::stoll(StringUtil::cleanDbString(totalResults[0].at("total")));
 
         std::string successSql = "SELECT COUNT(*) as total FROM api_key_usage WHERE status_code >= 200 AND status_code < 400";
         if (keyId > 0) successSql += " AND key_id = ?";
         PreparedStatement successStmt(database_, successSql);
         if (keyId > 0) successStmt.bind(0, keyId);
         auto successResults = successStmt.query();
-        stats.successfulRequests = successResults.empty() ? 0 : std::stoll(cleanDbString(successResults[0].at("total")));
+        stats.successfulRequests = successResults.empty() ? 0 : std::stoll(StringUtil::cleanDbString(successResults[0].at("total")));
         stats.failedRequests = stats.totalRequests - stats.successfulRequests;
 
         std::string avgSql = "SELECT AVG(response_time_ms) as avg FROM api_key_usage WHERE response_time_ms IS NOT NULL";
@@ -1182,7 +1137,7 @@ ApiUsageStats AdminAuditModule::getApiKeyStats(int keyId) {
         PreparedStatement avgStmt(database_, avgSql);
         if (keyId > 0) avgStmt.bind(0, keyId);
         auto avgResults = avgStmt.query();
-        stats.avgResponseTime = avgResults.empty() ? 0.0 : std::stod(cleanDbString(avgResults[0].at("avg")));
+        stats.avgResponseTime = avgResults.empty() ? 0.0 : std::stod(StringUtil::cleanDbString(avgResults[0].at("avg")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to get API key stats: {}", e.what());
     }
@@ -1228,12 +1183,12 @@ std::string AdminAuditModule::handleGetAuditLogs(const std::map<std::string, std
     result << "\"totalPages\":" << response.totalPages;
     result << "}}";
 
-    return this->buildJsonResponse(200, true, "Audit logs retrieved", result.str());
+    return StringUtil::buildJsonResponse(200, true, "Audit logs retrieved", result.str());
 }
 
 std::string AdminAuditModule::handleGetRoles(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1252,17 +1207,17 @@ std::string AdminAuditModule::handleGetRoles(const std::map<std::string, std::st
             j["updatedAt"] = role.updatedAt;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Roles retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Roles retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get roles: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve roles: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve roles: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleCreateRole(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1274,33 +1229,33 @@ std::string AdminAuditModule::handleCreateRole(const std::map<std::string, std::
         int createdBy = jsonBody.value("createdBy", 1);
 
         if (name.empty() || displayName.empty()) {
-            return buildJsonResponse(400, false, "Name and display name are required");
+            return StringUtil::buildJsonResponse(400, false, "Name and display name are required");
         }
 
         int roleId = createRole(name, displayName, description, level, createdBy);
         if (roleId > 0) {
             nlohmann::json data;
             data["roleId"] = roleId;
-            return buildJsonResponse(200, true, "Role created successfully", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Role created successfully", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to create role");
+            return StringUtil::buildJsonResponse(500, false, "Failed to create role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create role: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to create role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to create role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleUpdateRole(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
@@ -1310,44 +1265,44 @@ std::string AdminAuditModule::handleUpdateRole(const std::map<std::string, std::
         int level = jsonBody.value("level", 10);
 
         if (updateRole(roleId, displayName, description, level)) {
-            return buildJsonResponse(true, "Role updated successfully");
+            return StringUtil::buildJsonResponse(true, "Role updated successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to update role");
+            return StringUtil::buildJsonResponse(500, false, "Failed to update role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update role: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to update role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to update role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleDeleteRole(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
         if (deleteRole(roleId)) {
-            return buildJsonResponse(true, "Role deleted successfully");
+            return StringUtil::buildJsonResponse(true, "Role deleted successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to delete role or role is system role");
+            return StringUtil::buildJsonResponse(500, false, "Failed to delete role or role is system role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete role: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to delete role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to delete role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetPermissions(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1361,17 +1316,17 @@ std::string AdminAuditModule::handleGetPermissions(const std::map<std::string, s
             j["description"] = perm.description;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Permissions retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Permissions retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get permissions: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve permissions: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve permissions: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetPermissionMatrix(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1384,23 +1339,23 @@ std::string AdminAuditModule::handleGetPermissionMatrix(const std::map<std::stri
             j["permissionsByResource"] = item.permissionsByResource;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Permission matrix retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Permission matrix retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get permission matrix: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve permission matrix: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve permission matrix: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetRolePermissions(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
@@ -1415,23 +1370,23 @@ std::string AdminAuditModule::handleGetRolePermissions(const std::map<std::strin
             j["grantedByUsername"] = perm.grantedByUsername;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Role permissions retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Role permissions retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get role permissions: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve role permissions: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve role permissions: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleUpdateRolePermissions(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
         }
         int roleId = std::stoi(idIt->second);
 
@@ -1440,26 +1395,26 @@ std::string AdminAuditModule::handleUpdateRolePermissions(const std::map<std::st
         int updatedBy = jsonBody.value("updatedBy", 1);
 
         if (updateRolePermissions(roleId, permissionIds, updatedBy)) {
-            return buildJsonResponse(true, "Role permissions updated successfully");
+            return StringUtil::buildJsonResponse(true, "Role permissions updated successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to update role permissions");
+            return StringUtil::buildJsonResponse(500, false, "Failed to update role permissions");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update role permissions: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to update role permissions: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to update role permissions: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetUserRoles(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(400, false, "User ID is required");
         }
         int userId = std::stoi(idIt->second);
 
@@ -1478,23 +1433,23 @@ std::string AdminAuditModule::handleGetUserRoles(const std::map<std::string, std
             j["reason"] = role.reason;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "User roles retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "User roles retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get user roles: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve user roles: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve user roles: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleAssignUserRole(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(400, false, "User ID is required");
         }
         int userId = std::stoi(idIt->second);
 
@@ -1505,54 +1460,54 @@ std::string AdminAuditModule::handleAssignUserRole(const std::map<std::string, s
         std::string expiresAt = jsonBody.value("expiresAt", "");
 
         if (roleId == 0) {
-            return buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
         }
 
         if (assignUserRole(userId, roleId, reason, assignedBy, expiresAt)) {
-            return buildJsonResponse(true, "User role assigned successfully");
+            return StringUtil::buildJsonResponse(true, "User role assigned successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to assign user role");
+            return StringUtil::buildJsonResponse(500, false, "Failed to assign user role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to assign user role: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to assign user role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to assign user role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleRemoveUserRole(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(400, false, "User ID is required");
         }
         int userId = std::stoi(idIt->second);
 
         auto roleIdIt = params.find("roleid");
         if (roleIdIt == params.end()) {
-            return buildJsonResponse(400, false, "Role ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Role ID is required");
         }
         int roleId = std::stoi(roleIdIt->second);
 
         if (removeUserRole(userId, roleId)) {
-            return buildJsonResponse(true, "User role removed successfully");
+            return StringUtil::buildJsonResponse(true, "User role removed successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to remove user role");
+            return StringUtil::buildJsonResponse(500, false, "Failed to remove user role");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to remove user role: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to remove user role: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to remove user role: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleCheckPermission(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1562,16 +1517,16 @@ std::string AdminAuditModule::handleCheckPermission(const std::map<std::string, 
         std::string action = jsonBody.value("action", "");
 
         if (userId == 0 || resource.empty() || action.empty()) {
-            return buildJsonResponse(400, false, "User ID, resource and action are required");
+            return StringUtil::buildJsonResponse(400, false, "User ID, resource and action are required");
         }
 
         bool hasPermission = checkUserPermission(userId, resource, action);
         nlohmann::json data;
         data["hasPermission"] = hasPermission;
-        return buildJsonResponse(200, true, "Permission checked", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Permission checked", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to check permission: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to check permission: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to check permission: " + std::string(e.what()));
     }
 }
 
@@ -1582,7 +1537,7 @@ std::string AdminAuditModule::handleCheckPermission(const std::map<std::string, 
 
 std::string AdminAuditModule::handleGetPendingPapers(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1610,23 +1565,23 @@ std::string AdminAuditModule::handleGetPendingPapers(const std::map<std::string,
         data["limit"] = papers.limit;
         data["totalPages"] = papers.totalPages;
 
-        return buildJsonResponse(200, true, "Pending papers retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Pending papers retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get pending papers: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve pending papers: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve pending papers: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetPaperModeration(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Moderation ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Moderation ID is required");
         }
         int64_t id = std::stoll(idIt->second);
 
@@ -1642,26 +1597,26 @@ std::string AdminAuditModule::handleGetPaperModeration(const std::map<std::strin
             data["reviewedAt"] = moderation->reviewedAt;
             data["flags"] = moderation->flags;
             data["createdAt"] = moderation->createdAt;
-            return buildJsonResponse(200, true, "Paper moderation retrieved", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Paper moderation retrieved", data.dump());
         } else {
-            return buildJsonResponse(404, false, "Paper moderation not found");
+            return StringUtil::buildJsonResponse(404, false, "Paper moderation not found");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get paper moderation: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve moderation: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve moderation: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleApprovePaper(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Paper ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Paper ID is required");
         }
         int paperId = std::stoi(idIt->second);
 
@@ -1669,26 +1624,26 @@ std::string AdminAuditModule::handleApprovePaper(const std::map<std::string, std
         int moderatorId = jsonBody.value("moderatorId", 1);
 
         if (approvePaper(paperId, moderatorId)) {
-            return buildJsonResponse(true, "Paper approved successfully");
+            return StringUtil::buildJsonResponse(true, "Paper approved successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to approve paper");
+            return StringUtil::buildJsonResponse(500, false, "Failed to approve paper");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to approve paper: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to approve paper: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to approve paper: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleRejectPaper(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Paper ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Paper ID is required");
         }
         int paperId = std::stoi(idIt->second);
 
@@ -1697,20 +1652,20 @@ std::string AdminAuditModule::handleRejectPaper(const std::map<std::string, std:
         std::string reason = ValidationHelper::sanitize(jsonBody.value("reason", ""));
 
         if (rejectPaper(paperId, moderatorId, reason)) {
-            return buildJsonResponse(true, "Paper rejected successfully");
+            return StringUtil::buildJsonResponse(true, "Paper rejected successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to reject paper");
+            return StringUtil::buildJsonResponse(500, false, "Failed to reject paper");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to reject paper: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to reject paper: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to reject paper: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetUserReports(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1743,23 +1698,23 @@ std::string AdminAuditModule::handleGetUserReports(const std::map<std::string, s
         data["limit"] = reports.limit;
         data["totalPages"] = reports.totalPages;
 
-        return buildJsonResponse(200, true, "User reports retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "User reports retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get user reports: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve reports: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve reports: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleResolveReport(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Report ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Report ID is required");
         }
         int64_t reportId = std::stoll(idIt->second);
 
@@ -1769,20 +1724,20 @@ std::string AdminAuditModule::handleResolveReport(const std::map<std::string, st
         std::string status = jsonBody.value("status", "resolved");
 
         if (resolveReport(reportId, reviewerId, resolution, status)) {
-            return buildJsonResponse(true, "Report resolved successfully");
+            return StringUtil::buildJsonResponse(true, "Report resolved successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to resolve report");
+            return StringUtil::buildJsonResponse(500, false, "Failed to resolve report");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to resolve report: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to resolve report: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to resolve report: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleGetSensitiveWords(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1802,17 +1757,17 @@ std::string AdminAuditModule::handleGetSensitiveWords(const std::map<std::string
             j["createdAt"] = word.createdAt;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Sensitive words retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Sensitive words retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get sensitive words: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve words: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve words: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminAuditModule::handleCreateSensitiveWord(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1828,44 +1783,44 @@ std::string AdminAuditModule::handleCreateSensitiveWord(const std::map<std::stri
         if (wordId > 0) {
             nlohmann::json data;
             data["wordId"] = wordId;
-            return buildJsonResponse(200, true, "Sensitive word created", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Sensitive word created", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to create sensitive word");
+            return StringUtil::buildJsonResponse(500, false, "Failed to create sensitive word");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create sensitive word: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to create word: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to create word: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleDeleteSensitiveWord(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
 
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Word ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Word ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteSensitiveWord(id)) {
-            return buildJsonResponse(true, "Sensitive word deleted");
+            return StringUtil::buildJsonResponse(true, "Sensitive word deleted");
         } else {
-            return buildJsonResponse(500, false, "Failed to delete sensitive word");
+            return StringUtil::buildJsonResponse(500, false, "Failed to delete sensitive word");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete sensitive word: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to delete word: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to delete word: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleCheckSensitiveWords(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1885,16 +1840,16 @@ std::string AdminAuditModule::handleCheckSensitiveWords(const std::map<std::stri
             j["matchedText"] = match.matchedText;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Sensitive words checked", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Sensitive words checked", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to check sensitive words: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to check words: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to check words: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleGetSensitiveWordStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1904,10 +1859,10 @@ std::string AdminAuditModule::handleGetSensitiveWordStats(const std::map<std::st
         for (const auto& [key, value] : stats) {
             data["stats"][key] = value;
         }
-        return buildJsonResponse(200, true, "Sensitive word statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Sensitive word statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminAudit] Failed to get sensitive word stats: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }
 
@@ -1917,7 +1872,7 @@ std::string AdminAuditModule::handleGetSensitiveWordStats(const std::map<std::st
 
 std::string AdminAuditModule::handleGetApiKeys(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1952,16 +1907,16 @@ std::string AdminAuditModule::handleGetApiKeys(const std::map<std::string, std::
         data["limit"] = keys.limit;
         data["totalPages"] = keys.totalPages;
 
-        return buildJsonResponse(200, true, "API keys retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "API keys retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get API keys: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve API keys: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve API keys: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleCreateApiKey(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1978,19 +1933,19 @@ std::string AdminAuditModule::handleCreateApiKey(const std::map<std::string, std
             nlohmann::json data;
             data["keyId"] = keyId;
             data["apiKey"] = fullKey;  // Only show full key on creation
-            return buildJsonResponse(200, true, "API key created successfully", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "API key created successfully", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to create API key");
+            return StringUtil::buildJsonResponse(500, false, "Failed to create API key");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create API key: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to create API key: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to create API key: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleDeleteApiKey(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
 
@@ -1998,30 +1953,30 @@ std::string AdminAuditModule::handleDeleteApiKey(const std::map<std::string, std
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "API key ID is required");
+            return StringUtil::buildJsonResponse(400, false, "API key ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteApiKey(id)) {
-            return buildJsonResponse(true, "API key deleted successfully");
+            return StringUtil::buildJsonResponse(true, "API key deleted successfully");
         } else {
-            return buildJsonResponse(500, false, "Failed to delete API key");
+            return StringUtil::buildJsonResponse(500, false, "Failed to delete API key");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete API key: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to delete API key: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to delete API key: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleRegenerateApiKey(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "API key ID is required");
+            return StringUtil::buildJsonResponse(400, false, "API key ID is required");
         }
         int id = std::stoi(idIt->second);
 
@@ -2029,19 +1984,19 @@ std::string AdminAuditModule::handleRegenerateApiKey(const std::map<std::string,
         if (!newKey.empty()) {
             nlohmann::json data;
             data["apiKey"] = newKey;
-            return buildJsonResponse(200, true, "API key regenerated successfully", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "API key regenerated successfully", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to regenerate API key");
+            return StringUtil::buildJsonResponse(500, false, "Failed to regenerate API key");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to regenerate API key: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to regenerate API key: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to regenerate API key: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleGetApiKeyUsage(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
 
@@ -2073,16 +2028,16 @@ std::string AdminAuditModule::handleGetApiKeyUsage(const std::map<std::string, s
         data["limit"] = usage.limit;
         data["totalPages"] = usage.totalPages;
 
-        return buildJsonResponse(200, true, "API key usage retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "API key usage retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get API key usage: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve usage: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve usage: " + std::string(e.what()));
     }
 }
 
 std::string AdminAuditModule::handleGetApiKeyStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -2107,10 +2062,10 @@ std::string AdminAuditModule::handleGetApiKeyStats(const std::map<std::string, s
         }
         data["requestsByDay"] = byDay;
 
-        return buildJsonResponse(200, true, "API key statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "API key statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get API key stats: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }
 

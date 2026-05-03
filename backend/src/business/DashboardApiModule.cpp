@@ -1,4 +1,5 @@
 #include "business/DashboardApiModule.hpp"
+#include "data/StringUtil.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/IDatabase.hpp"
 #include "data/QueryCache.hpp"
@@ -876,19 +877,7 @@ std::string DashboardApiModule::handleUpdateConfig(const std::string& body) {
 // ============================================================================
 
 std::string DashboardApiModule::escapeJson(const std::string& input) const {
-    std::string output;
-    output.reserve(input.size());
-    for (char c : input) {
-        switch (c) {
-            case '"':  output += "\\\""; break;
-            case '\\': output += "\\\\"; break;
-            case '\n': output += "\\n";  break;
-            case '\r': output += "\\r";  break;
-            case '\t': output += "\\t";  break;
-            default:   output += c;      break;
-        }
-    }
-    return output;
+    return StringUtil::escapeJson(input);
 }
 
 } // namespace PaperCrawler

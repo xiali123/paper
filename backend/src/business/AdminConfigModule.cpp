@@ -10,13 +10,9 @@
 #include <algorithm>
 #include <chrono>
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 
 namespace PaperCrawler {
-
-static std::string cleanDbString(const std::string& val) {
-    if (val.empty() || val == "NULL") return "";
-    return val;
-}
 
 class AdminConfigModule::Impl {
 public:
@@ -24,47 +20,6 @@ public:
 
     explicit Impl(std::shared_ptr<IDatabase> database)
         : database_(database) {}
-
-    std::string escapeJson(const std::string& str) {
-        std::string result;
-        result.reserve(str.length() * 1.2);
-        for (char c : str) {
-            switch (c) {
-                case '"': result += "\\\""; break;
-                case '\\': result += "\\\\"; break;
-                case '\n': result += "\\n"; break;
-                case '\r': result += "\\r"; break;
-                case '\t': result += "\\t"; break;
-                case '\b': result += "\\b"; break;
-                case '\f': result += "\\f"; break;
-                default:
-                    if (c < ' ') {
-                        char buf[7];
-                        snprintf(buf, sizeof(buf), "\\u%04x", (unsigned int)c);
-                        result += buf;
-                    } else {
-                        result += c;
-                    }
-                    break;
-            }
-        }
-        return result;
-    }
-
-    std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "") {
-        std::ostringstream json;
-        json << "{";
-        json << "\"statusCode\":" << statusCode << ",";
-        json << "\"success\":" << (success ? "true" : "false") << ",";
-        json << "\"message\":\"" << escapeJson(message) << "\"";
-        if (!data.empty()) json << ",\"data\":" << data;
-        json << "}";
-        return json.str();
-    }
-
-    std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "") {
-        return buildJsonResponse(200, success, message, data);
-    }
 
     int extractAdminUserIdFromHeaders(const std::map<std::string, std::string>& headers) {
         auto authIt = headers.find("Authorization");
@@ -415,7 +370,7 @@ void AdminConfigModule::registerRoutes() {
 
 std::string AdminConfigModule::handleGetConfigCategories(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -426,24 +381,24 @@ std::string AdminConfigModule::handleGetConfigCategories(const std::map<std::str
             auto results = database_->query(sql);
 
             for (const auto& row : results) {
-                categories.push_back(cleanDbString(row.at("category")));
+                categories.push_back(StringUtil::cleanDbString(row.at("category")));
             }
         }
 
         nlohmann::json data;
         data["categories"] = categories;
 
-        return buildJsonResponse(200, true, "Config categories retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Config categories retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get config categories: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve config categories: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve config categories: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -470,16 +425,16 @@ std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std:
 
             for (const auto& row : results) {
                 nlohmann::json config;
-                config["id"] = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                config["key"] = cleanDbString(row.count("key") ? row.at("key") : "");
-                config["value"] = cleanDbString(row.count("value") ? row.at("value") : "");
-                config["value_type"] = cleanDbString(row.count("value_type") ? row.at("value_type") : "string");
-                config["category"] = cleanDbString(row.count("category") ? row.at("category") : "");
-                config["description"] = cleanDbString(row.count("description") ? row.at("description") : "");
-                config["default_value"] = cleanDbString(row.count("default_value") ? row.at("default_value") : "");
-                config["is_public"] = cleanDbString(row.count("is_public") ? row.at("is_public") : "0") == "1";
-                config["updated_by"] = cleanDbString(row.count("updated_by_username") ? row.at("updated_by_username") : "");
-                config["updated_at"] = cleanDbString(row.count("updated_at") ? row.at("updated_at") : "");
+                config["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                config["key"] = StringUtil::cleanDbString(row.count("key") ? row.at("key") : "");
+                config["value"] = StringUtil::cleanDbString(row.count("value") ? row.at("value") : "");
+                config["value_type"] = StringUtil::cleanDbString(row.count("value_type") ? row.at("value_type") : "string");
+                config["category"] = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
+                config["description"] = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
+                config["default_value"] = StringUtil::cleanDbString(row.count("default_value") ? row.at("default_value") : "");
+                config["is_public"] = StringUtil::cleanDbString(row.count("is_public") ? row.at("is_public") : "0") == "1";
+                config["updated_by"] = StringUtil::cleanDbString(row.count("updated_by_username") ? row.at("updated_by_username") : "");
+                config["updated_at"] = StringUtil::cleanDbString(row.count("updated_at") ? row.at("updated_at") : "");
                 configs.push_back(config);
             }
         }
@@ -487,10 +442,10 @@ std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std:
         nlohmann::json data;
         data["configs"] = configs;
 
-        return buildJsonResponse(200, true, "Configs retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Configs retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get configs: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve configs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve configs: " + std::string(e.what()));
     }
 }
 
@@ -498,7 +453,7 @@ std::string AdminConfigModule::handleGetConfigs(const std::map<std::string, std:
 std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, std::string>& params, const std::string& body,
                                                const std::map<std::string, std::string>& headers) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -509,7 +464,7 @@ std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, st
         int updatedBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (key.empty() || value.empty()) {
-            return buildJsonResponse(400, false, "Key and value are required");
+            return StringUtil::buildJsonResponse(400, false, "Key and value are required");
         }
 
         if (database_) {
@@ -519,8 +474,8 @@ std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, st
             auto selectResults = selectStmt.query();
 
             if (!selectResults.empty()) {
-                std::string oldValue = cleanDbString(selectResults[0].count("value") ? selectResults[0].at("value") : "");
-                int configId = std::stoi(cleanDbString(selectResults[0].at("id")));
+                std::string oldValue = StringUtil::cleanDbString(selectResults[0].count("value") ? selectResults[0].at("value") : "");
+                int configId = std::stoi(StringUtil::cleanDbString(selectResults[0].at("id")));
 
                 // 更新配置
                 PreparedStatement updateStmt(database_, "UPDATE system_configs SET value = ?, updated_by = ? WHERE `key` = ?");
@@ -543,23 +498,23 @@ std::string AdminConfigModule::handleUpdateConfig(const std::map<std::string, st
                 addAuditLog("config_updated", "system_configs", configId, "superadmin", updatedBy,
                            "Updated config " + key + ": " + reason, "127.0.0.1");
 
-                return buildJsonResponse(true, "Configuration updated successfully");
+                return StringUtil::buildJsonResponse(true, "Configuration updated successfully");
             } else {
-                return buildJsonResponse(404, false, "Configuration key not found");
+                return StringUtil::buildJsonResponse(404, false, "Configuration key not found");
             }
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update config: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to update config: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to update config: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -601,7 +556,7 @@ std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string
             if (!configKeyFilter.empty()) countStmt.bind(0, configKeyFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(cleanDbString(countResults[0].at("total")));
+                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
             }
 
             // 获取历史记录
@@ -615,14 +570,14 @@ std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json entry;
-                entry["id"] = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                entry["config_key"] = cleanDbString(row.count("config_key") ? row.at("config_key") : "");
-                entry["old_value"] = cleanDbString(row.count("old_value") ? row.at("old_value") : "");
-                entry["new_value"] = cleanDbString(row.count("new_value") ? row.at("new_value") : "");
-                entry["changed_by"] = cleanDbString(row.count("changed_by_username") ? row.at("changed_by_username") : "");
-                entry["change_reason"] = cleanDbString(row.count("change_reason") ? row.at("change_reason") : "");
-                entry["change_type"] = cleanDbString(row.count("change_type") ? row.at("change_type") : "");
-                entry["created_at"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                entry["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                entry["config_key"] = StringUtil::cleanDbString(row.count("config_key") ? row.at("config_key") : "");
+                entry["old_value"] = StringUtil::cleanDbString(row.count("old_value") ? row.at("old_value") : "");
+                entry["new_value"] = StringUtil::cleanDbString(row.count("new_value") ? row.at("new_value") : "");
+                entry["changed_by"] = StringUtil::cleanDbString(row.count("changed_by_username") ? row.at("changed_by_username") : "");
+                entry["change_reason"] = StringUtil::cleanDbString(row.count("change_reason") ? row.at("change_reason") : "");
+                entry["change_type"] = StringUtil::cleanDbString(row.count("change_type") ? row.at("change_type") : "");
+                entry["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
                 history.push_back(entry);
             }
         }
@@ -633,17 +588,17 @@ std::string AdminConfigModule::handleGetConfigHistory(const std::map<std::string
         data["page"] = page;
         data["limit"] = limit;
 
-        return buildJsonResponse(200, true, "Config history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Config history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get config history: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve config history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve config history: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -655,9 +610,9 @@ std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json item;
-                item["category"] = cleanDbString(row.count("category") ? row.at("category") : "");
-                item["config_count"] = std::stoi(cleanDbString(row.count("config_count") ? row.at("config_count") : "0"));
-                item["recently_updated"] = std::stoi(cleanDbString(row.count("recently_updated") ? row.at("recently_updated") : "0"));
+                item["category"] = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
+                item["config_count"] = std::stoi(StringUtil::cleanDbString(row.count("config_count") ? row.at("config_count") : "0"));
+                item["recently_updated"] = std::stoi(StringUtil::cleanDbString(row.count("recently_updated") ? row.at("recently_updated") : "0"));
                 summary.push_back(item);
             }
         }
@@ -665,10 +620,10 @@ std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string
         nlohmann::json data;
         data["summary"] = summary;
 
-        return buildJsonResponse(200, true, "Config summary retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Config summary retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get config summary: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve config summary: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve config summary: " + std::string(e.what()));
     }
 }
 
@@ -676,7 +631,7 @@ std::string AdminConfigModule::handleGetConfigSummary(const std::map<std::string
 std::string AdminConfigModule::handleReloadConfigs(const std::map<std::string, std::string>& params) {
     // 配置缓存清除逻辑（当前仅记录审计日志）
     addAuditLog("config_reloaded", "system_configs", 0, "superadmin", 0, "Config cache reloaded", "127.0.0.1");
-    return buildJsonResponse(true, "Configurations reloaded successfully");
+    return StringUtil::buildJsonResponse(true, "Configurations reloaded successfully");
 }
 
 // ============================================================================
@@ -686,7 +641,7 @@ std::string AdminConfigModule::handleReloadConfigs(const std::map<std::string, s
 
 std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -700,18 +655,18 @@ std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, s
 
             for (const auto& row : results) {
                 nlohmann::json job;
-                job["id"] = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                job["name"] = cleanDbString(row.count("name") ? row.at("name") : "");
-                job["job_type"] = cleanDbString(row.count("job_type") ? row.at("job_type") : "");
-                job["description"] = cleanDbString(row.count("description") ? row.at("description") : "");
-                job["schedule_cron"] = cleanDbString(row.count("schedule_cron") ? row.at("schedule_cron") : "");
-                job["backup_path"] = cleanDbString(row.count("backup_path") ? row.at("backup_path") : "");
-                job["retention_days"] = std::stoi(cleanDbString(row.count("retention_days") ? row.at("retention_days") : "0"));
-                job["is_enabled"] = cleanDbString(row.count("is_enabled") ? row.at("is_enabled") : "1") == "1";
-                job["last_run_at"] = cleanDbString(row.count("last_run_at") ? row.at("last_run_at") : "");
-                job["last_run_status"] = cleanDbString(row.count("last_run_status") ? row.at("last_run_status") : "");
-                job["last_run_message"] = cleanDbString(row.count("last_run_message") ? row.at("last_run_message") : "");
-                job["created_by"] = cleanDbString(row.count("created_by_username") ? row.at("created_by_username") : "");
+                job["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                job["name"] = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
+                job["job_type"] = StringUtil::cleanDbString(row.count("job_type") ? row.at("job_type") : "");
+                job["description"] = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
+                job["schedule_cron"] = StringUtil::cleanDbString(row.count("schedule_cron") ? row.at("schedule_cron") : "");
+                job["backup_path"] = StringUtil::cleanDbString(row.count("backup_path") ? row.at("backup_path") : "");
+                job["retention_days"] = std::stoi(StringUtil::cleanDbString(row.count("retention_days") ? row.at("retention_days") : "0"));
+                job["is_enabled"] = StringUtil::cleanDbString(row.count("is_enabled") ? row.at("is_enabled") : "1") == "1";
+                job["last_run_at"] = StringUtil::cleanDbString(row.count("last_run_at") ? row.at("last_run_at") : "");
+                job["last_run_status"] = StringUtil::cleanDbString(row.count("last_run_status") ? row.at("last_run_status") : "");
+                job["last_run_message"] = StringUtil::cleanDbString(row.count("last_run_message") ? row.at("last_run_message") : "");
+                job["created_by"] = StringUtil::cleanDbString(row.count("created_by_username") ? row.at("created_by_username") : "");
                 jobs.push_back(job);
             }
         }
@@ -719,10 +674,10 @@ std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, s
         nlohmann::json data;
         data["jobs"] = jobs;
 
-        return buildJsonResponse(200, true, "Backup jobs retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Backup jobs retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get backup jobs: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve backup jobs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve backup jobs: " + std::string(e.what()));
     }
 }
 
@@ -730,7 +685,7 @@ std::string AdminConfigModule::handleGetBackupJobs(const std::map<std::string, s
 std::string AdminConfigModule::handleCreateBackupJob(const std::map<std::string, std::string>& params, const std::string& body,
                                                    const std::map<std::string, std::string>& headers) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -743,7 +698,7 @@ std::string AdminConfigModule::handleCreateBackupJob(const std::map<std::string,
         int createdBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (name.empty()) {
-            return buildJsonResponse(400, false, "Job name is required");
+            return StringUtil::buildJsonResponse(400, false, "Job name is required");
         }
 
         if (database_) {
@@ -760,26 +715,26 @@ std::string AdminConfigModule::handleCreateBackupJob(const std::map<std::string,
             addAuditLog("backup_job_created", "backup_jobs", 0, "superadmin", createdBy,
                        "Created backup job: " + name, "127.0.0.1");
 
-            return buildJsonResponse(true, "Backup job created successfully");
+            return StringUtil::buildJsonResponse(true, "Backup job created successfully");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create backup job: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to create backup job: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to create backup job: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleUpdateBackupJob(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing job ID");
+            return StringUtil::buildJsonResponse(400, false, "Missing job ID");
         }
 
         int id = std::stoi(idIt->second);
@@ -803,26 +758,26 @@ std::string AdminConfigModule::handleUpdateBackupJob(const std::map<std::string,
             addAuditLog("backup_job_updated", "backup_jobs", id, "superadmin", 0,
                        "Updated backup job ID: " + std::to_string(id), "127.0.0.1");
 
-            return buildJsonResponse(true, "Backup job updated successfully");
+            return StringUtil::buildJsonResponse(true, "Backup job updated successfully");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update backup job: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to update backup job: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to update backup job: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteBackupJob(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing job ID");
+            return StringUtil::buildJsonResponse(400, false, "Missing job ID");
         }
 
         int id = std::stoi(idIt->second);
@@ -835,26 +790,26 @@ std::string AdminConfigModule::handleDeleteBackupJob(const std::map<std::string,
             addAuditLog("backup_job_deleted", "backup_jobs", id, "superadmin", 0,
                        "Deleted backup job ID: " + std::to_string(id), "127.0.0.1");
 
-            return buildJsonResponse(true, "Backup job deleted successfully");
+            return StringUtil::buildJsonResponse(true, "Backup job deleted successfully");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete backup job: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to delete backup job: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to delete backup job: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing job ID");
+            return StringUtil::buildJsonResponse(400, false, "Missing job ID");
         }
 
         int jobId = std::stoi(idIt->second);
@@ -867,12 +822,12 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
             auto jobResults = selectStmt.query();
 
             if (jobResults.empty()) {
-                return buildJsonResponse(404, false, "Backup job not found");
+                return StringUtil::buildJsonResponse(404, false, "Backup job not found");
             }
 
-            std::string jobName = cleanDbString(jobResults[0].count("name") ? jobResults[0].at("name") : "");
-            std::string jobType = cleanDbString(jobResults[0].count("job_type") ? jobResults[0].at("job_type") : "full");
-            std::string backupPath = cleanDbString(jobResults[0].count("backup_path") ? jobResults[0].at("backup_path") : "/backups");
+            std::string jobName = StringUtil::cleanDbString(jobResults[0].count("name") ? jobResults[0].at("name") : "");
+            std::string jobType = StringUtil::cleanDbString(jobResults[0].count("job_type") ? jobResults[0].at("job_type") : "full");
+            std::string backupPath = StringUtil::cleanDbString(jobResults[0].count("backup_path") ? jobResults[0].at("backup_path") : "/backups");
 
             // 创建备份文件名
             auto now = std::chrono::system_clock::now();
@@ -898,7 +853,7 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
             auto lastIdResults = database_->query("SELECT LAST_INSERT_ID() as id");
             int64_t recordId = 0;
             if (!lastIdResults.empty() && lastIdResults[0].count("id")) {
-                recordId = std::stoll(cleanDbString(lastIdResults[0].at("id")));
+                recordId = std::stoll(StringUtil::cleanDbString(lastIdResults[0].at("id")));
             }
 
             // 执行mysqldump命令（取消注释即可启用实际数据库导出）
@@ -925,20 +880,20 @@ std::string AdminConfigModule::handleTriggerBackup(const std::map<std::string, s
             data["filename"] = filename;
             data["file_path"] = fullPath;
 
-            return buildJsonResponse(200, true, "Backup triggered successfully", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Backup triggered successfully", data.dump());
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to trigger backup: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to trigger backup: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to trigger backup: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -978,7 +933,7 @@ std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string
             if (jobIdFilter > 0) countStmt.bind(0, jobIdFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(cleanDbString(countResults[0].at("total")));
+                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
             }
 
             // 获取备份记录
@@ -994,18 +949,18 @@ std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json record;
-                record["id"] = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                record["job_id"] = std::stoi(cleanDbString(row.count("job_id") ? row.at("job_id") : "0"));
-                record["job_name"] = cleanDbString(row.count("job_name") ? row.at("job_name") : "");
-                record["filename"] = cleanDbString(row.count("filename") ? row.at("filename") : "");
-                record["file_path"] = cleanDbString(row.count("file_path") ? row.at("file_path") : "");
-                record["file_size"] = std::stoll(cleanDbString(row.count("file_size") ? row.at("file_size") : "0"));
-                record["backup_type"] = cleanDbString(row.count("backup_type") ? row.at("backup_type") : "");
-                record["status"] = cleanDbString(row.count("status") ? row.at("status") : "");
-                record["started_at"] = cleanDbString(row.count("started_at") ? row.at("started_at") : "");
-                record["completed_at"] = cleanDbString(row.count("completed_at") ? row.at("completed_at") : "");
-                record["duration_seconds"] = row.count("duration_seconds") ? std::stoi(cleanDbString(row.at("duration_seconds"))) : 0;
-                record["error_message"] = cleanDbString(row.count("error_message") ? row.at("error_message") : "");
+                record["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                record["job_id"] = std::stoi(StringUtil::cleanDbString(row.count("job_id") ? row.at("job_id") : "0"));
+                record["job_name"] = StringUtil::cleanDbString(row.count("job_name") ? row.at("job_name") : "");
+                record["filename"] = StringUtil::cleanDbString(row.count("filename") ? row.at("filename") : "");
+                record["file_path"] = StringUtil::cleanDbString(row.count("file_path") ? row.at("file_path") : "");
+                record["file_size"] = std::stoll(StringUtil::cleanDbString(row.count("file_size") ? row.at("file_size") : "0"));
+                record["backup_type"] = StringUtil::cleanDbString(row.count("backup_type") ? row.at("backup_type") : "");
+                record["status"] = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
+                record["started_at"] = StringUtil::cleanDbString(row.count("started_at") ? row.at("started_at") : "");
+                record["completed_at"] = StringUtil::cleanDbString(row.count("completed_at") ? row.at("completed_at") : "");
+                record["duration_seconds"] = row.count("duration_seconds") ? std::stoi(StringUtil::cleanDbString(row.at("duration_seconds"))) : 0;
+                record["error_message"] = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
                 records.push_back(record);
             }
         }
@@ -1016,23 +971,23 @@ std::string AdminConfigModule::handleGetBackupRecords(const std::map<std::string
         data["page"] = page;
         data["limit"] = limit;
 
-        return buildJsonResponse(200, true, "Backup records retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Backup records retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get backup records: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve backup records: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve backup records: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing record ID");
+            return StringUtil::buildJsonResponse(400, false, "Missing record ID");
         }
 
         int id = std::stoi(idIt->second);
@@ -1044,7 +999,7 @@ std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string
             auto results = selectStmt.query();
 
             if (!results.empty()) {
-                std::string filePath = cleanDbString(results[0].count("file_path") ? results[0].at("file_path") : "");
+                std::string filePath = StringUtil::cleanDbString(results[0].count("file_path") ? results[0].at("file_path") : "");
 
                 // 删除实际文件（取消下行注释即可启用文件删除）
                 // std::remove(filePath.c_str());
@@ -1057,23 +1012,23 @@ std::string AdminConfigModule::handleDeleteBackupFile(const std::map<std::string
                 addAuditLog("backup_deleted", "backup_records", id, "superadmin", 0,
                            "Deleted backup file: " + filePath, "127.0.0.1");
 
-                return buildJsonResponse(true, "Backup file deleted successfully");
+                return StringUtil::buildJsonResponse(true, "Backup file deleted successfully");
             } else {
-                return buildJsonResponse(404, false, "Backup record not found");
+                return StringUtil::buildJsonResponse(404, false, "Backup record not found");
             }
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete backup file: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to delete backup file: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to delete backup file: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1083,7 +1038,7 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
             // 获取备份任务数量
             std::string jobCountSql = "SELECT COUNT(*) as total FROM backup_jobs WHERE is_enabled = 1";
             auto jobResults = database_->query(jobCountSql);
-            stats["total_jobs"] = jobResults.empty() ? 0 : std::stoi(cleanDbString(jobResults[0].at("total")));
+            stats["total_jobs"] = jobResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(jobResults[0].at("total")));
 
             // 获取备份记录统计
             std::string recordStatsSql = "SELECT status, COUNT(*) as count FROM backup_records "
@@ -1094,8 +1049,8 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
             nlohmann::json statusStats = nlohmann::json::object();
             int totalRecentBackups = 0;
             for (const auto& row : recordResults) {
-                std::string status = cleanDbString(row.count("status") ? row.at("status") : "");
-                int count = std::stoi(cleanDbString(row.count("count") ? row.at("count") : "0"));
+                std::string status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
+                int count = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
                 statusStats[status] = count;
                 if (status == "success") totalRecentBackups += count;
             }
@@ -1106,22 +1061,22 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
             std::string lastBackupSql = "SELECT started_at FROM backup_records "
                                        "WHERE status = 'success' ORDER BY started_at DESC LIMIT 1";
             auto lastResults = database_->query(lastBackupSql);
-            stats["last_successful_backup"] = lastResults.empty() ? "" : cleanDbString(lastResults[0].at("started_at"));
+            stats["last_successful_backup"] = lastResults.empty() ? "" : StringUtil::cleanDbString(lastResults[0].at("started_at"));
 
             // 计算备份总大小
             std::string sizeSql = "SELECT SUM(file_size) as total_size FROM backup_records WHERE status = 'success'";
             auto sizeResults = database_->query(sizeSql);
-            int64_t totalSize = sizeResults.empty() ? 0 : std::stoll(cleanDbString(sizeResults[0].at("total_size")));
+            int64_t totalSize = sizeResults.empty() ? 0 : std::stoll(StringUtil::cleanDbString(sizeResults[0].at("total_size")));
             stats["total_backup_size_bytes"] = totalSize;
         }
 
         nlohmann::json data;
         data["stats"] = stats;
 
-        return buildJsonResponse(200, true, "Backup statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Backup statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get backup stats: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve backup statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve backup statistics: " + std::string(e.what()));
     }
 }
 
@@ -1131,7 +1086,7 @@ std::string AdminConfigModule::handleGetBackupStats(const std::map<std::string, 
 
 std::string AdminConfigModule::handleGetNotificationTemplates(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1150,17 +1105,17 @@ std::string AdminConfigModule::handleGetNotificationTemplates(const std::map<std
             j["createdAt"] = tpl.createdAt;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Notification templates retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Notification templates retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get notification templates: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve templates: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve templates: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleCreateNotificationTemplate(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1177,26 +1132,26 @@ std::string AdminConfigModule::handleCreateNotificationTemplate(const std::map<s
         if (templateId > 0) {
             nlohmann::json data;
             data["templateId"] = templateId;
-            return buildJsonResponse(200, true, "Notification template created", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Notification template created", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to create notification template");
+            return StringUtil::buildJsonResponse(500, false, "Failed to create notification template");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create notification template: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to create template: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to create template: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleUpdateNotificationTemplate(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Template ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Template ID is required");
         }
         int id = std::stoi(idIt->second);
 
@@ -1206,44 +1161,44 @@ std::string AdminConfigModule::handleUpdateNotificationTemplate(const std::map<s
         std::string description = ValidationHelper::sanitize(jsonBody.value("description", ""));
 
         if (updateNotificationTemplate(id, titleTemplate, contentTemplate, description)) {
-            return buildJsonResponse(true, "Notification template updated");
+            return StringUtil::buildJsonResponse(true, "Notification template updated");
         } else {
-            return buildJsonResponse(500, false, "Failed to update notification template");
+            return StringUtil::buildJsonResponse(500, false, "Failed to update notification template");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update notification template: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to update template: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to update template: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteNotificationTemplate(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Template ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Template ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteNotificationTemplate(id)) {
-            return buildJsonResponse(true, "Notification template deleted");
+            return StringUtil::buildJsonResponse(true, "Notification template deleted");
         } else {
-            return buildJsonResponse(500, false, "Failed to delete notification template");
+            return StringUtil::buildJsonResponse(500, false, "Failed to delete notification template");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete notification template: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to delete template: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to delete template: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetSystemNotifications(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1277,17 +1232,17 @@ std::string AdminConfigModule::handleGetSystemNotifications(const std::map<std::
         data["limit"] = notifications.limit;
         data["totalPages"] = notifications.totalPages;
 
-        return buildJsonResponse(200, true, "System notifications retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "System notifications retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get system notifications: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve notifications: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve notifications: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleSendNotification(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1305,20 +1260,20 @@ std::string AdminConfigModule::handleSendNotification(const std::map<std::string
         if (notificationId > 0) {
             nlohmann::json data;
             data["notificationId"] = notificationId;
-            return buildJsonResponse(200, true, "Notification sent successfully", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Notification sent successfully", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to send notification");
+            return StringUtil::buildJsonResponse(500, false, "Failed to send notification");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to send notification: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to send notification: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to send notification: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetNotificationHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1347,17 +1302,17 @@ std::string AdminConfigModule::handleGetNotificationHistory(const std::map<std::
         data["limit"] = deliveries.limit;
         data["totalPages"] = deliveries.totalPages;
 
-        return buildJsonResponse(200, true, "Notification history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Notification history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get notification history: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve history: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetNotificationStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1367,10 +1322,10 @@ std::string AdminConfigModule::handleGetNotificationStats(const std::map<std::st
         for (const auto& [key, value] : stats) {
             data["stats"][key] = value;
         }
-        return buildJsonResponse(200, true, "Notification statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Notification statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get notification stats: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve statistics: " + std::string(e.what()));
     }
 }
 
@@ -1381,7 +1336,7 @@ std::string AdminConfigModule::handleGetNotificationStats(const std::map<std::st
 
 std::string AdminConfigModule::handleGetCleanupTasks(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1405,17 +1360,17 @@ std::string AdminConfigModule::handleGetCleanupTasks(const std::map<std::string,
             j["createdAt"] = task.createdAt;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Cleanup tasks retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Cleanup tasks retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get cleanup tasks: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve tasks: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve tasks: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleCreateCleanupTask(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1433,26 +1388,26 @@ std::string AdminConfigModule::handleCreateCleanupTask(const std::map<std::strin
         if (taskId > 0) {
             nlohmann::json data;
             data["taskId"] = taskId;
-            return buildJsonResponse(200, true, "Cleanup task created", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Cleanup task created", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to create cleanup task");
+            return StringUtil::buildJsonResponse(500, false, "Failed to create cleanup task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to create cleanup task: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to create task: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to create task: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleUpdateCleanupTask(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Task ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Task ID is required");
         }
         int id = std::stoi(idIt->second);
 
@@ -1464,50 +1419,50 @@ std::string AdminConfigModule::handleUpdateCleanupTask(const std::map<std::strin
         bool isEnabled = jsonBody.value("isEnabled", true);
 
         if (updateCleanupTask(id, displayName, description, cleanupConfig, scheduleCron, isEnabled)) {
-            return buildJsonResponse(true, "Cleanup task updated");
+            return StringUtil::buildJsonResponse(true, "Cleanup task updated");
         } else {
-            return buildJsonResponse(500, false, "Failed to update cleanup task");
+            return StringUtil::buildJsonResponse(500, false, "Failed to update cleanup task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to update cleanup task: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to update task: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to update task: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleDeleteCleanupTask(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Task ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Task ID is required");
         }
         int id = std::stoi(idIt->second);
 
         if (deleteCleanupTask(id)) {
-            return buildJsonResponse(true, "Cleanup task deleted");
+            return StringUtil::buildJsonResponse(true, "Cleanup task deleted");
         } else {
-            return buildJsonResponse(500, false, "Failed to delete cleanup task or task is system task");
+            return StringUtil::buildJsonResponse(500, false, "Failed to delete cleanup task or task is system task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to delete cleanup task: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to delete task: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to delete task: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleTriggerCleanup(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Task ID is required");
+            return StringUtil::buildJsonResponse(400, false, "Task ID is required");
         }
         int taskId = std::stoi(idIt->second);
 
@@ -1518,20 +1473,20 @@ std::string AdminConfigModule::handleTriggerCleanup(const std::map<std::string, 
         if (executionId > 0) {
             nlohmann::json data;
             data["executionId"] = executionId;
-            return buildJsonResponse(200, true, "Cleanup task triggered", data.dump());
+            return StringUtil::buildJsonResponse(200, true, "Cleanup task triggered", data.dump());
         } else {
-            return buildJsonResponse(500, false, "Failed to trigger cleanup task");
+            return StringUtil::buildJsonResponse(500, false, "Failed to trigger cleanup task");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to trigger cleanup: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to trigger cleanup: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to trigger cleanup: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetCleanupHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1564,17 +1519,17 @@ std::string AdminConfigModule::handleGetCleanupHistory(const std::map<std::strin
         data["limit"] = history.limit;
         data["totalPages"] = history.totalPages;
 
-        return buildJsonResponse(200, true, "Cleanup history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Cleanup history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get cleanup history: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve history: " + std::string(e.what()));
     }
 }
 
 
 std::string AdminConfigModule::handleGetStorageStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1592,38 +1547,16 @@ std::string AdminConfigModule::handleGetStorageStats(const std::map<std::string,
             j["recordedAt"] = stat.recordedAt;
             data.push_back(j);
         }
-        return buildJsonResponse(200, true, "Storage statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Storage statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get storage stats: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve storage statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve storage statistics: " + std::string(e.what()));
     }
 }
 
 // ============================================================================
 // AdminConfigModule - Helper methods
 // ============================================================================
-
-std::string AdminConfigModule::buildJsonResponse(bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(success, message, data);
-}
-
-std::string AdminConfigModule::buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(statusCode, success, message, data);
-}
-
-std::string AdminConfigModule::escapeJson(const std::string& str) {
-    return impl_->escapeJson(str);
-}
-
-std::string AdminConfigModule::escapeSql(const std::string& str) {
-    std::string escaped;
-    for (char c : str) {
-        if (c == '\'') escaped += "''";
-        else if (c == '\\') escaped += "\\\\";
-        else escaped += c;
-    }
-    return escaped;
-}
 
 // ============================================================================
 // AdminConfigModule - Business logic methods
@@ -1652,15 +1585,15 @@ std::vector<NotificationTemplate> AdminConfigModule::getNotificationTemplates() 
         auto results = database_->query("SELECT * FROM notification_templates ORDER BY channel, name");
         for (const auto& row : results) {
             NotificationTemplate tpl;
-            tpl.id = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            tpl.name = cleanDbString(row.count("name") ? row.at("name") : "");
-            tpl.titleTemplate = cleanDbString(row.count("title_template") ? row.at("title_template") : "");
-            tpl.contentTemplate = cleanDbString(row.count("content_template") ? row.at("content_template") : "");
-            tpl.channel = cleanDbString(row.count("channel") ? row.at("channel") : "inapp");
-            tpl.description = cleanDbString(row.count("description") ? row.at("description") : "");
-            tpl.language = cleanDbString(row.count("language") ? row.at("language") : "zh-CN");
-            tpl.isActive = cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
-            tpl.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            tpl.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            tpl.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
+            tpl.titleTemplate = StringUtil::cleanDbString(row.count("title_template") ? row.at("title_template") : "");
+            tpl.contentTemplate = StringUtil::cleanDbString(row.count("content_template") ? row.at("content_template") : "");
+            tpl.channel = StringUtil::cleanDbString(row.count("channel") ? row.at("channel") : "inapp");
+            tpl.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
+            tpl.language = StringUtil::cleanDbString(row.count("language") ? row.at("language") : "zh-CN");
+            tpl.isActive = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "1") == "1";
+            tpl.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             templates.push_back(tpl);
         }
     } catch (const std::exception& e) {
@@ -1678,7 +1611,7 @@ int AdminConfigModule::createNotificationTemplate(const std::string& name, const
         stmt.bind(3, channel); stmt.bind(4, description); stmt.bind(5, language); stmt.bind(6, createdBy);
         stmt.execute();
         auto lastId = database_->query("SELECT LAST_INSERT_ID() as id");
-        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(cleanDbString(lastId[0].at("id")));
+        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(StringUtil::cleanDbString(lastId[0].at("id")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminConfig] Failed to create notification template: {}", e.what());
     }
@@ -1722,7 +1655,7 @@ PaginatedResponse<SystemNotification> AdminConfigModule::getSystemNotifications(
         PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM system_notifications" + whereClause);
         if (!status.empty()) countStmt.bind(0, status);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
 
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_, "SELECT * FROM system_notifications" + whereClause +
@@ -1734,15 +1667,15 @@ PaginatedResponse<SystemNotification> AdminConfigModule::getSystemNotifications(
         auto results = stmt.query();
         for (const auto& row : results) {
             SystemNotification notif;
-            notif.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            notif.title = cleanDbString(row.count("title") ? row.at("title") : "");
-            notif.content = cleanDbString(row.count("content") ? row.at("content") : "");
-            notif.channel = cleanDbString(row.count("channel") ? row.at("channel") : "inapp");
-            notif.targetRole = cleanDbString(row.count("target_role") ? row.at("target_role") : "");
-            notif.status = cleanDbString(row.count("status") ? row.at("status") : "");
-            notif.createdBy = std::stoi(cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            notif.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-            notif.scheduledAt = cleanDbString(row.count("scheduled_at") ? row.at("scheduled_at") : "");
+            notif.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            notif.title = StringUtil::cleanDbString(row.count("title") ? row.at("title") : "");
+            notif.content = StringUtil::cleanDbString(row.count("content") ? row.at("content") : "");
+            notif.channel = StringUtil::cleanDbString(row.count("channel") ? row.at("channel") : "inapp");
+            notif.targetRole = StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "");
+            notif.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
+            notif.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
+            notif.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            notif.scheduledAt = StringUtil::cleanDbString(row.count("scheduled_at") ? row.at("scheduled_at") : "");
             response.items.push_back(notif);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1762,7 +1695,7 @@ int64_t AdminConfigModule::sendNotification(int templateId, const std::string& t
         stmt.bind(6, scheduledAt.empty() ? std::string("") : scheduledAt);
         stmt.execute();
         auto lastId = database_->query("SELECT LAST_INSERT_ID() as id");
-        if (!lastId.empty() && lastId[0].count("id")) return std::stoll(cleanDbString(lastId[0].at("id")));
+        if (!lastId.empty() && lastId[0].count("id")) return std::stoll(StringUtil::cleanDbString(lastId[0].at("id")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminConfig] Failed to send notification: {}", e.what());
     }
@@ -1780,7 +1713,7 @@ PaginatedResponse<NotificationDelivery> AdminConfigModule::getNotificationDelive
         PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM notification_deliveries" + whereClause);
         if (notificationId > 0) countStmt.bind(0, static_cast<int>(notificationId));
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
 
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_, "SELECT * FROM notification_deliveries" + whereClause +
@@ -1792,12 +1725,12 @@ PaginatedResponse<NotificationDelivery> AdminConfigModule::getNotificationDelive
         auto results = stmt.query();
         for (const auto& row : results) {
             NotificationDelivery delivery;
-            delivery.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            delivery.notificationId = std::stoll(cleanDbString(row.count("notification_id") ? row.at("notification_id") : "0"));
-            delivery.userId = std::stoi(cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-            delivery.status = cleanDbString(row.count("status") ? row.at("status") : "");
-            delivery.sentAt = cleanDbString(row.count("sent_at") ? row.at("sent_at") : "");
-            delivery.readAt = cleanDbString(row.count("read_at") ? row.at("read_at") : "");
+            delivery.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            delivery.notificationId = std::stoll(StringUtil::cleanDbString(row.count("notification_id") ? row.at("notification_id") : "0"));
+            delivery.userId = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
+            delivery.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
+            delivery.sentAt = StringUtil::cleanDbString(row.count("sent_at") ? row.at("sent_at") : "");
+            delivery.readAt = StringUtil::cleanDbString(row.count("read_at") ? row.at("read_at") : "");
             response.items.push_back(delivery);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1812,11 +1745,11 @@ std::map<std::string, std::string> AdminConfigModule::getNotificationStats() {
     if (!database_) return stats;
     try {
         auto totalResults = database_->query("SELECT COUNT(*) as total FROM system_notifications");
-        stats["total_notifications"] = totalResults.empty() ? "0" : cleanDbString(totalResults[0].at("total"));
+        stats["total_notifications"] = totalResults.empty() ? "0" : StringUtil::cleanDbString(totalResults[0].at("total"));
         auto pendingResults = database_->query("SELECT COUNT(*) as total FROM system_notifications WHERE status = 'pending'");
-        stats["pending"] = pendingResults.empty() ? "0" : cleanDbString(pendingResults[0].at("total"));
+        stats["pending"] = pendingResults.empty() ? "0" : StringUtil::cleanDbString(pendingResults[0].at("total"));
         auto sentResults = database_->query("SELECT COUNT(*) as total FROM system_notifications WHERE status = 'sent'");
-        stats["sent"] = sentResults.empty() ? "0" : cleanDbString(sentResults[0].at("total"));
+        stats["sent"] = sentResults.empty() ? "0" : StringUtil::cleanDbString(sentResults[0].at("total"));
     } catch (const std::exception& e) {
         spdlog::error("[AdminConfig] Failed to get notification stats: {}", e.what());
     }
@@ -1830,18 +1763,18 @@ std::vector<CleanupTask> AdminConfigModule::getCleanupTasks() {
         auto results = database_->query("SELECT * FROM cleanup_tasks ORDER BY name");
         for (const auto& row : results) {
             CleanupTask task;
-            task.id = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            task.name = cleanDbString(row.count("name") ? row.at("name") : "");
-            task.displayName = cleanDbString(row.count("display_name") ? row.at("display_name") : "");
-            task.taskType = cleanDbString(row.count("task_type") ? row.at("task_type") : "");
-            task.description = cleanDbString(row.count("description") ? row.at("description") : "");
-            task.cleanupConfig = cleanDbString(row.count("config") ? row.at("config") : "{}");
-            task.scheduleCron = cleanDbString(row.count("schedule_cron") ? row.at("schedule_cron") : "");
-            task.isSystem = cleanDbString(row.count("is_system") ? row.at("is_system") : "0") == "1";
-            task.isEnabled = cleanDbString(row.count("is_enabled") ? row.at("is_enabled") : "1") == "1";
-            task.lastRunAt = cleanDbString(row.count("last_run_at") ? row.at("last_run_at") : "");
-            task.createdBy = std::stoi(cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
-            task.createdAt = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+            task.id = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            task.name = StringUtil::cleanDbString(row.count("name") ? row.at("name") : "");
+            task.displayName = StringUtil::cleanDbString(row.count("display_name") ? row.at("display_name") : "");
+            task.taskType = StringUtil::cleanDbString(row.count("task_type") ? row.at("task_type") : "");
+            task.description = StringUtil::cleanDbString(row.count("description") ? row.at("description") : "");
+            task.cleanupConfig = StringUtil::cleanDbString(row.count("config") ? row.at("config") : "{}");
+            task.scheduleCron = StringUtil::cleanDbString(row.count("schedule_cron") ? row.at("schedule_cron") : "");
+            task.isSystem = StringUtil::cleanDbString(row.count("is_system") ? row.at("is_system") : "0") == "1";
+            task.isEnabled = StringUtil::cleanDbString(row.count("is_enabled") ? row.at("is_enabled") : "1") == "1";
+            task.lastRunAt = StringUtil::cleanDbString(row.count("last_run_at") ? row.at("last_run_at") : "");
+            task.createdBy = std::stoi(StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0"));
+            task.createdAt = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             tasks.push_back(task);
         }
     } catch (const std::exception& e) {
@@ -1860,7 +1793,7 @@ int AdminConfigModule::createCleanupTask(const std::string& name, const std::str
         stmt.bind(4, cleanupConfig); stmt.bind(5, scheduleCron); stmt.bind(6, isSystem ? 1 : 0); stmt.bind(7, createdBy);
         stmt.execute();
         auto lastId = database_->query("SELECT LAST_INSERT_ID() as id");
-        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(cleanDbString(lastId[0].at("id")));
+        if (!lastId.empty() && lastId[0].count("id")) return std::stoi(StringUtil::cleanDbString(lastId[0].at("id")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminConfig] Failed to create cleanup task: {}", e.what());
     }
@@ -1902,7 +1835,7 @@ int64_t AdminConfigModule::triggerCleanup(int taskId, int triggeredBy) {
         stmt.bind(0, taskId); stmt.bind(1, triggeredBy);
         stmt.execute();
         auto lastId = database_->query("SELECT LAST_INSERT_ID() as id");
-        if (!lastId.empty() && lastId[0].count("id")) return std::stoll(cleanDbString(lastId[0].at("id")));
+        if (!lastId.empty() && lastId[0].count("id")) return std::stoll(StringUtil::cleanDbString(lastId[0].at("id")));
     } catch (const std::exception& e) {
         spdlog::error("[AdminConfig] Failed to trigger cleanup: {}", e.what());
     }
@@ -1920,7 +1853,7 @@ PaginatedResponse<CleanupExecution> AdminConfigModule::getCleanupHistory(int pag
         PreparedStatement countStmt(database_, "SELECT COUNT(*) as total FROM cleanup_executions" + whereClause);
         if (taskId > 0) countStmt.bind(0, taskId);
         auto countResults = countStmt.query();
-        response.total = countResults.empty() ? 0 : std::stoi(cleanDbString(countResults[0].at("total")));
+        response.total = countResults.empty() ? 0 : std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
 
         int offset = (page - 1) * limit;
         PreparedStatement stmt(database_, "SELECT * FROM cleanup_executions" + whereClause +
@@ -1932,14 +1865,14 @@ PaginatedResponse<CleanupExecution> AdminConfigModule::getCleanupHistory(int pag
         auto results = stmt.query();
         for (const auto& row : results) {
             CleanupExecution exec;
-            exec.id = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-            exec.taskId = std::stoi(cleanDbString(row.count("task_id") ? row.at("task_id") : "0"));
-            exec.status = cleanDbString(row.count("status") ? row.at("status") : "");
-            exec.triggeredBy = std::stoi(cleanDbString(row.count("triggered_by") ? row.at("triggered_by") : "0"));
-            exec.startedAt = cleanDbString(row.count("started_at") ? row.at("started_at") : "");
-            exec.completedAt = cleanDbString(row.count("completed_at") ? row.at("completed_at") : "");
-            exec.itemsProcessed = std::stoi(cleanDbString(row.count("items_processed") ? row.at("items_processed") : "0"));
-            exec.errorMessage = cleanDbString(row.count("error_message") ? row.at("error_message") : "");
+            exec.id = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+            exec.taskId = std::stoi(StringUtil::cleanDbString(row.count("task_id") ? row.at("task_id") : "0"));
+            exec.status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "");
+            exec.triggeredBy = std::stoi(StringUtil::cleanDbString(row.count("triggered_by") ? row.at("triggered_by") : "0"));
+            exec.startedAt = StringUtil::cleanDbString(row.count("started_at") ? row.at("started_at") : "");
+            exec.completedAt = StringUtil::cleanDbString(row.count("completed_at") ? row.at("completed_at") : "");
+            exec.itemsProcessed = std::stoi(StringUtil::cleanDbString(row.count("items_processed") ? row.at("items_processed") : "0"));
+            exec.errorMessage = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
             response.items.push_back(exec);
         }
         response.totalPages = (response.total + limit - 1) / limit;
@@ -1956,8 +1889,8 @@ std::vector<StorageStat> AdminConfigModule::getStorageStats() {
         auto results = database_->query("SELECT table_name as category, table_rows as record_count, data_length as size_bytes FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY data_length DESC");
         for (const auto& row : results) {
             StorageStat stat;
-            stat.tableName = cleanDbString(row.count("category") ? row.at("category") : "");
-            stat.rowCount = std::stoll(cleanDbString(row.count("record_count") ? row.at("record_count") : "0"));
+            stat.tableName = StringUtil::cleanDbString(row.count("category") ? row.at("category") : "");
+            stat.rowCount = std::stoll(StringUtil::cleanDbString(row.count("record_count") ? row.at("record_count") : "0"));
             stats.push_back(stat);
         }
     } catch (const std::exception& e) {

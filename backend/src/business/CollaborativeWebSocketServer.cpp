@@ -1,4 +1,5 @@
 #include "business/CollaborativeWritingEnhanced.hpp"
+#include "data/StringUtil.hpp"
 #include "network/WebSocketModule.hpp"
 #include "modules/LoggingModule.hpp"
 #include "data/IDatabase.hpp"
@@ -313,31 +314,7 @@ private:
      * @brief 转义JSON字符串
      */
     std::string escapeJson(const std::string& str) {
-        std::string escaped;
-        escaped.reserve(str.length() * 2);
-
-        for (char c : str) {
-            switch (c) {
-                case '"':  escaped += "\\\""; break;
-                case '\\': escaped += "\\\\"; break;
-                case '\b': escaped += "\\b"; break;
-                case '\f': escaped += "\\f"; break;
-                case '\n': escaped += "\\n"; break;
-                case '\r': escaped += "\\r"; break;
-                case '\t': escaped += "\\t"; break;
-                default:
-                    if (c < 32) {
-                        char buf[7];
-                        snprintf(buf, sizeof(buf), "\\u%04x", c);
-                        escaped += buf;
-                    } else {
-                        escaped += c;
-                    }
-                    break;
-            }
-        }
-
-        return escaped;
+        return StringUtil::escapeJson(str);
     }
 
     /**

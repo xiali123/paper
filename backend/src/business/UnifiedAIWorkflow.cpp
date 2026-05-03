@@ -1,4 +1,5 @@
 #include "business/UnifiedAIWorkflow.hpp"
+#include "data/StringUtil.hpp"
 // #include "core/EventDrivenIntegration.hpp"  // EventDrivenIntegration has missing dependencies
 // #include "modules/LoggingModule.hpp"        // LoggingModule not implemented yet
 #include "features/ai/VectorStore.hpp"
@@ -745,18 +746,7 @@ void UnifiedAIWorkflow::precomputeCommonQueries() {
 }
 
 std::string UnifiedAIWorkflow::escapeJson(const std::string& str) {
-    std::string escaped;
-    for (char c : str) {
-        switch (c) {
-            case '"': escaped += "\\\""; break;
-            case '\\': escaped += "\\\\"; break;
-            case '\n': escaped += "\\n"; break;
-            case '\r': escaped += "\\r"; break;
-            case '\t': escaped += "\\t"; break;
-            default: escaped += c; break;
-        }
-    }
-    return escaped;
+    return StringUtil::escapeJson(str);
 }
 
 } // namespace PaperCrawler

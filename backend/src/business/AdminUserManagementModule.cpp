@@ -20,17 +20,13 @@
 #include <filesystem>
 #include <chrono>
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 
 namespace PaperCrawler {
 
 // ============================================================================
 // MySQL datetime helpers
 // ============================================================================
-
-static std::string cleanDbString(const std::string& val) {
-    if (val.empty() || val == "NULL") return "";
-    return val;
-}
 
 static std::chrono::system_clock::time_point parseMysqlDateTime(const std::string& datetime) {
     if (datetime.empty() || datetime == "0000-00-00 00:00:00" || datetime == "NULL") {
@@ -64,49 +60,6 @@ public:
 
     explicit Impl(std::shared_ptr<IDatabase> database)
         : database_(database) {
-    }
-
-    std::string escapeJson(const std::string& str) {
-        std::string result;
-        result.reserve(str.length() * 1.2);
-        for (char c : str) {
-            switch (c) {
-                case '"': result += "\\\""; break;
-                case '\\': result += "\\\\"; break;
-                case '\n': result += "\\n"; break;
-                case '\r': result += "\\r"; break;
-                case '\t': result += "\\t"; break;
-                case '\b': result += "\\b"; break;
-                case '\f': result += "\\f"; break;
-                default:
-                    if (c < ' ') {
-                        char buf[7];
-                        snprintf(buf, sizeof(buf), "\\u%04x", (unsigned int)c);
-                        result += buf;
-                    } else {
-                        result += c;
-                    }
-                    break;
-            }
-        }
-        return result;
-    }
-
-    std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "") {
-        std::ostringstream json;
-        json << "{";
-        json << "\"statusCode\":" << statusCode << ",";
-        json << "\"success\":" << (success ? "true" : "false") << ",";
-        json << "\"message\":\"" << escapeJson(message) << "\"";
-        if (!data.empty()) {
-            json << ",\"data\":" << data;
-        }
-        json << "}";
-        return json.str();
-    }
-
-    std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "") {
-        return buildJsonResponse(200, success, message, data);
     }
 
     std::string hashPassword(const std::string& password) {
@@ -327,7 +280,7 @@ PaginatedResponse<AdminUser> AdminUserManagementModule::listUsers(int page, int 
             } else {
                 user.lastLoginAt = std::chrono::system_clock::from_time_t(0);
             }
-            user.lastLoginIp = cleanDbString(row.count("last_login_ip") > 0 ? row.at("last_login_ip") : "");
+            user.lastLoginIp = StringUtil::cleanDbString(row.count("last_login_ip") > 0 ? row.at("last_login_ip") : "");
             user.loginCount = row.count("login_count") > 0 && row.at("login_count") != "NULL" ? std::stoi(row.at("login_count")) : 0;
 
             response.items.push_back(user);
@@ -376,7 +329,7 @@ std::optional<AdminUser> AdminUserManagementModule::getUser(int id) {
             } else {
                 user.lastLoginAt = std::chrono::system_clock::from_time_t(0);
             }
-            user.lastLoginIp = cleanDbString(results[0].count("last_login_ip") > 0 ? results[0].at("last_login_ip") : "");
+            user.lastLoginIp = StringUtil::cleanDbString(results[0].count("last_login_ip") > 0 ? results[0].at("last_login_ip") : "");
             user.loginCount = results[0].count("login_count") > 0 && results[0].at("login_count") != "NULL" ? std::stoi(results[0].at("login_count")) : 0;
 
             return user;
@@ -422,7 +375,7 @@ std::optional<AdminUser> AdminUserManagementModule::getUserByUsername(const std:
             } else {
                 user.lastLoginAt = std::chrono::system_clock::from_time_t(0);
             }
-            user.lastLoginIp = cleanDbString(results[0].count("last_login_ip") > 0 ? results[0].at("last_login_ip") : "");
+            user.lastLoginIp = StringUtil::cleanDbString(results[0].count("last_login_ip") > 0 ? results[0].at("last_login_ip") : "");
             user.loginCount = results[0].count("login_count") > 0 && results[0].at("login_count") != "NULL" ? std::stoi(results[0].at("login_count")) : 0;
 
             return user;
@@ -1097,7 +1050,7 @@ std::string AdminUserManagementModule::handleListUsers(const std::map<std::strin
 std::string AdminUserManagementModule::handleGetUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -1105,12 +1058,12 @@ std::string AdminUserManagementModule::handleGetUser(const std::map<std::string,
         auto user = getUser(id);
 
         if (!user) {
-            return buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(404, false, "User not found");
         }
 
-        return buildJsonResponse(200, true, "User retrieved", user->toJSON());
+        return StringUtil::buildJsonResponse(200, true, "User retrieved", user->toJSON());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1120,7 +1073,7 @@ std::string AdminUserManagementModule::handleCreateUser(const std::string& body)
 
         // 验证必填字段
         if (!jsonBody.contains("username") || !jsonBody.contains("email")) {
-            return buildJsonResponse(400, false, "Missing required fields: username and email are required");
+            return StringUtil::buildJsonResponse(400, false, "Missing required fields: username and email are required");
         }
 
         AdminUser newUser;
@@ -1153,21 +1106,21 @@ std::string AdminUserManagementModule::handleCreateUser(const std::string& body)
         auto createdUser = createUser(newUser);
 
         if (!createdUser) {
-            return buildJsonResponse(400, false, "Failed to create user - username or email may already exist");
+            return StringUtil::buildJsonResponse(400, false, "Failed to create user - username or email may already exist");
         }
 
-        return buildJsonResponse(200, true, "User created successfully", createdUser->toJSON());
+        return StringUtil::buildJsonResponse(200, true, "User created successfully", createdUser->toJSON());
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleUpdateUser(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -1184,40 +1137,40 @@ std::string AdminUserManagementModule::handleUpdateUser(const std::map<std::stri
         auto updatedUser = updateUser(id, user);
 
         if (!updatedUser) {
-            return buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(404, false, "User not found");
         }
 
-        return buildJsonResponse(200, true, "User updated", updatedUser->toJSON());
+        return StringUtil::buildJsonResponse(200, true, "User updated", updatedUser->toJSON());
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleDeleteUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
         int id = std::stoi(idIt->second);
 
         if (deleteUser(id)) {
-            return buildJsonResponse(true, "User deleted");
+            return StringUtil::buildJsonResponse(true, "User deleted");
         }
 
-        return buildJsonResponse(404, false, "User not found");
+        return StringUtil::buildJsonResponse(404, false, "User not found");
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleActivateUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -1225,19 +1178,19 @@ std::string AdminUserManagementModule::handleActivateUser(const std::map<std::st
         auto user = activateUser(id);
 
         if (!user) {
-            return buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(404, false, "User not found");
         }
 
-        return buildJsonResponse(200, true, "User activated", user->toJSON());
+        return StringUtil::buildJsonResponse(200, true, "User activated", user->toJSON());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleDeactivateUser(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -1245,19 +1198,19 @@ std::string AdminUserManagementModule::handleDeactivateUser(const std::map<std::
         auto user = deactivateUser(id);
 
         if (!user) {
-            return buildJsonResponse(404, false, "User not found");
+            return StringUtil::buildJsonResponse(404, false, "User not found");
         }
 
-        return buildJsonResponse(200, true, "User deactivated", user->toJSON());
+        return StringUtil::buildJsonResponse(200, true, "User deactivated", user->toJSON());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleChangePassword(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -1268,29 +1221,29 @@ std::string AdminUserManagementModule::handleChangePassword(const std::map<std::
         std::string newPassword = jsonBody.value("new_password", "");
 
         if (oldPassword.empty() || newPassword.empty()) {
-            return buildJsonResponse(400, false, "Missing old_password or new_password");
+            return StringUtil::buildJsonResponse(400, false, "Missing old_password or new_password");
         }
 
         if (newPassword.length() < 6) {
-            return buildJsonResponse(400, false, "New password must be at least 6 characters");
+            return StringUtil::buildJsonResponse(400, false, "New password must be at least 6 characters");
         }
 
         if (changeUserPassword(id, oldPassword, newPassword)) {
-            return buildJsonResponse(true, "Password changed successfully");
+            return StringUtil::buildJsonResponse(true, "Password changed successfully");
         }
 
-        return buildJsonResponse(400, false, "Old password is incorrect");
+        return StringUtil::buildJsonResponse(400, false, "Old password is incorrect");
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleResetPassword(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
@@ -1305,7 +1258,7 @@ std::string AdminUserManagementModule::handleResetPassword(const std::map<std::s
         }
 
         if (newPassword.length() < 6) {
-            return buildJsonResponse(400, false, "Password must be at least 6 characters");
+            return StringUtil::buildJsonResponse(400, false, "Password must be at least 6 characters");
         }
 
         if (resetUserPassword(id, newPassword)) {
@@ -1315,25 +1268,25 @@ std::string AdminUserManagementModule::handleResetPassword(const std::map<std::s
             if (jsonBody.value("new_password", "").empty()) {
                 result["generated_password"] = newPassword;
             }
-            return buildJsonResponse(200, true, "Password reset successfully", result.dump());
+            return StringUtil::buildJsonResponse(200, true, "Password reset successfully", result.dump());
         }
 
-        return buildJsonResponse(404, false, "User not found");
+        return StringUtil::buildJsonResponse(404, false, "User not found");
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         int userId = std::stoi(idIt->second);
         int page = 1, limit = 20;
@@ -1359,7 +1312,7 @@ std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::
         auto countResults = countStmt.query();
         int total = 0;
         if (!countResults.empty()) {
-            total = std::stoi(cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
+            total = std::stoi(StringUtil::cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
         }
 
         // Build JSON array
@@ -1369,12 +1322,12 @@ std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::
             if (i > 0) itemsJson << ",";
             const auto& row = results[i];
             itemsJson << "{";
-            itemsJson << "\"id\":" << cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
+            itemsJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
             itemsJson << "\"user_id\":" << userId << ",";
-            itemsJson << "\"login_time\":\"" << escapeJson(cleanDbString(row.count("login_time") ? row.at("login_time") : "")) << "\",";
-            itemsJson << "\"ip_address\":\"" << escapeJson(cleanDbString(row.count("ip_address") ? row.at("ip_address") : "")) << "\",";
-            itemsJson << "\"user_agent\":\"" << escapeJson(cleanDbString(row.count("user_agent") ? row.at("user_agent") : "")) << "\",";
-            std::string successVal = cleanDbString(row.count("success") ? row.at("success") : "0");
+            itemsJson << "\"login_time\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("login_time") ? row.at("login_time") : "")) << "\",";
+            itemsJson << "\"ip_address\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "")) << "\",";
+            itemsJson << "\"user_agent\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "")) << "\",";
+            std::string successVal = StringUtil::cleanDbString(row.count("success") ? row.at("success") : "0");
             itemsJson << "\"success\":" << (successVal == "1" || successVal == "true" ? "true" : "false");
             itemsJson << "}";
         }
@@ -1390,20 +1343,20 @@ std::string AdminUserManagementModule::handleGetUserHistory(const std::map<std::
              << "\"limit\":" << limit << ","
              << "\"total_pages\":" << totalPages << "}";
 
-        return buildJsonResponse(200, true, "Login history retrieved", data.str());
+        return StringUtil::buildJsonResponse(200, true, "Login history retrieved", data.str());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminUserManagementModule::handleGetUserSessions(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID");
     }
 
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         int userId = std::stoi(idIt->second);
 
@@ -1419,13 +1372,13 @@ std::string AdminUserManagementModule::handleGetUserSessions(const std::map<std:
             if (i > 0) itemsJson << ",";
             const auto& row = results[i];
             itemsJson << "{";
-            itemsJson << "\"id\":" << cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
+            itemsJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
             itemsJson << "\"user_id\":" << userId << ",";
-            itemsJson << "\"token\":\"" << escapeJson(cleanDbString(row.count("token") ? row.at("token") : "")) << "\",";
-            itemsJson << "\"ip_address\":\"" << escapeJson(cleanDbString(row.count("ip_address") ? row.at("ip_address") : "")) << "\",";
-            itemsJson << "\"user_agent\":\"" << escapeJson(cleanDbString(row.count("user_agent") ? row.at("user_agent") : "")) << "\",";
-            itemsJson << "\"created_at\":\"" << escapeJson(cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
-            itemsJson << "\"expires_at\":\"" << escapeJson(cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
+            itemsJson << "\"token\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("token") ? row.at("token") : "")) << "\",";
+            itemsJson << "\"ip_address\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "")) << "\",";
+            itemsJson << "\"user_agent\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "")) << "\",";
+            itemsJson << "\"created_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
+            itemsJson << "\"expires_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
             itemsJson << "}";
         }
         itemsJson << "]";
@@ -1434,9 +1387,9 @@ std::string AdminUserManagementModule::handleGetUserSessions(const std::map<std:
         data << "{\"sessions\":" << itemsJson.str() << ","
              << "\"total\":" << results.size() << "}";
 
-        return buildJsonResponse(200, true, "Active sessions retrieved", data.str());
+        return StringUtil::buildJsonResponse(200, true, "Active sessions retrieved", data.str());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1444,11 +1397,11 @@ std::string AdminUserManagementModule::handleKickUserSession(const std::map<std:
     auto idIt = params.find("id");
     auto sidIt = params.find("sid");
     if (idIt == params.end() || sidIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing user ID or session ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing user ID or session ID");
     }
 
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         int userId = std::stoi(idIt->second);
         int sessionId = std::stoi(sidIt->second);
@@ -1460,12 +1413,12 @@ std::string AdminUserManagementModule::handleKickUserSession(const std::map<std:
         if (stmt.execute()) {
             addAuditLog("session_kicked", "user", userId, "admin", 0,
                         "Kicked session " + std::to_string(sessionId) + " for user " + std::to_string(userId), "127.0.0.1");
-            return buildJsonResponse(true, "Session kicked successfully");
+            return StringUtil::buildJsonResponse(true, "Session kicked successfully");
         }
 
-        return buildJsonResponse(404, false, "Session not found");
+        return StringUtil::buildJsonResponse(404, false, "Session not found");
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1496,15 +1449,15 @@ std::string AdminUserManagementModule::handleExportUsers(const std::map<std::str
         csv << "id,username,email,full_name,role,is_active,created_at,last_login_at,last_login_ip\n";
 
         for (const auto& row : results) {
-            csv << cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-            csv << "\"" << escapeJson(cleanDbString(row.count("username") ? row.at("username") : "")) << "\",";
-            csv << "\"" << escapeJson(cleanDbString(row.count("email") ? row.at("email") : "")) << "\",";
-            csv << "\"" << escapeJson(cleanDbString(row.count("full_name") ? row.at("full_name") : "")) << "\",";
-            csv << cleanDbString(row.count("role") ? row.at("role") : "user") << ",";
-            csv << cleanDbString(row.count("is_active") ? row.at("is_active") : "0") << ",";
-            csv << "\"" << cleanDbString(row.count("created_at") ? row.at("created_at") : "") << "\",";
-            csv << "\"" << cleanDbString(row.count("last_login_at") ? row.at("last_login_at") : "") << "\",";
-            csv << "\"" << cleanDbString(row.count("last_login_ip") ? row.at("last_login_ip") : "") << "\"";
+            csv << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
+            csv << "\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("username") ? row.at("username") : "")) << "\",";
+            csv << "\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("email") ? row.at("email") : "")) << "\",";
+            csv << "\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("full_name") ? row.at("full_name") : "")) << "\",";
+            csv << StringUtil::cleanDbString(row.count("role") ? row.at("role") : "user") << ",";
+            csv << StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0") << ",";
+            csv << "\"" << StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "") << "\",";
+            csv << "\"" << StringUtil::cleanDbString(row.count("last_login_at") ? row.at("last_login_at") : "") << "\",";
+            csv << "\"" << StringUtil::cleanDbString(row.count("last_login_ip") ? row.at("last_login_ip") : "") << "\"";
             csv << "\n";
         }
 
@@ -1520,7 +1473,7 @@ std::string AdminUserManagementModule::handleExportUsers(const std::map<std::str
 
 std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1560,7 +1513,7 @@ std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std:
             if (!usernameFilter.empty()) countStmt.bind(0, usernameFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(cleanDbString(countResults[0].at("total")));
+                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
             }
 
             // 获取登录历史
@@ -1574,13 +1527,13 @@ std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std:
 
             for (const auto& row : results) {
                 nlohmann::json attempt;
-                attempt["id"] = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                attempt["username"] = cleanDbString(row.count("username") ? row.at("username") : "");
-                attempt["ip_address"] = cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                attempt["user_agent"] = cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
-                attempt["success"] = cleanDbString(row.count("success") ? row.at("success") : "0") == "1";
-                attempt["failure_reason"] = cleanDbString(row.count("failure_reason") ? row.at("failure_reason") : "");
-                attempt["created_at"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                attempt["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                attempt["username"] = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
+                attempt["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
+                attempt["user_agent"] = StringUtil::cleanDbString(row.count("user_agent") ? row.at("user_agent") : "");
+                attempt["success"] = StringUtil::cleanDbString(row.count("success") ? row.at("success") : "0") == "1";
+                attempt["failure_reason"] = StringUtil::cleanDbString(row.count("failure_reason") ? row.at("failure_reason") : "");
+                attempt["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
                 attempts.push_back(attempt);
             }
         }
@@ -1591,16 +1544,16 @@ std::string AdminUserManagementModule::handleGetLoginHistory(const std::map<std:
         data["page"] = page;
         data["limit"] = limit;
 
-        return buildJsonResponse(200, true, "Login history retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Login history retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get login history: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve login history: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve login history: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetLoginStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1619,11 +1572,11 @@ std::string AdminUserManagementModule::handleGetLoginStats(const std::map<std::s
 
             for (const auto& row : results) {
                 nlohmann::json stat;
-                stat["date"] = cleanDbString(row.count("date") ? row.at("date") : "");
-                stat["successful_logins"] = std::stoi(cleanDbString(row.count("successful_logins") ? row.at("successful_logins") : "0"));
-                stat["failed_logins"] = std::stoi(cleanDbString(row.count("failed_logins") ? row.at("failed_logins") : "0"));
-                stat["unique_users"] = std::stoi(cleanDbString(row.count("unique_users") ? row.at("unique_users") : "0"));
-                stat["unique_ips"] = std::stoi(cleanDbString(row.count("unique_ips") ? row.at("unique_ips") : "0"));
+                stat["date"] = StringUtil::cleanDbString(row.count("date") ? row.at("date") : "");
+                stat["successful_logins"] = std::stoi(StringUtil::cleanDbString(row.count("successful_logins") ? row.at("successful_logins") : "0"));
+                stat["failed_logins"] = std::stoi(StringUtil::cleanDbString(row.count("failed_logins") ? row.at("failed_logins") : "0"));
+                stat["unique_users"] = std::stoi(StringUtil::cleanDbString(row.count("unique_users") ? row.at("unique_users") : "0"));
+                stat["unique_ips"] = std::stoi(StringUtil::cleanDbString(row.count("unique_ips") ? row.at("unique_ips") : "0"));
                 stats.push_back(stat);
             }
         }
@@ -1631,16 +1584,16 @@ std::string AdminUserManagementModule::handleGetLoginStats(const std::map<std::s
         nlohmann::json data;
         data["stats"] = stats;
 
-        return buildJsonResponse(200, true, "Login statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Login statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get login stats: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve login statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve login statistics: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1680,7 +1633,7 @@ std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<
             if (!statusFilter.empty()) countStmt.bind(0, statusFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(cleanDbString(countResults[0].at("total")));
+                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
             }
 
             // 获取可疑登录列表
@@ -1696,15 +1649,15 @@ std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<
 
             for (const auto& row : results) {
                 nlohmann::json item;
-                item["id"] = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                item["username"] = cleanDbString(row.count("username") ? row.at("username") : "");
-                item["ip_address"] = cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                item["suspicion_reason"] = cleanDbString(row.count("suspicion_reason") ? row.at("suspicion_reason") : "");
-                item["risk_score"] = std::stoi(cleanDbString(row.count("risk_score") ? row.at("risk_score") : "0"));
-                item["status"] = cleanDbString(row.count("status") ? row.at("status") : "pending");
-                item["reviewed_by"] = cleanDbString(row.count("reviewed_by_username") ? row.at("reviewed_by_username") : "");
-                item["reviewed_at"] = cleanDbString(row.count("reviewed_at") ? row.at("reviewed_at") : "");
-                item["created_at"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                item["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                item["username"] = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
+                item["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
+                item["suspicion_reason"] = StringUtil::cleanDbString(row.count("suspicion_reason") ? row.at("suspicion_reason") : "");
+                item["risk_score"] = std::stoi(StringUtil::cleanDbString(row.count("risk_score") ? row.at("risk_score") : "0"));
+                item["status"] = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "pending");
+                item["reviewed_by"] = StringUtil::cleanDbString(row.count("reviewed_by_username") ? row.at("reviewed_by_username") : "");
+                item["reviewed_at"] = StringUtil::cleanDbString(row.count("reviewed_at") ? row.at("reviewed_at") : "");
+                item["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
                 suspicious.push_back(item);
             }
         }
@@ -1715,16 +1668,16 @@ std::string AdminUserManagementModule::handleGetSuspiciousLogins(const std::map<
         data["page"] = page;
         data["limit"] = limit;
 
-        return buildJsonResponse(200, true, "Suspicious logins retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Suspicious logins retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get suspicious logins: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve suspicious logins: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve suspicious logins: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1751,7 +1704,7 @@ std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::
             std::string countSql = "SELECT COUNT(*) as total FROM ip_blacklist WHERE is_active = 1";
             auto countResults = database_->query(countSql);
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(cleanDbString(countResults[0].at("total")));
+                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
             }
 
             // 获取黑名单列表
@@ -1765,14 +1718,14 @@ std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::
 
             for (const auto& row : results) {
                 nlohmann::json entry;
-                entry["id"] = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                entry["ip_address"] = cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                entry["reason"] = cleanDbString(row.count("reason") ? row.at("reason") : "");
-                entry["threat_level"] = cleanDbString(row.count("threat_level") ? row.at("threat_level") : "medium");
-                entry["attempt_count"] = std::stoi(cleanDbString(row.count("attempt_count") ? row.at("attempt_count") : "0"));
-                entry["created_by"] = cleanDbString(row.count("created_by_username") ? row.at("created_by_username") : "");
-                entry["created_at"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
-                entry["expires_at"] = cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
+                entry["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                entry["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
+                entry["reason"] = StringUtil::cleanDbString(row.count("reason") ? row.at("reason") : "");
+                entry["threat_level"] = StringUtil::cleanDbString(row.count("threat_level") ? row.at("threat_level") : "medium");
+                entry["attempt_count"] = std::stoi(StringUtil::cleanDbString(row.count("attempt_count") ? row.at("attempt_count") : "0"));
+                entry["created_by"] = StringUtil::cleanDbString(row.count("created_by_username") ? row.at("created_by_username") : "");
+                entry["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                entry["expires_at"] = StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "");
                 blacklist.push_back(entry);
             }
         }
@@ -1783,16 +1736,16 @@ std::string AdminUserManagementModule::handleGetIpBlacklist(const std::map<std::
         data["page"] = page;
         data["limit"] = limit;
 
-        return buildJsonResponse(200, true, "IP blacklist retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "IP blacklist retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get IP blacklist: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve IP blacklist: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve IP blacklist: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleAddIpBlacklist(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1803,7 +1756,7 @@ std::string AdminUserManagementModule::handleAddIpBlacklist(const std::map<std::
         std::string expiresAt = jsonBody.value("expires_at", "");
 
         if (ipAddress.empty() || reason.empty()) {
-            return buildJsonResponse(400, false, "IP address and reason are required");
+            return StringUtil::buildJsonResponse(400, false, "IP address and reason are required");
         }
 
         if (database_) {
@@ -1844,25 +1797,25 @@ std::string AdminUserManagementModule::handleAddIpBlacklist(const std::map<std::
             addAuditLog("ip_blacklisted", "ip_blacklist", 0, "superadmin", 0,
                        "Added IP " + ipAddress + " to blacklist: " + reason, "127.0.0.1");
 
-            return buildJsonResponse(true, "IP address added to blacklist");
+            return StringUtil::buildJsonResponse(true, "IP address added to blacklist");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to add IP to blacklist: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to add IP to blacklist: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to add IP to blacklist: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleRemoveIpBlacklist(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing ID parameter");
+            return StringUtil::buildJsonResponse(400, false, "Missing ID parameter");
         }
 
         int id = std::stoi(idIt->second);
@@ -1876,19 +1829,19 @@ std::string AdminUserManagementModule::handleRemoveIpBlacklist(const std::map<st
             addAuditLog("ip_whitelisted", "ip_blacklist", id, "superadmin", 0,
                        "Removed IP from blacklist (ID: " + std::to_string(id) + ")", "127.0.0.1");
 
-            return buildJsonResponse(true, "IP address removed from blacklist");
+            return StringUtil::buildJsonResponse(true, "IP address removed from blacklist");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to remove IP from blacklist: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to remove IP from blacklist: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to remove IP from blacklist: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1915,7 +1868,7 @@ std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<s
             std::string countSql = "SELECT COUNT(*) as total FROM account_lockouts WHERE locked_until > NOW()";
             auto countResults = database_->query(countSql);
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(cleanDbString(countResults[0].at("total")));
+                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
             }
 
             // 获取锁定列表
@@ -1929,14 +1882,14 @@ std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<s
 
             for (const auto& row : results) {
                 nlohmann::json lockout;
-                lockout["id"] = std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                lockout["user_id"] = std::stoi(cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
-                lockout["username"] = cleanDbString(row.count("username") ? row.at("username") : "");
-                lockout["locked_until"] = cleanDbString(row.count("locked_until") ? row.at("locked_until") : "");
-                lockout["lockout_reason"] = cleanDbString(row.count("lockout_reason") ? row.at("lockout_reason") : "");
-                lockout["failed_attempts"] = std::stoi(cleanDbString(row.count("failed_attempts") ? row.at("failed_attempts") : "0"));
-                lockout["ip_address"] = cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
-                lockout["created_at"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                lockout["id"] = std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                lockout["user_id"] = std::stoi(StringUtil::cleanDbString(row.count("user_id") ? row.at("user_id") : "0"));
+                lockout["username"] = StringUtil::cleanDbString(row.count("username") ? row.at("username") : "");
+                lockout["locked_until"] = StringUtil::cleanDbString(row.count("locked_until") ? row.at("locked_until") : "");
+                lockout["lockout_reason"] = StringUtil::cleanDbString(row.count("lockout_reason") ? row.at("lockout_reason") : "");
+                lockout["failed_attempts"] = std::stoi(StringUtil::cleanDbString(row.count("failed_attempts") ? row.at("failed_attempts") : "0"));
+                lockout["ip_address"] = StringUtil::cleanDbString(row.count("ip_address") ? row.at("ip_address") : "");
+                lockout["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
                 lockouts.push_back(lockout);
             }
         }
@@ -1947,16 +1900,16 @@ std::string AdminUserManagementModule::handleGetAccountLockouts(const std::map<s
         data["page"] = page;
         data["limit"] = limit;
 
-        return buildJsonResponse(200, true, "Account lockouts retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Account lockouts retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get account lockouts: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve account lockouts: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve account lockouts: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std::string, std::string>& params, const std::string& body) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1967,7 +1920,7 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
         std::string ipAddress = jsonBody.value("ip_address", "");
 
         if (userId == 0) {
-            return buildJsonResponse(400, false, "User ID is required");
+            return StringUtil::buildJsonResponse(400, false, "User ID is required");
         }
 
         if (database_) {
@@ -1976,7 +1929,7 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
             checkStmt.bind(0, userId);
             auto checkResults = checkStmt.query();
             if (checkResults.empty()) {
-                return buildJsonResponse(404, false, "User not found");
+                return StringUtil::buildJsonResponse(404, false, "User not found");
             }
 
             // 插入或更新锁定记录
@@ -1998,25 +1951,25 @@ std::string AdminUserManagementModule::handleLockUserAccount(const std::map<std:
             addAuditLog("user_locked", "users", userId, "superadmin", 0,
                        "Locked user account for " + std::to_string(lockMinutes) + " minutes: " + reason, "127.0.0.1");
 
-            return buildJsonResponse(true, "User account locked successfully");
+            return StringUtil::buildJsonResponse(true, "User account locked successfully");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to lock user account: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to lock user account: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to lock user account: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleUnlockUserAccount(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto userIdIt = params.find("user_id");
         if (userIdIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing user_id parameter");
+            return StringUtil::buildJsonResponse(400, false, "Missing user_id parameter");
         }
 
         int userId = std::stoi(userIdIt->second);
@@ -2030,26 +1983,26 @@ std::string AdminUserManagementModule::handleUnlockUserAccount(const std::map<st
             addAuditLog("user_unlocked", "users", userId, "superadmin", 0,
                        "Unlocked user account", "127.0.0.1");
 
-            return buildJsonResponse(true, "User account unlocked successfully");
+            return StringUtil::buildJsonResponse(true, "User account unlocked successfully");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to unlock user account: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to unlock user account: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to unlock user account: " + std::string(e.what()));
     }
 }
 
 std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::map<std::string, std::string>& params, const std::string& body,
                                                        const std::map<std::string, std::string>& headers) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto idIt = params.find("id");
         if (idIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing ID parameter");
+            return StringUtil::buildJsonResponse(400, false, "Missing ID parameter");
         }
 
         int id = std::stoi(idIt->second);
@@ -2059,7 +2012,7 @@ std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::ma
         int reviewedBy = impl_->extractAdminUserIdFromHeaders(headers);
 
         if (action.empty()) {
-            return buildJsonResponse(400, false, "Action is required");
+            return StringUtil::buildJsonResponse(400, false, "Action is required");
         }
 
         if (database_) {
@@ -2076,13 +2029,13 @@ std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::ma
             addAuditLog("suspicious_login_handled", "suspicious_logins", id, "superadmin", reviewedBy,
                        "Marked suspicious login as: " + action, "127.0.0.1");
 
-            return buildJsonResponse(true, "Suspicious login handled successfully");
+            return StringUtil::buildJsonResponse(true, "Suspicious login handled successfully");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to handle suspicious login: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to handle suspicious login: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to handle suspicious login: " + std::string(e.what()));
     }
 }
 
@@ -2093,32 +2046,6 @@ std::string AdminUserManagementModule::handleHandleSuspiciousLogin(const std::ma
 // ============================================================================
 // AdminUserManagementModule - Helper methods
 // ============================================================================
-
-std::string AdminUserManagementModule::buildJsonResponse(bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(success, message, data);
-}
-
-std::string AdminUserManagementModule::buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(statusCode, success, message, data);
-}
-
-std::string AdminUserManagementModule::escapeJson(const std::string& str) {
-    return impl_->escapeJson(str);
-}
-
-std::string AdminUserManagementModule::escapeSql(const std::string& str) {
-    std::string escaped;
-    for (char c : str) {
-        if (c == '\'') {
-            escaped += "\'\'";
-        } else if (c == '\\') {
-            escaped += "\\\\";
-        } else {
-            escaped += c;
-        }
-    }
-    return escaped;
-}
 
 void AdminUserManagementModule::addAuditLog(const std::string& action, const std::string& entityType, int entityId,
                                              const std::string& actorUsername, int actorId,

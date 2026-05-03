@@ -1,4 +1,5 @@
 #include "business/AiCoPilotModule.hpp"
+#include "data/StringUtil.hpp"
 #include "core/Router.hpp"
 #include "core/EventDrivenIntegration.hpp"
 #include "modules/LoggingModule.hpp"
@@ -737,32 +738,11 @@ std::map<std::string, std::string> AiCoPilotModule::getUsageStats(int userId) {
 }
 
 std::string AiCoPilotModule::escapeSql(const std::string& str) {
-    std::string escaped;
-    for (char c : str) {
-        if (c == '\'') {
-            escaped += "''";
-        } else if (c == '\\') {
-            escaped += "\\\\";
-        } else {
-            escaped += c;
-        }
-    }
-    return escaped;
+    return StringUtil::escapeSql(str);
 }
 
 std::string AiCoPilotModule::escapeJson(const std::string& str) {
-    std::string escaped;
-    for (char c : str) {
-        switch (c) {
-            case '"': escaped += "\\\""; break;
-            case '\\': escaped += "\\\\"; break;
-            case '\n': escaped += "\\n"; break;
-            case '\r': escaped += "\\r"; break;
-            case '\t': escaped += "\\t"; break;
-            default: escaped += c; break;
-        }
-    }
-    return escaped;
+    return StringUtil::escapeJson(str);
 }
 
 // ============================================================================

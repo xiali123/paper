@@ -85,10 +85,6 @@ private:
     std::string handleGetApiKeyStats(const std::map<std::string, std::string>& params);
 
     // Helper methods
-    std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "");
-    std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "");
-    std::string escapeJson(const std::string& str);
-    std::string escapeSql(const std::string& str);
     void addAuditLog(const std::string& action, const std::string& entityType, int entityId,
                      const std::string& actorUsername, int actorId,
                      const std::string& details = "", const std::string& ipAddress = "");

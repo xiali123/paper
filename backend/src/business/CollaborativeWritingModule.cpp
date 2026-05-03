@@ -1,4 +1,5 @@
 #include "business/CollaborativeWritingModule.hpp"
+#include "data/StringUtil.hpp"
 #include "core/Router.hpp"
 #include "core/ModuleExports.hpp"
 #include "network/WebSocketModule.hpp"
@@ -17,35 +18,11 @@ namespace PaperCrawler {
 // ============================================================================
 
 static std::string escapeJson(const std::string& s) {
-    std::string result;
-    result.reserve(s.size() * 2);
-    for (char c : s) {
-        switch (c) {
-            case '"':  result += "\\\""; break;
-            case '\\': result += "\\\\"; break;
-            case '\n': result += "\\n"; break;
-            case '\r': result += "\\r"; break;
-            case '\t': result += "\\t"; break;
-            default:   result += c; break;
-        }
-    }
-    return result;
+    return StringUtil::escapeJson(s);
 }
 
 static std::string escapeSql(const std::string& s) {
-    std::string result;
-    result.reserve(s.size() * 2);
-    for (char c : s) {
-        switch (c) {
-            case '\'': result += "''"; break;
-            case '\\': result += "\\\\"; break;
-            case '\0': result += "\\0"; break;
-            case '\n': result += "\\n"; break;
-            case '\r': result += "\\r"; break;
-            default:   result += c; break;
-        }
-    }
-    return result;
+    return StringUtil::escapeSql(s);
 }
 
 static std::string buildJsonResponse(bool success, const std::string& message, const nlohmann::json& data = nullptr) {

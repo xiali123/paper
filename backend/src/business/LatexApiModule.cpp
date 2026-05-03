@@ -1,4 +1,5 @@
 #include "business/LatexApiModule.hpp"
+#include "data/StringUtil.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
 #include "../../core/external/nlohmann/json.hpp"
@@ -52,36 +53,15 @@ public:
     }
 
     std::string escapeJson(const std::string& str) {
-        std::string result;
-        result.reserve(str.length() * 1.2);
-        for (char c : str) {
-            switch (c) {
-                case '"': result += "\\\""; break;
-                case '\\': result += "\\\\"; break;
-                case '\n': result += "\\n"; break;
-                case '\r': result += "\\r"; break;
-                case '\t': result += "\\t"; break;
-                default: result += c; break;
-            }
-        }
-        return result;
+        return StringUtil::escapeJson(str);
     }
 
     std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "") {
-        std::ostringstream json;
-        json << "{\n";
-        json << "  \"statusCode\": " << statusCode << ",\n";
-        json << "  \"success\": " << (success ? "true" : "false") << ",\n";
-        json << "  \"message\": \"" << escapeJson(message) << "\"";
-        if (!data.empty()) {
-            json << ",\n  \"data\": " << data;
-        }
-        json << "\n}";
-        return json.str();
+        return StringUtil::buildJsonResponse(statusCode, success, message, data);
     }
 
     std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "") {
-        return buildJsonResponse(200, success, message, data);
+        return StringUtil::buildJsonResponse(success, message, data);
     }
 
     // 计算内容的SHA256哈希

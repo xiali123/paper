@@ -20,13 +20,9 @@
 #include <filesystem>
 #include <chrono>
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 
 namespace PaperCrawler {
-
-static std::string cleanDbString(const std::string& val) {
-    if (val.empty() || val == "NULL") return "";
-    return val;
-}
 
 static std::chrono::system_clock::time_point parseMysqlDateTime(const std::string& datetime) {
     if (datetime.empty() || datetime == "0000-00-00 00:00:00" || datetime == "NULL") {
@@ -59,47 +55,6 @@ public:
 
     explicit Impl(std::shared_ptr<IDatabase> database)
         : database_(database) {}
-
-    std::string escapeJson(const std::string& str) {
-        std::string result;
-        result.reserve(str.length() * 1.2);
-        for (char c : str) {
-            switch (c) {
-                case '"': result += "\\\""; break;
-                case '\\': result += "\\\\"; break;
-                case '\n': result += "\\n"; break;
-                case '\r': result += "\\r"; break;
-                case '\t': result += "\\t"; break;
-                case '\b': result += "\\b"; break;
-                case '\f': result += "\\f"; break;
-                default:
-                    if (c < ' ') {
-                        char buf[7];
-                        snprintf(buf, sizeof(buf), "\\u%04x", (unsigned int)c);
-                        result += buf;
-                    } else {
-                        result += c;
-                    }
-                    break;
-            }
-        }
-        return result;
-    }
-
-    std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "") {
-        std::ostringstream json;
-        json << "{";
-        json << "\"statusCode\":" << statusCode << ",";
-        json << "\"success\":" << (success ? "true" : "false") << ",";
-        json << "\"message\":\"" << escapeJson(message) << "\"";
-        if (!data.empty()) json << ",\"data\":" << data;
-        json << "}";
-        return json.str();
-    }
-
-    std::string buildJsonResponse(bool success, const std::string& message, const std::string& data = "") {
-        return buildJsonResponse(200, success, message, data);
-    }
 };
 
 // ============================================================================
@@ -671,7 +626,7 @@ AdminStats AdminSystemModule::getStats() {
 
 std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, std::string>& params) {
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         // Get existing stats
         auto stats = getStats();
@@ -685,8 +640,8 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
             "GROUP BY DATE(created_at) ORDER BY d");
         for (size_t i = 0; i < trendResults.size(); i++) {
             if (i > 0) trendJson << ",";
-            trendJson << "{\"date\":\"" << cleanDbString(trendResults[i]["d"])
-                      << "\",\"count\":" << cleanDbString(trendResults[i]["c"]) << "}";
+            trendJson << "{\"date\":\"" << StringUtil::cleanDbString(trendResults[i]["d"])
+                      << "\",\"count\":" << StringUtil::cleanDbString(trendResults[i]["c"]) << "}";
         }
         trendJson << "]";
 
@@ -699,8 +654,8 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
             "GROUP BY DATE(login_time) ORDER BY d");
         for (size_t i = 0; i < activeResults.size(); i++) {
             if (i > 0) activeJson << ",";
-            activeJson << "{\"date\":\"" << cleanDbString(activeResults[i]["d"])
-                       << "\",\"count\":" << cleanDbString(activeResults[i]["c"]) << "}";
+            activeJson << "{\"date\":\"" << StringUtil::cleanDbString(activeResults[i]["d"])
+                       << "\",\"count\":" << StringUtil::cleanDbString(activeResults[i]["c"]) << "}";
         }
         activeJson << "]";
 
@@ -725,9 +680,9 @@ std::string AdminSystemModule::handleGetDashboard(const std::map<std::string, st
              << "\"active_trend\":" << activeJson.str() << ","
              << "\"system_health\":" << healthJson.str() << "}";
 
-        return buildJsonResponse(200, true, "Dashboard data", data.str());
+        return StringUtil::buildJsonResponse(200, true, "Dashboard data", data.str());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -757,31 +712,31 @@ std::string AdminSystemModule::handleListModules(const std::map<std::string, std
 std::string AdminSystemModule::handleEnableModule(const std::map<std::string, std::string>& params, const std::string& body) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(400, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
 
     if (enableModule(moduleName)) {
-        return buildJsonResponse(true, "Module enabled: " + moduleName);
+        return StringUtil::buildJsonResponse(true, "Module enabled: " + moduleName);
     }
 
-    return buildJsonResponse(404, false, "Module not found: " + moduleName);
+    return StringUtil::buildJsonResponse(404, false, "Module not found: " + moduleName);
 }
 
 std::string AdminSystemModule::handleDisableModule(const std::map<std::string, std::string>& params, const std::string& body) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(400, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
 
     if (disableModule(moduleName)) {
-        return buildJsonResponse(true, "Module disabled: " + moduleName);
+        return StringUtil::buildJsonResponse(true, "Module disabled: " + moduleName);
     }
 
-    return buildJsonResponse(404, false, "Module not found: " + moduleName);
+    return StringUtil::buildJsonResponse(404, false, "Module not found: " + moduleName);
 }
 
 std::string AdminSystemModule::handleUploadModule(const std::map<std::string, std::string>& params, const std::string& body) {
@@ -791,14 +746,14 @@ std::string AdminSystemModule::handleUploadModule(const std::map<std::string, st
         std::string filename = jsonBody.value("filename", "");
 
         if (fileData.empty() || filename.empty()) {
-            return buildJsonResponse(400, false, "Missing file data or filename");
+            return StringUtil::buildJsonResponse(400, false, "Missing file data or filename");
         }
 
         // 验证文件扩展名
         if (filename.find(".dll") == std::string::npos &&
             filename.find(".so") == std::string::npos &&
             filename.find(".dylib") == std::string::npos) {
-            return buildJsonResponse(400, false, "Invalid file type. Only .dll, .so, .dylib files are allowed");
+            return StringUtil::buildJsonResponse(400, false, "Invalid file type. Only .dll, .so, .dylib files are allowed");
         }
 
         std::string savedPath = uploadModule(fileData, filename);
@@ -809,11 +764,11 @@ std::string AdminSystemModule::handleUploadModule(const std::map<std::string, st
         addAuditLog("module_uploaded", "module", 0, "admin", 0,
                     "Uploaded module file: " + filename, "127.0.0.1");
 
-        return buildJsonResponse(200, true, "Module uploaded successfully", result.dump());
+        return StringUtil::buildJsonResponse(200, true, "Module uploaded successfully", result.dump());
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -824,27 +779,27 @@ std::string AdminSystemModule::handleInstallModule(const std::map<std::string, s
         std::string modulePath = jsonBody.value("module_path", "");
 
         if (moduleName.empty() || modulePath.empty()) {
-            return buildJsonResponse(400, false, "Missing module name or path");
+            return StringUtil::buildJsonResponse(400, false, "Missing module name or path");
         }
 
         if (installModule(moduleName, modulePath)) {
             addAuditLog("module_installed", "module", 0, "admin", 0,
                         "Installed module: " + moduleName, "127.0.0.1");
-            return buildJsonResponse(true, "Module installed successfully: " + moduleName);
+            return StringUtil::buildJsonResponse(true, "Module installed successfully: " + moduleName);
         }
 
-        return buildJsonResponse(500, false, "Failed to install module: " + moduleName);
+        return StringUtil::buildJsonResponse(500, false, "Failed to install module: " + moduleName);
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleUninstallModule(const std::map<std::string, std::string>& params) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(400, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
@@ -852,22 +807,22 @@ std::string AdminSystemModule::handleUninstallModule(const std::map<std::string,
     // 防止卸载核心模块
     if (moduleName == "AuthApiModule" || moduleName == "AdminApiModule" ||
         moduleName == "UserApiModule" || moduleName == "DatabaseModule") {
-        return buildJsonResponse(400, false, "Cannot uninstall core module: " + moduleName);
+        return StringUtil::buildJsonResponse(400, false, "Cannot uninstall core module: " + moduleName);
     }
 
     if (uninstallModule(moduleName)) {
         addAuditLog("module_uninstalled", "module", 0, "admin", 0,
                     "Uninstalled module: " + moduleName, "127.0.0.1");
-        return buildJsonResponse(true, "Module uninstalled: " + moduleName);
+        return StringUtil::buildJsonResponse(true, "Module uninstalled: " + moduleName);
     }
 
-    return buildJsonResponse(500, false, "Failed to uninstall module: " + moduleName);
+    return StringUtil::buildJsonResponse(500, false, "Failed to uninstall module: " + moduleName);
 }
 
 std::string AdminSystemModule::handleReloadModule(const std::map<std::string, std::string>& params) {
     auto nameIt = params.find("name");
     if (nameIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing module name");
+        return StringUtil::buildJsonResponse(400, false, "Missing module name");
     }
 
     std::string moduleName = nameIt->second;
@@ -875,10 +830,10 @@ std::string AdminSystemModule::handleReloadModule(const std::map<std::string, st
     if (reloadModule(moduleName)) {
         addAuditLog("module_reloaded", "module", 0, "admin", 0,
                     "Reloaded module: " + moduleName, "127.0.0.1");
-        return buildJsonResponse(true, "Module reloaded: " + moduleName);
+        return StringUtil::buildJsonResponse(true, "Module reloaded: " + moduleName);
     }
 
-    return buildJsonResponse(500, false, "Failed to reload module: " + moduleName);
+    return StringUtil::buildJsonResponse(500, false, "Failed to reload module: " + moduleName);
 }
 
 std::string AdminSystemModule::handleScanModules(const std::map<std::string, std::string>& params) {
@@ -900,15 +855,15 @@ std::string AdminSystemModule::handleScanModules(const std::map<std::string, std
         }
         modulesJson << "]";
 
-        return buildJsonResponse(200, true, "Modules scanned", modulesJson.str());
+        return StringUtil::buildJsonResponse(200, true, "Modules scanned", modulesJson.str());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleGetSystemMetrics(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -922,18 +877,18 @@ std::string AdminSystemModule::handleGetSystemMetrics(const std::map<std::string
 
             if (!results.empty()) {
                 const auto& row = results[0];
-                data["cpu_percent"] = std::stod(cleanDbString(row.count("cpu_percent") ? row.at("cpu_percent") : "0"));
-                data["memory_used_mb"] = std::stod(cleanDbString(row.count("memory_used_mb") ? row.at("memory_used_mb") : "0"));
-                data["memory_total_mb"] = std::stod(cleanDbString(row.count("memory_total_mb") ? row.at("memory_total_mb") : "0"));
-                data["memory_percent"] = std::stod(cleanDbString(row.count("memory_percent") ? row.at("memory_percent") : "0"));
-                data["disk_used_gb"] = std::stod(cleanDbString(row.count("disk_used_gb") ? row.at("disk_used_gb") : "0"));
-                data["disk_total_gb"] = std::stod(cleanDbString(row.count("disk_total_gb") ? row.at("disk_total_gb") : "0"));
-                data["disk_percent"] = std::stod(cleanDbString(row.count("disk_percent") ? row.at("disk_percent") : "0"));
-                data["network_rx_mbps"] = std::stod(cleanDbString(row.count("network_rx_mbps") ? row.at("network_rx_mbps") : "0"));
-                data["network_tx_mbps"] = std::stod(cleanDbString(row.count("network_tx_mbps") ? row.at("network_tx_mbps") : "0"));
-                data["active_connections"] = std::stoi(cleanDbString(row.count("active_connections") ? row.at("active_connections") : "0"));
-                data["uptime_seconds"] = std::stoll(cleanDbString(row.count("uptime_seconds") ? row.at("uptime_seconds") : "0"));
-                data["timestamp"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                data["cpu_percent"] = std::stod(StringUtil::cleanDbString(row.count("cpu_percent") ? row.at("cpu_percent") : "0"));
+                data["memory_used_mb"] = std::stod(StringUtil::cleanDbString(row.count("memory_used_mb") ? row.at("memory_used_mb") : "0"));
+                data["memory_total_mb"] = std::stod(StringUtil::cleanDbString(row.count("memory_total_mb") ? row.at("memory_total_mb") : "0"));
+                data["memory_percent"] = std::stod(StringUtil::cleanDbString(row.count("memory_percent") ? row.at("memory_percent") : "0"));
+                data["disk_used_gb"] = std::stod(StringUtil::cleanDbString(row.count("disk_used_gb") ? row.at("disk_used_gb") : "0"));
+                data["disk_total_gb"] = std::stod(StringUtil::cleanDbString(row.count("disk_total_gb") ? row.at("disk_total_gb") : "0"));
+                data["disk_percent"] = std::stod(StringUtil::cleanDbString(row.count("disk_percent") ? row.at("disk_percent") : "0"));
+                data["network_rx_mbps"] = std::stod(StringUtil::cleanDbString(row.count("network_rx_mbps") ? row.at("network_rx_mbps") : "0"));
+                data["network_tx_mbps"] = std::stod(StringUtil::cleanDbString(row.count("network_tx_mbps") ? row.at("network_tx_mbps") : "0"));
+                data["active_connections"] = std::stoi(StringUtil::cleanDbString(row.count("active_connections") ? row.at("active_connections") : "0"));
+                data["uptime_seconds"] = std::stoll(StringUtil::cleanDbString(row.count("uptime_seconds") ? row.at("uptime_seconds") : "0"));
+                data["timestamp"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
             } else {
                 // Query returned empty - return default values
                 data["cpu_percent"] = 0.0;
@@ -965,16 +920,16 @@ std::string AdminSystemModule::handleGetSystemMetrics(const std::map<std::string
             data["timestamp"] = "";
         }
 
-        return buildJsonResponse(200, true, "System metrics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "System metrics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get system metrics: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve system metrics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve system metrics: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetServiceHealth(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -986,11 +941,11 @@ std::string AdminSystemModule::handleGetServiceHealth(const std::map<std::string
 
             for (const auto& row : results) {
                 nlohmann::json service;
-                service["name"] = cleanDbString(row.count("service_name") ? row.at("service_name") : "");
-                service["status"] = cleanDbString(row.count("status") ? row.at("status") : "unknown");
-                service["response_time_ms"] = std::stoi(cleanDbString(row.count("response_time_ms") ? row.at("response_time_ms") : "0"));
-                service["error_message"] = cleanDbString(row.count("error_message") ? row.at("error_message") : "");
-                service["last_check"] = cleanDbString(row.count("last_check_at") ? row.at("last_check_at") : "");
+                service["name"] = StringUtil::cleanDbString(row.count("service_name") ? row.at("service_name") : "");
+                service["status"] = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "unknown");
+                service["response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("response_time_ms") ? row.at("response_time_ms") : "0"));
+                service["error_message"] = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
+                service["last_check"] = StringUtil::cleanDbString(row.count("last_check_at") ? row.at("last_check_at") : "");
                 services.push_back(service);
             }
         } else {
@@ -1010,16 +965,16 @@ std::string AdminSystemModule::handleGetServiceHealth(const std::map<std::string
         data["healthy"] = std::count_if(services.begin(), services.end(),
             [](const nlohmann::json& s) { return s["status"] == "healthy"; });
 
-        return buildJsonResponse(200, true, "Service health retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Service health retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get service health: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve service health: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve service health: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1075,7 +1030,7 @@ std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, s
             if (!moduleFilter.empty()) countStmt.bind(bindIdx++, moduleFilter);
             auto countResults = countStmt.query();
             if (!countResults.empty() && countResults[0].count("total")) {
-                total = std::stoi(cleanDbString(countResults[0].at("total")));
+                total = std::stoi(StringUtil::cleanDbString(countResults[0].at("total")));
             }
 
             // 获取日志列表
@@ -1090,14 +1045,14 @@ std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, s
 
             for (const auto& row : results) {
                 nlohmann::json log;
-                log["id"] = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                log["level"] = cleanDbString(row.count("level") ? row.at("level") : "info");
-                log["module"] = cleanDbString(row.count("module") ? row.at("module") : "");
-                log["message"] = cleanDbString(row.count("message") ? row.at("message") : "");
-                log["file"] = cleanDbString(row.count("file") ? row.at("file") : "");
-                log["line"] = row.count("line") ? std::stoi(cleanDbString(row.at("line"))) : 0;
-                log["thread_id"] = cleanDbString(row.count("thread_id") ? row.at("thread_id") : "");
-                log["created_at"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                log["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                log["level"] = StringUtil::cleanDbString(row.count("level") ? row.at("level") : "info");
+                log["module"] = StringUtil::cleanDbString(row.count("module") ? row.at("module") : "");
+                log["message"] = StringUtil::cleanDbString(row.count("message") ? row.at("message") : "");
+                log["file"] = StringUtil::cleanDbString(row.count("file") ? row.at("file") : "");
+                log["line"] = row.count("line") ? std::stoi(StringUtil::cleanDbString(row.at("line"))) : 0;
+                log["thread_id"] = StringUtil::cleanDbString(row.count("thread_id") ? row.at("thread_id") : "");
+                log["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
 
                 // 解析JSON上下文
                 if (row.count("context") && row.at("context") != "NULL") {
@@ -1120,16 +1075,16 @@ std::string AdminSystemModule::handleGetSystemLogs(const std::map<std::string, s
         data["page"] = page;
         data["pageSize"] = pageSize;
 
-        return buildJsonResponse(200, true, "System logs retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "System logs retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get system logs: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve system logs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve system logs: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1144,8 +1099,8 @@ std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std
                                   "GROUP BY level";
             auto levelResults = database_->query(levelSql);
             for (const auto& row : levelResults) {
-                std::string level = cleanDbString(row.count("level") ? row.at("level") : "unknown");
-                int count = std::stoi(cleanDbString(row.count("count") ? row.at("count") : "0"));
+                std::string level = StringUtil::cleanDbString(row.count("level") ? row.at("level") : "unknown");
+                int count = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
                 byLevel[level] = count;
             }
 
@@ -1155,8 +1110,8 @@ std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std
                                    "GROUP BY module";
             auto moduleResults = database_->query(moduleSql);
             for (const auto& row : moduleResults) {
-                std::string module = cleanDbString(row.count("module") ? row.at("module") : "unknown");
-                int count = std::stoi(cleanDbString(row.count("count") ? row.at("count") : "0"));
+                std::string module = StringUtil::cleanDbString(row.count("module") ? row.at("module") : "unknown");
+                int count = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
                 byModule[module] = count;
             }
         }
@@ -1167,22 +1122,22 @@ std::string AdminSystemModule::handleGetLogStats(const std::map<std::string, std
         nlohmann::json data;
         data["stats"] = stats;
 
-        return buildJsonResponse(200, true, "Log statistics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Log statistics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get log stats: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve log statistics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve log statistics: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleCleanLogs(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
         auto dateIt = params.find("date");
         if (dateIt == params.end()) {
-            return buildJsonResponse(400, false, "Missing date parameter");
+            return StringUtil::buildJsonResponse(400, false, "Missing date parameter");
         }
 
         std::string date = dateIt->second;
@@ -1195,19 +1150,19 @@ std::string AdminSystemModule::handleCleanLogs(const std::map<std::string, std::
             addAuditLog("logs_cleaned", "system_logs", 0, "superadmin", 0,
                        "Cleaned logs before " + date, "127.0.0.1");
 
-            return buildJsonResponse(true, "Old logs cleaned successfully");
+            return StringUtil::buildJsonResponse(true, "Old logs cleaned successfully");
         } else {
-            return buildJsonResponse(500, false, "No database connection available");
+            return StringUtil::buildJsonResponse(500, false, "No database connection available");
         }
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to clean logs: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to clean logs: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to clean logs: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetPerformanceMetrics(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1219,17 +1174,17 @@ std::string AdminSystemModule::handleGetPerformanceMetrics(const std::map<std::s
 
             for (const auto& row : results) {
                 nlohmann::json metric;
-                metric["endpoint"] = cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                metric["method"] = cleanDbString(row.count("method") ? row.at("method") : "GET");
-                metric["request_count"] = std::stoi(cleanDbString(row.count("request_count") ? row.at("request_count") : "0"));
-                metric["success_count"] = std::stoi(cleanDbString(row.count("success_count") ? row.at("success_count") : "0"));
-                metric["error_count"] = std::stoi(cleanDbString(row.count("error_count") ? row.at("error_count") : "0"));
-                metric["avg_response_time_ms"] = std::stoi(cleanDbString(row.count("avg_response_time_ms") ? row.at("avg_response_time_ms") : "0"));
-                metric["max_response_time_ms"] = std::stoi(cleanDbString(row.count("max_response_time_ms") ? row.at("max_response_time_ms") : "0"));
-                metric["min_response_time_ms"] = std::stoi(cleanDbString(row.count("min_response_time_ms") ? row.at("min_response_time_ms") : "0"));
-                metric["p95_response_time_ms"] = std::stoi(cleanDbString(row.count("p95_response_time_ms") ? row.at("p95_response_time_ms") : "0"));
-                metric["p99_response_time_ms"] = std::stoi(cleanDbString(row.count("p99_response_time_ms") ? row.at("p99_response_time_ms") : "0"));
-                metric["last_request_at"] = cleanDbString(row.count("last_request_at") ? row.at("last_request_at") : "");
+                metric["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
+                metric["method"] = StringUtil::cleanDbString(row.count("method") ? row.at("method") : "GET");
+                metric["request_count"] = std::stoi(StringUtil::cleanDbString(row.count("request_count") ? row.at("request_count") : "0"));
+                metric["success_count"] = std::stoi(StringUtil::cleanDbString(row.count("success_count") ? row.at("success_count") : "0"));
+                metric["error_count"] = std::stoi(StringUtil::cleanDbString(row.count("error_count") ? row.at("error_count") : "0"));
+                metric["avg_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("avg_response_time_ms") ? row.at("avg_response_time_ms") : "0"));
+                metric["max_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("max_response_time_ms") ? row.at("max_response_time_ms") : "0"));
+                metric["min_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("min_response_time_ms") ? row.at("min_response_time_ms") : "0"));
+                metric["p95_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("p95_response_time_ms") ? row.at("p95_response_time_ms") : "0"));
+                metric["p99_response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("p99_response_time_ms") ? row.at("p99_response_time_ms") : "0"));
+                metric["last_request_at"] = StringUtil::cleanDbString(row.count("last_request_at") ? row.at("last_request_at") : "");
 
                 // 计算错误率
                 int requestCount = metric["request_count"].get<int>();
@@ -1249,16 +1204,16 @@ std::string AdminSystemModule::handleGetPerformanceMetrics(const std::map<std::s
         data["metrics"] = metrics;
         data["total"] = metrics.size();
 
-        return buildJsonResponse(200, true, "Performance metrics retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Performance metrics retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get performance metrics: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve performance metrics: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve performance metrics: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetSlowQueries(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1278,14 +1233,14 @@ std::string AdminSystemModule::handleGetSlowQueries(const std::map<std::string, 
 
             for (const auto& row : results) {
                 nlohmann::json query;
-                query["id"] = std::stoll(cleanDbString(row.count("id") ? row.at("id") : "0"));
-                query["query_text"] = cleanDbString(row.count("query_text") ? row.at("query_text") : "");
-                query["execution_time_ms"] = std::stoi(cleanDbString(row.count("execution_time_ms") ? row.at("execution_time_ms") : "0"));
-                query["rows_examined"] = std::stoi(cleanDbString(row.count("rows_examined") ? row.at("rows_examined") : "0"));
-                query["rows_returned"] = std::stoi(cleanDbString(row.count("rows_returned") ? row.at("rows_returned") : "0"));
-                query["module"] = cleanDbString(row.count("module") ? row.at("module") : "");
-                query["endpoint"] = cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                query["created_at"] = cleanDbString(row.count("created_at") ? row.at("created_at") : "");
+                query["id"] = std::stoll(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0"));
+                query["query_text"] = StringUtil::cleanDbString(row.count("query_text") ? row.at("query_text") : "");
+                query["execution_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("execution_time_ms") ? row.at("execution_time_ms") : "0"));
+                query["rows_examined"] = std::stoi(StringUtil::cleanDbString(row.count("rows_examined") ? row.at("rows_examined") : "0"));
+                query["rows_returned"] = std::stoi(StringUtil::cleanDbString(row.count("rows_returned") ? row.at("rows_returned") : "0"));
+                query["module"] = StringUtil::cleanDbString(row.count("module") ? row.at("module") : "");
+                query["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
+                query["created_at"] = StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "");
                 queries.push_back(query);
             }
         }
@@ -1294,16 +1249,16 @@ std::string AdminSystemModule::handleGetSlowQueries(const std::map<std::string, 
         data["queries"] = queries;
         data["total"] = queries.size();
 
-        return buildJsonResponse(200, true, "Slow queries retrieved", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Slow queries retrieved", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to get slow queries: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to retrieve slow queries: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to retrieve slow queries: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<std::string, std::string>& params) {
     if (!impl_) {
-        return buildJsonResponse(500, false, "Implementation not initialized");
+        return StringUtil::buildJsonResponse(500, false, "Implementation not initialized");
     }
 
     try {
@@ -1323,9 +1278,9 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
             for (const auto& row : slowResults) {
                 nlohmann::json bottleneck;
                 bottleneck["type"] = "slow_query";
-                bottleneck["endpoint"] = cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                bottleneck["count"] = std::stoi(cleanDbString(row.count("count") ? row.at("count") : "0"));
-                bottleneck["avg_time_ms"] = std::stod(cleanDbString(row.count("avg_time") ? row.at("avg_time") : "0"));
+                bottleneck["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
+                bottleneck["count"] = std::stoi(StringUtil::cleanDbString(row.count("count") ? row.at("count") : "0"));
+                bottleneck["avg_time_ms"] = std::stod(StringUtil::cleanDbString(row.count("avg_time") ? row.at("avg_time") : "0"));
                 bottleneck["severity"] = bottleneck["avg_time_ms"] > 1000 ? "high" :
                                          bottleneck["avg_time_ms"] > 500 ? "medium" : "low";
                 bottleneck["description"] = "平均执行时间 " +
@@ -1349,11 +1304,11 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
             for (const auto& row : errorResults) {
                 nlohmann::json bottleneck;
                 bottleneck["type"] = "high_error_rate";
-                bottleneck["endpoint"] = cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
-                bottleneck["method"] = cleanDbString(row.count("method") ? row.at("method") : "GET");
+                bottleneck["endpoint"] = StringUtil::cleanDbString(row.count("endpoint") ? row.at("endpoint") : "");
+                bottleneck["method"] = StringUtil::cleanDbString(row.count("method") ? row.at("method") : "GET");
 
-                int total = std::stoi(cleanDbString(row.count("total_requests") ? row.at("total_requests") : "0"));
-                int errors = std::stoi(cleanDbString(row.count("total_errors") ? row.at("total_errors") : "0"));
+                int total = std::stoi(StringUtil::cleanDbString(row.count("total_requests") ? row.at("total_requests") : "0"));
+                int errors = std::stoi(StringUtil::cleanDbString(row.count("total_errors") ? row.at("total_errors") : "0"));
                 double errorRate = total > 0 ? (double)errors / total * 100.0 : 0.0;
 
                 bottleneck["error_rate"] = errorRate;
@@ -1372,12 +1327,12 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
             auto healthResults = database_->query(healthSql);
             for (const auto& row : healthResults) {
                 nlohmann::json bottleneck;
-                std::string status = cleanDbString(row.count("status") ? row.at("status") : "down");
+                std::string status = StringUtil::cleanDbString(row.count("status") ? row.at("status") : "down");
                 bottleneck["type"] = "unhealthy_service";
-                bottleneck["service"] = cleanDbString(row.count("service_name") ? row.at("service_name") : "");
+                bottleneck["service"] = StringUtil::cleanDbString(row.count("service_name") ? row.at("service_name") : "");
                 bottleneck["status"] = status;
-                bottleneck["response_time_ms"] = std::stoi(cleanDbString(row.count("response_time_ms") ? row.at("response_time_ms") : "0"));
-                bottleneck["error_message"] = cleanDbString(row.count("error_message") ? row.at("error_message") : "");
+                bottleneck["response_time_ms"] = std::stoi(StringUtil::cleanDbString(row.count("response_time_ms") ? row.at("response_time_ms") : "0"));
+                bottleneck["error_message"] = StringUtil::cleanDbString(row.count("error_message") ? row.at("error_message") : "");
                 bottleneck["severity"] = status == "down" ? "high" : "medium";
                 bottleneck["description"] = "服务状态: " + status;
                 bottlenecks.push_back(bottleneck);
@@ -1388,16 +1343,16 @@ std::string AdminSystemModule::handleGetPerformanceBottlenecks(const std::map<st
         data["bottlenecks"] = bottlenecks;
         data["total"] = bottlenecks.size();
 
-        return buildJsonResponse(200, true, "Performance bottlenecks analyzed", data.dump());
+        return StringUtil::buildJsonResponse(200, true, "Performance bottlenecks analyzed", data.dump());
     } catch (const std::exception& e) {
         spdlog::error("[AdminApiModule] Failed to analyze bottlenecks: {}", e.what());
-        return buildJsonResponse(500, false, "Failed to analyze bottlenecks: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(500, false, "Failed to analyze bottlenecks: " + std::string(e.what()));
     }
 }
 
 std::string AdminSystemModule::handleListAnnouncements(const std::map<std::string, std::string>& params) {
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         int page = 1, limit = 20;
         std::string search;
@@ -1437,7 +1392,7 @@ std::string AdminSystemModule::handleListAnnouncements(const std::map<std::strin
         }
         int total = 0;
         if (!countResults.empty()) {
-            total = std::stoi(cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
+            total = std::stoi(StringUtil::cleanDbString(countResults[0]["total"]).empty() ? "0" : countResults[0]["total"]);
         }
 
         // Build JSON array
@@ -1447,16 +1402,16 @@ std::string AdminSystemModule::handleListAnnouncements(const std::map<std::strin
             if (i > 0) itemsJson << ",";
             const auto& row = results[i];
             itemsJson << "{";
-            itemsJson << "\"id\":" << cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-            itemsJson << "\"title\":\"" << escapeJson(cleanDbString(row.count("title") ? row.at("title") : "")) << "\",";
-            itemsJson << "\"content\":\"" << escapeJson(cleanDbString(row.count("content") ? row.at("content") : "")) << "\",";
-            itemsJson << "\"type\":\"" << escapeJson(cleanDbString(row.count("type") ? row.at("type") : "info")) << "\",";
-            itemsJson << "\"target_role\":\"" << escapeJson(cleanDbString(row.count("target_role") ? row.at("target_role") : "all")) << "\",";
-            itemsJson << "\"created_by\":" << cleanDbString(row.count("created_by") ? row.at("created_by") : "0") << ",";
-            std::string isActiveVal = cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
+            itemsJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
+            itemsJson << "\"title\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("title") ? row.at("title") : "")) << "\",";
+            itemsJson << "\"content\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("content") ? row.at("content") : "")) << "\",";
+            itemsJson << "\"type\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info")) << "\",";
+            itemsJson << "\"target_role\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all")) << "\",";
+            itemsJson << "\"created_by\":" << StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0") << ",";
+            std::string isActiveVal = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
             itemsJson << "\"is_active\":" << (isActiveVal == "1" || isActiveVal == "true" ? "true" : "false") << ",";
-            itemsJson << "\"created_at\":\"" << escapeJson(cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
-            itemsJson << "\"expires_at\":\"" << escapeJson(cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
+            itemsJson << "\"created_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
+            itemsJson << "\"expires_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
             itemsJson << "}";
         }
         itemsJson << "]";
@@ -1471,21 +1426,21 @@ std::string AdminSystemModule::handleListAnnouncements(const std::map<std::strin
              << "\"limit\":" << limit << ","
              << "\"total_pages\":" << totalPages << "}";
 
-        return buildJsonResponse(200, true, "Announcements retrieved", data.str());
+        return StringUtil::buildJsonResponse(200, true, "Announcements retrieved", data.str());
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleCreateAnnouncement(const std::string& body) {
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         auto jsonBody = nlohmann::json::parse(body);
 
         // Validate required fields
         if (!jsonBody.contains("title") || !jsonBody.contains("content")) {
-            return buildJsonResponse(400, false, "Missing required fields: title and content are required");
+            return StringUtil::buildJsonResponse(400, false, "Missing required fields: title and content are required");
         }
 
         std::string title = ValidationHelper::sanitize(jsonBody["title"].get<std::string>());
@@ -1518,42 +1473,42 @@ std::string AdminSystemModule::handleCreateAnnouncement(const std::string& body)
                 const auto& row = newResults[0];
                 std::ostringstream annJson;
                 annJson << "{";
-                annJson << "\"id\":" << cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
-                annJson << "\"title\":\"" << escapeJson(cleanDbString(row.count("title") ? row.at("title") : "")) << "\",";
-                annJson << "\"content\":\"" << escapeJson(cleanDbString(row.count("content") ? row.at("content") : "")) << "\",";
-                annJson << "\"type\":\"" << escapeJson(cleanDbString(row.count("type") ? row.at("type") : "info")) << "\",";
-                annJson << "\"target_role\":\"" << escapeJson(cleanDbString(row.count("target_role") ? row.at("target_role") : "all")) << "\",";
-                annJson << "\"created_by\":" << cleanDbString(row.count("created_by") ? row.at("created_by") : "0") << ",";
-                std::string isActiveVal = cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
+                annJson << "\"id\":" << StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0") << ",";
+                annJson << "\"title\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("title") ? row.at("title") : "")) << "\",";
+                annJson << "\"content\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("content") ? row.at("content") : "")) << "\",";
+                annJson << "\"type\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("type") ? row.at("type") : "info")) << "\",";
+                annJson << "\"target_role\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("target_role") ? row.at("target_role") : "all")) << "\",";
+                annJson << "\"created_by\":" << StringUtil::cleanDbString(row.count("created_by") ? row.at("created_by") : "0") << ",";
+                std::string isActiveVal = StringUtil::cleanDbString(row.count("is_active") ? row.at("is_active") : "0");
                 annJson << "\"is_active\":" << (isActiveVal == "1" || isActiveVal == "true" ? "true" : "false") << ",";
-                annJson << "\"created_at\":\"" << escapeJson(cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
-                annJson << "\"expires_at\":\"" << escapeJson(cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
+                annJson << "\"created_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("created_at") ? row.at("created_at") : "")) << "\",";
+                annJson << "\"expires_at\":\"" << StringUtil::escapeJson(StringUtil::cleanDbString(row.count("expires_at") ? row.at("expires_at") : "")) << "\"";
                 annJson << "}";
 
                 addAuditLog("announcement_created", "announcement",
-                            std::stoi(cleanDbString(row.count("id") ? row.at("id") : "0")),
+                            std::stoi(StringUtil::cleanDbString(row.count("id") ? row.at("id") : "0")),
                             "admin", 0, "Created announcement: " + title, "127.0.0.1");
 
-                return buildJsonResponse(200, true, "Announcement created", annJson.str());
+                return StringUtil::buildJsonResponse(200, true, "Announcement created", annJson.str());
             }
         }
 
-        return buildJsonResponse(500, false, "Failed to create announcement");
+        return StringUtil::buildJsonResponse(500, false, "Failed to create announcement");
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleUpdateAnnouncement(const std::map<std::string, std::string>& params, const std::string& body) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing announcement ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing announcement ID");
     }
 
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         int annId = std::stoi(idIt->second);
         auto jsonBody = nlohmann::json::parse(body);
@@ -1594,7 +1549,7 @@ std::string AdminSystemModule::handleUpdateAnnouncement(const std::map<std::stri
         }
 
         if (setClauses.empty()) {
-            return buildJsonResponse(400, false, "No fields to update");
+            return StringUtil::buildJsonResponse(400, false, "No fields to update");
         }
 
         for (size_t i = 0; i < setClauses.size(); i++) {
@@ -1614,25 +1569,25 @@ std::string AdminSystemModule::handleUpdateAnnouncement(const std::map<std::stri
         if (stmt.execute()) {
             addAuditLog("announcement_updated", "announcement", annId,
                         "admin", 0, "Updated announcement ID: " + std::to_string(annId), "127.0.0.1");
-            return buildJsonResponse(true, "Announcement updated");
+            return StringUtil::buildJsonResponse(true, "Announcement updated");
         }
 
-        return buildJsonResponse(404, false, "Announcement not found");
+        return StringUtil::buildJsonResponse(404, false, "Announcement not found");
     } catch (const nlohmann::json::exception& e) {
-        return buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
+        return StringUtil::buildJsonResponse(400, false, "Invalid JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleDeleteAnnouncement(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing announcement ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing announcement ID");
     }
 
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         int annId = std::stoi(idIt->second);
         PreparedStatement stmt(database_, "DELETE FROM announcements WHERE id = ?");
@@ -1641,23 +1596,23 @@ std::string AdminSystemModule::handleDeleteAnnouncement(const std::map<std::stri
         if (stmt.execute()) {
             addAuditLog("announcement_deleted", "announcement", annId,
                         "admin", 0, "Deleted announcement ID: " + std::to_string(annId), "127.0.0.1");
-            return buildJsonResponse(true, "Announcement deleted");
+            return StringUtil::buildJsonResponse(true, "Announcement deleted");
         }
 
-        return buildJsonResponse(404, false, "Announcement not found");
+        return StringUtil::buildJsonResponse(404, false, "Announcement not found");
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
 std::string AdminSystemModule::handleToggleAnnouncement(const std::map<std::string, std::string>& params) {
     auto idIt = params.find("id");
     if (idIt == params.end()) {
-        return buildJsonResponse(400, false, "Missing announcement ID");
+        return StringUtil::buildJsonResponse(400, false, "Missing announcement ID");
     }
 
     try {
-        if (!database_) return buildJsonResponse(500, false, "No database");
+        if (!database_) return StringUtil::buildJsonResponse(500, false, "No database");
 
         int annId = std::stoi(idIt->second);
 
@@ -1673,7 +1628,7 @@ std::string AdminSystemModule::handleToggleAnnouncement(const std::map<std::stri
 
             bool newState = false;
             if (!results.empty()) {
-                std::string val = cleanDbString(results[0]["is_active"]);
+                std::string val = StringUtil::cleanDbString(results[0]["is_active"]);
                 newState = (val == "1" || val == "true");
             }
 
@@ -1684,12 +1639,12 @@ std::string AdminSystemModule::handleToggleAnnouncement(const std::map<std::stri
 
             std::ostringstream data;
             data << "{\"id\":" << annId << ",\"is_active\":" << (newState ? "true" : "false") << "}";
-            return buildJsonResponse(200, true, "Announcement toggled", data.str());
+            return StringUtil::buildJsonResponse(200, true, "Announcement toggled", data.str());
         }
 
-        return buildJsonResponse(404, false, "Announcement not found");
+        return StringUtil::buildJsonResponse(404, false, "Announcement not found");
     } catch (const std::exception& e) {
-        return buildJsonResponse(500, false, std::string("Error: ") + e.what());
+        return StringUtil::buildJsonResponse(500, false, std::string("Error: ") + e.what());
     }
 }
 
@@ -1697,28 +1652,6 @@ std::string AdminSystemModule::handleToggleAnnouncement(const std::map<std::stri
 // ============================================================================
 // AdminSystemModule - Helper methods
 // ============================================================================
-
-std::string AdminSystemModule::buildJsonResponse(bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(success, message, data);
-}
-
-std::string AdminSystemModule::buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data) {
-    return impl_->buildJsonResponse(statusCode, success, message, data);
-}
-
-std::string AdminSystemModule::escapeJson(const std::string& str) {
-    return impl_->escapeJson(str);
-}
-
-std::string AdminSystemModule::escapeSql(const std::string& str) {
-    std::string escaped;
-    for (char c : str) {
-        if (c == '\'') escaped += "''";
-        else if (c == '\\') escaped += "\\\\";
-        else escaped += c;
-    }
-    return escaped;
-}
 
 void AdminSystemModule::addAuditLog(const std::string& action, const std::string& entityType, int entityId,
                                      const std::string& actorUsername, int actorId,
