@@ -705,10 +705,6 @@ void SearchApiModule::registerRoutes() {
 
     // GET /api/search - 基础搜索
     router.get(prefix, [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto queryIt = req.queryParams.find("q");
         std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
 
@@ -730,17 +726,13 @@ void SearchApiModule::registerRoutes() {
         }
 
         auto result = search(query, SearchType::PAPERS, page, limit);
-        response.body = result.toJson();
-        QueryCache::instance().put(cacheKey, response.body, CacheTTL::SEARCH_RESULTS);
-        return response;
+        std::string body = result.toJson();
+        QueryCache::instance().put(cacheKey, body, CacheTTL::SEARCH_RESULTS);
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // POST /api/search/advanced - 高级搜索
     router.post(prefix + "/advanced", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         AdvancedSearchQuery query;
         try {
             auto j = nlohmann::json::parse(req.body);
@@ -750,16 +742,11 @@ void SearchApiModule::registerRoutes() {
         } catch (...) { spdlog::warn("[SearchApi] Failed to parse parameter"); }
 
         auto result = advancedSearch(query);
-        response.body = result.toJson();
-        return response;
+        return HttpResponse::json(HTTP::OK, result.toJson());
     });
 
     // GET /api/search/suggest - 搜索建议
     router.get(prefix + "/suggest", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto queryIt = req.queryParams.find("q");
         std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
         int limit = 10;
@@ -775,16 +762,11 @@ void SearchApiModule::registerRoutes() {
             j["suggestions"].push_back(nlohmann::json::parse(sug.toJson()));
         }
         j["count"] = suggestions.size();
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // GET /api/search/trending - 热门搜索
     router.get(prefix + "/trending", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         int limit = 10;
         auto limitIt = req.queryParams.find("limit");
         if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
@@ -798,16 +780,11 @@ void SearchApiModule::registerRoutes() {
             j["trending"].push_back(nlohmann::json::parse(t.toJson()));
         }
         j["count"] = trending.size();
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // GET /api/search/history - 搜索历史
     router.get(prefix + "/history", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         int userId = 0, limit = 20;
         auto userIt = req.queryParams.find("user_id");
         auto limitIt = req.queryParams.find("limit");
@@ -826,16 +803,11 @@ void SearchApiModule::registerRoutes() {
             j["history"].push_back(item);
         }
         j["count"] = history.size();
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // DELETE /api/search/history - 清空历史
     router.del(prefix + "/history", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         int userId = 0;
         auto userIt = req.queryParams.find("user_id");
         if (userIt != req.queryParams.end()) userId = std::stoi(userIt->second);
@@ -845,16 +817,11 @@ void SearchApiModule::registerRoutes() {
         nlohmann::json j;
         j["success"] = success;
         j["message"] = success ? "Search history cleared" : "Failed to clear history";
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // POST /api/search/save - 保存搜索
     router.post(prefix + "/save", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto j = nlohmann::json::parse(req.body);
             int userId = j.value("user_id", 0);
@@ -866,21 +833,15 @@ void SearchApiModule::registerRoutes() {
             nlohmann::json resp;
             resp["success"] = success;
             resp["message"] = success ? "Search saved" : "Failed to save search";
-            response.body = resp.dump();
+            return HttpResponse::json(HTTP::OK, resp.dump());
         } catch (...) {
             spdlog::warn("[SearchApi] Failed to parse save-search request body");
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = "{\"success\":false,\"error\":\"Invalid JSON\"}";
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid JSON\"}");
         }
-        return response;
     });
 
     // GET /api/search/saved - 已保存的搜索
     router.get(prefix + "/saved", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         int userId = 0;
         auto userIt = req.queryParams.find("user_id");
         if (userIt != req.queryParams.end()) userId = std::stoi(userIt->second);
@@ -891,25 +852,18 @@ void SearchApiModule::registerRoutes() {
         j["success"] = true;
         j["saved"] = saved;
         j["count"] = saved.size();
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // DELETE /api/search/saved - 删除保存的搜索
     router.del(prefix + "/saved", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         int userId = 0;
         auto userIt = req.queryParams.find("user_id");
         if (userIt != req.queryParams.end()) userId = std::stoi(userIt->second);
 
         auto nameIt = req.queryParams.find("name");
         if (nameIt == req.queryParams.end()) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = "{\"success\":false,\"error\":\"Name required\"}";
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Name required\"}");
         }
 
         bool success = deleteSavedSearch(userId, nameIt->second);
@@ -917,16 +871,11 @@ void SearchApiModule::registerRoutes() {
         nlohmann::json j;
         j["success"] = success;
         j["message"] = success ? "Search deleted" : "Failed to delete search";
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // GET /api/search/stats - 搜索统计
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto stats = getStats();
 
         nlohmann::json j;
@@ -937,8 +886,7 @@ void SearchApiModule::registerRoutes() {
         j["average_results"] = stats.averageResultsPerSearch;
         j["average_time_ms"] = stats.averageSearchTimeMs;
         j["top_queries"] = stats.topQueries;
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     spdlog::info("[SearchApiModule] Registered 11 routes");

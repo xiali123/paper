@@ -353,213 +353,121 @@ void AdminSystemModule::registerRoutes() {
     };
 
     auto unauthorizedResp = []() -> HttpResponse {
-        HttpResponse resp;
-        resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
-        return resp;
+        return HttpResponse::json(HTTP::UNAUTHORIZED, R"({"success":false,"error":"Unauthorized. Admin authentication required."})");
     };
 
     // Dashboard
     router.get(prefix + "/dashboard", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetDashboard(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetDashboard(req.queryParams));
     });
 
     // Module management
     router.get(prefix + "/modules", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleListModules(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleListModules(req.queryParams));
     });
 
     router.post(prefix + "/modules/:name/enable", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleEnableModule(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleEnableModule(req.pathParams, req.body));
     });
 
     router.post(prefix + "/modules/:name/disable", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleDisableModule(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleDisableModule(req.pathParams, req.body));
     });
 
     router.post(prefix + "/modules/upload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleUploadModule(req.queryParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUploadModule(req.queryParams, req.body));
     });
 
     router.post(prefix + "/modules/install", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleInstallModule(req.queryParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleInstallModule(req.queryParams, req.body));
     });
 
     router.del(prefix + "/modules/:name/uninstall", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleUninstallModule(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUninstallModule(req.pathParams));
     });
 
     router.post(prefix + "/modules/:name/reload", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleReloadModule(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleReloadModule(req.pathParams));
     });
 
     router.get(prefix + "/modules/scan", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleScanModules(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleScanModules(req.queryParams));
     });
 
     // System monitoring
     router.get(prefix + "/monitor/system", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetSystemMetrics(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetSystemMetrics(req.queryParams));
     });
 
     router.get(prefix + "/monitor/services", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetServiceHealth(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetServiceHealth(req.queryParams));
     });
 
     router.get(prefix + "/monitor/logs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetSystemLogs(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetSystemLogs(req.queryParams));
     });
 
     router.get(prefix + "/monitor/logs/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetLogStats(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetLogStats(req.queryParams));
     });
 
     router.del(prefix + "/monitor/logs/before/:date", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleCleanLogs(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCleanLogs(req.pathParams));
     });
 
     router.get(prefix + "/performance/metrics", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetPerformanceMetrics(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetPerformanceMetrics(req.queryParams));
     });
 
     router.get(prefix + "/performance/slow-queries", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetSlowQueries(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetSlowQueries(req.queryParams));
     });
 
     router.get(prefix + "/performance/bottlenecks", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetPerformanceBottlenecks(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetPerformanceBottlenecks(req.queryParams));
     });
 
     // Announcements
     router.get(prefix + "/announcements", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleListAnnouncements(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleListAnnouncements(req.queryParams));
     });
 
     router.post(prefix + "/announcements", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleCreateAnnouncement(req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCreateAnnouncement(req.body));
     });
 
     router.put(prefix + "/announcements/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleUpdateAnnouncement(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUpdateAnnouncement(req.pathParams, req.body));
     });
 
     router.del(prefix + "/announcements/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleDeleteAnnouncement(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleDeleteAnnouncement(req.pathParams));
     });
 
     router.post(prefix + "/announcements/:id/toggle", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleToggleAnnouncement(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleToggleAnnouncement(req.pathParams));
     });
 
     spdlog::info("[AdminSystem] Routes registered successfully");

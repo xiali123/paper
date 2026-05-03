@@ -1111,14 +1111,10 @@ HttpResponse UserApiModule::handleGetCurrentUser(const HttpRequest& req) {
         userJson["role"] = StringUtil::getRowStr(row, "role", "user");
         userJson["is_active"] = row.count("is_active") ? (row.at("is_active") == "1") : true;
 
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         nlohmann::json respJson;
         respJson["success"] = true;
         respJson["user"] = userJson;
-        response.body = respJson.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, respJson.dump());
 
     } catch (const std::exception& e) {
         return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
@@ -1159,22 +1155,24 @@ HttpResponse UserApiModule::handleGetStats(const HttpRequest& req) {
 }
 
 HttpResponse UserApiModule::buildJsonResponse(bool success, const std::string& message) {
-    HttpResponse response;
-    response.statusCode = success ? HTTP::OK : HTTP::BAD_REQUEST;
-    response.statusText = success ? "OK" : "Bad Request";
-    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
     nlohmann::json json;
     json["success"] = success;
     json["message"] = message;
 
-    response.body = json.dump();
+    HttpResponse response = HttpResponse::json(success ? HTTP::OK : HTTP::BAD_REQUEST, json.dump());
+    response.statusText = success ? "OK" : "Bad Request";
     return response;
 }
 
 HttpResponse UserApiModule::buildJsonResponse(int statusCode, const std::string& message, const nlohmann::json& data) {
-    HttpResponse response;
-    response.statusCode = statusCode;
+    nlohmann::json json;
+    json["success"] = (statusCode >= 200 && statusCode < 300);
+    json["message"] = message;
+    if (!data.is_null()) {
+        json["data"] = data;
+    }
+
+    HttpResponse response = HttpResponse::json(statusCode, json.dump());
 
     // Set appropriate status text
     switch (statusCode) {
@@ -1187,16 +1185,6 @@ HttpResponse UserApiModule::buildJsonResponse(int statusCode, const std::string&
         default: response.statusText = "Unknown"; break;
     }
 
-    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
-    nlohmann::json json;
-    json["success"] = (statusCode >= 200 && statusCode < 300);
-    json["message"] = message;
-    if (!data.is_null()) {
-        json["data"] = data;
-    }
-
-    response.body = json.dump();
     return response;
 }
 

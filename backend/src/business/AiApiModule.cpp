@@ -789,9 +789,6 @@ void AiApiModule::registerRoutes() {
 
     // POST /api/ai/summarize - 生成摘要
     router.post(prefix + "/summarize", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto body = json::parse(req.body);
 
@@ -802,24 +799,16 @@ void AiApiModule::registerRoutes() {
 
             std::string result = generatePaperSummary(summaryReq);
 
-            response.statusCode = HTTP::OK;
-            response.body = result;
+            return HttpResponse::json(HTTP::OK, result);
         } catch (const json::exception& e) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{{"success", false}, {"error", std::string(e.what())}}.dump());
         }
-
-        return response;
     });
 
     // POST /api/ai/chat - AI对话
     router.post(prefix + "/chat", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto body = json::parse(req.body);
 
@@ -835,29 +824,20 @@ void AiApiModule::registerRoutes() {
                 qReq.language = language;
 
                 std::string result = askQuestion(qReq);
-                response.statusCode = HTTP::OK;
-                response.body = result;
+                return HttpResponse::json(HTTP::OK, result);
             } else {
                 // 通用对话（需要paper_id，这里返回错误）
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.body = json{{"success", false}, {"error", "paper_id is required"}}.dump();
+                return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "paper_id is required"}}.dump());
             }
         } catch (const json::exception& e) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{{"success", false}, {"error", std::string(e.what())}}.dump());
         }
-
-        return response;
     });
 
     // POST /api/ai/keywords - 提取关键词
     router.post(prefix + "/keywords", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto body = json::parse(req.body);
 
@@ -872,24 +852,16 @@ void AiApiModule::registerRoutes() {
             result["keywords"] = keywords;
             result["count"] = keywords.size();
 
-            response.statusCode = HTTP::OK;
-            response.body = result.dump();
+            return HttpResponse::json(HTTP::OK, result.dump());
         } catch (const json::exception& e) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{{"success", false}, {"error", std::string(e.what())}}.dump());
         }
-
-        return response;
     });
 
     // POST /api/ai/contributions - 总结贡献点
     router.post(prefix + "/contributions", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto body = json::parse(req.body);
 
@@ -902,24 +874,16 @@ void AiApiModule::registerRoutes() {
             result["contributions"] = contributions;
             result["count"] = contributions.size();
 
-            response.statusCode = HTTP::OK;
-            response.body = result.dump();
+            return HttpResponse::json(HTTP::OK, result.dump());
         } catch (const json::exception& e) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{{"success", false}, {"error", std::string(e.what())}}.dump());
         }
-
-        return response;
     });
 
     // POST /api/ai/compare - 比较论文
     router.post(prefix + "/compare", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto body = json::parse(req.body);
 
@@ -932,24 +896,16 @@ void AiApiModule::registerRoutes() {
 
             std::string result = comparePapers(paperIds);
 
-            response.statusCode = HTTP::OK;
-            response.body = result;
+            return HttpResponse::json(HTTP::OK, result);
         } catch (const json::exception& e) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{{"success", false}, {"error", std::string(e.what())}}.dump());
         }
-
-        return response;
     });
 
     // GET /api/ai/status - AI服务状态
     router.get(prefix + "/status", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto stats = getStats();
 
@@ -967,14 +923,10 @@ void AiApiModule::registerRoutes() {
             result["allow_mock_fallback"] = impl_->config_.allowMockFallback;
             result["stats"] = stats;
 
-            response.statusCode = HTTP::OK;
-            response.body = result.dump();
+            return HttpResponse::json(HTTP::OK, result.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{{"success", false}, {"error", std::string(e.what())}}.dump();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{{"success", false}, {"error", std::string(e.what())}}.dump());
         }
-
-        return response;
     });
 
     spdlog::info("[AiApi] Registered 6 routes");

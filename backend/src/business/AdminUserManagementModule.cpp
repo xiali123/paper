@@ -730,145 +730,76 @@ void AdminUserManagementModule::registerRoutes() {
     };
 
     auto unauthorizedResp = []() -> HttpResponse {
-        HttpResponse resp;
-        resp.statusCode = HTTP::UNAUTHORIZED;
-        resp.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        resp.body = R"({"success":false,"error":"Unauthorized. Admin authentication required."})";
-        return resp;
+        return HttpResponse::json(HTTP::UNAUTHORIZED, R"({"success":false,"error":"Unauthorized. Admin authentication required."})");
     };
 
     // Stats
     router.get(prefix + "/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetStats(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetStats(req.queryParams));
     });
 
     // User CRUD
     router.get(prefix + "/users", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleListUsers(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleListUsers(req.queryParams));
     });
 
     router.get(prefix + "/users/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetUser(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetUser(req.pathParams));
     });
 
     router.post(prefix + "/users", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleCreateUser(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCreateUser(req.body));
     });
 
     router.put(prefix + "/users/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleUpdateUser(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUpdateUser(req.pathParams, req.body));
     });
 
     router.del(prefix + "/users/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleDeleteUser(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleDeleteUser(req.pathParams));
     });
 
     router.post(prefix + "/users/:id/activate", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleActivateUser(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleActivateUser(req.pathParams));
     });
 
     router.post(prefix + "/users/:id/deactivate", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleDeactivateUser(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleDeactivateUser(req.pathParams));
     });
 
     // Password management
     router.post(prefix + "/users/:id/change-password", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleChangePassword(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleChangePassword(req.pathParams, req.body));
     });
 
     router.post(prefix + "/users/:id/reset-password", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleResetPassword(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleResetPassword(req.pathParams, req.body));
     });
 
     // User details
     router.get(prefix + "/users/:id/history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetUserHistory(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetUserHistory(req.pathParams));
     });
 
     router.get(prefix + "/users/:id/sessions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetUserSessions(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetUserSessions(req.pathParams));
     });
 
     router.del(prefix + "/users/:id/sessions/:sid", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleKickUserSession(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleKickUserSession(req.pathParams));
     });
 
     // Data export
@@ -886,102 +817,52 @@ void AdminUserManagementModule::registerRoutes() {
     // Login security
     router.get(prefix + "/security/login-history", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetLoginHistory(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetLoginHistory(req.queryParams));
     });
 
     router.get(prefix + "/security/login-stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetLoginStats(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetLoginStats(req.queryParams));
     });
 
     router.get(prefix + "/security/suspicious", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetSuspiciousLogins(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetSuspiciousLogins(req.queryParams));
     });
 
     router.get(prefix + "/security/ip-blacklist", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetIpBlacklist(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetIpBlacklist(req.queryParams));
     });
 
     router.post(prefix + "/security/ip-blacklist", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleAddIpBlacklist(req.queryParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleAddIpBlacklist(req.queryParams, req.body));
     });
 
     router.del(prefix + "/security/ip-blacklist/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleRemoveIpBlacklist(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleRemoveIpBlacklist(req.pathParams));
     });
 
     router.get(prefix + "/security/account-lockouts", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleGetAccountLockouts(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetAccountLockouts(req.queryParams));
     });
 
     router.post(prefix + "/security/lock-user", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleLockUserAccount(req.queryParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleLockUserAccount(req.queryParams, req.body));
     });
 
     router.post(prefix + "/security/unlock-user", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleUnlockUserAccount(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUnlockUserAccount(req.queryParams));
     });
 
     router.post(prefix + "/security/suspicious/:id/handle", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        std::string body = handleHandleSuspiciousLogin(req.pathParams, req.body, req.headers);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, handleHandleSuspiciousLogin(req.pathParams, req.body, req.headers));
     });
 
     spdlog::info("[AdminUserManagement] Routes registered successfully");

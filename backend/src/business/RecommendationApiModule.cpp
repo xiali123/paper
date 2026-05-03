@@ -1444,9 +1444,6 @@ void RecommendationApiModule::registerRoutes() {
 
     // GET /api/recommendations/papers - 论文推荐
     router.get(prefix + "/papers", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         // 解析查询参数
         int userId = 1; // 默认用户
         int limit = 10;
@@ -1481,10 +1478,12 @@ void RecommendationApiModule::registerRoutes() {
         auto cached = QueryCache::instance().get(cacheKey);
         if (cached) {
             spdlog::debug("[RecommendationApi] Papers cache HIT for user={}, limit={}", userId, limit);
-            response.statusCode = HTTP::OK;
-            response.headers["X-Cache"] = "HIT";
-            response.body = *cached;
-            return response;
+            HttpResponse resp;
+            resp.statusCode = HTTP::OK;
+            resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
+            resp.headers["X-Cache"] = "HIT";
+            resp.body = *cached;
+            return resp;
         }
 
         try {
@@ -1515,25 +1514,19 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["recommendations"] = items;
 
-            response.statusCode = HTTP::OK;
-            response.body = result.dump();
-            QueryCache::instance().put(cacheKey, response.body, CacheTTL::RECOMMENDATIONS);
+            std::string body = result.dump();
+            QueryCache::instance().put(cacheKey, body, CacheTTL::RECOMMENDATIONS);
+            return HttpResponse::json(HTTP::OK, body);
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{
                 {"success", false},
                 {"error", std::string(e.what())}
-            }.dump();
+            }.dump());
         }
-
-        return response;
     });
 
     // GET /api/recommendations/trending - 热门内容
     router.get(prefix + "/trending", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         int limit = 10;
         std::string timeWindow = "month";
 
@@ -1569,29 +1562,20 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["trending"] = items;
 
-            response.statusCode = HTTP::OK;
-            response.body = result.dump();
+            return HttpResponse::json(HTTP::OK, result.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{
                 {"success", false},
                 {"error", std::string(e.what())}
-            }.dump();
+            }.dump());
         }
-
-        return response;
     });
 
     // GET /api/recommendations/similar/:paperId - 相似论文
     router.get(prefix + "/similar/:paperId", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto paperIdIt = req.pathParams.find("paperId");
         if (paperIdIt == req.pathParams.end()) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{{"success", false}, {"error", "Missing paper_id"}}.dump();
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Missing paper_id"}}.dump());
         }
 
         int paperId = std::stoi(paperIdIt->second);
@@ -1624,24 +1608,17 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["similar"] = items;
 
-            response.statusCode = HTTP::OK;
-            response.body = result.dump();
+            return HttpResponse::json(HTTP::OK, result.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{
                 {"success", false},
                 {"error", std::string(e.what())}
-            }.dump();
+            }.dump());
         }
-
-        return response;
     });
 
     // POST /api/recommendations/feedback - 推荐反馈
     router.post(prefix + "/feedback", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto body = json::parse(req.body);
 
@@ -1659,38 +1636,28 @@ void RecommendationApiModule::registerRoutes() {
             QueryCache::instance().invalidatePattern("rec:" + std::to_string(userId) + ":");
             spdlog::debug("[RecommendationApi] Cache invalidated for user {} after feedback", userId);
 
-            response.statusCode = success ? HTTP::OK : HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(success ? HTTP::OK : HTTP::INTERNAL_ERROR, json{
                 {"success", success},
                 {"message", success ? "Feedback recorded" : "Failed to record feedback"}
-            }.dump();
+            }.dump());
         } catch (const json::exception& e) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{
                 {"success", false},
                 {"error", "Invalid JSON: " + std::string(e.what())}
-            }.dump();
+            }.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{
                 {"success", false},
                 {"error", std::string(e.what())}
-            }.dump();
+            }.dump());
         }
-
-        return response;
     });
 
     // GET /api/recommendations/explain/:paperId - 推荐解释
     router.get(prefix + "/explain/:paperId", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto paperIdIt = req.pathParams.find("paperId");
         if (paperIdIt == req.pathParams.end()) {
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.body = json{{"success", false}, {"error", "Missing paper_id"}}.dump();
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Missing paper_id"}}.dump());
         }
 
         int userId = 1;
@@ -1703,49 +1670,34 @@ void RecommendationApiModule::registerRoutes() {
 
         try {
             std::string explanation = explainRecommendation(userId, paperId);
-
-            response.statusCode = HTTP::OK;
-            response.body = explanation;
+            return HttpResponse::json(HTTP::OK, explanation);
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{
                 {"success", false},
                 {"error", std::string(e.what())}
-            }.dump();
+            }.dump());
         }
-
-        return response;
     });
 
     // GET /api/recommendations/stats - 推荐统计
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         try {
             auto stats = getStats();
 
-            response.statusCode = HTTP::OK;
-            response.body = json{
+            return HttpResponse::json(HTTP::OK, json{
                 {"success", true},
                 {"stats", stats}
-            }.dump();
+            }.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{
                 {"success", false},
                 {"error", std::string(e.what())}
-            }.dump();
+            }.dump());
         }
-
-        return response;
     });
 
     // GET /api/recommendations/embedding - 基于嵌入向量的推荐
     router.get(prefix + "/embedding", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         int userId = 1;
         int limit = 10;
 
@@ -1782,17 +1734,13 @@ void RecommendationApiModule::registerRoutes() {
             }
             result["recommendations"] = items;
 
-            response.statusCode = HTTP::OK;
-            response.body = result.dump();
+            return HttpResponse::json(HTTP::OK, result.dump());
         } catch (const std::exception& e) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.body = json{
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, json{
                 {"success", false},
                 {"error", std::string(e.what())}
-            }.dump();
+            }.dump());
         }
-
-        return response;
     });
 
     spdlog::info("[Recommendation] Registered 7 routes");

@@ -497,56 +497,32 @@ void StatsApiModule::registerRoutes() {
 
     // GET /api/stats - 论文统计信息（根路由）
     router.get(prefix, [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        response.body = handleStats();
-        return response;
+        return HttpResponse::json(HTTP::OK, handleStats());
     });
 
     // GET /api/stats/system - 系统信息
     router.get(prefix + "/system", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        response.body = handleSystemInfo();
-        return response;
+        return HttpResponse::json(HTTP::OK, handleSystemInfo());
     });
 
     // GET /api/stats/resources - 资源使用情况
     router.get(prefix + "/resources", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        response.body = handleResources();
-        return response;
+        return HttpResponse::json(HTTP::OK, handleResources());
     });
 
     // GET /api/stats/uptime - 运行时间
     router.get(prefix + "/uptime", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        response.body = handleUptime();
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUptime());
     });
 
     // GET /api/stats/modules - 模块状态
     router.get(prefix + "/modules", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        response.body = handleModules();
-        return response;
+        return HttpResponse::json(HTTP::OK, handleModules());
     });
 
     // GET /api/stats/performance - 性能指标
     router.get(prefix + "/performance", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        response.body = handlePerformance();
-        return response;
+        return HttpResponse::json(HTTP::OK, handlePerformance());
     });
 
     spdlog::info("[StatsApi] Registered 6 routes");

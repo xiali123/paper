@@ -667,10 +667,6 @@ void ExportApiModule::registerRoutes() {
 
     // GET /api/export - 获取导出任务列表
     router.get(prefix, [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         json j;
         j["success"] = true;
         j["tasks"] = json::array();
@@ -699,15 +695,11 @@ void ExportApiModule::registerRoutes() {
         }
 
         j["count"] = j["tasks"].size();
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // POST /api/export - 创建导出任务
     router.post(prefix, [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         // Parse request body
         std::vector<int> paperIds;
         ExportOptions options;
@@ -792,7 +784,6 @@ void ExportApiModule::registerRoutes() {
         // Update stats
         updateStats(options.format, true, static_cast<int>(content.size()));
 
-        response.statusCode = HTTP::CREATED;
         json result;
         result["success"] = true;
         result["message"] = "Export completed successfully";
@@ -804,16 +795,11 @@ void ExportApiModule::registerRoutes() {
         // Include the exported content inline
         result["data"] = content;
 
-        response.body = result.dump();
-        return response;
+        return HttpResponse::json(HTTP::CREATED, result.dump());
     });
 
     // GET /api/export/formats - 支持的导出格式
     router.get(prefix + "/formats", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto formats = getSupportedFormats();
         json j;
         j["success"] = true;
@@ -834,16 +820,11 @@ void ExportApiModule::registerRoutes() {
         }
 
         j["count"] = formats.size();
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     // GET /api/export/stats - 导出统计
     router.get(prefix + "/stats", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto stats = getStats();
         json j;
         j["success"] = true;
@@ -869,8 +850,7 @@ void ExportApiModule::registerRoutes() {
         }
         j["exports_by_format"] = byFormat;
 
-        response.body = j.dump();
-        return response;
+        return HttpResponse::json(HTTP::OK, j.dump());
     });
 
     spdlog::info("[ExportApi] Registered 4 routes");

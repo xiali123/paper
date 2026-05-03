@@ -63,6 +63,14 @@ struct HttpResponse {
         body = "{\"error\":\"" + message + "\"}";
         headers["Content-Type"] = "application/json";
     }
+
+    // One-line JSON response: status code + Content-Type + body
+    static HttpResponse json(int status, const std::string& jsonBody) {
+        HttpResponse r;
+        r.statusCode = status;
+        r.setJson(jsonBody);
+        return r;
+    }
 };
 
 /**

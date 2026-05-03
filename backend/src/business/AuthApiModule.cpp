@@ -588,33 +588,21 @@ void AuthApiModule::registerRoutes() {
 
             // 验证必填字段
             if (!json.contains("username") || isEmpty(json["username"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "Username is required";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
             }
 
             if (!json.contains("email") || isEmpty(json["email"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Email is required\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Email is required\"}");
             }
 
             if (!json.contains("password") || isEmpty(json["password"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "Password is required";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
             }
 
             std::string username = json["username"].get<std::string>();
@@ -626,30 +614,18 @@ void AuthApiModule::registerRoutes() {
 
             // 验证邮箱格式
             if (!isValidEmail(email)) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Invalid email format\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid email format\"}");
             }
 
             // 验证密码强度
             if (!isStrongPassword(password)) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Password must be at least 6 characters\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Password must be at least 6 characters\"}");
             }
 
             // 检查用户名是否已存在
             auto existingUser = impl_->getUserByUsername(username);
             if (existingUser) {
-                HttpResponse response;
-                response.statusCode = HTTP::CONFLICT;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Username already exists\"}";
-                return response;
+                return HttpResponse::json(HTTP::CONFLICT, "{\"success\":false,\"error\":\"Username already exists\"}");
             }
 
             // 使用真实数据库创建用户
@@ -681,38 +657,22 @@ void AuthApiModule::registerRoutes() {
                 userJson["role"] = newUser->role;
                 userJson["active"] = newUser->active;
 
-                HttpResponse response;
-                response.statusCode = HTTP::CREATED;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":true,\"message\":\"User registered successfully\",\"user\":" + userJson.dump() + "}";
-                return response;
+                return HttpResponse::json(HTTP::CREATED, "{\"success\":true,\"message\":\"User registered successfully\",\"user\":" + userJson.dump() + "}");
             } else {
                 impl_->stats_.failedRegistrations++;
-                HttpResponse response;
-                response.statusCode = HTTP::INTERNAL_ERROR;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Failed to create user in database\"}";
-                return response;
+                return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"success\":false,\"error\":\"Failed to create user in database\"}");
             }
 
         } catch (const nlohmann::json::parse_error& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json errJson;
             errJson["success"] = false;
             errJson["error"] = "Invalid JSON format";
-            response.body = errJson.dump();
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
         } catch (const std::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json errJson;
             errJson["success"] = false;
             errJson["error"] = "Internal server error";
-            response.body = errJson.dump();
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errJson.dump());
         }
     });
 
@@ -723,25 +683,17 @@ void AuthApiModule::registerRoutes() {
 
             // 验证必填字段
             if (!json.contains("username") || isEmpty(json["username"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "Username is required";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
             }
 
             if (!json.contains("password") || isEmpty(json["password"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "Password is required";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
             }
 
             std::string username = json["username"].get<std::string>();
@@ -753,14 +705,10 @@ void AuthApiModule::registerRoutes() {
             auto userOpt = impl_->getUserByUsernameOrEmail(username);
             if (!userOpt) {
                 impl_->stats_.failedLogins++;
-                HttpResponse response;
-                response.statusCode = HTTP::UNAUTHORIZED;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "User not found";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::UNAUTHORIZED, errJson.dump());
             }
 
             User user = *userOpt;
@@ -768,27 +716,19 @@ void AuthApiModule::registerRoutes() {
             // 检查用户是否激活
             if (!user.active) {
                 impl_->stats_.failedLogins++;
-                HttpResponse response;
-                response.statusCode = HTTP::FORBIDDEN;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "User account is inactive";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::FORBIDDEN, errJson.dump());
             }
 
             // 验证密码
             if (password.empty() || !impl_->verifyPassword(user.username, password)) {
                 impl_->stats_.failedLogins++;
-                HttpResponse response;
-                response.statusCode = HTTP::UNAUTHORIZED;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "Invalid username or password";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::UNAUTHORIZED, errJson.dump());
             }
 
             // 生成令牌
@@ -799,14 +739,10 @@ void AuthApiModule::registerRoutes() {
             if (!impl_->storeSession(user.id, accessToken, refreshToken, impl_->config_.accessTokenExpiry)) {
                 spdlog::error("[AuthApi] Failed to store session in database");
                 impl_->stats_.failedLogins++;
-                HttpResponse response;
-                response.statusCode = HTTP::INTERNAL_ERROR;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = "Failed to create session";
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::INTERNAL_ERROR, errJson.dump());
             }
 
             // 更新最后登录时间
@@ -861,10 +797,6 @@ void AuthApiModule::registerRoutes() {
             userJson["role"] = user.role;
             userJson["active"] = user.active;
 
-            HttpResponse response;
-            response.statusCode = HTTP::OK;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
             nlohmann::json responseJson;
             responseJson["success"] = true;
             responseJson["message"] = "Login successful";
@@ -872,28 +804,19 @@ void AuthApiModule::registerRoutes() {
             responseJson["refresh_token"] = refreshToken;
             responseJson["expires_in"] = impl_->config_.accessTokenExpiry.count();
             responseJson["user"] = userJson;
-            response.body = responseJson.dump();
 
-            return response;
+            return HttpResponse::json(HTTP::OK, responseJson.dump());
 
         } catch (const nlohmann::json::parse_error& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json errJson;
             errJson["success"] = false;
             errJson["error"] = "Invalid JSON format";
-            response.body = errJson.dump();
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
         } catch (const std::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json errJson;
             errJson["success"] = false;
             errJson["error"] = "Internal server error";
-            response.body = errJson.dump();
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errJson.dump());
         }
     });
 
@@ -901,28 +824,16 @@ void AuthApiModule::registerRoutes() {
     router.post(prefix + "/logout", [this](const HttpRequest& req) {
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end()) {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Authorization required\"}");
         }
 
         std::string token = authIt->second;
         if (token.find("Bearer ") == 0) token = token.substr(7);
 
         if (this->logout(token)) {
-            HttpResponse response;
-            response.statusCode = HTTP::OK;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":true,\"message\":\"Logged out successfully\"}";
-            return response;
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Logged out successfully\"}");
         } else {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Invalid token\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Invalid token\"}");
         }
     });
 
@@ -932,11 +843,7 @@ void AuthApiModule::registerRoutes() {
             auto json = nlohmann::json::parse(req.body);
 
             if (!json.contains("refresh_token") || isEmpty(json["refresh_token"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Refresh token is required\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Refresh token is required\"}");
             }
 
             std::string refreshToken = json["refresh_token"].get<std::string>();
@@ -947,35 +854,23 @@ void AuthApiModule::registerRoutes() {
             auto result = this->refreshToken(refreshReq);
 
             if (result.success) {
-                HttpResponse response;
-                response.statusCode = HTTP::OK;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json responseJson;
                 responseJson["success"] = true;
                 responseJson["access_token"] = result.accessToken;
                 responseJson["expires_in"] = result.expiresIn.count();
-                response.body = responseJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::OK, responseJson.dump());
             } else {
-                HttpResponse response;
-                response.statusCode = HTTP::UNAUTHORIZED;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
                 nlohmann::json errJson;
                 errJson["success"] = false;
                 errJson["error"] = result.message;
-                response.body = errJson.dump();
-                return response;
+                return HttpResponse::json(HTTP::UNAUTHORIZED, errJson.dump());
             }
 
         } catch (const nlohmann::json::parse_error& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json errJson;
             errJson["success"] = false;
             errJson["error"] = "Invalid JSON format";
-            response.body = errJson.dump();
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
         }
     });
 
@@ -983,11 +878,7 @@ void AuthApiModule::registerRoutes() {
     router.get(prefix + "/me", [this](const HttpRequest& req) {
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end()) {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Authorization required\"}");
         }
 
         std::string token = authIt->second;
@@ -995,18 +886,10 @@ void AuthApiModule::registerRoutes() {
 
         auto user = this->getCurrentUser(token);
         if (!user.has_value()) {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Invalid or expired token\"}");
         }
 
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-        response.body = "{\"success\":true,\"user\":" + user->toJSON() + "}";
-        return response;
+        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"user\":" + user->toJSON() + "}");
     });
 
     // POST /api/auth/change-password - 修改密码
@@ -1015,11 +898,7 @@ void AuthApiModule::registerRoutes() {
             // 验证认证
             auto authIt = req.headers.find("Authorization");
             if (authIt == req.headers.end()) {
-                HttpResponse response;
-                response.statusCode = HTTP::UNAUTHORIZED;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
-                return response;
+                return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Authorization required\"}");
             }
 
             std::string token = authIt->second;
@@ -1029,39 +908,23 @@ void AuthApiModule::registerRoutes() {
 
             int userId;
             if (!this->validateAccessToken(token, userId)) {
-                HttpResponse response;
-                response.statusCode = HTTP::UNAUTHORIZED;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
-                return response;
+                return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Invalid or expired token\"}");
             }
 
             auto json = nlohmann::json::parse(req.body);
 
             if (!json.contains("old_password") || isEmpty(json["old_password"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Old password is required\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Old password is required\"}");
             }
 
             if (!json.contains("new_password") || isEmpty(json["new_password"].get<std::string>())) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"New password is required\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"New password is required\"}");
             }
 
             std::string newPassword = json["new_password"].get<std::string>();
 
             if (!isStrongPassword(newPassword)) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"New password must be at least 6 characters\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"New password must be at least 6 characters\"}");
             }
 
             ChangePasswordRequest cpReq;
@@ -1069,34 +932,18 @@ void AuthApiModule::registerRoutes() {
             cpReq.newPassword = newPassword;
 
             if (this->changePassword(userId, cpReq)) {
-                HttpResponse response;
-                response.statusCode = HTTP::OK;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":true,\"message\":\"Password changed successfully\"}";
-                return response;
+                return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Password changed successfully\"}");
             } else {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Failed to change password. Verify your old password.\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Failed to change password. Verify your old password.\"}");
             }
 
         } catch (const nlohmann::json::parse_error& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json errJson;
             errJson["success"] = false;
             errJson["error"] = "Invalid JSON format";
-            response.body = errJson.dump();
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, errJson.dump());
         } catch (const std::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"success\":false,\"error\":\"Internal server error\"}");
         }
     });
 
@@ -1106,11 +953,7 @@ void AuthApiModule::registerRoutes() {
             auto json = nlohmann::json::parse(req.body);
 
             if (!json.contains("email") || json["email"].empty()) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Email is required\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Email is required\"}");
             }
 
             std::string email = json["email"];
@@ -1118,18 +961,10 @@ void AuthApiModule::registerRoutes() {
 
             initiatePasswordReset(email);
             // Always return same response to prevent user enumeration
-            HttpResponse response;
-            response.statusCode = HTTP::OK;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":true,\"message\":\"If the email exists, a password reset link has been sent\"}";
-            return response;
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"If the email exists, a password reset link has been sent\"}");
 
         } catch (const nlohmann::json::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Invalid JSON format\"}";
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid JSON format\"}");
         }
     });
 
@@ -1139,19 +974,11 @@ void AuthApiModule::registerRoutes() {
             auto json = nlohmann::json::parse(req.body);
 
             if (!json.contains("token") || json["token"].empty()) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Reset token is required\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Reset token is required\"}");
             }
 
             if (!json.contains("new_password") || json["new_password"].empty()) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"New password is required\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"New password is required\"}");
             }
 
             std::string token = json["token"];
@@ -1159,39 +986,19 @@ void AuthApiModule::registerRoutes() {
 
             // 验证密码强度
             if (newPassword.length() < 6) {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Password must be at least 6 characters\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Password must be at least 6 characters\"}");
             }
 
             if (completePasswordReset(token, newPassword)) {
-                HttpResponse response;
-                response.statusCode = HTTP::OK;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":true,\"message\":\"Password reset successfully\"}";
-                return response;
+                return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Password reset successfully\"}");
             } else {
-                HttpResponse response;
-                response.statusCode = HTTP::BAD_REQUEST;
-                response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-                response.body = "{\"success\":false,\"error\":\"Invalid or expired reset token\"}";
-                return response;
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid or expired reset token\"}");
             }
 
         } catch (const nlohmann::json::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Invalid JSON format\"}";
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid JSON format\"}");
         } catch (const std::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"success\":false,\"error\":\"Internal server error\"}");
         }
     });
 
@@ -1199,11 +1006,7 @@ void AuthApiModule::registerRoutes() {
     router.get(prefix + "/sessions", [this](const HttpRequest& req) {
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end()) {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Authorization required\"}");
         }
 
         std::string token = authIt->second;
@@ -1211,11 +1014,7 @@ void AuthApiModule::registerRoutes() {
 
         int userId;
         if (!this->validateAccessToken(token, userId)) {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Invalid or expired token\"}");
         }
 
         try {
@@ -1236,21 +1035,13 @@ void AuthApiModule::registerRoutes() {
                 }
             }
 
-            HttpResponse response;
-            response.statusCode = HTTP::OK;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
             nlohmann::json respJson;
             respJson["success"] = true;
             respJson["sessions"] = sessions;
             respJson["count"] = sessions.size();
-            response.body = respJson.dump();
-            return response;
+            return HttpResponse::json(HTTP::OK, respJson.dump());
         } catch (const std::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"success\":false,\"error\":\"Internal server error\"}");
         }
     });
 
@@ -1258,11 +1049,7 @@ void AuthApiModule::registerRoutes() {
     router.del(prefix + "/sessions/:id", [this](const HttpRequest& req) {
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end()) {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Authorization required\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Authorization required\"}");
         }
 
         std::string token = authIt->second;
@@ -1270,20 +1057,12 @@ void AuthApiModule::registerRoutes() {
 
         int userId;
         if (!this->validateAccessToken(token, userId)) {
-            HttpResponse response;
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Invalid or expired token\"}";
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Invalid or expired token\"}");
         }
 
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end()) {
-            HttpResponse response;
-            response.statusCode = HTTP::BAD_REQUEST;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Session ID is required\"}";
-            return response;
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Session ID is required\"}");
         }
 
         try {
@@ -1295,17 +1074,9 @@ void AuthApiModule::registerRoutes() {
                 stmt.execute();
             }
 
-            HttpResponse response;
-            response.statusCode = HTTP::OK;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":true,\"message\":\"Session deleted\"}";
-            return response;
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Session deleted\"}");
         } catch (const std::exception& e) {
-            HttpResponse response;
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-            response.body = "{\"success\":false,\"error\":\"Internal server error\"}";
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"success\":false,\"error\":\"Internal server error\"}");
         }
     });
 

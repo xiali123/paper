@@ -1,6 +1,7 @@
 #include "business/AiCoPilotModule.hpp"
 #include "data/StringUtil.hpp"
 #include "core/Router.hpp"
+#include "core/HttpStatus.hpp"
 #include "core/EventDrivenIntegration.hpp"
 #include "modules/LoggingModule.hpp"
 #include "prompts/AIPromptTemplates.hpp"
@@ -59,8 +60,8 @@ void AiCoPilotModule::registerRoutes() {
 
     auto unauthorizedResp = []() -> HttpResponse {
         HttpResponse resp;
-        resp.statusCode = 401;
-        resp.headers["Content-Type"] = "application/json";
+        resp.statusCode = HTTP::UNAUTHORIZED;
+        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         resp.body = R"({"success":false,"message":"Unauthorized"})";
         return resp;
     };
@@ -75,8 +76,8 @@ void AiCoPilotModule::registerRoutes() {
         if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取审稿历史
         HttpResponse resp;
-        resp.statusCode = 200;
-        resp.headers["Content-Type"] = "application/json";
+        resp.statusCode = HTTP::OK;
+        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         resp.body = R"({"success":true,"data":[]})";
         return resp;
     });
@@ -91,8 +92,8 @@ void AiCoPilotModule::registerRoutes() {
         if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取文献综述列表
         HttpResponse resp;
-        resp.statusCode = 200;
-        resp.headers["Content-Type"] = "application/json";
+        resp.statusCode = HTTP::OK;
+        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         resp.body = R"({"success":true,"data":[]})";
         return resp;
     });
@@ -107,8 +108,8 @@ void AiCoPilotModule::registerRoutes() {
         if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取研究计划列表
         HttpResponse resp;
-        resp.statusCode = 200;
-        resp.headers["Content-Type"] = "application/json";
+        resp.statusCode = HTTP::OK;
+        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         resp.body = R"({"success":true,"data":[]})";
         return resp;
     });
@@ -123,8 +124,8 @@ void AiCoPilotModule::registerRoutes() {
         if (!requireAuth(req)) return unauthorizedResp();
         // 处理获取对话列表
         HttpResponse resp;
-        resp.statusCode = 200;
-        resp.headers["Content-Type"] = "application/json";
+        resp.statusCode = HTTP::OK;
+        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         resp.body = R"({"success":true,"data":[]})";
         return resp;
     });
@@ -753,8 +754,8 @@ HttpResponse AiCoPilotModule::handleStreamRequest(const HttpRequest& req) {
     std::string prompt = req.getQuery("prompt", "");
     if (prompt.empty()) {
         HttpResponse resp;
-        resp.statusCode = 400;
-        resp.headers["Content-Type"] = "application/json";
+        resp.statusCode = HTTP::BAD_REQUEST;
+        resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
         resp.body = R"({"success":false,"message":"Missing 'prompt' query parameter"})";
         return resp;
     }
@@ -774,7 +775,7 @@ HttpResponse AiCoPilotModule::handleStreamRequest(const HttpRequest& req) {
     // streaming by chunking the full AI response into discrete SSE events
     // written into the response body.
     HttpResponse resp;
-    resp.statusCode = 200;
+    resp.statusCode = HTTP::OK;
     resp.headers["Content-Type"] = "text/event-stream";
     resp.headers["Cache-Control"] = "no-cache";
     resp.headers["Connection"] = "keep-alive";
@@ -892,8 +893,8 @@ void AiCoPilotModule::streamAiResponseInto(
 
 HttpResponse AiCoPilotModule::handleStreamStatus(const HttpRequest& req) {
     HttpResponse resp;
-    resp.statusCode = 200;
-    resp.headers["Content-Type"] = "application/json";
+    resp.statusCode = HTTP::OK;
+    resp.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
     nlohmann::json json;
     json["success"] = true;

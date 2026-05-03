@@ -156,15 +156,10 @@ void CrawlerApiModule::registerRoutes() {
 
     // POST /api/crawler/marketplace/publish - 发布模板到市场
     router.post(prefix + "/marketplace/publish", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         // 检查认证
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump());
         }
 
         try {
@@ -214,14 +209,9 @@ void CrawlerApiModule::registerRoutes() {
 
     // GET /api/crawler/marketplace/templates - 浏览市场模板
     router.get(prefix + "/marketplace/templates", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump());
         }
 
         try {
@@ -283,14 +273,9 @@ void CrawlerApiModule::registerRoutes() {
 
     // POST /api/crawler/marketplace/templates/:id/install - 安装市场模板
     router.post(prefix + "/marketplace/templates/:id/install", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump());
         }
 
         try {
@@ -343,14 +328,9 @@ void CrawlerApiModule::registerRoutes() {
 
     // POST /api/crawler/marketplace/templates/:id/rate - 评分
     router.post(prefix + "/marketplace/templates/:id/rate", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump());
         }
 
         try {
@@ -404,14 +384,9 @@ void CrawlerApiModule::registerRoutes() {
 
     // GET /api/crawler/marketplace/search - 搜索市场模板
     router.get(prefix + "/marketplace/search", [this](const HttpRequest& req) {
-        HttpResponse response;
-        response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
         auto authIt = req.headers.find("Authorization");
         if (authIt == req.headers.end() || authIt->second.empty()) {
-            response.statusCode = HTTP::UNAUTHORIZED;
-            response.body = nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump();
-            return response;
+            return HttpResponse::json(HTTP::UNAUTHORIZED, nlohmann::json{{"success", false}, {"error", "Authorization required"}}.dump());
         }
 
         try {
@@ -1217,10 +1192,6 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
     const std::string& message,
     const nlohmann::json& data) {
 
-    HttpResponse response;
-    response.statusCode = success ? HTTP::OK : HTTP::BAD_REQUEST;
-    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
-
     nlohmann::json jsonBody;
     jsonBody["success"] = success;
     jsonBody["message"] = message;
@@ -1229,8 +1200,7 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
         jsonBody["data"] = data;
     }
 
-    response.body = jsonBody.dump();
-    return response;
+    return HttpResponse::json(success ? HTTP::OK : HTTP::BAD_REQUEST, jsonBody.dump());
 }
 
 // 带自定义状态码的重载版本
@@ -1238,10 +1208,6 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
     int statusCode,
     const std::string& message,
     const nlohmann::json& data) {
-
-    HttpResponse response;
-    response.statusCode = statusCode;
-    response.headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
 
     nlohmann::json jsonBody;
     jsonBody["success"] = (statusCode >= 200 && statusCode < 300);
@@ -1251,8 +1217,7 @@ HttpResponse CrawlerApiModule::buildJsonResponse(
         jsonBody["data"] = data;
     }
 
-    response.body = jsonBody.dump();
-    return response;
+    return HttpResponse::json(statusCode, jsonBody.dump());
 }
 
 std::map<std::string, std::string> CrawlerApiModule::parseRequestParams(const std::string& url) {

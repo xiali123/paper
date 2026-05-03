@@ -202,57 +202,33 @@ void LatexApiModule::registerRoutes() {
             params[key] = value;
         }
         std::string body = handleListDocuments(params);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.get(prefix + "/documents/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetDocument(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.post(prefix + "/documents", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCreateDocument(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     router.put(prefix + "/documents/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleUpdateDocument(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.del(prefix + "/documents/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleDeleteDocument(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // Document compile route
     router.post(prefix + "/documents/:id/compile", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCompileDocument(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // Project routes
@@ -262,114 +238,66 @@ void LatexApiModule::registerRoutes() {
             params[key] = value;
         }
         std::string body = handleListProjects(params);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.get(prefix + "/projects/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetProject(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.post(prefix + "/projects", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCreateProject(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     // Project compile route
     router.post(prefix + "/projects/:id/compile", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCompileProject(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // Project file routes
     router.post(prefix + "/projects/files", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleAddProjectFile(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     router.put(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleUpdateProjectFile(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.del(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleDeleteProjectFile(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.get(prefix + "/projects/files/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetProjectFile(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // Project files list route
     router.get(prefix + "/projects/:id/files", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleListProjectFiles(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // File upload routes
     router.post(prefix + "/projects/:id/upload", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleUploadProjectFile(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     router.post(prefix + "/projects/:id/batch-upload", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleBatchUploadProjectFiles(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     router.post(prefix + "/projects/:id/import", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleImportFilesFromProject(req.pathParams, req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     // PDF download routes (binary)
@@ -383,10 +311,6 @@ void LatexApiModule::registerRoutes() {
 
     // PDF debug endpoint (returns info about PDF request)
     router.get(prefix + "/debug/pdf/:type/:id", [this](const HttpRequest& req) -> HttpResponse {
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-
         auto typeIt = req.pathParams.find("type");
         auto idIt = req.pathParams.find("id");
 
@@ -410,56 +334,35 @@ void LatexApiModule::registerRoutes() {
             debugInfo["fileSize"] = std::filesystem::file_size(pdfPath);
         }
 
-        response.body = impl_->buildJsonResponse(HTTP::OK, true, "PDF debug info", debugInfo.dump());
-        return response;
+        return HttpResponse::json(HTTP::OK, impl_->buildJsonResponse(HTTP::OK, true, "PDF debug info", debugInfo.dump()));
     });
 
     // PDF cache management routes
     router.get(prefix + "/cache/stats", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleGetCacheStats();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.post(prefix + "/cache/clear", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleClearCache();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // Template routes
     router.get(prefix + "/templates", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleListTemplates(req.queryParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleStats();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     // Version control routes
     router.post(prefix + "/versions/save", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleSaveVersion(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     router.get(prefix + "/versions/history", [this](const HttpRequest& req) -> HttpResponse {
@@ -468,11 +371,7 @@ void LatexApiModule::registerRoutes() {
             params[key] = value;
         }
         std::string body = handleGetVersionHistory(params);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.get(prefix + "/versions/tree", [this](const HttpRequest& req) -> HttpResponse {
@@ -481,47 +380,27 @@ void LatexApiModule::registerRoutes() {
             params[key] = value;
         }
         std::string body = handleGetVersionTree(params);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.post(prefix + "/versions/restore", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleRestoreVersion(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.post(prefix + "/versions/branch", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleCreateBranch(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::CREATED;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::CREATED, body);
     });
 
     router.post(prefix + "/versions/merge", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleMergeBranch(req.body);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.del(prefix + "/versions/:id", [this](const HttpRequest& req) -> HttpResponse {
         std::string body = handleDeleteVersion(req.pathParams);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     router.get(prefix + "/versions/compare", [this](const HttpRequest& req) -> HttpResponse {
@@ -530,11 +409,7 @@ void LatexApiModule::registerRoutes() {
             params[key] = value;
         }
         std::string body = handleCompareVersions(params);
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = body;
-        return response;
+        return HttpResponse::json(HTTP::OK, body);
     });
 
     spdlog::info("[LatexApi] Routes registered successfully");
@@ -809,15 +684,10 @@ LatexDocumentStats LatexApiModule::getStats() {
 // ============================================================================
 
 HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string, std::string>& params) {
-    HttpResponse response;
-
     auto idIt = params.find("id");
     if (idIt == params.end()) {
         spdlog::error("[LatexApi] Missing document ID in PDF download request");
-        response.statusCode = HTTP::BAD_REQUEST;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = impl_->buildJsonResponse(false, "Missing document ID");
-        return response;
+        return HttpResponse::json(HTTP::BAD_REQUEST, impl_->buildJsonResponse(false, "Missing document ID"));
     }
 
     try {
@@ -825,6 +695,8 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         std::string pdfPath = impl_->pdfDirectory_ + "/document_" + std::to_string(id) + ".pdf";
 
         spdlog::info("[LatexApi] PDF download request for document: {}, path: {}", id, pdfPath);
+
+        HttpResponse response;
 
         // Check file exists, create minimal valid PDF if not
         if (!std::filesystem::exists(pdfPath)) {
@@ -865,10 +737,7 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         // Read PDF file
         std::ifstream file(pdfPath, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-            response.body = impl_->buildJsonResponse(false, "Failed to open PDF file");
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, impl_->buildJsonResponse(false, "Failed to open PDF file"));
         }
 
         std::streamsize fileSize = file.tellg();
@@ -876,10 +745,7 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
 
         std::vector<uint8_t> fileData(fileSize);
         if (!file.read(reinterpret_cast<char*>(fileData.data()), fileSize)) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-            response.body = impl_->buildJsonResponse(false, "Failed to read PDF file");
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, impl_->buildJsonResponse(false, "Failed to read PDF file"));
         }
 
         // Set headers
@@ -896,29 +762,18 @@ HttpResponse LatexApiModule::handleDownloadPDFBinary(const std::map<std::string,
         return response;
     } catch (const std::invalid_argument& e) {
         spdlog::error("[LatexApi] Invalid document ID: {}", idIt->second);
-        response.statusCode = HTTP::BAD_REQUEST;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = impl_->buildJsonResponse(false, "Invalid document ID: " + idIt->second);
-        return response;
+        return HttpResponse::json(HTTP::BAD_REQUEST, impl_->buildJsonResponse(false, "Invalid document ID: " + idIt->second));
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] PDF download error: {}", e.what());
-        response.statusCode = HTTP::INTERNAL_ERROR;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
-        return response;
+        return HttpResponse::json(HTTP::INTERNAL_ERROR, impl_->buildJsonResponse(false, std::string("Error: ") + e.what()));
     }
 }
 
 HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::string, std::string>& params) {
-    HttpResponse response;
-
     auto idIt = params.find("id");
     if (idIt == params.end()) {
         spdlog::error("[LatexApi] Missing project ID in PDF download request");
-        response.statusCode = HTTP::BAD_REQUEST;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = impl_->buildJsonResponse(false, "Missing project ID");
-        return response;
+        return HttpResponse::json(HTTP::BAD_REQUEST, impl_->buildJsonResponse(false, "Missing project ID"));
     }
 
     try {
@@ -926,6 +781,8 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
         std::string pdfPath = impl_->pdfDirectory_ + "/project_" + std::to_string(id) + ".pdf";
 
         spdlog::info("[LatexApi] PDF download request for project: {}, path: {}", id, pdfPath);
+
+        HttpResponse response;
 
         // Check file exists, create minimal valid PDF if not
         if (!std::filesystem::exists(pdfPath)) {
@@ -966,10 +823,7 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
         // Read PDF file
         std::ifstream file(pdfPath, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-            response.body = impl_->buildJsonResponse(false, "Failed to open PDF file");
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, impl_->buildJsonResponse(false, "Failed to open PDF file"));
         }
 
         std::streamsize fileSize = file.tellg();
@@ -977,10 +831,7 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
 
         std::vector<uint8_t> fileData(fileSize);
         if (!file.read(reinterpret_cast<char*>(fileData.data()), fileSize)) {
-            response.statusCode = HTTP::INTERNAL_ERROR;
-            response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-            response.body = impl_->buildJsonResponse(false, "Failed to read PDF file");
-            return response;
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, impl_->buildJsonResponse(false, "Failed to read PDF file"));
         }
 
         // Set headers
@@ -996,16 +847,10 @@ HttpResponse LatexApiModule::handleDownloadProjectPDFBinary(const std::map<std::
         return response;
     } catch (const std::invalid_argument& e) {
         spdlog::error("[LatexApi] Invalid project ID: {}", idIt->second);
-        response.statusCode = HTTP::BAD_REQUEST;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = impl_->buildJsonResponse(false, "Invalid project ID: " + idIt->second);
-        return response;
+        return HttpResponse::json(HTTP::BAD_REQUEST, impl_->buildJsonResponse(false, "Invalid project ID: " + idIt->second));
     } catch (const std::exception& e) {
         spdlog::error("[LatexApi] Project PDF download error: {}", e.what());
-        response.statusCode = HTTP::INTERNAL_ERROR;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = impl_->buildJsonResponse(false, std::string("Error: ") + e.what());
-        return response;
+        return HttpResponse::json(HTTP::INTERNAL_ERROR, impl_->buildJsonResponse(false, std::string("Error: ") + e.what()));
     }
 }
 

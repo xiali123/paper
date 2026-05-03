@@ -115,276 +115,156 @@ void AdminAuditModule::registerRoutes() {
     // Audit logs
     router.get(prefix + "/audit-logs", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetAuditLogs(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetAuditLogs(req.queryParams));
     });
 
     // RBAC - Roles
     router.get(prefix + "/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetRoles(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetRoles(req.queryParams));
     });
 
     router.post(prefix + "/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleCreateRole(req.queryParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCreateRole(req.queryParams, req.body));
     });
 
     router.put(prefix + "/roles/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleUpdateRole(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUpdateRole(req.pathParams, req.body));
     });
 
     router.del(prefix + "/roles/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleDeleteRole(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleDeleteRole(req.pathParams));
     });
 
     // RBAC - Permissions
     router.get(prefix + "/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetPermissions(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetPermissions(req.queryParams));
     });
 
     router.get(prefix + "/permission-matrix", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetPermissionMatrix(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetPermissionMatrix(req.queryParams));
     });
 
     router.get(prefix + "/roles/:id/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetRolePermissions(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetRolePermissions(req.pathParams));
     });
 
     router.put(prefix + "/roles/:id/permissions", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleUpdateRolePermissions(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleUpdateRolePermissions(req.pathParams, req.body));
     });
 
     router.get(prefix + "/users/:id/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetUserRoles(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetUserRoles(req.pathParams));
     });
 
     router.post(prefix + "/users/:id/roles", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleAssignUserRole(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleAssignUserRole(req.pathParams, req.body));
     });
 
     router.del(prefix + "/users/:id/roles/:roleid", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleRemoveUserRole(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleRemoveUserRole(req.pathParams));
     });
 
     router.post(prefix + "/permissions/check", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleCheckPermission(req.queryParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCheckPermission(req.queryParams, req.body));
     });
 
     // Content moderation
     router.get(prefix + "/content/pending", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetPendingPapers(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetPendingPapers(req.queryParams));
     });
 
     router.get(prefix + "/content/pending/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetPaperModeration(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetPaperModeration(req.pathParams));
     });
 
     router.post(prefix + "/content/pending/:id/approve", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleApprovePaper(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleApprovePaper(req.pathParams, req.body));
     });
 
     router.post(prefix + "/content/pending/:id/reject", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleRejectPaper(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleRejectPaper(req.pathParams, req.body));
     });
 
     router.get(prefix + "/content/reports", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetUserReports(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetUserReports(req.queryParams));
     });
 
     router.post(prefix + "/content/reports/:id/resolve", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleResolveReport(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleResolveReport(req.pathParams, req.body));
     });
 
     router.get(prefix + "/content/sensitive-words", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetSensitiveWords(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetSensitiveWords(req.queryParams));
     });
 
     router.post(prefix + "/content/sensitive-words", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleCreateSensitiveWord(req.queryParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCreateSensitiveWord(req.queryParams, req.body));
     });
 
     router.del(prefix + "/content/sensitive-words/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleDeleteSensitiveWord(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleDeleteSensitiveWord(req.pathParams));
     });
 
     router.post(prefix + "/content/sensitive-words/check", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleCheckSensitiveWords(req.queryParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCheckSensitiveWords(req.queryParams, req.body));
     });
 
     router.get(prefix + "/content/sensitive-words/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetSensitiveWordStats(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetSensitiveWordStats(req.queryParams));
     });
 
     // API key management
     router.get(prefix + "/api-keys", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetApiKeys(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetApiKeys(req.queryParams));
     });
 
     router.post(prefix + "/api-keys", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleCreateApiKey(req.queryParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleCreateApiKey(req.queryParams, req.body));
     });
 
     router.del(prefix + "/api-keys/:id", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleDeleteApiKey(req.pathParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleDeleteApiKey(req.pathParams));
     });
 
     router.post(prefix + "/api-keys/:id/regenerate", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleRegenerateApiKey(req.pathParams, req.body);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleRegenerateApiKey(req.pathParams, req.body));
     });
 
     router.get(prefix + "/api-keys/usage", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetApiKeyUsage(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetApiKeyUsage(req.queryParams));
     });
 
     router.get(prefix + "/api-keys/stats", [this, requireAdminAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
         if (!requireAdminAuth(req)) return unauthorizedResp();
-        HttpResponse response;
-        response.statusCode = HTTP::OK;
-        response.setHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
-        response.body = handleGetApiKeyStats(req.queryParams);
-        return response;
+        return HttpResponse::json(HTTP::OK, handleGetApiKeyStats(req.queryParams));
     });
 
     spdlog::info("[AdminAudit] Routes registered successfully");
