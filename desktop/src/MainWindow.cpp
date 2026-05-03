@@ -87,6 +87,11 @@
 #include "ReadingTimerWidget.hpp"
 #include "PaperGraderWidget.hpp"
 #include "DataVisualizationWidget.hpp"
+#include "PaperQuizWidget.hpp"
+#include "ClipboardHistoryWidget.hpp"
+#include "PaperTranslatorWidget.hpp"
+#include "BibliographyBuilderWidget.hpp"
+#include "LanguageDetectorWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3618,6 +3623,101 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* quizAction = toolsMenu->addAction("Paper &Quiz");
+    connect(quizAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Quiz / Flashcards");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperQuizWidget();
+        connect(w, &PaperQuizWidget::quizCompleted, this, [](int total, int correct, int wrong) {
+            ToastWidget::showSuccess(QString("Quiz done: %1/%2 correct").arg(correct).arg(total));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* clipboardAction = toolsMenu->addAction("&Clipboard History");
+    connect(clipboardAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Clipboard History");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ClipboardHistoryWidget();
+        w->startMonitoring();
+        connect(w, &ClipboardHistoryWidget::entryPasted, this, [](int id) {
+            ToastWidget::showSuccess(QString("Entry #%1 pasted").arg(id));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* translatorAction = toolsMenu->addAction("&Translator");
+    connect(translatorAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Translator");
+        dlg->resize(800, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTranslatorWidget();
+        connect(w, &PaperTranslatorWidget::translationCompleted, this, [](const QString&, const QString& result) {
+            ToastWidget::showSuccess(QString("Translation: %1 chars").arg(result.length()));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* biblioAction = toolsMenu->addAction("&Bibliography Builder");
+    connect(biblioAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bibliography Builder");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new BibliographyBuilderWidget();
+        if (resultView_) {
+            for (const auto& p : resultView_->getPapers()) {
+                BibPaper bp;
+                bp.id = p.id;
+                bp.title = p.title;
+                bp.authors = p.authors.split(QRegularExpression("[,;]"), Qt::SkipEmptyParts);
+                bp.year = p.year;
+                bp.journal = p.journal;
+                bp.doi = p.doi;
+                bp.abstractText = p.abstractText;
+                w->addPaper(bp);
+            }
+        }
+        connect(w, &BibliographyBuilderWidget::bibliographyGenerated, this, [](const QString& fmt, int count) {
+            ToastWidget::showSuccess(QString("Generated %1 entries in %2").arg(count).arg(fmt));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* langdetectAction = toolsMenu->addAction("&Language Detector");
+    connect(langdetectAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Language Detector");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new LanguageDetectorWidget();
+        if (resultView_) {
+            QStringList texts;
+            for (const auto& p : resultView_->getPapers())
+                texts << p.title + "\n" + p.abstractText;
+            w->setBatchTexts(texts);
+        }
+        connect(w, &LanguageDetectorWidget::detectionCompleted, this, [](const LanguageResult& r) {
+            ToastWidget::showInfo(QString("Detected: %1 (%2%)").arg(r.language).arg(r.confidence * 100, 0, 'f', 0));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4038,6 +4138,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Data Visualization", "", "View", [this]() {
         ToastWidget::showInfo("Open Tools > Data Visualization");
+    });
+    commandPalette_->addAction("Paper Quiz", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Quiz");
+    });
+    commandPalette_->addAction("Clipboard History", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Clipboard History");
+    });
+    commandPalette_->addAction("Translator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Translator");
+    });
+    commandPalette_->addAction("Bibliography Builder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bibliography Builder");
+    });
+    commandPalette_->addAction("Language Detector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Language Detector");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

@@ -90,6 +90,11 @@ class BatchDownloadWidget;
 class ReadingTimerWidget;
 class PaperGraderWidget;
 class DataVisualizationWidget;
+class PaperQuizWidget;
+class ClipboardHistoryWidget;
+class PaperTranslatorWidget;
+class BibliographyBuilderWidget;
+class LanguageDetectorWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
