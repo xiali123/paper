@@ -82,6 +82,11 @@
 #include "KeyboardMacroWidget.hpp"
 #include "PluginLoaderWidget.hpp"
 #include "WidgetGallery.hpp"
+#include "PaperMindMapWidget.hpp"
+#include "BatchDownloadWidget.hpp"
+#include "ReadingTimerWidget.hpp"
+#include "PaperGraderWidget.hpp"
+#include "DataVisualizationWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -3520,6 +3525,99 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* mindmapAction = toolsMenu->addAction("Paper Mind &Map");
+    connect(mindmapAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Mind Map");
+        dlg->resize(900, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMindMapWidget();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers())
+                papers.append({p.id, p.title});
+            w->setPapers(papers);
+        }
+        connect(w, &PaperMindMapWidget::nodeDoubleClicked, this, [this](int paperId) {
+            onPaperSelected(paperId);
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* batchDlAction = toolsMenu->addAction("Batch &Download");
+    connect(batchDlAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Batch Download");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new BatchDownloadWidget();
+        if (resultView_) {
+            QList<QPair<QString, QString>> tasks;
+            for (const auto& p : resultView_->getPapers())
+                tasks.append({p.title, p.pdfUrl});
+            w->addTasks(tasks);
+        }
+        connect(w, &BatchDownloadWidget::downloadCompleted, this, [](int id, const QString& path) {
+            ToastWidget::showSuccess(QString("Downloaded #%1 → %2").arg(id).arg(path));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* timerAction = toolsMenu->addAction("Reading &Timer");
+    connect(timerAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Timer (Pomodoro)");
+        dlg->resize(400, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingTimerWidget();
+        connect(w, &ReadingTimerWidget::timerCompleted, this, [](int secs) {
+            ToastWidget::showSuccess(QString("Reading session done: %1 min").arg(secs / 60));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* graderAction = toolsMenu->addAction("Paper &Grader");
+    connect(graderAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Grader");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGraderWidget();
+        connect(w, &PaperGraderWidget::gradeSaved, this, [](int id, double score) {
+            ToastWidget::showSuccess(QString("Grade saved: #%1 → %2").arg(id).arg(score, 0, 'f', 1));
+        });
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* datavizAction = toolsMenu->addAction("Data &Visualization");
+    connect(datavizAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Data Visualization");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new DataVisualizationWidget();
+        if (resultView_) {
+            QMap<QString, double> yearData;
+            for (const auto& p : resultView_->getPapers()) {
+                QString year = QString::number(p.year);
+                yearData[year]++;
+            }
+            w->setBarData(yearData);
+            w->setTitle("Papers by Year");
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -3925,6 +4023,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Widget Gallery", "", "View", [this]() {
         ToastWidget::showInfo("Open Tools > Widget Gallery");
+    });
+    commandPalette_->addAction("Paper Mind Map", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Mind Map");
+    });
+    commandPalette_->addAction("Batch Download", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Batch Download");
+    });
+    commandPalette_->addAction("Reading Timer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Timer");
+    });
+    commandPalette_->addAction("Paper Grader", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Grader");
+    });
+    commandPalette_->addAction("Data Visualization", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Data Visualization");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

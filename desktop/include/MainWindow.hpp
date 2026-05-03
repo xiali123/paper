@@ -85,6 +85,11 @@ class ExportTemplateManager;
 class KeyboardMacroWidget;
 class PluginLoaderWidget;
 class WidgetGallery;
+class PaperMindMapWidget;
+class BatchDownloadWidget;
+class ReadingTimerWidget;
+class PaperGraderWidget;
+class DataVisualizationWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
