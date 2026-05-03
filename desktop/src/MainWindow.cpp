@@ -27,6 +27,11 @@
 #include "PaperCompareDialog.hpp"
 #include "RecentHistoryWidget.hpp"
 #include "BatchOperationsBar.hpp"
+#include "SystemTrayManager.hpp"
+#include "WelcomeWidget.hpp"
+#include "CitationGraphWidget.hpp"
+#include "PaperTimelineWidget.hpp"
+#include "ShortcutConfigDialog.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -2804,6 +2809,60 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addSeparator();
+
+    auto* shortcutAction = toolsMenu->addAction("Keyboard &Shortcuts");
+    connect(shortcutAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new ShortcutConfigDialog(this);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* timelineAction = toolsMenu->addAction("Paper &Timeline");
+    connect(timelineAction, &QAction::triggered, this, [this]() {
+        if (!resultView_) return;
+        auto papers = resultView_->getPapers();
+        if (papers.isEmpty()) {
+            ToastWidget::showWarning("No papers to display. Search first.");
+            return;
+        }
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Timeline");
+        dlg->resize(900, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* timeline = new PaperTimelineWidget();
+        timeline->setPapers(papers);
+        connect(timeline, &PaperTimelineWidget::paperClicked, this, [this](int paperId) {
+            apiManager_->getPaperDetails(paperId);
+        });
+        layout->addWidget(timeline);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* graphAction = toolsMenu->addAction("Citation &Graph");
+    connect(graphAction, &QAction::triggered, this, [this]() {
+        if (!resultView_) return;
+        auto papers = resultView_->getPapers();
+        if (papers.isEmpty()) {
+            ToastWidget::showWarning("No papers to display. Search first.");
+            return;
+        }
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Graph");
+        dlg->resize(900, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* graph = new CitationGraphWidget();
+        graph->setPapers(papers);
+        connect(graph, &CitationGraphWidget::paperClicked, this, [this, graph](int paperId) {
+            apiManager_->getPaperDetails(paperId);
+            graph->setFocusPaper(paperId);
+        });
+        layout->addWidget(graph);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -2950,6 +3009,21 @@ void MainWindow::connectSignals() {
         for (int id : ids) apiManager_->addPaperTags(id, tags);
         ToastWidget::showSuccess(QString("Added tags to %1 papers").arg(ids.size()));
         batchBar_->clearSelection();
+    });
+
+    // System tray
+    trayManager_ = new SystemTrayManager(this);
+    connect(trayManager_, &SystemTrayManager::showWindowRequested, this, [this]() {
+        showNormal();
+        activateWindow();
+    });
+    connect(trayManager_, &SystemTrayManager::searchRequested, this, [this](const QString& q) {
+        showNormal();
+        activateWindow();
+        onSearch(q);
+    });
+    connect(trayManager_, &SystemTrayManager::quitRequested, this, []() {
+        QApplication::quit();
     });
 
     if (resultView_) {
@@ -3808,10 +3882,10 @@ void MainWindow::onDatabaseError(const QString& error) {
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
-    if (trayIcon_ && trayIcon_->isVisible()) {
+    if (trayManager_ && QSystemTrayIcon::isSystemTrayAvailable()) {
         hide();
-        trayIcon_->showMessage("PaperCrawler", "Running in background. Double-click to restore.",
-                               QSystemTrayIcon::Information, 2000);
+        trayManager_->showNotification("PaperCrawler",
+            "Running in background. Double-click tray icon to restore.");
         event->ignore();
     } else {
         saveSettings();

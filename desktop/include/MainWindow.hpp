@@ -40,6 +40,8 @@ class AdvancedSearchDialog;
 class OfflineCacheManager;
 class RecentHistoryWidget;
 class BatchOperationsBar;
+class SystemTrayManager;
+class WelcomeWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -152,6 +154,8 @@ private:
     OfflineCacheManager* cacheManager_{nullptr};
     RecentHistoryWidget* recentHistory_{nullptr};
     BatchOperationsBar* batchBar_{nullptr};
+    SystemTrayManager* trayManager_{nullptr};
+    WelcomeWidget* welcomeWidget_{nullptr};
     int lastRunningCount_{0};
     QElapsedTimer healthTimer_;
 
