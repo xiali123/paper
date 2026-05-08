@@ -955,7 +955,152 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiApi] Registered 6 routes");
+    // GET /api/ai/models — 可用AI模型列表
+    router.get(prefix + "/models", [this](const HttpRequest& req) -> HttpResponse {
+        json result;
+        result["success"] = true;
+        result["models"] = json::array({
+            {{"id", "gpt-4"}, {"name", "GPT-4"}, {"provider", "openai"}, {"capabilities", json::array({"summarize", "chat", "keywords", "translate"})}},
+            {{"id", "claude-3"}, {"name", "Claude 3"}, {"provider", "anthropic"}, {"capabilities", json::array({"summarize", "chat", "review"})}},
+            {{"id", "local-llm"}, {"name", "Local LLM"}, {"provider", "local"}, {"capabilities", json::array({"summarize", "keywords"})}}
+        });
+        return HttpResponse::json(HTTP::OK, result.dump());
+    });
+
+    // GET /api/ai/history — AI操作历史
+    router.get(prefix + "/history", [this](const HttpRequest& req) -> HttpResponse {
+        json result;
+        result["success"] = true;
+        result["history"] = json::array();
+        result["total"] = 0;
+
+        if (database_) {
+            try {
+                auto res = database_->query(
+                    "SELECT id, session_id, role, content, created_at "
+                    "FROM ai_conversations ORDER BY created_at DESC LIMIT 20");
+                json arr = json::array();
+                for (auto& row : res) {
+                    json item;
+                    item["id"] = std::stoi(row["id"]);
+                    item["sessionId"] = row["session_id"];
+                    item["role"] = row["role"];
+                    item["content"] = row["content"];
+                    item["createdAt"] = row.count("created_at") ? row["created_at"] : "";
+                    arr.push_back(item);
+                }
+                result["history"] = arr;
+                result["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[AiApi] History query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, result.dump());
+    });
+
+    // GET /api/ai/costs — AI调用成本统计
+    router.get(prefix + "/costs", [this](const HttpRequest& req) -> HttpResponse {
+        json result;
+        result["success"] = true;
+        result["totalCost"] = 0.0;
+        result["monthlyCost"] = 0.0;
+        result["totalRequests"] = 0;
+
+        if (database_) {
+            try {
+                auto r1 = database_->query("SELECT COUNT(*) as cnt FROM ai_conversations WHERE role = 'assistant'");
+                if (!r1.empty()) result["totalRequests"] = std::stoi(r1[0]["cnt"]);
+                auto r2 = database_->query("SELECT COUNT(*) as cnt FROM ai_reviews");
+                if (!r2.empty()) result["totalReviews"] = std::stoi(r2[0]["cnt"]);
+                auto r3 = database_->query("SELECT COUNT(*) as cnt FROM ai_literature_reviews");
+                if (!r3.empty()) result["totalLiteratureReviews"] = std::stoi(r3[0]["cnt"]);
+            } catch (const std::exception& e) {
+                spdlog::warn("[AiApi] Costs query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, result.dump());
+    });
+
+    // POST /api/ai/translate — 论文翻译
+    router.post(prefix + "/translate", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = json::parse(req.body);
+            std::string text = body.value("text", "");
+            std::string sourceLang = body.value("source_lang", "en");
+            std::string targetLang = body.value("target_lang", "zh");
+
+            if (text.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    json{{"success", false}, {"error", "text is required"}}.dump());
+            }
+
+            text = ValidationHelper::sanitize(text);
+
+            json result;
+            result["success"] = true;
+            result["translatedText"] = "[Translation] " + text.substr(0, 200);
+            result["sourceLang"] = sourceLang;
+            result["targetLang"] = targetLang;
+            result["model"] = "mock";
+            return HttpResponse::json(HTTP::OK, result.dump());
+        } catch (const json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                json{{"success", false}, {"error", "Invalid JSON"}}.dump());
+        }
+    });
+
+    // GET /api/ai/queue — 任务队列状态
+    router.get(prefix + "/queue", [this](const HttpRequest& req) -> HttpResponse {
+        json result;
+        result["success"] = true;
+        result["activeJobs"] = 0;
+        result["pendingJobs"] = 0;
+        result["completedJobs"] = 0;
+        result["failedJobs"] = 0;
+        return HttpResponse::json(HTTP::OK, result.dump());
+    });
+
+    // POST /api/ai/batch-summarize — 批量摘要
+    router.post(prefix + "/batch-summarize", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = json::parse(req.body);
+            std::vector<int> paperIds;
+            if (body.contains("paper_ids") && body["paper_ids"].is_array()) {
+                for (const auto& id : body["paper_ids"]) {
+                    paperIds.push_back(id.get<int>());
+                }
+            }
+            if (paperIds.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    json{{"success", false}, {"error", "paper_ids array is required"}}.dump());
+            }
+
+            std::string language = body.value("language", "zh");
+            int maxLength = body.value("max_length", 200);
+
+            auto summaries = generateBatchSummaries(paperIds, language, maxLength);
+            json arr = json::array();
+            for (const auto& s : summaries) {
+                json item;
+                item["paperId"] = s.paperId;
+                item["summary"] = s.summary;
+                arr.push_back(item);
+            }
+
+            return HttpResponse::json(HTTP::OK,
+                json{{"success", true}, {"summaries", arr}, {"count", arr.size()}}.dump());
+        } catch (const json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                json{{"success", false}, {"error", "Invalid JSON"}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    spdlog::info("[AiApi] Registered 12 routes");
 }
 
 } // namespace PaperCrawler
