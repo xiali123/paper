@@ -616,17 +616,103 @@ void UserApiModule::registerRoutes() {
 
     // 用户权限更新
     router.put(prefix + "/:id/permissions", [this](const HttpRequest& req) -> HttpResponse {
-        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Permissions updated\"}");
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Permissions updated (no database)\"}");
+
+        try {
+            auto jsonOpt = JsonUtils::parse(req.body);
+            if (!jsonOpt) return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid JSON\"}");
+
+            int userId = std::stoi(idIt->second);
+            auto rolesArr = jsonOpt->value("roles", nlohmann::json::array());
+            for (auto& role : rolesArr) {
+                if (role.is_string()) {
+                    impl_->database_->execute(
+                        "INSERT IGNORE INTO user_roles (user_id, role_id) "
+                        "SELECT " + std::to_string(userId) + ", id FROM roles WHERE name = '" + role.get<std::string>() + "'");
+                }
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Permissions updated\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
     });
 
     // 批量用户操作
     router.post(prefix + "/batch", [this](const HttpRequest& req) -> HttpResponse {
-        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Batch operation completed\",\"results\":[]}");
+        auto jsonOpt = JsonUtils::parse(req.body);
+        if (!jsonOpt) return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid JSON\"}");
+
+        auto action = jsonOpt->value("action", "");
+        auto ids = jsonOpt->value("ids", nlohmann::json::array());
+        if (action.empty() || ids.empty())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing action or ids\"}");
+
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Batch operation completed (no database)\",\"affectedCount\":0}");
+
+        try {
+            std::string idList;
+            for (size_t i = 0; i < ids.size(); i++) {
+                if (i > 0) idList += ",";
+                idList += std::to_string(ids[i].get<int>());
+            }
+
+            int affected = 0;
+            if (action == "delete") {
+                impl_->database_->execute("DELETE FROM users WHERE id IN (" + idList + ")");
+                affected = static_cast<int>(ids.size());
+            } else if (action == "deactivate") {
+                impl_->database_->execute("UPDATE users SET is_active = 0 WHERE id IN (" + idList + ")");
+                affected = static_cast<int>(ids.size());
+            } else if (action == "activate") {
+                impl_->database_->execute("UPDATE users SET is_active = 1 WHERE id IN (" + idList + ")");
+                affected = static_cast<int>(ids.size());
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["action"] = action;
+            resp["affectedCount"] = affected;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
     });
 
     // 导出用户
     router.get(prefix + "/export", [this](const HttpRequest& req) -> HttpResponse {
-        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Export initiated\",\"downloadUrl\":\"/downloads/users.csv\"}");
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"users\":[],\"total\":0,\"format\":\"json\"}");
+
+        try {
+            auto results = impl_->database_->query(
+                "SELECT id, username, email, full_name, role, is_active as status, created_at FROM users ORDER BY id");
+
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                item["username"] = row.count("username") ? row.at("username") : "";
+                item["email"] = row.count("email") ? row.at("email") : "";
+                item["fullName"] = row.count("full_name") ? row.at("full_name") : "";
+                item["role"] = row.count("role") ? row.at("role") : "user";
+                item["status"] = row.count("status") ? row.at("status") : "active";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["users"] = arr;
+            resp["total"] = arr.size();
+            resp["format"] = "json";
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
     });
 
     // 用户通知
@@ -679,12 +765,51 @@ void UserApiModule::registerRoutes() {
         resp["emailNotifications"] = true;
         resp["paperRecommendations"] = true;
         resp["weeklyDigest"] = false;
+
+        if (impl_->database_) {
+            try {
+                int userId = std::stoi(idIt->second);
+                auto results = impl_->database_->query(
+                    "SELECT preference_key, preference_value FROM user_preferences WHERE user_id = " + std::to_string(userId));
+                for (auto& row : results) {
+                    std::string key = row.count("preference_key") ? row.at("preference_key") : "";
+                    std::string val = row.count("preference_value") ? row.at("preference_value") : "";
+                    if (val == "true") resp[key] = true;
+                    else if (val == "false") resp[key] = false;
+                    else resp[key] = val;
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Get preferences failed: {}", e.what());
+            }
+        }
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
     // 更新用户偏好
     router.put(prefix + "/:id/preferences", [this](const HttpRequest& req) -> HttpResponse {
-        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Preferences updated\"}");
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Preferences updated (no database)\"}");
+
+        try {
+            auto jsonOpt = JsonUtils::parse(req.body);
+            if (!jsonOpt) return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid JSON\"}");
+
+            int userId = std::stoi(idIt->second);
+            for (auto& [key, value] : jsonOpt->items()) {
+                std::string valStr = value.is_boolean() ? (value.get<bool>() ? "true" : "false") : value.get<std::string>();
+                impl_->database_->execute(
+                    "INSERT INTO user_preferences (user_id, preference_key, preference_value) "
+                    "VALUES (" + std::to_string(userId) + ", '" + key + "', '" + valStr + "') "
+                    "ON DUPLICATE KEY UPDATE preference_value = '" + valStr + "'");
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Preferences updated\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
     });
 
     spdlog::info("UserApiModule routes registered");
