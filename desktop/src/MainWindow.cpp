@@ -127,6 +127,11 @@
 #include "PaperConceptMap.hpp"
 #include "ReadingStreakTracker.hpp"
 #include "PaperExportBatch.hpp"
+#include "PaperSummarizerChain.hpp"
+#include "ResearchTrendAnalyzer.hpp"
+#include "PaperDuplicateDetector.hpp"
+#include "ReadingGoalTracker.hpp"
+#include "PaperKnowledgeBase.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4321,6 +4326,73 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* sumChainAction = toolsMenu->addAction("Summarizer &Chain");
+    connect(sumChainAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Summarizer Chain");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSummarizerChain();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* trendAction = toolsMenu->addAction("Research &Trends");
+    connect(trendAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Research Trend Analyzer");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ResearchTrendAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* dupAction = toolsMenu->addAction("&Duplicate Detector");
+    connect(dupAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Duplicate Detector");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDuplicateDetector();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers()) {
+                papers.append({p.id, p.title});
+            }
+            w->setPapers(papers);
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* goalAction = toolsMenu->addAction("Reading &Goals");
+    connect(goalAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Goal Tracker");
+        dlg->resize(600, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingGoalTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* kbAction = toolsMenu->addAction("Knowledge &Base");
+    connect(kbAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Knowledge Base");
+        dlg->resize(850, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKnowledgeBase();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4861,6 +4933,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Batch Export", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Batch Export");
+    });
+    commandPalette_->addAction("Summarizer Chain", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Summarizer Chain");
+    });
+    commandPalette_->addAction("Research Trends", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Research Trends");
+    });
+    commandPalette_->addAction("Duplicate Detector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Duplicate Detector");
+    });
+    commandPalette_->addAction("Reading Goals", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Goals");
+    });
+    commandPalette_->addAction("Knowledge Base", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Knowledge Base");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

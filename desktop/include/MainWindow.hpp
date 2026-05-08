@@ -130,6 +130,11 @@ class LiteratureMatrixWidget;
 class PaperConceptMap;
 class ReadingStreakTracker;
 class PaperExportBatch;
+class PaperSummarizerChain;
+class ResearchTrendAnalyzer;
+class PaperDuplicateDetector;
+class ReadingGoalTracker;
+class PaperKnowledgeBase;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
