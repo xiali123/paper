@@ -1,0 +1,5 @@
+file(GLOB PDF_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+add_library(pdf_lib OBJECT ${PDF_SOURCES})
+target_include_directories(pdf_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(pdf_lib PRIVATE ${CMAKE_SOURCE_DIR}/../core/include)
+target_include_directories(pdf_lib PRIVATE ${CMAKE_SOURCE_DIR}/../include)

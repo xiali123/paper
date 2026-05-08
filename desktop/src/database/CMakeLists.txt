@@ -1,0 +1,5 @@
+file(GLOB DATABASE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+add_library(database_lib OBJECT ${DATABASE_SOURCES})
+target_include_directories(database_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(database_lib PRIVATE ${CMAKE_SOURCE_DIR}/../core/include)
+target_include_directories(database_lib PRIVATE ${CMAKE_SOURCE_DIR}/../include)

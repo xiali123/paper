@@ -1,0 +1,5 @@
+file(GLOB LATEX_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+add_library(latex_lib OBJECT ${LATEX_SOURCES})
+target_include_directories(latex_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(latex_lib PRIVATE ${CMAKE_SOURCE_DIR}/../core/include)
+target_include_directories(latex_lib PRIVATE ${CMAKE_SOURCE_DIR}/../include)

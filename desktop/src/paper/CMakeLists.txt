@@ -1,0 +1,5 @@
+file(GLOB PAPER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+add_library(paper_lib OBJECT ${PAPER_SOURCES})
+target_include_directories(paper_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(paper_lib PRIVATE ${CMAKE_SOURCE_DIR}/../core/include)
+target_include_directories(paper_lib PRIVATE ${CMAKE_SOURCE_DIR}/../include)
