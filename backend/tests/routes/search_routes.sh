@@ -19,4 +19,7 @@ ROUTES=(
     "GET|/api/search/suggest?query=%E2%86%90%E2%86%92||200|Suggest with unicode chars"
     "GET|/api/search/export?query=test||200|Export search results"
     "GET|/api/search/export?query=test&format=csv||200|Export search as CSV"
+    "GET|/api/search/autocomplete?q=BERT||200|Autocomplete suggestions"
+    "POST|/api/search/filters|{\"name\":\"My Filter\"}|200|Save search filter"
+    "DELETE|/api/search/cache||200|Clear search cache"
 )

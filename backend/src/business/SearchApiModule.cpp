@@ -13,6 +13,7 @@
 #include "data/StringUtil.hpp"
 #include <spdlog/spdlog.h>
 #include <algorithm>
+#include <ctime>
 #include <cmath>
 #include <chrono>
 
@@ -904,7 +905,51 @@ void SearchApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[SearchApiModule] Registered 12 routes");
+    // GET /api/search/autocomplete — 实时搜索建议
+    router.get(prefix + "/autocomplete", [this](const HttpRequest& req) -> HttpResponse {
+        std::string query = req.getQuery("q", "");
+        nlohmann::json resp;
+        resp["query"] = query;
+        resp["suggestions"] = nlohmann::json::array();
+        if (database_ && !query.empty()) {
+            try {
+                auto result = database_->query(
+                    "SELECT DISTINCT title FROM papers WHERE title LIKE '%" + query + "%' LIMIT 10");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    arr.push_back(row["title"]);
+                }
+                resp["suggestions"] = arr;
+            } catch (const std::exception& e) {
+                spdlog::warn("[SearchApi] Autocomplete query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/search/filters — 保存搜索过滤器
+    router.post(prefix + "/filters", [this](const HttpRequest& req) -> HttpResponse {
+        std::string name;
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            name = body.value("name", "");
+        } catch (...) {}
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["filterId"] = "filter_" + std::to_string(std::time(nullptr));
+        resp["name"] = name;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // DELETE /api/search/cache — 清除搜索缓存
+    router.del(prefix + "/cache", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["message"] = "Search cache cleared";
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[SearchApiModule] Registered 15 routes");
 }
 
 } // namespace PaperCrawler

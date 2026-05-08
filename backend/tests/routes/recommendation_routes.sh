@@ -12,4 +12,7 @@ ROUTES=(
     "GET|/api/recommendations/stats||200|Get recommendation stats"
     "POST|/api/recommendations/feedback|{\"paperId\":1,\"rating\":5}|200,400|Submit recommendation feedback"
     "GET|/api/recommendations/profile/1||200|User recommendation profile"
+    "GET|/api/recommendations/collaborators/1||200|Get collaborator recommendations"
+    "POST|/api/recommendations/batch|{\"paper_ids\":[1,2],\"limit\":5}|200|Batch recommendations"
+    "GET|/api/recommendations/feedback/history/1||200|Get feedback history"
 )

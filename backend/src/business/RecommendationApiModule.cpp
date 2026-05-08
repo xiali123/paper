@@ -1826,7 +1826,118 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 8 routes");
+    // GET /recommendations/collaborators/:userId — 协作者推荐
+    router.get(prefix + "/collaborators/:userId", [this](const HttpRequest& req) -> HttpResponse {
+        auto userIdIt = req.pathParams.find("userId");
+        if (userIdIt == req.pathParams.end())
+            return HttpResponse::json(400, "{\"error\":\"Missing userId\"}");
+        int userId = std::stoi(userIdIt->second);
+        nlohmann::json resp;
+        resp["userId"] = userId;
+        resp["collaborators"] = nlohmann::json::array();
+        resp["total"] = 0;
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT DISTINCT u.id, u.username FROM users u "
+                    "JOIN collaboration_sessions cs ON (cs.created_by = u.id OR cs.created_by = " +
+                    std::to_string(userId) + ") "
+                    "WHERE u.id != " + std::to_string(userId) + " LIMIT 10");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["userId"] = std::stoi(row["id"]);
+                    item["username"] = row["username"];
+                    arr.push_back(item);
+                }
+                resp["collaborators"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[Recommendation] Collaborators query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(200, resp.dump());
+    });
+
+    // POST /recommendations/batch — 批量推荐
+    router.post(prefix + "/batch", [this](const HttpRequest& req) -> HttpResponse {
+        std::vector<int> paperIds;
+        int limit = 5;
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            if (body.contains("paper_ids") && body["paper_ids"].is_array()) {
+                for (auto& id : body["paper_ids"]) paperIds.push_back(id.get<int>());
+            }
+            limit = body.value("limit", 5);
+        } catch (...) {}
+        nlohmann::json resp;
+        resp["recommendations"] = nlohmann::json::array();
+        resp["total"] = 0;
+        resp["inputCount"] = paperIds.size();
+        if (database_ && !paperIds.empty()) {
+            try {
+                std::string ids;
+                for (size_t i = 0; i < paperIds.size(); i++) {
+                    if (i > 0) ids += ",";
+                    ids += std::to_string(paperIds[i]);
+                }
+                auto result = database_->query(
+                    "SELECT id, title, keywords, journal FROM papers "
+                    "WHERE id NOT IN (" + ids + ") "
+                    "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row["id"]);
+                    item["title"] = row["title"];
+                    item["keywords"] = row.count("keywords") ? row["keywords"] : "";
+                    item["journal"] = row.count("journal") ? row["journal"] : "";
+                    arr.push_back(item);
+                }
+                resp["recommendations"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[Recommendation] Batch query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(200, resp.dump());
+    });
+
+    // GET /recommendations/feedback/history/:userId — 反馈历史
+    router.get(prefix + "/feedback/history/:userId", [this](const HttpRequest& req) -> HttpResponse {
+        auto userIdIt = req.pathParams.find("userId");
+        if (userIdIt == req.pathParams.end())
+            return HttpResponse::json(400, "{\"error\":\"Missing userId\"}");
+        int userId = std::stoi(userIdIt->second);
+        nlohmann::json resp;
+        resp["userId"] = userId;
+        resp["feedback"] = nlohmann::json::array();
+        resp["total"] = 0;
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT rf.paper_id, rf.rating, rf.created_at "
+                    "FROM recommendation_feedback rf "
+                    "WHERE rf.user_id = " + std::to_string(userId) +
+                    " ORDER BY rf.created_at DESC LIMIT 50");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["paperId"] = std::stoi(row["paper_id"]);
+                    item["rating"] = std::stoi(row["rating"]);
+                    item["createdAt"] = row.count("created_at") ? row["created_at"] : "";
+                    arr.push_back(item);
+                }
+                resp["feedback"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[Recommendation] Feedback history query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(200, resp.dump());
+    });
+
+    spdlog::info("[Recommendation] Registered 11 routes");
 }
 
 } // namespace PaperCrawler
