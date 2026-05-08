@@ -20,4 +20,6 @@ ROUTES=(
     "POST|/api/auth/register|{\"username\":\"weak\",\"password\":\"123\",\"email\":\"w@w.com\"}|400|Register with weak password"
     "POST|/api/auth/login|{\"username\":\"nonexistent_user_xyz\",\"password\":\"wrong\"}|401|Login with non-existent user"
     "POST|/api/auth/register|{\"username\":\"testuser\",\"password\":\"Pass1234\",\"email\":\"test@test.com\"}|200,201,409|Register duplicate user"
+    "GET|/api/auth/profile||200,401|Get user profile (no auth=401)"
+    "PUT|/api/auth/profile|{\"full_name\":\"Test User\"}|200,401|Update profile (no auth=401)"
 )

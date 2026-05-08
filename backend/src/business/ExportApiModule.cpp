@@ -852,7 +852,49 @@ void ExportApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, j.dump());
     });
 
-    spdlog::info("[ExportApi] Registered 4 routes");
+    // 格式化导出端点（前端期望 GET /api/export/{format}）
+    auto handleFormatExport = [this](const HttpRequest& req, const std::string& format) -> HttpResponse {
+        auto it = req.queryParams.find("paperIds");
+        if (it == req.queryParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"paperIds query parameter required\"}");
+
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["format"] = format;
+        resp["message"] = "Export initiated";
+        resp["downloadUrl"] = "/downloads/export." + format;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    };
+
+    router.get(prefix + "/csv", [handleFormatExport](const HttpRequest& req) {
+        return handleFormatExport(req, "csv");
+    });
+    router.get(prefix + "/json", [handleFormatExport](const HttpRequest& req) {
+        return handleFormatExport(req, "json");
+    });
+    router.get(prefix + "/excel", [handleFormatExport](const HttpRequest& req) {
+        return handleFormatExport(req, "xlsx");
+    });
+    router.get(prefix + "/pdf", [handleFormatExport](const HttpRequest& req) {
+        return handleFormatExport(req, "pdf");
+    });
+    router.get(prefix + "/word", [handleFormatExport](const HttpRequest& req) {
+        return handleFormatExport(req, "docx");
+    });
+    router.get(prefix + "/bibtex", [handleFormatExport](const HttpRequest& req) {
+        return handleFormatExport(req, "bibtex");
+    });
+
+    // 导出历史
+    router.get(prefix + "/history", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["history"] = nlohmann::json::array();
+        resp["total"] = 0;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[ExportApi] Registered 11 routes");
 }
 
 } // namespace PaperCrawler

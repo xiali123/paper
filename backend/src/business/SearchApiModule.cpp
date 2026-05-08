@@ -705,7 +705,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search - 基础搜索
     router.get(prefix, [this](const HttpRequest& req) {
         auto queryIt = req.queryParams.find("q");
-        std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
+        std::string query = queryIt != req.queryParams.end() ? ValidationHelper::sanitize(queryIt->second) : "";
 
         int page = 1, limit = 20;
         auto pageIt = req.queryParams.find("page");
@@ -747,7 +747,7 @@ void SearchApiModule::registerRoutes() {
     // GET /api/search/suggest - 搜索建议
     router.get(prefix + "/suggest", [this](const HttpRequest& req) {
         auto queryIt = req.queryParams.find("q");
-        std::string query = queryIt != req.queryParams.end() ? queryIt->second : "";
+        std::string query = queryIt != req.queryParams.end() ? ValidationHelper::sanitize(queryIt->second) : "";
         int limit = 10;
         auto limitIt = req.queryParams.find("limit");
         if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);

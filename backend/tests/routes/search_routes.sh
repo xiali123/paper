@@ -17,4 +17,6 @@ ROUTES=(
     "DELETE|/api/search/saved/1||200,401,404|Delete saved search"
     "GET|/api/search?query=||200|Search with empty query"
     "GET|/api/search/suggest?query=%E2%86%90%E2%86%92||200|Suggest with unicode chars"
+    "GET|/api/search/export?query=test||200|Export search results"
+    "GET|/api/search/export?query=test&format=csv||200|Export search as CSV"
 )

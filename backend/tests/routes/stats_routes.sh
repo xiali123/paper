@@ -11,4 +11,5 @@ ROUTES=(
     "GET|/api/stats/uptime||200|Uptime stats"
     "GET|/api/stats/modules||200|Module stats"
     "GET|/api/stats/performance||200|Performance stats"
+    "GET|/api/stats/all||200|Aggregated all stats"
 )
