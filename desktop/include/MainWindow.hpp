@@ -145,6 +145,11 @@ class ReadingSpeedAnalyzer;
 class PaperCitationCounter;
 class PaperKeywordExtractor;
 class ReadingPlanWidget;
+class PaperCollaborationBoard;
+class ResearchNoteWidget;
+class PaperFeedbackCollector;
+class LiteratureTimelineWidget;
+class PaperTagCloudWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

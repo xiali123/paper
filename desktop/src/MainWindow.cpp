@@ -142,6 +142,11 @@
 #include "PaperCitationCounter.hpp"
 #include "PaperKeywordExtractor.hpp"
 #include "ReadingPlanWidget.hpp"
+#include "PaperCollaborationBoard.hpp"
+#include "ResearchNoteWidget.hpp"
+#include "PaperFeedbackCollector.hpp"
+#include "LiteratureTimelineWidget.hpp"
+#include "PaperTagCloudWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4523,6 +4528,66 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* collabBoardAction = toolsMenu->addAction("&Collaboration Board");
+    connect(collabBoardAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Collaboration Board");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCollaborationBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* researchNoteAction = toolsMenu->addAction("&Research Notes");
+    connect(researchNoteAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Research Notes");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ResearchNoteWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* feedbackCollectorAction = toolsMenu->addAction("&Feedback Collector");
+    connect(feedbackCollectorAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Feedback Collector");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFeedbackCollector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* litTimelineAction = toolsMenu->addAction("&Literature Timeline");
+    connect(litTimelineAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Literature Timeline");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new LiteratureTimelineWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* tagCloudAction = toolsMenu->addAction("&Tag Cloud");
+    connect(tagCloudAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Tag Cloud");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTagCloudWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5108,6 +5173,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Reading Plan", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Plan");
+    });
+    commandPalette_->addAction("Collaboration Board", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Collaboration Board");
+    });
+    commandPalette_->addAction("Research Notes", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Research Notes");
+    });
+    commandPalette_->addAction("Feedback Collector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Feedback Collector");
+    });
+    commandPalette_->addAction("Literature Timeline", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Literature Timeline");
+    });
+    commandPalette_->addAction("Tag Cloud", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Tag Cloud");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
