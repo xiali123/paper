@@ -120,6 +120,11 @@ class CitationNetworkVisualizer;
 class PaperBookmarkSync;
 class ReadingProgressDashboard;
 class PaperRatingChart;
+class PaperWorkflowAutomator;
+class CitationGraphExplorer;
+class PaperInsightExtractor;
+class ReadingJournalWidget;
+class PaperCrossReference;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

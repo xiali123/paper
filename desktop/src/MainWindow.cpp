@@ -117,6 +117,11 @@
 #include "PaperBookmarkSync.hpp"
 #include "ReadingProgressDashboard.hpp"
 #include "PaperRatingChart.hpp"
+#include "PaperWorkflowAutomator.hpp"
+#include "CitationGraphExplorer.hpp"
+#include "PaperInsightExtractor.hpp"
+#include "ReadingJournalWidget.hpp"
+#include "PaperCrossReference.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4162,6 +4167,80 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* workflowAction = toolsMenu->addAction("&Workflow Automator");
+    connect(workflowAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Workflow Automator");
+        dlg->resize(800, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWorkflowAutomator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* citeGraphAction = toolsMenu->addAction("Citation &Graph Explorer");
+    connect(citeGraphAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Graph Explorer");
+        dlg->resize(900, 650);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new CitationGraphExplorer();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers()) {
+                papers.append({p.id, p.title});
+            }
+            w->loadFromPapers(papers);
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* insightAction = toolsMenu->addAction("Paper &Insights");
+    connect(insightAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Insight Extractor");
+        dlg->resize(850, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperInsightExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* journalAction = toolsMenu->addAction("Reading &Journal");
+    connect(journalAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Journal");
+        dlg->resize(800, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingJournalWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* crossRefAction = toolsMenu->addAction("Cross-&References");
+    connect(crossRefAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Cross-Reference");
+        dlg->resize(800, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCrossReference();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers()) {
+                papers.append({p.id, p.title});
+            }
+            w->setPapers(papers);
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4672,6 +4751,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Paper Ratings", "", "View", [this]() {
         ToastWidget::showInfo("Open Tools > Paper Ratings");
+    });
+    commandPalette_->addAction("Workflow Automator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Workflow Automator");
+    });
+    commandPalette_->addAction("Graph Explorer", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Graph Explorer");
+    });
+    commandPalette_->addAction("Paper Insights", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Insights");
+    });
+    commandPalette_->addAction("Reading Journal", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Journal");
+    });
+    commandPalette_->addAction("Cross-References", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cross-References");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
