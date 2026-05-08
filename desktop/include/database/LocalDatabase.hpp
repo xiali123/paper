@@ -8,7 +8,7 @@
 #include <QDateTime>
 #include <QMutex>
 #include <QReadWriteLock>
-#include "PaperTypes.hpp"
+#include "core/PaperTypes.hpp"
 
 struct DbPaper {
     int id{-1};
