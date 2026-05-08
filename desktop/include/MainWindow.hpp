@@ -140,6 +140,11 @@ class SearchHistoryAnalyzer;
 class PaperCitationStyleEditor;
 class ReadingSessionLog;
 class PaperFigureExtractor;
+class PaperTopicModeler;
+class ReadingSpeedAnalyzer;
+class PaperCitationCounter;
+class PaperKeywordExtractor;
+class ReadingPlanWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

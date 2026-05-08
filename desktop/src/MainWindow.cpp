@@ -137,6 +137,11 @@
 #include "PaperCitationStyleEditor.hpp"
 #include "ReadingSessionLog.hpp"
 #include "PaperFigureExtractor.hpp"
+#include "PaperTopicModeler.hpp"
+#include "ReadingSpeedAnalyzer.hpp"
+#include "PaperCitationCounter.hpp"
+#include "PaperKeywordExtractor.hpp"
+#include "ReadingPlanWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4458,6 +4463,66 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* topicModelerAction = toolsMenu->addAction("&Topic Modeler");
+    connect(topicModelerAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Topic Modeler");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicModeler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* speedAnalyzerAction = toolsMenu->addAction("&Reading Speed Analyzer");
+    connect(speedAnalyzerAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Speed Analyzer");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingSpeedAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* citationCounterAction = toolsMenu->addAction("&Citation Counter");
+    connect(citationCounterAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Citation Counter");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationCounter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* keywordExtractorAction = toolsMenu->addAction("&Keyword Extractor");
+    connect(keywordExtractorAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Keyword Extractor");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKeywordExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* readingPlanAction = toolsMenu->addAction("&Reading Plan");
+    connect(readingPlanAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Plan");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingPlanWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5028,6 +5093,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Figure Extractor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Figure Extractor");
+    });
+    commandPalette_->addAction("Topic Modeler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Modeler");
+    });
+    commandPalette_->addAction("Reading Speed Analyzer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Speed Analyzer");
+    });
+    commandPalette_->addAction("Citation Counter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Counter");
+    });
+    commandPalette_->addAction("Keyword Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Keyword Extractor");
+    });
+    commandPalette_->addAction("Reading Plan", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Plan");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
