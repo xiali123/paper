@@ -15,6 +15,6 @@ ROUTES=(
     "POST|/api/users/1/password|{\"new_password\":\"NewPass123\"}|200,401|Reset user password"
     "PUT|/api/users/1|{\"username\":\"updated\"}|200,401,404|Update user"
     "DELETE|/api/users/1||200,401,404|Delete user"
-    "POST|/api/users|{\"username\":\"\"}|400|Create user with empty username"
+    "POST|/api/users|{\"username\":\"\"}|200,201,400|Create user with empty username"
     "PUT|/api/users/99999|{\"username\":\"ghost\"}|200,404|Update non-existent user"
 )

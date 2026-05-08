@@ -262,22 +262,17 @@ std::string AiCoPilotModule::handleGenerateReview(const std::string& body) {
     nlohmann::json inner;
     inner["reviewScore"] = result.reviewScore;
     inner["acceptanceProbability"] = result.acceptanceProbability;
-    inner["methodologyScore"] = result.methodologyScore;
-    inner["innovationScore"] = result.innovationScore;
-    inner["presentationScore"] = result.presentationScore;
     inner["strengths"] = result.strengths;
     inner["weaknesses"] = result.weaknesses;
+    inner["improvements"] = result.improvements;
+    inner["reviewerComments"] = result.reviewerComments;
 
     nlohmann::json data;
     data["id"] = result.paperId;
     data["type"] = "review";
     data["title"] = "AI-Generated Paper Review";
-    data["description"] = result.targetJournal + "审稿报告";
     data["status"] = "completed";
-    data["timestamp"] = formatTimestamp(result.reviewedAt);
-    data["duration"] = result.generationTimeMs / 1000;
-    data["cost"] = result.estimatedCost;
-    data["tokenCount"] = result.tokenCount;
+    data["cost"] = result.costUsd;
     data["data"] = inner;
 
     nlohmann::json response;
@@ -321,20 +316,16 @@ std::vector<AIReviewResult> AiCoPilotModule::getReviewHistory(int userId, int pa
     // 生成mock历史记录
     for (int i = 0; i < 5; ++i) {
         AIReviewResult result;
+        result.success = true;
         result.paperId = 1000 + i;
-        result.paperTitle = "Deep Learning for Computer Vision Applications " + std::to_string(i + 1);
-        result.targetJournal = "Nature";
         result.reviewScore = 7 + (i % 3);
-        result.acceptanceProbability = 0.6 + (i * 0.1);
-        result.methodologyScore = 7 + (i % 3);
-        result.innovationScore = 8 + (i % 2);
-        result.presentationScore = 8 + (i % 2);
+        result.acceptanceProbability = 0.6f + (i * 0.1f);
         result.strengths = {"Novel approach", "Good methodology", "Strong experimental results"};
         result.weaknesses = {"Limited experiments", "Missing comparison"};
+        result.improvements = {"Add more comparison experiments"};
+        result.reviewerComments = "Overall good paper with room for improvement";
+        result.costUsd = 0.0075;
         result.reviewedAt = std::chrono::system_clock::now() - std::chrono::hours(i * 24);
-        result.generationTimeMs = 15000 + (i * 1000);
-        result.estimatedCost = 0.0075;
-        result.tokenCount = 2500;
 
         history.push_back(result);
     }

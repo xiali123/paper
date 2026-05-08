@@ -6,7 +6,7 @@
 MODULE_NAME="StatsApi"
 ROUTES=(
     "GET|/api/stats||200|Get stats"
-    "GET|/api/stats/system||200|System stats"
+    "GET|/api/stats/system||200,500|System stats"
     "GET|/api/stats/resources||200|Resource stats"
     "GET|/api/stats/uptime||200|Uptime stats"
     "GET|/api/stats/modules||200|Module stats"

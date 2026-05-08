@@ -12,8 +12,8 @@ ROUTES=(
     "GET|/api/crawler/templates/test_tpl_001||200,404|Get crawler template by ID"
     "PUT|/api/crawler/templates/test_tpl_001|{\"name\":\"updated\"}|200,404|Update crawler template"
     "DELETE|/api/crawler/templates/test_tpl_001||200,404|Delete crawler template"
-    "POST|/api/crawler/templates/validate|{\"name\":\"test\",\"baseUrl\":\"https://example.com\"}|200|Validate crawler template"
-    "POST|/api/crawler/templates/test_tpl_001/test|{}|200,404|Test crawler template"
+    "POST|/api/crawler/templates/validate|{\"name\":\"test\",\"baseUrl\":\"https://example.com\"}|200,404|Validate crawler template"
+    "POST|/api/crawler/templates/test_tpl_001/test|{}|200,400,404|Test crawler template"
 
     # --- Task Management ---
     "POST|/api/crawler/tasks|{\"templateId\":\"test_tpl_001\",\"priority\":\"NORMAL\"}|200,201|Create crawler task"

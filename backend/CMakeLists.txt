@@ -985,6 +985,11 @@ add_dynamic_module_with_system(RecommendationApiModule
     src/business/RecommendationApiModule.cpp
 )
 
+# 阶段8b：AiCoPilotModule动态化
+add_dynamic_module_with_system(AiCoPilotModule
+    src/business/AiCoPilotModule.cpp
+)
+
 # 阶段10：CollaborativeWritingModule动态化（NEW - 2026-04-06）
 add_dynamic_module_with_system(CollaborativeWritingModule
     src/business/CollaborativeWritingModule.cpp

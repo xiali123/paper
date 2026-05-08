@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/EventBusModule.hpp"
+#include "core/EventBusModule.hpp"
 #include <functional>
 #include <map>
 #include <string>

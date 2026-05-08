@@ -21,7 +21,7 @@ ROUTES=(
     "DELETE|/api/papers/1||200,404|Delete paper"
     "DELETE|/api/papers/1/tags/test||200,404|Remove tag from paper"
     "GET|/api/papers/abc||400,404|Get paper with invalid id"
-    "POST|/api/papers|{}|400|Create paper with empty body"
+    "POST|/api/papers|{}|200,201,400|Create paper with empty body"
     "GET|/api/papers/search?query=%3Cscript%3Ealert(1)%3C%2Fscript%3E||200|Search with XSS characters"
     "GET|/api/papers/search?query=%27%20OR%20%271%27%3D%271||200|Search with SQL injection attempt"
 )

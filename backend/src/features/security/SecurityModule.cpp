@@ -57,7 +57,7 @@ static std::vector<unsigned char> base64_decode(const std::string& encoded_strin
         valb += 6;
 
         if (valb >= 0) {
-            result.push_back((val >> (valb - 8)) & 0xFF);
+            result.push_back(static_cast<unsigned char>((val >> valb) & 0xFF));
             valb -= 8;
         }
     }
@@ -272,13 +272,12 @@ public:
     }
 
     bool verifyPassword(const std::string& password, const std::string& storedHash) {
-        // Parse stored hash: $pbkdf2-sha256$iterations$salt$hash
         if (storedHash.find("$pbkdf2-sha256$") != 0) {
             spdlog::error("[Security] Unknown hash format");
             return false;
         }
 
-        std::istringstream ss(storedHash.substr(15)); // skip "$pbkdf2-sha256$"
+        std::istringstream ss(storedHash.substr(15));
         std::string iterStr, saltB64, hashB64;
         if (!std::getline(ss, iterStr, '$') ||
             !std::getline(ss, saltB64, '$') ||
@@ -292,12 +291,10 @@ public:
         auto storedHashBytes = base64_decode(hashB64);
 
         if (salt.empty() || storedHashBytes.empty()) {
-            spdlog::error("[Security] Failed to decode salt or hash: saltB64='{}' hashB64='{}'", saltB64, hashB64);
             spdlog::error("[Security] Failed to decode salt or hash");
             return false;
         }
 
-        // Derive with same parameters
         std::vector<unsigned char> derived(storedHashBytes.size());
         if (PKCS5_PBKDF2_HMAC(password.c_str(), password.size(),
                                salt.data(), salt.size(),
@@ -307,14 +304,8 @@ public:
             return false;
         }
 
-        // Constant-time comparison
         bool match = (derived.size() == storedHashBytes.size()) &&
                      CRYPTO_memcmp(derived.data(), storedHashBytes.data(), derived.size()) == 0;
-
-        if (!match) {
-            spdlog::error("[Security] Hash mismatch for input hash='{}' saltB64='{}' hashB64='{}' iter={} derived_size={} stored_size={}",
-                          storedHash, saltB64, hashB64, iterations, derived.size(), storedHashBytes.size());
-        }
 
         if (match) {
             stats_.totalPasswordsVerified++;

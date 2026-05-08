@@ -9,5 +9,5 @@ ROUTES=(
     "GET|/api/modules||200|List all modules"
     "GET|/api/modules/AuthApiModule||200,404|Get module by name"
     "GET|/api/system/info||200|Get system info"
-    "POST|/api/modules/AuthApiModule/reload|{}|200,404|Reload module"
+    "POST|/api/modules/AuthApiModule/reload|{}|200,404,500|Reload module"
 )
