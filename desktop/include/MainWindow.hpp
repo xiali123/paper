@@ -135,6 +135,11 @@ class ResearchTrendAnalyzer;
 class PaperDuplicateDetector;
 class ReadingGoalTracker;
 class PaperKnowledgeBase;
+class PaperReferenceExtractor;
+class SearchHistoryAnalyzer;
+class PaperCitationStyleEditor;
+class ReadingSessionLog;
+class PaperFigureExtractor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

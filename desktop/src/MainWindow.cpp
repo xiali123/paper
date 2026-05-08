@@ -132,6 +132,11 @@
 #include "PaperDuplicateDetector.hpp"
 #include "ReadingGoalTracker.hpp"
 #include "PaperKnowledgeBase.hpp"
+#include "PaperReferenceExtractor.hpp"
+#include "SearchHistoryAnalyzer.hpp"
+#include "PaperCitationStyleEditor.hpp"
+#include "ReadingSessionLog.hpp"
+#include "PaperFigureExtractor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4393,6 +4398,66 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* refExtractAction = toolsMenu->addAction("Reference &Extractor");
+    connect(refExtractAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Reference Extractor");
+        dlg->resize(900, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReferenceExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* searchHistAction = toolsMenu->addAction("Search &History Analysis");
+    connect(searchHistAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Search History Analyzer");
+        dlg->resize(650, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new SearchHistoryAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* citeStyleAction = toolsMenu->addAction("Citation &Style Editor");
+    connect(citeStyleAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Style Editor");
+        dlg->resize(800, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationStyleEditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* sessionLogAction = toolsMenu->addAction("Session &Log");
+    connect(sessionLogAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Session Log");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingSessionLog();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* figureAction = toolsMenu->addAction("&Figure Extractor");
+    connect(figureAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Figure Extractor");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFigureExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4948,6 +5013,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Knowledge Base", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Knowledge Base");
+    });
+    commandPalette_->addAction("Reference Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reference Extractor");
+    });
+    commandPalette_->addAction("Search History", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Search History Analysis");
+    });
+    commandPalette_->addAction("Citation Style", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Style Editor");
+    });
+    commandPalette_->addAction("Session Log", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Session Log");
+    });
+    commandPalette_->addAction("Figure Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Figure Extractor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
