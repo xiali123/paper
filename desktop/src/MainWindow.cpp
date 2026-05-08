@@ -107,6 +107,11 @@
 #include "PaperComparisonSlider.hpp"
 #include "NotificationRuleEditor.hpp"
 #include "PaperTimelineBuilder.hpp"
+#include "PaperCommentWidget.hpp"
+#include "PaperShareWidget.hpp"
+#include "PaperEmbeddingWidget.hpp"
+#include "ReadingSchedulerWidget.hpp"
+#include "PaperTemplateLibrary.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4012,6 +4017,79 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* commentAction = toolsMenu->addAction("Paper &Comments");
+    connect(commentAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Comments");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCommentWidget();
+        if (resultView_) {
+            for (const auto& p : resultView_->getPapers()) {
+                (void)p;
+            }
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* shareAction = toolsMenu->addAction("Paper &Share");
+    connect(shareAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Share");
+        dlg->resize(600, 450);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperShareWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* embedAction = toolsMenu->addAction("Paper &Embeddings");
+    connect(embedAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Embedding Visualization");
+        dlg->resize(800, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEmbeddingWidget();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers()) {
+                papers.append({p.id, p.title});
+            }
+            w->setPapers(papers);
+            w->computeRandomEmbeddings();
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* schedulerAction = toolsMenu->addAction("Reading &Scheduler");
+    connect(schedulerAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Scheduler");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingSchedulerWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* templateLibAction = toolsMenu->addAction("Paper &Templates");
+    connect(templateLibAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Template Library");
+        dlg->resize(800, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTemplateLibrary();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4492,6 +4570,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Paper Timeline", "", "View", [this]() {
         ToastWidget::showInfo("Open Tools > Paper Timeline");
+    });
+    commandPalette_->addAction("Paper Comments", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Comments");
+    });
+    commandPalette_->addAction("Paper Share", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Share");
+    });
+    commandPalette_->addAction("Embedding View", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Embeddings");
+    });
+    commandPalette_->addAction("Reading Scheduler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Scheduler");
+    });
+    commandPalette_->addAction("Paper Templates", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Templates");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

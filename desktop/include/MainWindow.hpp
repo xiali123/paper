@@ -110,6 +110,11 @@ class PdfBookmarkWidget;
 class PaperComparisonSlider;
 class NotificationRuleEditor;
 class PaperTimelineBuilder;
+class PaperCommentWidget;
+class PaperShareWidget;
+class PaperEmbeddingWidget;
+class ReadingSchedulerWidget;
+class PaperTemplateLibrary;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
