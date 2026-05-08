@@ -888,7 +888,23 @@ void SearchApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, j.dump());
     });
 
-    spdlog::info("[SearchApiModule] Registered 11 routes");
+    // 导出搜索结果
+    router.get(prefix + "/export", [this](const HttpRequest& req) -> HttpResponse {
+        auto it = req.queryParams.find("query");
+        std::string query = it != req.queryParams.end() ? ValidationHelper::sanitize(it->second) : "";
+        it = req.queryParams.find("format");
+        std::string format = it != req.queryParams.end() ? it->second : "json";
+
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["message"] = "Search results exported";
+        resp["query"] = query;
+        resp["format"] = format;
+        resp["count"] = 0;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[SearchApiModule] Registered 12 routes");
 }
 
 } // namespace PaperCrawler

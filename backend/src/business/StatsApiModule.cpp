@@ -524,7 +524,21 @@ void StatsApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, handlePerformance());
     });
 
-    spdlog::info("[StatsApi] Registered 6 routes");
+    // 聚合所有统计
+    router.get(prefix + "/all", [this](const HttpRequest& req) {
+        nlohmann::json resp;
+        try {
+            resp["stats"] = nlohmann::json::parse(handleStats());
+            resp["system"] = nlohmann::json::parse(handleSystemInfo());
+            resp["resources"] = nlohmann::json::parse(handleResources());
+            resp["modules"] = nlohmann::json::parse(handleModules());
+        } catch (...) {
+            resp["error"] = "Partial data unavailable";
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[StatsApi] Registered 7 routes");
 }
 
 std::string StatsApiModule::handleStats() {

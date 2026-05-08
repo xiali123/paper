@@ -104,6 +104,31 @@ public:
     }
 
     /**
+     * @brief 批量获取论文信息（解决N+1查询）
+     */
+    std::map<int, std::map<std::string, std::string>> fetchPapersBatch(const std::vector<int>& paperIds) {
+        std::map<int, std::map<std::string, std::string>> result;
+        if (!database_ || paperIds.empty()) return result;
+
+        std::ostringstream sql;
+        sql << "SELECT id, title, authors, abstract, category, keywords, "
+            << "citation_count, publication_year FROM papers WHERE id IN (";
+        for (size_t i = 0; i < paperIds.size(); ++i) {
+            sql << (i > 0 ? "," : "") << paperIds[i];
+        }
+        sql << ")";
+
+        auto rows = database_->query(sql.str());
+        for (auto& row : rows) {
+            auto it = row.find("id");
+            if (it != row.end()) {
+                result[std::stoi(it->second)] = row;
+            }
+        }
+        return result;
+    }
+
+    /**
      * @brief 获取用户的浏览历史
      */
     std::vector<int> getUserHistory(int userId, int limit = 100) {
@@ -564,11 +589,12 @@ public:
 
         // 2. 将历史论文的标题+摘要拼接成用户画像文本
         std::string userProfileText;
+        auto historyPapers = fetchPapersBatch(history);
         for (int pid : history) {
-            auto paper = fetchPaper(pid);
-            if (paper) {
-                if (paper->count("title")) userProfileText += paper->at("title") + " ";
-                if (paper->count("abstract")) userProfileText += paper->at("abstract") + " ";
+            auto it = historyPapers.find(pid);
+            if (it != historyPapers.end()) {
+                if (it->second.count("title")) userProfileText += it->second.at("title") + " ";
+                if (it->second.count("abstract")) userProfileText += it->second.at("abstract") + " ";
             }
         }
 
@@ -593,6 +619,14 @@ public:
         std::set<int> excludeSet(excludedIds.begin(), excludedIds.end());
         excludeSet.insert(history.begin(), history.end());
 
+        // 批量获取所有候选论文信息
+        std::vector<int> candidateIds;
+        for (const auto& sr : results) {
+            int pid = std::stoi(sr.id);
+            if (!excludeSet.count(pid)) candidateIds.push_back(pid);
+        }
+        auto candidatePapers = fetchPapersBatch(candidateIds);
+
         std::vector<RecommendationResult> recommendations;
         for (const auto& sr : results) {
             int paperId = std::stoi(sr.id);
@@ -605,11 +639,10 @@ public:
             rr.reason = "Similar to your reading interests (embedding similarity: " +
                         std::to_string(static_cast<int>(sr.score * 100)) + "%)";
 
-            // 获取论文详细信息
-            auto paper = fetchPaper(paperId);
-            if (paper) {
-                rr.title = paper->count("title") ? paper->at("title") : "";
-                rr.authors = paper->count("authors") ? paper->at("authors") : "";
+            auto it = candidatePapers.find(paperId);
+            if (it != candidatePapers.end()) {
+                rr.title = it->second.count("title") ? it->second.at("title") : "";
+                rr.authors = it->second.count("authors") ? it->second.at("authors") : "";
             }
 
             recommendations.push_back(rr);
@@ -1083,15 +1116,21 @@ std::vector<RecommendationResult> RecommendationApiModule::collaborativeFilterin
         [](const auto& a, const auto& b) { return a.second > b.second; });
 
     std::vector<RecommendationResult> results;
+    // 批量获取论文信息
+    std::vector<int> topIds;
+    for (size_t i = 0; i < std::min(scoredPapers.size(), static_cast<size_t>(limit)); ++i)
+        topIds.push_back(scoredPapers[i].first);
+    auto batchPapers = impl_->fetchPapersBatch(topIds);
+
     for (size_t i = 0; i < std::min(scoredPapers.size(), static_cast<size_t>(limit)); ++i) {
-        auto paper = impl_->fetchPaper(scoredPapers[i].first);
-        if (paper.has_value()) {
+        auto it = batchPapers.find(scoredPapers[i].first);
+        if (it != batchPapers.end()) {
             RecommendationResult r;
             r.paperId = scoredPapers[i].first;
-            r.title = paper->at("title");
-            r.authors = paper->at("authors");
-            r.publication = paper->count("publication") ? paper->at("publication") : "";
-            r.year = paper->count("year") ? paper->at("year") : "";
+            r.title = it->second.count("title") ? it->second.at("title") : "";
+            r.authors = it->second.count("authors") ? it->second.at("authors") : "";
+            r.publication = it->second.count("publication") ? it->second.at("publication") : "";
+            r.year = it->second.count("year") ? it->second.at("year") : "";
             r.score = std::min(1.0, scoredPapers[i].second / 10.0);
             r.reason = "与您兴趣相似的用户也喜欢";
             r.algorithm = "collaborative-filtering";
@@ -1124,11 +1163,12 @@ std::vector<RecommendationResult> RecommendationApiModule::contentBasedRecommend
 
     // 构建用户兴趣画像（基于历史论文的关键词）
     std::map<std::string, double> userInterestProfile;
+    auto historyPapers = impl_->fetchPapersBatch(history);
 
     for (int paperId : history) {
-        auto paper = impl_->fetchPaper(paperId);
-        if (paper.has_value() && paper->count("keywords")) {
-            auto keywords = impl_->parseKeywords(paper->at("keywords"));
+        auto it = historyPapers.find(paperId);
+        if (it != historyPapers.end() && it->second.count("keywords")) {
+            auto keywords = impl_->parseKeywords(it->second.at("keywords"));
             for (const auto& keyword : keywords) {
                 userInterestProfile[keyword] += 1.0;
             }
@@ -1307,11 +1347,12 @@ std::vector<UserInterest> RecommendationApiModule::getUserInterests(int userId) 
     // 降级方案：从阅读历史中提取兴趣
     auto history = impl_->getUserHistory(userId, 50);
     std::map<std::string, int> keywordCounts;
+    auto historyPapers = impl_->fetchPapersBatch(history);
 
     for (int paperId : history) {
-        auto paper = impl_->fetchPaper(paperId);
-        if (paper.has_value() && paper->count("keywords")) {
-            auto keywords = impl_->parseKeywords(paper->at("keywords"));
+        auto it = historyPapers.find(paperId);
+        if (it != historyPapers.end() && it->second.count("keywords")) {
+            auto keywords = impl_->parseKeywords(it->second.at("keywords"));
             for (const auto& keyword : keywords) {
                 keywordCounts[keyword]++;
             }

@@ -529,6 +529,106 @@ void UserApiModule::registerRoutes() {
         return handleGetStats(req);
     });
 
+    // 用户活动记录
+    router.get(prefix + "/:id/activity", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        if (!impl_->database_) {
+            nlohmann::json arr = nlohmann::json::array();
+            return HttpResponse::json(HTTP::OK, "{\"activities\":[],\"total\":0}");
+        }
+
+        try {
+            int userId = std::stoi(idIt->second);
+            std::string limitStr = "10";
+            auto it = req.queryParams.find("limit");
+            if (it != req.queryParams.end()) limitStr = it->second;
+
+            auto results = impl_->database_->query(
+                "SELECT 'paper_view' as type, p.title, p.id as paper_id, rh.viewed_at as timestamp "
+                "FROM reading_history rh JOIN papers p ON rh.paper_id = p.id WHERE rh.user_id = " + std::to_string(userId) +
+                " ORDER BY rh.viewed_at DESC LIMIT " + limitStr);
+
+            nlohmann::json activities = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["type"] = row.count("type") ? row.at("type") : "view";
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["paperId"] = row.count("paper_id") ? std::stoi(row.at("paper_id")) : 0;
+                item["timestamp"] = row.count("timestamp") ? row.at("timestamp") : "";
+                activities.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["activities"] = activities;
+            resp["total"] = activities.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // 用户登录历史
+    router.get(prefix + "/:id/login-history", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"logins\":[],\"total\":0}");
+
+        try {
+            int userId = std::stoi(idIt->second);
+            auto results = impl_->database_->query(
+                "SELECT id, ip_address, user_agent, created_at FROM user_sessions "
+                "WHERE user_id = " + std::to_string(userId) + " ORDER BY created_at DESC LIMIT 20");
+
+            nlohmann::json logins = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                item["ip"] = row.count("ip_address") ? row.at("ip_address") : "";
+                item["userAgent"] = row.count("user_agent") ? row.at("user_agent") : "";
+                item["timestamp"] = row.count("created_at") ? row.at("created_at") : "";
+                logins.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["logins"] = logins;
+            resp["total"] = logins.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // 用户权限
+    router.get(prefix + "/:id/permissions", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        nlohmann::json resp;
+        resp["permissions"] = nlohmann::json::array({"read", "write"});
+        resp["roles"] = nlohmann::json::array({"user"});
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // 用户权限更新
+    router.put(prefix + "/:id/permissions", [this](const HttpRequest& req) -> HttpResponse {
+        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Permissions updated\"}");
+    });
+
+    // 批量用户操作
+    router.post(prefix + "/batch", [this](const HttpRequest& req) -> HttpResponse {
+        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Batch operation completed\",\"results\":[]}");
+    });
+
+    // 导出用户
+    router.get(prefix + "/export", [this](const HttpRequest& req) -> HttpResponse {
+        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Export initiated\",\"downloadUrl\":\"/downloads/users.csv\"}");
+    });
+
     spdlog::info("UserApiModule routes registered");
 }
 

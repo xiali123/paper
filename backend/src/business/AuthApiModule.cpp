@@ -1079,7 +1079,54 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 9 routes");
+    // 获取用户资料
+    router.get(prefix + "/profile", [this](const HttpRequest& req) -> HttpResponse {
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end())
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Authorization required\"}");
+
+        std::string token = authIt->second;
+        if (token.find("Bearer ") == 0) token = token.substr(7);
+
+        int userId;
+        if (!this->validateAccessToken(token, userId))
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Invalid token\"}");
+
+        // 复用 /me 的逻辑
+        auto user = this->getCurrentUser(token);
+        if (!user.has_value())
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"User not found\"}");
+        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"user\":" + user->toJSON() + "}");
+    });
+
+    // 更新用户资料
+    router.put(prefix + "/profile", [this](const HttpRequest& req) -> HttpResponse {
+        auto authIt = req.headers.find("Authorization");
+        if (authIt == req.headers.end())
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Authorization required\"}");
+
+        std::string token = authIt->second;
+        if (token.find("Bearer ") == 0) token = token.substr(7);
+
+        int userId;
+        if (!this->validateAccessToken(token, userId))
+            return HttpResponse::json(HTTP::UNAUTHORIZED, "{\"success\":false,\"error\":\"Invalid token\"}");
+
+        try {
+            if (!req.body.empty() && req.body != "{}") {
+                auto jsonBody = nlohmann::json::parse(req.body);
+                if (jsonBody.contains("full_name"))
+                    jsonBody["full_name"] = ValidationHelper::sanitize(jsonBody["full_name"].get<std::string>());
+                if (jsonBody.contains("email"))
+                    jsonBody["email"] = ValidationHelper::sanitize(jsonBody["email"].get<std::string>());
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Profile updated\"}");
+        } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 11 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

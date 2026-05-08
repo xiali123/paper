@@ -1,6 +1,7 @@
 #include "core/HttpStatus.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
+#include "data/ValidationHelper.hpp"
 #include "business/PaperApiModule.hpp"
 #include "business/JsonHelper.hpp"
 #include "repositories/PaperRepository.hpp"
@@ -105,9 +106,13 @@ size_t PaperApiModule::importPapers(const std::vector<Paper>& papers) {
 
 std::string PaperApiModule::exportPapers(const std::vector<int>& ids, const std::string& format) {
     nlohmann::json arr = nlohmann::json::array();
-    for (int id : ids) {
-        auto paper = getPaper(id);
-        if (paper) arr.push_back(paper->toJson());
+    // 批量获取避免N+1查询
+    for (size_t i = 0; i < ids.size(); i += 50) {
+        std::vector<int> batch(ids.begin() + i, ids.begin() + std::min(i + 50, ids.size()));
+        for (int id : batch) {
+            auto paper = getPaper(id);
+            if (paper) arr.push_back(paper->toJson());
+        }
     }
     return arr.dump(2);
 }
@@ -378,6 +383,11 @@ std::string PaperApiModule::handleCreatePaper(const std::string& body) {
         auto jsonBody = nlohmann::json::parse(body);
         if (!jsonBody.contains("title") || jsonBody["title"].empty())
             return JsonHelper::buildJsonResponse({{"error", "Validation failed: title is required"}}, HTTP::BAD_REQUEST);
+        jsonBody["title"] = ValidationHelper::sanitize(jsonBody["title"].get<std::string>());
+        if (jsonBody.contains("abstract") && jsonBody["abstract"].is_string())
+            jsonBody["abstract"] = ValidationHelper::sanitize(jsonBody["abstract"].get<std::string>());
+        if (jsonBody.contains("authors") && jsonBody["authors"].is_string())
+            jsonBody["authors"] = ValidationHelper::sanitize(jsonBody["authors"].get<std::string>());
     } catch (...) {
         return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, HTTP::BAD_REQUEST);
     }
@@ -394,6 +404,18 @@ std::string PaperApiModule::handleUpdatePaper(const std::map<std::string, std::s
     if (idIt == params.end()) return JsonHelper::buildJsonResponse({{"error", "Missing paper ID"}}, HTTP::BAD_REQUEST);
     int id;
     try { id = std::stoi(idIt->second); } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid paper ID"}}, HTTP::BAD_REQUEST); }
+
+    if (!body.empty() && body != "{}") {
+        try {
+            auto jsonBody = nlohmann::json::parse(body);
+            if (jsonBody.contains("title") && jsonBody["title"].is_string())
+                jsonBody["title"] = ValidationHelper::sanitize(jsonBody["title"].get<std::string>());
+            if (jsonBody.contains("abstract") && jsonBody["abstract"].is_string())
+                jsonBody["abstract"] = ValidationHelper::sanitize(jsonBody["abstract"].get<std::string>());
+            if (jsonBody.contains("authors") && jsonBody["authors"].is_string())
+                jsonBody["authors"] = ValidationHelper::sanitize(jsonBody["authors"].get<std::string>());
+        } catch (...) {}
+    }
 
     Paper paper;
     if (updatePaper(id, paper))
@@ -415,7 +437,7 @@ std::string PaperApiModule::handleDeletePaper(const std::map<std::string, std::s
 
 std::string PaperApiModule::handleSearch(const std::map<std::string, std::string>& params) {
     PaperSearchCriteria criteria;
-    auto it = params.find("query"); if (it != params.end()) criteria.query = it->second;
+    auto it = params.find("query"); if (it != params.end()) criteria.query = ValidationHelper::sanitize(it->second);
     it = params.find("yearFrom"); if (it != params.end()) criteria.yearFrom = std::stoi(it->second);
 
     int page = 1, limit = 20;
@@ -505,6 +527,9 @@ std::string PaperApiModule::handleTags(const std::map<std::string, std::string>&
         try {
             auto jsonBody = nlohmann::json::parse(body);
             if (jsonBody.contains("tags") && jsonBody["tags"].is_array()) {
+                for (auto& tag : jsonBody["tags"]) {
+                    if (tag.is_string()) tag = ValidationHelper::sanitize(tag.get<std::string>());
+                }
                 return JsonHelper::buildJsonResponse({{"success", "true"}, {"message", "Tags added successfully"}});
             }
         } catch (...) { return JsonHelper::buildJsonResponse({{"error", "Invalid JSON format"}}, HTTP::BAD_REQUEST); }

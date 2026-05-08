@@ -94,6 +94,31 @@ public:
     }
 
     /**
+     * @brief 批量获取论文信息（解决N+1查询）
+     */
+    std::map<int, std::map<std::string, std::string>> fetchPapersBatch(const std::vector<int>& paperIds) {
+        std::map<int, std::map<std::string, std::string>> result;
+        if (!database_ || paperIds.empty()) return result;
+
+        std::ostringstream sql;
+        sql << "SELECT id, title, abstract, content, authors, publication_year, keywords "
+            << "FROM papers WHERE id IN (";
+        for (size_t i = 0; i < paperIds.size(); ++i) {
+            sql << (i > 0 ? "," : "") << paperIds[i];
+        }
+        sql << ")";
+
+        auto rows = database_->query(sql.str());
+        for (auto& row : rows) {
+            auto it = row.find("id");
+            if (it != row.end()) {
+                result[std::stoi(it->second)] = row;
+            }
+        }
+        return result;
+    }
+
+    /**
      * @brief 调用OpenAI API
      */
     std::string callOpenAiApi(const std::string& prompt) {
@@ -544,12 +569,13 @@ std::string AiApiModule::comparePapers(const std::vector<int>& paperIds) {
         return json{{"success", false}, {"error", "At least 2 papers required for comparison"}}.dump();
     }
 
-    // 获取所有论文
+    // 获取所有论文（批量查询）
     std::vector<std::map<std::string, std::string>> papers;
+    auto batchPapers = impl_->fetchPapersBatch(paperIds);
     for (int paperId : paperIds) {
-        auto paperData = impl_->fetchPaperFromDatabase(paperId);
-        if (paperData.has_value()) {
-            papers.push_back(*paperData);
+        auto it = batchPapers.find(paperId);
+        if (it != batchPapers.end()) {
+            papers.push_back(it->second);
         }
     }
 
