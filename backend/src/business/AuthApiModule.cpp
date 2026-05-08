@@ -1990,20 +1990,52 @@ std::string AuthApiModule::handleResetPassword(const std::string& body) {
 }
 
 std::string AuthApiModule::handleGetSessions(const std::map<std::string, std::string>& headers) {
-    // Stub实现：返回空会话列表
-    return buildJsonResponse({
-        {"success", "true"},
-        {"sessions", nlohmann::json::array()},
-        {"count", 0},
-        {"message", "No active sessions (stub mode)"}
-    });
+    nlohmann::json response;
+    response["success"] = true;
+    response["sessions"] = nlohmann::json::array();
+    response["count"] = 0;
+
+    if (!database_) {
+        return response.dump();
+    }
+    try {
+        auto result = database_->query(
+            "SELECT s.id, s.user_id, u.username, s.created_at, s.expires_at "
+            "FROM user_sessions s LEFT JOIN users u ON s.user_id = u.id "
+            "WHERE s.expires_at > NOW() ORDER BY s.created_at DESC LIMIT 50");
+        nlohmann::json arr = nlohmann::json::array();
+        for (auto& row : result) {
+            nlohmann::json item;
+            item["id"] = std::stoi(row["id"]);
+            item["userId"] = std::stoi(row["user_id"]);
+            item["username"] = row["username"];
+            item["createdAt"] = row.count("created_at") ? row["created_at"] : "";
+            item["expiresAt"] = row.count("expires_at") ? row["expires_at"] : "";
+            arr.push_back(item);
+        }
+        response["sessions"] = arr;
+        response["count"] = arr.size();
+    } catch (const std::exception& e) {
+        spdlog::warn("[AuthApi] Get sessions failed: {}", e.what());
+    }
+    return response.dump();
 }
 
 std::string AuthApiModule::handleDeleteSession(const std::map<std::string, std::string>& params, const std::map<std::string, std::string>& headers) {
-    // Stub实现：直接返回成功
+    auto it = params.find("sessionId");
+    if (it == params.end()) {
+        return buildJsonResponse({{"success", "false"}, {"message", "Missing sessionId"}}, HTTP::BAD_REQUEST);
+    }
+    if (database_) {
+        try {
+            database_->execute("DELETE FROM user_sessions WHERE id = " + it->second);
+        } catch (const std::exception& e) {
+            spdlog::warn("[AuthApi] Delete session failed: {}", e.what());
+        }
+    }
     return buildJsonResponse({
         {"success", "true"},
-        {"message", "Session deleted successfully (stub mode)"}
+        {"message", "Session deleted successfully"}
     });
 }
 

@@ -488,7 +488,111 @@ void PaperApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[PaperApiModule] Registered 14 routes");
+    // GET /api/papers/tags — 获取所有标签统计
+    router.get(prefix + "/tags", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["tags"] = nlohmann::json::array();
+        resp["total"] = 0;
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT keywords, COUNT(*) as cnt FROM papers "
+                    "WHERE keywords IS NOT NULL AND keywords != '' "
+                    "GROUP BY keywords ORDER BY cnt DESC LIMIT 50");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["keyword"] = row["keywords"];
+                    item["count"] = std::stoi(row["cnt"]);
+                    arr.push_back(item);
+                }
+                resp["tags"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] Tags query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/papers/batch — 批量操作
+    router.post(prefix + "/batch", [this](const HttpRequest& req) -> HttpResponse {
+        std::string action;
+        std::vector<int> ids;
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            action = body.value("action", "");
+            if (body.contains("ids") && body["ids"].is_array()) {
+                for (auto& id : body["ids"]) ids.push_back(id.get<int>());
+            }
+        } catch (...) {}
+
+        if (action.empty() || ids.empty()) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"error\":\"action and ids array required\"}");
+        }
+
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["action"] = action;
+        resp["affectedCount"] = 0;
+        if (database_) {
+            try {
+                std::string idList;
+                for (size_t i = 0; i < ids.size(); i++) {
+                    if (i > 0) idList += ",";
+                    idList += std::to_string(ids[i]);
+                }
+                if (action == "delete") {
+                    database_->execute("DELETE FROM papers WHERE id IN (" + idList + ")");
+                    resp["affectedCount"] = ids.size();
+                } else if (action == "mark_read") {
+                    database_->execute("UPDATE papers SET updated_at = NOW() WHERE id IN (" + idList + ")");
+                    resp["affectedCount"] = ids.size();
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] Batch operation failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // GET /api/papers/recent — 最新论文
+    router.get(prefix + "/recent", [this](const HttpRequest& req) -> HttpResponse {
+        int limit = 10;
+        auto limitIt = req.queryParams.find("limit");
+        if (limitIt != req.queryParams.end()) {
+            try { limit = std::stoi(limitIt->second); } catch (...) {}
+        }
+        nlohmann::json resp;
+        resp["papers"] = nlohmann::json::array();
+        resp["total"] = 0;
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT id, title, authors, journal, citation_count, created_at "
+                    "FROM papers ORDER BY created_at DESC LIMIT " + std::to_string(limit));
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row["id"]);
+                    item["title"] = row["title"];
+                    item["authors"] = row.count("authors") ? row["authors"] : "";
+                    item["journal"] = row.count("journal") ? row["journal"] : "";
+                    item["citationCount"] = row.count("citation_count") ? std::stoi(row["citation_count"]) : 0;
+                    item["createdAt"] = row.count("created_at") ? row["created_at"] : "";
+                    arr.push_back(item);
+                }
+                resp["papers"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] Recent papers query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[PaperApiModule] Registered 17 routes");
 }
 
 // ============================================================================

@@ -26,4 +26,7 @@ ROUTES=(
     "GET|/api/papers/search?query=%27%20OR%20%271%27%3D%271||200|Search with SQL injection attempt"
     "GET|/api/papers/1/citations||200|Get paper citations"
     "GET|/api/papers/1/related||200|Get related papers"
+    "GET|/api/papers/tags||200|Get paper tags statistics"
+    "POST|/api/papers/batch|{\"action\":\"delete\",\"ids\":[9999]}|200|Batch operation on papers"
+    "GET|/api/papers/recent||200|Get recent papers"
 )
