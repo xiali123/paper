@@ -125,6 +125,11 @@ class CitationGraphExplorer;
 class PaperInsightExtractor;
 class ReadingJournalWidget;
 class PaperCrossReference;
+class PaperPeerReviewer;
+class LiteratureMatrixWidget;
+class PaperConceptMap;
+class ReadingStreakTracker;
+class PaperExportBatch;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

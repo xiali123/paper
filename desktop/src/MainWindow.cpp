@@ -122,6 +122,11 @@
 #include "PaperInsightExtractor.hpp"
 #include "ReadingJournalWidget.hpp"
 #include "PaperCrossReference.hpp"
+#include "PaperPeerReviewer.hpp"
+#include "LiteratureMatrixWidget.hpp"
+#include "PaperConceptMap.hpp"
+#include "ReadingStreakTracker.hpp"
+#include "PaperExportBatch.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4241,6 +4246,81 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* peerReviewAction = toolsMenu->addAction("Peer &Review");
+    connect(peerReviewAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Peer Review");
+        dlg->resize(800, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPeerReviewer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* matrixAction = toolsMenu->addAction("Literature &Matrix");
+    connect(matrixAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Literature Matrix");
+        dlg->resize(800, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new LiteratureMatrixWidget();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers()) {
+                papers.append({p.id, p.title});
+            }
+            w->setPapers(papers);
+            w->autoFill();
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* conceptAction = toolsMenu->addAction("Paper &Concepts");
+    connect(conceptAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Concept Map");
+        dlg->resize(850, 600);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConceptMap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* streakAction = toolsMenu->addAction("Reading &Streak");
+    connect(streakAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Streak Tracker");
+        dlg->resize(600, 420);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingStreakTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* batchExportAction = toolsMenu->addAction("Batch &Export");
+    connect(batchExportAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Batch Export");
+        dlg->resize(850, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperExportBatch();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers()) {
+                papers.append({p.id, p.title});
+            }
+            w->setPapers(papers);
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4766,6 +4846,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Cross-References", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Cross-References");
+    });
+    commandPalette_->addAction("Peer Review", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Peer Review");
+    });
+    commandPalette_->addAction("Literature Matrix", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Literature Matrix");
+    });
+    commandPalette_->addAction("Concept Map", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Concepts");
+    });
+    commandPalette_->addAction("Reading Streak", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Streak");
+    });
+    commandPalette_->addAction("Batch Export", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Batch Export");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
