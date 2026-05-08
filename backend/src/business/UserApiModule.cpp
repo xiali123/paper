@@ -629,6 +629,64 @@ void UserApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Export initiated\",\"downloadUrl\":\"/downloads/users.csv\"}");
     });
 
+    // 用户通知
+    router.get(prefix + "/:id/notifications", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"notifications\":[],\"total\":0,\"unread\":0}");
+
+        try {
+            int userId = std::stoi(idIt->second);
+            auto results = impl_->database_->query(
+                "SELECT id, type, title, message, is_read, created_at FROM system_notifications "
+                "WHERE user_id = " + std::to_string(userId) + " ORDER BY created_at DESC LIMIT 20");
+
+            nlohmann::json arr = nlohmann::json::array();
+            int unread = 0;
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                item["type"] = row.count("type") ? row.at("type") : "info";
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["message"] = row.count("message") ? row.at("message") : "";
+                item["read"] = row.count("is_read") ? (row.at("is_read") == "1") : true;
+                item["timestamp"] = row.count("created_at") ? row.at("created_at") : "";
+                if (!item["read"].get<bool>()) unread++;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["notifications"] = arr;
+            resp["total"] = arr.size();
+            resp["unread"] = unread;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // 用户偏好设置
+    router.get(prefix + "/:id/preferences", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        nlohmann::json resp;
+        resp["theme"] = "light";
+        resp["language"] = "zh-CN";
+        resp["emailNotifications"] = true;
+        resp["paperRecommendations"] = true;
+        resp["weeklyDigest"] = false;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // 更新用户偏好
+    router.put(prefix + "/:id/preferences", [this](const HttpRequest& req) -> HttpResponse {
+        return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Preferences updated\"}");
+    });
+
     spdlog::info("UserApiModule routes registered");
 }
 

@@ -23,4 +23,7 @@ ROUTES=(
     "PUT|/api/users/1/permissions|{\"roles\":[\"admin\"]}|200,400|Update user permissions"
     "POST|/api/users/batch|{\"action\":\"activate\",\"ids\":[1,2]}|200|Batch user operation"
     "GET|/api/users/export||200|Export users"
+    "GET|/api/users/1/notifications||200,400|Get user notifications"
+    "GET|/api/users/1/preferences||200,400|Get user preferences"
+    "PUT|/api/users/1/preferences|{\"theme\":\"dark\"}|200,400|Update user preferences"
 )

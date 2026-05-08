@@ -24,4 +24,6 @@ ROUTES=(
     "POST|/api/papers|{}|200,201,400|Create paper with empty body"
     "GET|/api/papers/search?query=%3Cscript%3Ealert(1)%3C%2Fscript%3E||200|Search with XSS characters"
     "GET|/api/papers/search?query=%27%20OR%20%271%27%3D%271||200|Search with SQL injection attempt"
+    "GET|/api/papers/1/citations||200|Get paper citations"
+    "GET|/api/papers/1/related||200|Get related papers"
 )

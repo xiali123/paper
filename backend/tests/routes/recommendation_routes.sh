@@ -11,4 +11,5 @@ ROUTES=(
     "GET|/api/recommendations/explain/1||200,404|Get recommendation explanation"
     "GET|/api/recommendations/stats||200|Get recommendation stats"
     "POST|/api/recommendations/feedback|{\"paperId\":1,\"rating\":5}|200,400|Submit recommendation feedback"
+    "GET|/api/recommendations/profile/1||200|User recommendation profile"
 )

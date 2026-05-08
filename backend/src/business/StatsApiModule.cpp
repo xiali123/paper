@@ -538,7 +538,118 @@ void StatsApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[StatsApi] Registered 7 routes");
+    // 按期刊统计
+    router.get(prefix + "/journals", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"journals\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT journal, COUNT(*) as count FROM papers WHERE journal IS NOT NULL AND journal != '' "
+                "GROUP BY journal ORDER BY count DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            int total = 0;
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["journal"] = row.count("journal") ? row.at("journal") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                total += item["count"].get<int>();
+                arr.push_back(item);
+            }
+            // 补充百分比
+            for (auto& item : arr) {
+                item["percentage"] = total > 0 ? (item["count"].get<int>() * 100.0 / total) : 0;
+            }
+            nlohmann::json resp;
+            resp["journals"] = arr;
+            resp["total"] = total;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // 按年份统计
+    router.get(prefix + "/years", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"years\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT YEAR(publication_date) as year, COUNT(*) as count "
+                "FROM papers WHERE publication_date IS NOT NULL "
+                "GROUP BY YEAR(publication_date) ORDER BY year DESC");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["year"] = row.count("year") ? std::stoi(row.at("year")) : 0;
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["years"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // 按作者统计
+    router.get(prefix + "/authors", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"authors\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT authors, COUNT(*) as count FROM papers "
+                "WHERE authors IS NOT NULL AND authors != '' "
+                "GROUP BY authors ORDER BY count DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["authors"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // 引用趋势
+    router.get(prefix + "/citation-trends", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"trends\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT YEAR(publication_date) as year, SUM(citation_count) as citations, "
+                "AVG(citation_count) as avg_citations, COUNT(*) as papers "
+                "FROM papers WHERE publication_date IS NOT NULL "
+                "GROUP BY YEAR(publication_date) ORDER BY year DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["year"] = row.count("year") ? std::stoi(row.at("year")) : 0;
+                item["citations"] = row.count("citations") ? std::stoi(row.at("citations")) : 0;
+                item["avgCitations"] = row.count("avg_citations") ? std::stod(row.at("avg_citations")) : 0.0;
+                item["papers"] = row.count("papers") ? std::stoi(row.at("papers")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["trends"] = arr;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 11 routes");
 }
 
 std::string StatsApiModule::handleStats() {

@@ -12,4 +12,8 @@ ROUTES=(
     "GET|/api/stats/modules||200|Module stats"
     "GET|/api/stats/performance||200|Performance stats"
     "GET|/api/stats/all||200|Aggregated all stats"
+    "GET|/api/stats/journals||200|Journal distribution"
+    "GET|/api/stats/years||200|Year distribution"
+    "GET|/api/stats/authors||200|Author stats"
+    "GET|/api/stats/citation-trends||200|Citation trends"
 )

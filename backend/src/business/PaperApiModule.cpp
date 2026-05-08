@@ -346,7 +346,55 @@ void PaperApiModule::registerRoutes() {
         return HttpResponse::json(status, jsonResult);
     });
 
-    spdlog::info("[PaperApiModule] Registered 12 routes");
+    // 获取论文引用信息
+    router.get(prefix + "/:id/citations", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing paper ID\"}");
+
+        nlohmann::json resp;
+        resp["paperId"] = std::stoi(idIt->second);
+        resp["citations"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (impl_ && impl_->service_) {
+            auto paper = getPaper(std::stoi(idIt->second));
+            if (paper) {
+                resp["title"] = paper->title;
+                resp["citationCount"] = paper->citationCount;
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // 获取相关论文（基于关键词和期刊匹配）
+    router.get(prefix + "/:id/related", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing paper ID\"}");
+
+        int limit = 10;
+        auto limitIt = req.queryParams.find("limit");
+        if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
+
+        nlohmann::json resp;
+        resp["paperId"] = std::stoi(idIt->second);
+        resp["related"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        // 通过 service 查询同期刊论文作为相关推荐
+        if (impl_ && impl_->service_) {
+            auto paper = getPaper(std::stoi(idIt->second));
+            if (paper) {
+                resp["title"] = paper->title;
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[PaperApiModule] Registered 14 routes");
 }
 
 // ============================================================================

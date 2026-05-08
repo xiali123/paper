@@ -1783,7 +1783,50 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 7 routes");
+    // 用户推荐画像
+    router.get(prefix + "/profile/:userId", [this](const HttpRequest& req) -> HttpResponse {
+        auto userIdIt = req.pathParams.find("userId");
+        if (userIdIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing userId\"}");
+
+        try {
+            int userId = std::stoi(userIdIt->second);
+            auto interests = getUserInterests(userId);
+            auto history = impl_->getUserHistory(userId, 20);
+
+            json interestsJson = json::array();
+            for (const auto& interest : interests) {
+                interestsJson.push_back({{"category", interest.category}, {"weight", interest.weight}});
+            }
+
+            json result;
+            result["success"] = true;
+            result["userId"] = userId;
+            result["interests"] = interestsJson;
+            result["historyCount"] = history.size();
+
+            // 获取偏好期刊
+            if (impl_->database_) {
+                auto journals = impl_->database_->query(
+                    "SELECT p.journal, COUNT(*) as cnt FROM papers p "
+                    "JOIN reading_history rh ON p.id = rh.paper_id WHERE rh.user_id = " + std::to_string(userId) +
+                    " GROUP BY p.journal ORDER BY cnt DESC LIMIT 5");
+                json journalArr = json::array();
+                for (auto& row : journals) {
+                    if (row.count("journal") && !row.at("journal").empty()) {
+                        journalArr.push_back({{"journal", row.at("journal")}, {"count", std::stoi(row.at("cnt"))}});
+                    }
+                }
+                result["preferredJournals"] = journalArr;
+            }
+
+            return HttpResponse::json(HTTP::OK, result.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 8 routes");
 }
 
 } // namespace PaperCrawler
