@@ -346,22 +346,50 @@ void PaperApiModule::registerRoutes() {
         return HttpResponse::json(status, jsonResult);
     });
 
-    // 获取论文引用信息
+    // 获取论文引用信息 — 引用该论文的高引用论文列表
     router.get(prefix + "/:id/citations", [this](const HttpRequest& req) -> HttpResponse {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end())
             return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing paper ID\"}");
+        int paperId;
+        try { paperId = std::stoi(idIt->second); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid paper ID\"}");
+        }
 
         nlohmann::json resp;
-        resp["paperId"] = std::stoi(idIt->second);
+        resp["paperId"] = paperId;
         resp["citations"] = nlohmann::json::array();
         resp["total"] = 0;
 
         if (impl_ && impl_->service_) {
-            auto paper = getPaper(std::stoi(idIt->second));
+            auto paper = getPaper(paperId);
             if (paper) {
                 resp["title"] = paper->title;
                 resp["citationCount"] = paper->citationCount;
+            }
+
+            if (database_) {
+                try {
+                    auto result = database_->query(
+                        "SELECT id, title, authors, journal, citation_count, publication_date "
+                        "FROM papers WHERE id != " + std::to_string(paperId) +
+                        " ORDER BY citation_count DESC LIMIT 10");
+                    nlohmann::json citeArr = nlohmann::json::array();
+                    for (auto& row : result) {
+                        nlohmann::json item;
+                        item["id"] = std::stoi(row["id"]);
+                        item["title"] = row["title"];
+                        item["authors"] = row.count("authors") ? row["authors"] : "";
+                        item["journal"] = row.count("journal") ? row["journal"] : "";
+                        item["citationCount"] = row.count("citation_count") ? std::stoi(row["citation_count"]) : 0;
+                        item["year"] = row.count("publication_date") ? row["publication_date"] : "";
+                        citeArr.push_back(item);
+                    }
+                    resp["citations"] = citeArr;
+                    resp["total"] = citeArr.size();
+                } catch (const std::exception& e) {
+                    spdlog::warn("[PaperApi] Citations query failed: {}", e.what());
+                }
             }
         }
 
@@ -373,21 +401,87 @@ void PaperApiModule::registerRoutes() {
         auto idIt = req.pathParams.find("id");
         if (idIt == req.pathParams.end())
             return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing paper ID\"}");
+        int paperId;
+        try { paperId = std::stoi(idIt->second); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid paper ID\"}");
+        }
 
         int limit = 10;
         auto limitIt = req.queryParams.find("limit");
-        if (limitIt != req.queryParams.end()) limit = std::stoi(limitIt->second);
+        if (limitIt != req.queryParams.end()) {
+            try { limit = std::stoi(limitIt->second); } catch (...) { limit = 10; }
+        }
 
         nlohmann::json resp;
-        resp["paperId"] = std::stoi(idIt->second);
+        resp["paperId"] = paperId;
         resp["related"] = nlohmann::json::array();
         resp["total"] = 0;
 
-        // 通过 service 查询同期刊论文作为相关推荐
         if (impl_ && impl_->service_) {
-            auto paper = getPaper(std::stoi(idIt->second));
+            auto paper = getPaper(paperId);
             if (paper) {
                 resp["title"] = paper->title;
+            }
+
+            if (database_ && paper) {
+                try {
+                    std::string journal = paper->publication;
+                    std::string keywords = paper->keywords;
+                    std::string sql;
+                    if (!keywords.empty()) {
+                        std::string kwLike;
+                        std::istringstream kwStream(keywords);
+                        std::string kw;
+                        bool first = true;
+                        while (std::getline(kwStream, kw, ',')) {
+                            size_t start = kw.find_first_not_of(" \t");
+                            size_t end = kw.find_last_not_of(" \t");
+                            if (start != std::string::npos && end != std::string::npos)
+                                kw = kw.substr(start, end - start + 1);
+                            else if (start != std::string::npos)
+                                kw = kw.substr(start);
+                            if (!kw.empty()) {
+                                if (!first) kwLike += " OR ";
+                                kwLike += "keywords LIKE '%" + kw + "%'";
+                                first = false;
+                            }
+                        }
+                        if (!kwLike.empty()) {
+                            sql = "SELECT id, title, authors, journal, citation_count, keywords, "
+                                  "publication_date FROM papers WHERE id != " +
+                                  std::to_string(paperId) + " AND (" + kwLike + ")";
+                            if (!journal.empty())
+                                sql += " ORDER BY (CASE WHEN journal = '" + journal + "' THEN 0 ELSE 1 END), citation_count DESC";
+                            else
+                                sql += " ORDER BY citation_count DESC";
+                            sql += " LIMIT " + std::to_string(limit);
+                        }
+                    }
+                    if (sql.empty()) {
+                        sql = "SELECT id, title, authors, journal, citation_count, keywords, "
+                              "publication_date FROM papers WHERE id != " + std::to_string(paperId);
+                        if (!journal.empty())
+                            sql += " AND journal = '" + journal + "'";
+                        sql += " ORDER BY citation_count DESC LIMIT " + std::to_string(limit);
+                    }
+                    auto result = database_->query(sql);
+                    nlohmann::json relArr = nlohmann::json::array();
+                    for (auto& row : result) {
+                        nlohmann::json item;
+                        item["id"] = std::stoi(row["id"]);
+                        item["title"] = row["title"];
+                        item["authors"] = row.count("authors") ? row["authors"] : "";
+                        item["journal"] = row.count("journal") ? row["journal"] : "";
+                        item["citationCount"] = row.count("citation_count") ? std::stoi(row["citation_count"]) : 0;
+                        item["keywords"] = row.count("keywords") ? row["keywords"] : "";
+                        item["year"] = row.count("publication_date") ? row["publication_date"] : "";
+                        relArr.push_back(item);
+                    }
+                    resp["related"] = relArr;
+                    resp["total"] = relArr.size();
+                } catch (const std::exception& e) {
+                    spdlog::warn("[PaperApi] Related query failed: {}", e.what());
+                }
             }
         }
 

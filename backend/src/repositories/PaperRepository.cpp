@@ -30,6 +30,7 @@ Paper PaperRepository::paperFromDbRow(const std::map<std::string, std::string>& 
     }
 
     paper.abstract = row.count("abstract") ? row.at("abstract") : "";
+    paper.keywords = row.count("keywords") ? row.at("keywords") : "";
     paper.publication = row.count("journal") ? row.at("journal") : "";
     paper.volume = row.count("volume") ? row.at("volume") : "";
     paper.issue = row.count("issue") ? row.at("issue") : "";
