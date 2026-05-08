@@ -112,6 +112,11 @@
 #include "PaperEmbeddingWidget.hpp"
 #include "ReadingSchedulerWidget.hpp"
 #include "PaperTemplateLibrary.hpp"
+#include "PaperAnnotationHighlighter.hpp"
+#include "CitationNetworkVisualizer.hpp"
+#include "PaperBookmarkSync.hpp"
+#include "ReadingProgressDashboard.hpp"
+#include "PaperRatingChart.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4090,6 +4095,73 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* annotAction = toolsMenu->addAction("Paper &Annotations");
+    connect(annotAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Annotation Highlighter");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAnnotationHighlighter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* citeNetAction = toolsMenu->addAction("Citation &Network");
+    connect(citeNetAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Network Visualizer");
+        dlg->resize(850, 650);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new CitationNetworkVisualizer();
+        if (resultView_) {
+            QList<QPair<int, QString>> papers;
+            for (const auto& p : resultView_->getPapers()) {
+                papers.append({p.id, p.title});
+            }
+            w->setPapers(papers);
+        }
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* bmarkSyncAction = toolsMenu->addAction("Bookmark &Sync");
+    connect(bmarkSyncAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Bookmark Sync");
+        dlg->resize(650, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBookmarkSync();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* progressAction = toolsMenu->addAction("Reading &Progress");
+    connect(progressAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Progress Dashboard");
+        dlg->resize(700, 550);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ReadingProgressDashboard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* ratingAction = toolsMenu->addAction("Paper &Ratings");
+    connect(ratingAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Rating Chart");
+        dlg->resize(700, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRatingChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -4585,6 +4657,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Paper Templates", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Paper Templates");
+    });
+    commandPalette_->addAction("Annotations", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Annotations");
+    });
+    commandPalette_->addAction("Citation Network", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Network");
+    });
+    commandPalette_->addAction("Bookmark Sync", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bookmark Sync");
+    });
+    commandPalette_->addAction("Reading Progress", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Progress");
+    });
+    commandPalette_->addAction("Paper Ratings", "", "View", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Ratings");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

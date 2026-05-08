@@ -115,6 +115,11 @@ class PaperShareWidget;
 class PaperEmbeddingWidget;
 class ReadingSchedulerWidget;
 class PaperTemplateLibrary;
+class PaperAnnotationHighlighter;
+class CitationNetworkVisualizer;
+class PaperBookmarkSync;
+class ReadingProgressDashboard;
+class PaperRatingChart;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
