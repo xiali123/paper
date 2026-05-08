@@ -147,6 +147,11 @@
 #include "PaperFeedbackCollector.hpp"
 #include "LiteratureTimelineWidget.hpp"
 #include "PaperTagCloudWidget.hpp"
+#include "PaperReadingHeatmap.hpp"
+#include "CitationStyleGenerator.hpp"
+#include "PaperVersionDiff.hpp"
+#include "ResearchCalendarWidget.hpp"
+#include "PaperSentimentAnalyzer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4588,6 +4593,66 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* heatmapAction = toolsMenu->addAction("&Reading Heatmap");
+    connect(heatmapAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Reading Heatmap");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingHeatmap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* citationStyleAction = toolsMenu->addAction("&Citation Style Generator");
+    connect(citationStyleAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Style Generator");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new CitationStyleGenerator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* versionDiffAction = toolsMenu->addAction("&Version Diff");
+    connect(versionDiffAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Version Diff");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVersionDiff();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* researchCalendarAction = toolsMenu->addAction("&Research Calendar");
+    connect(researchCalendarAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Research Calendar");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new ResearchCalendarWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* sentimentAction = toolsMenu->addAction("&Sentiment Analyzer");
+    connect(sentimentAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Sentiment Analyzer");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSentimentAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5188,6 +5253,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Tag Cloud", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Tag Cloud");
+    });
+    commandPalette_->addAction("Reading Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Heatmap");
+    });
+    commandPalette_->addAction("Citation Style Generator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Style Generator");
+    });
+    commandPalette_->addAction("Version Diff", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Version Diff");
+    });
+    commandPalette_->addAction("Research Calendar", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Research Calendar");
+    });
+    commandPalette_->addAction("Sentiment Analyzer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sentiment Analyzer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

@@ -150,6 +150,11 @@ class ResearchNoteWidget;
 class PaperFeedbackCollector;
 class LiteratureTimelineWidget;
 class PaperTagCloudWidget;
+class PaperReadingHeatmap;
+class CitationStyleGenerator;
+class PaperVersionDiff;
+class ResearchCalendarWidget;
+class PaperSentimentAnalyzer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
