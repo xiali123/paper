@@ -858,11 +858,35 @@ void ExportApiModule::registerRoutes() {
         if (it == req.queryParams.end())
             return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"paperIds query parameter required\"}");
 
+        std::vector<int> paperIds;
+        std::istringstream ss(it->second);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            try { paperIds.push_back(std::stoi(token)); } catch (...) {}
+        }
+
         nlohmann::json resp;
         resp["success"] = true;
         resp["format"] = format;
-        resp["message"] = "Export initiated";
-        resp["downloadUrl"] = "/downloads/export." + format;
+        resp["paperCount"] = paperIds.size();
+
+        if (impl_->database_) {
+            auto papers = impl_->getPapersForExport(paperIds);
+            resp["paperCount"] = papers.size();
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& p : papers) {
+                nlohmann::json item;
+                item["id"] = p.id;
+                item["title"] = p.title;
+                item["authors"] = p.authors;
+                item["year"] = p.year;
+                arr.push_back(item);
+            }
+            resp["papers"] = arr;
+            resp["downloadUrl"] = "/downloads/export." + format;
+        } else {
+            resp["downloadUrl"] = "/downloads/export." + format;
+        }
         return HttpResponse::json(HTTP::OK, resp.dump());
     };
 
@@ -891,6 +915,37 @@ void ExportApiModule::registerRoutes() {
         resp["success"] = true;
         resp["history"] = nlohmann::json::array();
         resp["total"] = 0;
+
+        if (impl_->database_) {
+            try {
+                std::string limitStr = "20";
+                auto lit = req.queryParams.find("limit");
+                if (lit != req.queryParams.end()) limitStr = lit->second;
+
+                auto results = impl_->database_->query(
+                    "SELECT id, user_id, format, status, file_path, progress, total, created_at, completed_at "
+                    "FROM export_tasks ORDER BY created_at DESC LIMIT " + limitStr);
+
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? row.at("id") : "";
+                    item["userId"] = row.count("user_id") ? std::stoi(row.at("user_id")) : 0;
+                    item["format"] = row.count("format") ? row.at("format") : "";
+                    item["status"] = row.count("status") ? row.at("status") : "pending";
+                    item["filePath"] = row.count("file_path") ? row.at("file_path") : "";
+                    item["progress"] = row.count("progress") ? std::stoi(row.at("progress")) : 0;
+                    item["total"] = row.count("total") ? std::stoi(row.at("total")) : 0;
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    item["completedAt"] = row.count("completed_at") ? row.at("completed_at") : "";
+                    arr.push_back(item);
+                }
+                resp["history"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[ExportApi] History query failed: {}", e.what());
+            }
+        }
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
