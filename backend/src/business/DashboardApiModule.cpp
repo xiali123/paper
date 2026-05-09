@@ -187,7 +187,30 @@ void DashboardApiModule::registerRoutes() {
         return makeJsonResponse(HTTP::OK, handleUpdateConfig(req.body));
     });
 
-    spdlog::info("[DashboardApi] Registered 13 routes under {}", prefix);
+    // 14. POST /todos — create todo
+    router.post(prefix + "/todos", [this](const HttpRequest& req) {
+        return makeJsonResponse(HTTP::CREATED, handleCreateTodo(req.body));
+    });
+
+    // 15. DELETE /todos/:id — delete todo
+    router.del(prefix + "/todos/:id", [this](const HttpRequest& req) {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false}");
+        return makeJsonResponse(HTTP::OK, handleDeleteTodo(idIt->second));
+    });
+
+    // 16. GET /activities — recent platform activity
+    router.get(prefix + "/activities", [this](const HttpRequest& req) {
+        return makeJsonResponse(HTTP::OK, handleActivities(req.queryParams));
+    });
+
+    // 17. GET /papers/trending — trending papers
+    router.get(prefix + "/papers/trending", [this](const HttpRequest& req) {
+        return makeJsonResponse(HTTP::OK, handleTrendingPapers(req.queryParams));
+    });
+
+    spdlog::info("[DashboardApi] Registered 17 routes under {}", prefix);
 }
 
 // ============================================================================
@@ -834,6 +857,121 @@ std::string DashboardApiModule::handleUpdateConfig(const std::string& body) {
 
 std::string DashboardApiModule::escapeJson(const std::string& input) const {
     return StringUtil::escapeJson(input);
+}
+
+std::string DashboardApiModule::handleCreateTodo(const std::string& body) {
+    try {
+        auto json = nlohmann::json::parse(body);
+        std::string title = json.value("title", "");
+        std::string priority = json.value("priority", "medium");
+        int userId = json.value("user_id", 0);
+
+        if (title.empty())
+            return nlohmann::json{{"success", false}, {"error", "title required"}}.dump();
+
+        if (database_) {
+            database_->execute(
+                "INSERT INTO dashboard_todos (user_id, title, priority, status) VALUES ("
+                + std::to_string(userId) + ", '" + ValidationHelper::sanitize(title)
+                + "', '" + ValidationHelper::sanitize(priority) + "', 'pending')");
+            auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+            int newId = rows.empty() ? 0 : std::stoi(rows[0]["id"]);
+            return nlohmann::json{{"success", true}, {"id", newId}, {"title", title}}.dump();
+        }
+        return nlohmann::json{{"success", true}, {"id", 0}}.dump();
+    } catch (const std::exception& e) {
+        return nlohmann::json{{"success", false}, {"error", e.what()}}.dump();
+    }
+}
+
+std::string DashboardApiModule::handleDeleteTodo(const std::string& id) {
+    if (database_) {
+        try {
+            database_->execute("DELETE FROM dashboard_todos WHERE id = " + id);
+        } catch (const std::exception& e) {
+            spdlog::warn("[DashboardApi] Delete todo failed: {}", e.what());
+        }
+    }
+    return nlohmann::json{{"success", true}, {"id", id}}.dump();
+}
+
+std::string DashboardApiModule::handleActivities(const std::map<std::string, std::string>& params) {
+    nlohmann::json resp;
+    resp["activities"] = nlohmann::json::array();
+    resp["total"] = 0;
+
+    if (!database_) return resp.dump();
+
+    try {
+        int limit = params.count("limit") ? std::stoi(params.at("limit")) : 10;
+
+        auto papers = database_->query(
+            "SELECT 'paper_added' as type, id, title, created_at as timestamp FROM papers ORDER BY created_at DESC LIMIT "
+            + std::to_string(limit));
+        auto searches = database_->query(
+            "SELECT 'search' as type, id, query as title, created_at as timestamp FROM search_history ORDER BY created_at DESC LIMIT "
+            + std::to_string(limit));
+
+        nlohmann::json arr = nlohmann::json::array();
+        for (auto& row : papers) {
+            nlohmann::json item;
+            item["type"] = "paper_added";
+            item["id"] = std::stoi(row.at("id"));
+            item["title"] = row.count("title") ? row.at("title") : "";
+            item["timestamp"] = row.count("timestamp") ? row.at("timestamp") : "";
+            arr.push_back(item);
+        }
+        for (auto& row : searches) {
+            nlohmann::json item;
+            item["type"] = "search";
+            item["id"] = std::stoi(row.at("id"));
+            item["title"] = row.count("title") ? row.at("title") : "";
+            item["timestamp"] = row.count("timestamp") ? row.at("timestamp") : "";
+            arr.push_back(item);
+        }
+
+        std::sort(arr.begin(), arr.end(), [](const nlohmann::json& a, const nlohmann::json& b) {
+            return a.value("timestamp", "") > b.value("timestamp", "");
+        });
+        if (static_cast<int>(arr.size()) > limit) arr.erase(arr.begin() + limit, arr.end());
+
+        resp["activities"] = arr;
+        resp["total"] = arr.size();
+    } catch (const std::exception& e) {
+        spdlog::warn("[DashboardApi] Activities query failed: {}", e.what());
+    }
+    return resp.dump();
+}
+
+std::string DashboardApiModule::handleTrendingPapers(const std::map<std::string, std::string>& params) {
+    nlohmann::json resp;
+    resp["papers"] = nlohmann::json::array();
+    resp["total"] = 0;
+
+    if (!database_) return resp.dump();
+
+    try {
+        int limit = params.count("limit") ? std::stoi(params.at("limit")) : 5;
+        auto results = database_->query(
+            "SELECT id, title, authors, citation_count, keywords FROM papers "
+            "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));
+
+        nlohmann::json arr = nlohmann::json::array();
+        for (auto& row : results) {
+            nlohmann::json item;
+            item["id"] = std::stoi(row.at("id"));
+            item["title"] = row.at("title");
+            item["authors"] = row.count("authors") ? row.at("authors") : "";
+            item["citationCount"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+            item["keywords"] = row.count("keywords") ? row.at("keywords") : "";
+            arr.push_back(item);
+        }
+        resp["papers"] = arr;
+        resp["total"] = arr.size();
+    } catch (const std::exception& e) {
+        spdlog::warn("[DashboardApi] Trending papers failed: {}", e.what());
+    }
+    return resp.dump();
 }
 
 } // namespace PaperCrawler

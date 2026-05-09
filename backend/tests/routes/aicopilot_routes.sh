@@ -16,4 +16,7 @@ ROUTES=(
     "GET|/api/ai-co-pilot/recommendations||200|Get AI recommendations"
     "GET|/api/ai-co-pilot/stats||200|Get AI co-pilot stats"
     "GET|/api/ai-co-pilot/costs||200|Get AI co-pilot costs"
+    "GET|/api/ai-co-pilot/reviews||200|Review history"
+    "GET|/api/ai-co-pilot/literature-reviews||200|Literature review history"
+    "GET|/api/ai-co-pilot/plans||200|Research plan history"
 )

@@ -783,7 +783,181 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[PaperApiModule] Registered 24 routes");
+    // Reading history — list
+    router.get(prefix + "/reading-history", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"history\":[],\"total\":0}");
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+
+            std::string sql = "SELECT rh.id, rh.paper_id, rh.reading_status, rh.viewed_at, "
+                "p.title, p.authors, p.citation_count "
+                "FROM reading_history rh LEFT JOIN papers p ON rh.paper_id = p.id";
+            if (userId > 0) sql += " WHERE rh.user_id = " + std::to_string(userId);
+            sql += " ORDER BY rh.viewed_at DESC LIMIT " + std::to_string(limit);
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["paperId"] = std::stoi(row.at("paper_id"));
+                item["status"] = row.count("reading_status") ? row.at("reading_status") : "unread";
+                item["viewedAt"] = row.count("viewed_at") ? row.at("viewed_at") : "";
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["history"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Reading history — add/update
+    router.post(prefix + "/reading-history", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            int paperId = json.value("paper_id", 0);
+            std::string status = json.value("status", "reading");
+            if (userId <= 0 || paperId <= 0)
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"user_id and paper_id required\"}");
+
+            database_->execute(
+                "INSERT INTO reading_history (user_id, paper_id, reading_status) VALUES ("
+                + std::to_string(userId) + ", " + std::to_string(paperId) + ", '"
+                + ValidationHelper::sanitize(status) + "') "
+                "ON DUPLICATE KEY UPDATE reading_status = '" + ValidationHelper::sanitize(status) + "'");
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Bookmarks — list
+    router.get(prefix + "/bookmarks", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"bookmarks\":[],\"total\":0}");
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+            std::string sql = "SELECT ub.id, ub.paper_id, ub.created_at, "
+                "p.title, p.authors, p.citation_count, p.keywords "
+                "FROM user_bookmarks ub LEFT JOIN papers p ON ub.paper_id = p.id";
+            if (userId > 0) sql += " WHERE ub.user_id = " + std::to_string(userId);
+            sql += " ORDER BY ub.created_at DESC LIMIT 50";
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["paperId"] = std::stoi(row.at("paper_id"));
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                item["citationCount"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                item["bookmarkedAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["bookmarks"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Bookmarks — toggle
+    router.post(prefix + "/bookmarks", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            int paperId = json.value("paper_id", 0);
+            bool remove = json.value("remove", false);
+            if (userId <= 0 || paperId <= 0)
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"user_id and paper_id required\"}");
+
+            if (remove) {
+                database_->execute(
+                    "DELETE FROM user_bookmarks WHERE user_id = " + std::to_string(userId)
+                    + " AND paper_id = " + std::to_string(paperId));
+            } else {
+                database_->execute(
+                    "INSERT IGNORE INTO user_bookmarks (user_id, paper_id) VALUES ("
+                    + std::to_string(userId) + ", " + std::to_string(paperId) + ")");
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Paper detail with full metadata
+    router.get(prefix + "/:id/detail", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"Paper not found\"}");
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto results = database_->query(
+                "SELECT p.*, j.name as journal_name, j.ccf_level "
+                "FROM papers p LEFT JOIN journals j ON p.journal_id = j.id "
+                "WHERE p.id = " + std::to_string(paperId));
+            if (results.empty())
+                return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"Paper not found\"}");
+
+            auto& row = results[0];
+            nlohmann::json resp;
+            resp["id"] = std::stoi(row.at("id"));
+            resp["title"] = row.at("title");
+            resp["authors"] = row.count("authors") ? row.at("authors") : "";
+            resp["year"] = row.count("year") && !row.at("year").empty() ? row.at("year") : "";
+            resp["abstract"] = row.count("abstract") ? row.at("abstract") : "";
+            resp["journal"] = row.count("journal_name") ? row.at("journal_name") : "";
+            resp["ccfLevel"] = row.count("ccf_level") && !row.at("ccf_level").empty() ? row.at("ccf_level") : "";
+            resp["citationCount"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+            resp["keywords"] = row.count("keywords") ? row.at("keywords") : "";
+            resp["doi"] = row.count("doi") ? row.at("doi") : "";
+            resp["url"] = row.count("url") ? row.at("url") : "";
+            resp["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+
+            // Get tags
+            auto tags = database_->query(
+                "SELECT tag FROM paper_tags WHERE paper_id = " + std::to_string(paperId));
+            nlohmann::json tagArr = nlohmann::json::array();
+            for (auto& t : tags) tagArr.push_back(t.at("tag"));
+            resp["tags"] = tagArr;
+
+            // Get annotation count
+            auto annCount = database_->query(
+                "SELECT COUNT(*) as cnt FROM paper_annotations WHERE paper_id = " + std::to_string(paperId));
+            resp["annotationCount"] = annCount.empty() ? 0 : std::stoi(annCount[0]["cnt"]);
+
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[PaperApiModule] Registered 29 routes");
 }
 
 // ============================================================================

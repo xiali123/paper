@@ -35,4 +35,9 @@ ROUTES=(
     "POST|/api/papers/collections|{\"user_id\":1,\"name\":\"Test\"}|200,201|Create collection"
     "POST|/api/papers/collections/1/papers|{\"paper_id\":1}|200|Add paper to collection"
     "GET|/api/papers/1/tags||200|Get paper tags from table"
+    "GET|/api/papers/reading-history||200|List reading history"
+    "POST|/api/papers/reading-history|{\"user_id\":1,\"paper_id\":1,\"status\":\"reading\"}|200|Update reading history"
+    "GET|/api/papers/bookmarks||200|List bookmarks"
+    "POST|/api/papers/bookmarks|{\"user_id\":1,\"paper_id\":1}|200|Toggle bookmark"
+    "GET|/api/papers/1/detail||200,404|Paper full detail"
 )

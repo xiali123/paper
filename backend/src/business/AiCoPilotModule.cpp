@@ -444,7 +444,113 @@ void AiCoPilotModule::registerRoutes() {
         return jsonOk("Stats retrieved", data);
     });
 
-    spdlog::info("[AiCoPilot] Registered 17 routes at /api/ai-co-pilot");
+    // Review history for a user
+    router.get(prefix + "/reviews", [this](const HttpRequest& req) {
+        if (!database_)
+            return jsonOk("Reviews retrieved", nlohmann::json::object());
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+
+            std::string sql = "SELECT id, paper_id, review_score, acceptance_probability, "
+                "strengths, weaknesses, model, status, created_at FROM ai_reviews";
+            if (userId > 0) sql += " WHERE user_id = " + std::to_string(userId);
+            sql += " ORDER BY created_at DESC LIMIT " + std::to_string(limit);
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["paperId"] = row.count("paper_id") ? std::stoi(row.at("paper_id")) : 0;
+                item["reviewScore"] = row.count("review_score") ? std::stod(row.at("review_score")) : 0.0;
+                item["acceptanceProb"] = row.count("acceptance_probability") ? std::stod(row.at("acceptance_probability")) : 0.0;
+                item["model"] = row.count("model") ? row.at("model") : "";
+                item["status"] = row.count("status") ? row.at("status") : "";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json data;
+            data["reviews"] = arr;
+            data["total"] = arr.size();
+            return jsonOk("Reviews retrieved", data);
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Literature review history
+    router.get(prefix + "/literature-reviews", [this](const HttpRequest& req) {
+        if (!database_)
+            return jsonOk("Literature reviews retrieved", nlohmann::json::object());
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+            std::string sql = "SELECT id, user_id, topic, summary, status, created_at FROM ai_literature_reviews";
+            if (userId > 0) sql += " WHERE user_id = " + std::to_string(userId);
+            sql += " ORDER BY created_at DESC LIMIT 20";
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["userId"] = row.count("user_id") ? std::stoi(row.at("user_id")) : 0;
+                item["topic"] = row.count("topic") ? row.at("topic") : "";
+                item["status"] = row.count("status") ? row.at("status") : "";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json data;
+            data["literatureReviews"] = arr;
+            data["total"] = arr.size();
+            return jsonOk("Literature reviews retrieved", data);
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Research plan history
+    router.get(prefix + "/plans", [this](const HttpRequest& req) {
+        if (!database_)
+            return jsonOk("Plans retrieved", nlohmann::json::object());
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+            std::string sql = "SELECT id, user_id, title, summary, status, created_at FROM ai_research_plans";
+            if (userId > 0) sql += " WHERE user_id = " + std::to_string(userId);
+            sql += " ORDER BY created_at DESC LIMIT 20";
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["userId"] = row.count("user_id") ? std::stoi(row.at("user_id")) : 0;
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["status"] = row.count("status") ? row.at("status") : "";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json data;
+            data["plans"] = arr;
+            data["total"] = arr.size();
+            return jsonOk("Plans retrieved", data);
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiCoPilot] Registered 20 routes at /api/ai-co-pilot");
 }
 
 } // namespace PaperCrawler

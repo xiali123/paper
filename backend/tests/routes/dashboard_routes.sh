@@ -40,4 +40,10 @@ ROUTES=(
     # Config
     "GET|/api/dashboard/config||200|Get dashboard config"
     "PUT|/api/dashboard/config|{\"refreshInterval\":600}|200|Update dashboard config"
+
+    # New endpoints
+    "POST|/api/dashboard/todos|{\"title\":\"Test\",\"user_id\":1}|200,201|Create todo"
+    "DELETE|/api/dashboard/todos/1||200|Delete todo"
+    "GET|/api/dashboard/activities||200|Platform activities"
+    "GET|/api/dashboard/papers/trending||200|Trending papers"
 )
