@@ -16,4 +16,7 @@ ROUTES=(
     "GET|/api/export/word?paperIds=1||200,400|Export as Word"
     "GET|/api/export/bibtex?paperIds=1||200,400|Export as BibTeX"
     "GET|/api/export/history||200|Export history"
+    "POST|/api/export/track|{\"user_id\":1,\"format\":\"json\"}|200|Track export"
+    "GET|/api/export/stats||200|Export stats per format"
+    "GET|/api/export/user/1||200|User exports"
 )

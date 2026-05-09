@@ -949,7 +949,120 @@ void SearchApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[SearchApiModule] Registered 15 routes");
+    // Search suggestions (typeahead)
+    router.get(prefix + "/suggest-advanced", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"suggestions\":[]}");
+
+        try {
+            std::string q = req.queryParams.count("q") ? req.queryParams.at("q") : "";
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 10;
+            if (q.empty()) return HttpResponse::json(HTTP::OK, "{\"suggestions\":[]}");
+
+            std::string likeQ = "%" + q + "%";
+            auto results = database_->query(
+                "SELECT keyword, type, count FROM search_suggestions "
+                "WHERE keyword LIKE '" + ValidationHelper::sanitize(likeQ) + "' "
+                "ORDER BY count DESC LIMIT " + std::to_string(limit));
+
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["keyword"] = row.count("keyword") ? row.at("keyword") : "";
+                item["type"] = row.count("type") ? row.at("type") : "keyword";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["suggestions"] = arr;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // User's saved searches
+    router.get(prefix + "/saved", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"searches\":[],\"total\":0}");
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+            std::string sql = "SELECT id, user_id, query, created_at FROM saved_searches";
+            if (userId > 0) sql += " WHERE user_id = " + std::to_string(userId);
+            sql += " ORDER BY created_at DESC LIMIT 20";
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["userId"] = std::stoi(row.at("user_id"));
+                item["query"] = row.at("query");
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["searches"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Save a search
+    router.post(prefix + "/saved", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":0}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            std::string query = json.value("query", "");
+            if (query.empty() || userId <= 0)
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"user_id and query required\"}");
+
+            database_->execute(
+                "INSERT INTO saved_searches (user_id, query) VALUES ("
+                + std::to_string(userId) + ", '" + ValidationHelper::sanitize(query) + "')");
+            return HttpResponse::json(HTTP::CREATED, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Trending searches from DB
+    router.get(prefix + "/trending", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"trending\":[]}");
+
+        try {
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 10;
+
+            auto results = database_->query(
+                "SELECT keyword, count, trend FROM trending_searches ORDER BY count DESC LIMIT "
+                + std::to_string(limit));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["keyword"] = row.count("keyword") ? row.at("keyword") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                item["trend"] = row.count("trend") ? row.at("trend") : "stable";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["trending"] = arr;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 19 routes");
 }
 
 } // namespace PaperCrawler

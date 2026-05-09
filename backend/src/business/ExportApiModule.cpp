@@ -949,7 +949,81 @@ void ExportApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[ExportApi] Registered 11 routes");
+    // Export history — track exports
+    router.post(prefix + "/track", [this](const HttpRequest& req) -> HttpResponse {
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            std::string format = json.value("format", "json");
+            int count = json.value("count", 0);
+
+            impl_->database_->execute(
+                "INSERT INTO exports (user_id, format, status) VALUES ("
+                + std::to_string(userId) + ", '" + format + "', 'completed')");
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Export stats per format
+    router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"byFormat\":[],\"total\":0}");
+
+        try {
+            auto results = impl_->database_->query(
+                "SELECT format, COUNT(*) as count FROM exports GROUP BY format ORDER BY count DESC");
+            nlohmann::json arr = nlohmann::json::array();
+            int total = 0;
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["format"] = row.count("format") ? row.at("format") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                total += item["count"].get<int>();
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["byFormat"] = arr;
+            resp["total"] = total;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Export by user
+    router.get(prefix + "/user/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"exports\":[],\"total\":0}");
+
+        try {
+            int userId = std::stoi(req.pathParams.at("id"));
+            auto results = impl_->database_->query(
+                "SELECT id, format, status, created_at FROM exports WHERE user_id = "
+                + std::to_string(userId) + " ORDER BY created_at DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["format"] = row.at("format");
+                item["status"] = row.count("status") ? row.at("status") : "completed";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["exports"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 14 routes");
 }
 
 } // namespace PaperCrawler

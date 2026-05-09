@@ -22,4 +22,8 @@ ROUTES=(
     "GET|/api/search/autocomplete?q=BERT||200|Autocomplete suggestions"
     "POST|/api/search/filters|{\"name\":\"My Filter\"}|200|Save search filter"
     "DELETE|/api/search/cache||200|Clear search cache"
+    "GET|/api/search/suggest-advanced?q=test||200|Advanced suggestions"
+    "GET|/api/search/saved||200|List saved searches"
+    "POST|/api/search/saved|{\"user_id\":1,\"query\":\"test\"}|200,201|Save search"
+    "GET|/api/search/trending||200|Trending from DB"
 )
