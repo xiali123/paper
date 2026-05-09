@@ -155,6 +155,11 @@ class CitationStyleGenerator;
 class PaperVersionDiff;
 class ResearchCalendarWidget;
 class PaperSentimentAnalyzer;
+class PaperCitationNetwork;
+class PaperCoReadingTracker;
+class PaperQaChatWidget;
+class PaperTrendHeatmap;
+class PaperAutoTagger;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

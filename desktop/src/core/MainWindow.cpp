@@ -152,6 +152,11 @@
 #include "workspace/PaperVersionDiff.hpp"
 #include "reading/ResearchCalendarWidget.hpp"
 #include "analysis/PaperSentimentAnalyzer.hpp"
+#include "citation/PaperCitationNetwork.hpp"
+#include "reading/PaperCoReadingTracker.hpp"
+#include "analysis/PaperQaChatWidget.hpp"
+#include "visualization/PaperTrendHeatmap.hpp"
+#include "analysis/PaperAutoTagger.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4653,6 +4658,66 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    auto* citationNetworkAction = toolsMenu->addAction("&Citation Network");
+    connect(citationNetworkAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Citation Network");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationNetwork();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* coReadingAction = toolsMenu->addAction("&Co-Reading Tracker");
+    connect(coReadingAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Co-Reading Tracker");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCoReadingTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* qaChatAction = toolsMenu->addAction("&Paper QA Chat");
+    connect(qaChatAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper QA Chat");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperQaChatWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* trendHeatmapAction = toolsMenu->addAction("&Trend Heatmap");
+    connect(trendHeatmapAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Trend Heatmap");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTrendHeatmap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    auto* autoTaggerAction = toolsMenu->addAction("&Auto Tagger");
+    connect(autoTaggerAction, &QAction::triggered, this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Auto Tagger");
+        dlg->resize(750, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAutoTagger();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5268,6 +5333,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Sentiment Analyzer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Sentiment Analyzer");
+    });
+    commandPalette_->addAction("Citation Network", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Network");
+    });
+    commandPalette_->addAction("Co-Reading Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Co-Reading Tracker");
+    });
+    commandPalette_->addAction("Paper QA Chat", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper QA Chat");
+    });
+    commandPalette_->addAction("Trend Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Trend Heatmap");
+    });
+    commandPalette_->addAction("Auto Tagger", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Auto Tagger");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
