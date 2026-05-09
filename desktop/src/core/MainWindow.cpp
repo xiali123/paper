@@ -182,6 +182,11 @@
 #include "tools/PaperPomodoroTimer.hpp"
 #include "workspace/PaperDatasetManager.hpp"
 #include "reading/PaperReadingAnalyticsWidget.hpp"
+#include "visualization/PaperWorkflowSankey.hpp"
+#include "analysis/PaperEntityExtractor.hpp"
+#include "tools/PaperSideBySideCompare.hpp"
+#include "workspace/PaperConferencePlanner.hpp"
+#include "citation/PaperPeerReviewTracker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5018,6 +5023,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Workflow Sankey", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Workflow Sankey");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWorkflowSankey();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Entity Extractor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Entity Extractor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEntityExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Side-by-Side Compare", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Side-by-Side Compare");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSideBySideCompare();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Conference Planner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Conference Planner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConferencePlanner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Peer Review Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Peer Review Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPeerReviewTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5723,6 +5783,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Reading Analytics", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Analytics");
+    });
+    commandPalette_->addAction("Workflow Sankey", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Workflow Sankey");
+    });
+    commandPalette_->addAction("Entity Extractor", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Entity Extractor");
+    });
+    commandPalette_->addAction("Side-by-Side Compare", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Side-by-Side Compare");
+    });
+    commandPalette_->addAction("Conference Planner", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Conference Planner");
+    });
+    commandPalette_->addAction("Peer Review Tracker", "", "Citation", [this]() {
+        ToastWidget::showInfo("Open Tools > Peer Review Tracker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

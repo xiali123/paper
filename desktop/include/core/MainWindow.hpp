@@ -185,6 +185,11 @@ class PaperReproducibilityChecker;
 class PaperPomodoroTimer;
 class PaperDatasetManager;
 class PaperReadingAnalyticsWidget;
+class PaperWorkflowSankey;
+class PaperEntityExtractor;
+class PaperSideBySideCompare;
+class PaperConferencePlanner;
+class PaperPeerReviewTracker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
