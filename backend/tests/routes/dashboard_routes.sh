@@ -48,4 +48,7 @@ ROUTES=(
     "GET|/api/dashboard/papers/trending||200|Trending papers"
     "PUT|/api/dashboard/todos/1|{\"title\":\"Updated\",\"priority\":\"high\"}|200|Update todo item"
     "GET|/api/dashboard/notifications||200|Get notifications"
+    "GET|/api/dashboard/search-history||200|Recent search history"
+    "GET|/api/dashboard/system-health||200|System health check"
+    "GET|/api/dashboard/top-papers||200|Top cited papers"
 )

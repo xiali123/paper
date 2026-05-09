@@ -1187,7 +1187,41 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 14 routes");
+    // POST /api/auth/avatar — upload avatar (stub)
+    router.post(prefix + "/avatar", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            std::string url = json.value("url", "/avatars/default.png");
+
+            if (database_ && userId > 0) {
+                database_->execute(
+                    "UPDATE users SET avatar_url = '" + ValidationHelper::sanitize(url)
+                    + "' WHERE id = " + std::to_string(userId));
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"url\":\"" + url + "\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // DELETE /api/auth/avatar — remove avatar
+    router.del(prefix + "/avatar", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+
+            if (database_ && userId > 0) {
+                database_->execute(
+                    "UPDATE users SET avatar_url = NULL WHERE id = " + std::to_string(userId));
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 16 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

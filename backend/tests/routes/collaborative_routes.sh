@@ -20,4 +20,7 @@ ROUTES=(
     "GET|/api/writing/documents/1/comments||200,401,404|List document comments"
     "POST|/api/writing/documents/1/comments|{\"content\":\"Nice work\"}|200,401,404|Add comment to document"
     "PUT|/api/writing/comments/1/resolve|{}|200,401,404|Resolve comment"
+    "POST|/api/writing/documents/1/export|{\"format\":\"markdown\"}|200,404|Export document"
+    "PUT|/api/writing/comments/resolve-all|{\"documentId\":\"1\"}|200|Resolve all comments"
+    "POST|/api/writing/documents/1/restore|{\"versionId\":\"1\"}|200,404|Restore document version"
 )

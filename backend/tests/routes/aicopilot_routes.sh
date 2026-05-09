@@ -19,4 +19,7 @@ ROUTES=(
     "GET|/api/ai-co-pilot/reviews||200|Review history"
     "GET|/api/ai-co-pilot/literature-reviews||200|Literature review history"
     "GET|/api/ai-co-pilot/plans||200|Research plan history"
+    "GET|/api/ai-co-pilot/sessions/1/messages||200|Get session messages"
+    "POST|/api/ai-co-pilot/regenerate/1||200|Regenerate review"
+    "POST|/api/ai-co-pilot/feedback|{\"type\":\"review\",\"rating\":5,\"comment\":\"Good\"}|200|Submit AI feedback"
 )

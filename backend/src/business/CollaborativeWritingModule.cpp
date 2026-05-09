@@ -693,6 +693,85 @@ void CollaborativeWritingModule::registerRoutes() {
             return buildErrorResponse(HTTP::INTERNAL_ERROR, e.what());
         }
     });
+
+    // POST /api/writing/documents/:id/export — export document
+    router.post(prefix + "/documents/:id/export", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            std::string format = "markdown";
+            if (!req.body.empty()) {
+                auto json = nlohmann::json::parse(req.body);
+                format = json.value("format", "markdown");
+            }
+
+            nlohmann::json data;
+            data["documentId"] = docId;
+            data["format"] = format;
+            data["content"] = "";
+            data["success"] = true;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT title, content FROM collab_documents WHERE id = " + docId);
+                if (!rows.empty()) {
+                    data["title"] = rows[0].count("title") ? rows[0].at("title") : "";
+                    data["content"] = rows[0].count("content") ? rows[0].at("content") : "";
+                }
+            }
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // PUT /api/writing/comments/resolve-all — resolve all comments for doc
+    router.put(prefix + "/comments/resolve-all", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string docId = json.value("documentId", "");
+
+            if (database_ && !docId.empty()) {
+                database_->execute(
+                    "UPDATE collab_comments SET resolved = 1 WHERE document_id = " + docId);
+            }
+            nlohmann::json data;
+            data["success"] = true;
+            data["documentId"] = docId;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/writing/documents/:id/restore — restore document version
+    router.post(prefix + "/documents/:id/restore", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            auto json = nlohmann::json::parse(req.body);
+            std::string versionId = json.value("versionId", "");
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["documentId"] = docId;
+            data["restoredVersion"] = versionId;
+
+            if (database_ && !versionId.empty()) {
+                auto rows = database_->query(
+                    "SELECT content FROM collab_versions WHERE id = " + versionId
+                    + " AND document_id = " + docId);
+                if (!rows.empty()) {
+                    database_->execute(
+                        "UPDATE collab_documents SET content = '"
+                        + StringUtil::escapeSql(rows[0].at("content"))
+                        + "' WHERE id = " + docId);
+                    data["restored"] = true;
+                }
+            }
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
 }
 
 // ============================================================================

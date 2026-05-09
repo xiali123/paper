@@ -25,4 +25,6 @@ ROUTES=(
     "POST|/api/auth/forgot-password|{\"email\":\"test@test.com\"}|200|Forgot password request"
     "POST|/api/auth/deactivate|{\"user_id\":\"1\"}|200|Deactivate account"
     "POST|/api/auth/reactivate|{\"user_id\":\"1\"}|200|Reactivate account"
+    "POST|/api/auth/avatar|{\"user_id\":1,\"url\":\"/avatars/test.png\"}|200|Upload avatar"
+    "DELETE|/api/auth/avatar|{\"user_id\":1}|200|Remove avatar"
 )

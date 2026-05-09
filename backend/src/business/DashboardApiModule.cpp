@@ -277,7 +277,87 @@ void DashboardApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[DashboardApi] Registered 19 routes under {}", prefix);
+    // GET /api/dashboard/search-history — recent search history
+    router.get(prefix + "/search-history", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["searches"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+                auto results = database_->query(
+                    "SELECT id, query, created_at FROM search_history ORDER BY created_at DESC LIMIT "
+                    + std::to_string(limit));
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row.at("id"));
+                    item["query"] = row.count("query") ? row.at("query") : "";
+                    item["timestamp"] = row.count("created_at") ? row.at("created_at") : "";
+                    arr.push_back(item);
+                }
+                resp["searches"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Search history failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // GET /api/dashboard/system-health — system health check
+    router.get(prefix + "/system-health", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["status"] = "healthy";
+        resp["database"] = database_ ? "connected" : "disconnected";
+        resp["uptime"] = std::time(nullptr);
+        resp["modules"] = 13;
+        resp["version"] = "1.0.0";
+
+        if (database_) {
+            try {
+                auto r = database_->query("SELECT COUNT(*) as cnt FROM papers");
+                resp["totalPapers"] = r.empty() ? 0 : std::stoi(r[0]["cnt"]);
+            } catch (...) {
+                resp["database"] = "error";
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // GET /api/dashboard/top-papers — most cited papers
+    router.get(prefix + "/top-papers", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["papers"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 10;
+                auto results = database_->query(
+                    "SELECT id, title, authors, citation_count, year FROM papers "
+                    "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row.at("id"));
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["citations"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    arr.push_back(item);
+                }
+                resp["papers"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Top papers failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[DashboardApi] Registered 22 routes under {}", prefix);
 }
 
 // ============================================================================

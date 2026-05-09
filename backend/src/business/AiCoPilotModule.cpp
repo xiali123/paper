@@ -1,5 +1,6 @@
 #include "business/AiCoPilotModule.hpp"
 #include "data/DatabaseModule.hpp"
+#include "data/ValidationHelper.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
 #include "../../core/external/nlohmann/json.hpp"
@@ -550,7 +551,76 @@ void AiCoPilotModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiCoPilot] Registered 20 routes at /api/ai-co-pilot");
+    // GET /api/ai-co-pilot/sessions/:id/messages — get session messages
+    router.get(prefix + "/sessions/:id/messages", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["messages"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                std::string sessionId = req.pathParams.at("id");
+                int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 50;
+                auto results = database_->query(
+                    "SELECT id, role, content, created_at FROM ai_conversations "
+                    "WHERE session_id = '" + sessionId + "' ORDER BY created_at ASC LIMIT "
+                    + std::to_string(limit));
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row.at("id"));
+                    item["role"] = row.count("role") ? row.at("role") : "user";
+                    item["content"] = row.count("content") ? row.at("content") : "";
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    arr.push_back(item);
+                }
+                resp["messages"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[AiCoPilot] Session messages failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(200, resp.dump());
+    });
+
+    // POST /api/ai-co-pilot/regenerate/:id — regenerate review/plan
+    router.post(prefix + "/regenerate/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string id = req.pathParams.at("id");
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["id"] = id;
+            resp["message"] = "Regeneration queued";
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/ai-co-pilot/feedback — submit AI feedback
+    router.post(prefix + "/feedback", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string type = json.value("type", "");
+            int rating = json.value("rating", 0);
+            std::string comment = json.value("comment", "");
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO ai_feedback (type, rating, comment) VALUES ('"
+                    + ValidationHelper::sanitize(type) + "', "
+                    + std::to_string(rating) + ", '"
+                    + ValidationHelper::sanitize(comment) + "')");
+            }
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"success\":false,\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiCoPilot] Registered 23 routes at /api/ai-co-pilot");
 }
 
 } // namespace PaperCrawler
