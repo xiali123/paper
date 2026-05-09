@@ -162,6 +162,11 @@
 #include "workspace/PaperReadingGroupWidget.hpp"
 #include "tools/PaperAlertMonitor.hpp"
 #include "visualization/PaperGeographyMap.hpp"
+#include "visualization/PaperCitationRadarChart.hpp"
+#include "visualization/PaperResearchTimeline.hpp"
+#include "analysis/PaperArgumentParser.hpp"
+#include "tools/PaperCodeSnippetManager.hpp"
+#include "workspace/PaperResourceAllocator.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4778,6 +4783,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Citation Radar Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Radar Chart");
+        dlg->setMinimumSize(620, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationRadarChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Research Timeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Research Timeline");
+        dlg->setMinimumSize(620, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResearchTimeline();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Argument Parser", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Parser");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentParser();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Code Snippet Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Code Snippet Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCodeSnippetManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Resource Allocator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Resource Allocator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResourceAllocator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5423,6 +5483,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Geography Map", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Geography Map");
+    });
+    commandPalette_->addAction("Citation Radar Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Radar Chart");
+    });
+    commandPalette_->addAction("Research Timeline", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Research Timeline");
+    });
+    commandPalette_->addAction("Argument Parser", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Parser");
+    });
+    commandPalette_->addAction("Code Snippet Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Code Snippet Manager");
+    });
+    commandPalette_->addAction("Resource Allocator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Resource Allocator");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

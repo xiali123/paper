@@ -165,6 +165,11 @@ class PaperMathFormulaRenderer;
 class PaperReadingGroupWidget;
 class PaperAlertMonitor;
 class PaperGeographyMap;
+class PaperCitationRadarChart;
+class PaperResearchTimeline;
+class PaperArgumentParser;
+class PaperCodeSnippetManager;
+class PaperResourceAllocator;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
