@@ -192,6 +192,11 @@
 #include "reading/PaperReadingPathOptimizer.hpp"
 #include "visualization/PaperKnowledgeGraphExplorer.hpp"
 #include "citation/PaperAuthorDisambiguator.hpp"
+#include "analysis/PaperCitationTimingAnalyzer.hpp"
+#include "reading/PaperReadingListSorter.hpp"
+#include "visualization/PaperTrendPredictor.hpp"
+#include "workspace/PaperCollaborationMatcher.hpp"
+#include "tools/PaperFormulaSearchEngine.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5138,6 +5143,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Citation Timing Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Timing Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationTimingAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading List Sorter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading List Sorter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingListSorter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Trend Predictor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Trend Predictor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTrendPredictor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Collaboration Matcher", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Collaboration Matcher");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCollaborationMatcher();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Formula Search Engine", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Formula Search Engine");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFormulaSearchEngine();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5873,6 +5933,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Author Disambiguator", "", "Citation", [this]() {
         ToastWidget::showInfo("Open Tools > Author Disambiguator");
+    });
+    commandPalette_->addAction("Citation Timing Analyzer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Timing Analyzer");
+    });
+    commandPalette_->addAction("Reading List Sorter", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading List Sorter");
+    });
+    commandPalette_->addAction("Trend Predictor", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Trend Predictor");
+    });
+    commandPalette_->addAction("Collaboration Matcher", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Collaboration Matcher");
+    });
+    commandPalette_->addAction("Formula Search Engine", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Formula Search Engine");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

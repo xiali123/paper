@@ -195,6 +195,11 @@ class PaperCitationContextAnalyzer;
 class PaperReadingPathOptimizer;
 class PaperKnowledgeGraphExplorer;
 class PaperAuthorDisambiguator;
+class PaperCitationTimingAnalyzer;
+class PaperReadingListSorter;
+class PaperTrendPredictor;
+class PaperCollaborationMatcher;
+class PaperFormulaSearchEngine;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
