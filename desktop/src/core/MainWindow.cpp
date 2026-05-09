@@ -197,6 +197,11 @@
 #include "visualization/PaperTrendPredictor.hpp"
 #include "workspace/PaperCollaborationMatcher.hpp"
 #include "tools/PaperFormulaSearchEngine.hpp"
+#include "analysis/PaperRecommenderFeedback.hpp"
+#include "reading/PaperReadingSpeedTracker.hpp"
+#include "visualization/PaperCitationNetworkD3.hpp"
+#include "workspace/PaperProjectTimelineWidget.hpp"
+#include "tools/PaperLatexSymbolFinder.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5198,6 +5203,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Recommender Feedback", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Recommender Feedback");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRecommenderFeedback();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading Speed Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Speed Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSpeedTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Citation Network D3", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Network D3");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationNetworkD3();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Project Timeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Project Timeline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProjectTimelineWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("LaTeX Symbol Finder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("LaTeX Symbol Finder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLatexSymbolFinder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5948,6 +6008,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Formula Search Engine", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Formula Search Engine");
+    });
+    commandPalette_->addAction("Recommender Feedback", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Recommender Feedback");
+    });
+    commandPalette_->addAction("Reading Speed Tracker", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Speed Tracker");
+    });
+    commandPalette_->addAction("Citation Network D3", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Network D3");
+    });
+    commandPalette_->addAction("Project Timeline", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Project Timeline");
+    });
+    commandPalette_->addAction("LaTeX Symbol Finder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > LaTeX Symbol Finder");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

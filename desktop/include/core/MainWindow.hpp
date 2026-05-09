@@ -200,6 +200,11 @@ class PaperReadingListSorter;
 class PaperTrendPredictor;
 class PaperCollaborationMatcher;
 class PaperFormulaSearchEngine;
+class PaperRecommenderFeedback;
+class PaperReadingSpeedTracker;
+class PaperCitationNetworkD3;
+class PaperProjectTimelineWidget;
+class PaperLatexSymbolFinder;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
