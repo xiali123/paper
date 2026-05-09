@@ -202,6 +202,11 @@
 #include "visualization/PaperCitationNetworkD3.hpp"
 #include "workspace/PaperProjectTimelineWidget.hpp"
 #include "tools/PaperLatexSymbolFinder.hpp"
+#include "analysis/PaperArgumentStrengthAnalyzer.hpp"
+#include "reading/PaperReadingMoodTracker.hpp"
+#include "visualization/PaperCitationImpactCloud.hpp"
+#include "workspace/PaperBudgetPlanner.hpp"
+#include "tools/PaperBatchRenamer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5258,6 +5263,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Argument Strength Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Strength Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentStrengthAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading Mood Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Mood Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingMoodTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Citation Impact Cloud", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Impact Cloud");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationImpactCloud();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Budget Planner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Budget Planner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBudgetPlanner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Batch Renamer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Batch Renamer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBatchRenamer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -6023,6 +6083,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("LaTeX Symbol Finder", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > LaTeX Symbol Finder");
+    });
+    commandPalette_->addAction("Argument Strength Analyzer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Strength Analyzer");
+    });
+    commandPalette_->addAction("Reading Mood Tracker", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Mood Tracker");
+    });
+    commandPalette_->addAction("Citation Impact Cloud", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Impact Cloud");
+    });
+    commandPalette_->addAction("Budget Planner", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Budget Planner");
+    });
+    commandPalette_->addAction("Batch Renamer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Batch Renamer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

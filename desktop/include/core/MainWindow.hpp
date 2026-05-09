@@ -205,6 +205,11 @@ class PaperReadingSpeedTracker;
 class PaperCitationNetworkD3;
 class PaperProjectTimelineWidget;
 class PaperLatexSymbolFinder;
+class PaperArgumentStrengthAnalyzer;
+class PaperReadingMoodTracker;
+class PaperCitationImpactCloud;
+class PaperBudgetPlanner;
+class PaperBatchRenamer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
