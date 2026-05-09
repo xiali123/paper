@@ -1140,7 +1140,135 @@ void SearchApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[SearchApiModule] Registered 21 routes");
+    // GET /api/search/suggestions — Search suggestions based on prefix
+    router.get(prefix + "/suggestions", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["suggestions"] = nlohmann::json::array();
+        std::string query;
+
+        // Extract query from query params or body
+        auto qIt = req.queryParams.find("q");
+        if (qIt != req.queryParams.end()) {
+            query = qIt->second;
+        } else if (!req.body.empty()) {
+            try {
+                auto body = nlohmann::json::parse(req.body);
+                query = body.value("q", "");
+            } catch (...) {}
+        }
+
+        resp["query"] = query;
+
+        if (database_ && !query.empty()) {
+            try {
+                std::string escaped = StringUtil::escapeSql(query);
+                auto results = database_->query(
+                    "SELECT DISTINCT keyword FROM search_history WHERE keyword LIKE '"
+                    + escaped + "%' LIMIT 10");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    arr.push_back(row.count("keyword") ? row.at("keyword") : "");
+                }
+                resp["suggestions"] = arr;
+            } catch (const std::exception& e) {
+                spdlog::warn("[SearchApi] Suggestions query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // DELETE /api/search/history — Clear search history for a user (by body)
+    router.del(prefix + "/history", [this](const HttpRequest& req) -> HttpResponse {
+        std::string userId;
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            userId = std::to_string(body.value("userId", 0));
+        } catch (...) {
+            // Fallback: try query param
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = it->second;
+        }
+
+        if (database_ && !userId.empty()) {
+            try {
+                database_->execute(
+                    "DELETE FROM search_history WHERE user_id = " + userId);
+            } catch (const std::exception& e) {
+                spdlog::warn("[SearchApi] Clear history failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["deleted"] = true;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // GET /api/search/advanced — Advanced search with multiple filters
+    router.get(prefix + "/advanced", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["results"] = nlohmann::json::array();
+        resp["total"] = 0;
+        resp["page"] = 1;
+
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, resp.dump());
+
+        try {
+            // Extract filter params from query string
+            std::string query = req.queryParams.count("q") ? req.queryParams.at("q") : "";
+            std::string author = req.queryParams.count("author") ? req.queryParams.at("author") : "";
+            std::string year = req.queryParams.count("year") ? req.queryParams.at("year") : "";
+            std::string journal = req.queryParams.count("journal") ? req.queryParams.at("journal") : "";
+            int page = req.queryParams.count("page") ? std::stoi(req.queryParams.at("page")) : 1;
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+            int offset = (page - 1) * limit;
+
+            // Build dynamic WHERE clauses
+            std::string whereClause;
+            std::vector<std::string> conditions;
+            if (!query.empty())
+                conditions.push_back("(title LIKE '%" + StringUtil::escapeSql(query) + "%' OR abstract LIKE '%" + StringUtil::escapeSql(query) + "%')");
+            if (!author.empty())
+                conditions.push_back("authors LIKE '%" + StringUtil::escapeSql(author) + "%'");
+            if (!year.empty())
+                conditions.push_back("year = '" + StringUtil::escapeSql(year) + "'");
+            if (!journal.empty())
+                conditions.push_back("journal LIKE '%" + StringUtil::escapeSql(journal) + "%'");
+
+            if (!conditions.empty()) {
+                for (size_t i = 0; i < conditions.size(); ++i) {
+                    if (i > 0) whereClause += " AND ";
+                    whereClause += conditions[i];
+                }
+                whereClause = " WHERE " + whereClause;
+            }
+
+            auto results = database_->query(
+                "SELECT id, title, authors, year, journal FROM papers"
+                + whereClause + " ORDER BY citation_count DESC LIMIT "
+                + std::to_string(limit) + " OFFSET " + std::to_string(offset));
+
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                item["journal"] = row.count("journal") ? row.at("journal") : "";
+                arr.push_back(item);
+            }
+            resp["results"] = arr;
+            resp["total"] = arr.size();
+            resp["page"] = page;
+        } catch (const std::exception& e) {
+            spdlog::warn("[SearchApi] Advanced search failed: {}", e.what());
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[SearchApiModule] Registered 24 routes");
 }
 
 } // namespace PaperCrawler

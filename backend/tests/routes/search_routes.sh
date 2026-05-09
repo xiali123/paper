@@ -29,4 +29,7 @@ ROUTES=(
     "GET|/api/search/facets||200|Search facets"
     "GET|/api/search/facets?query=test||200|Search facets with query"
     "GET|/api/search/related-searches?query=test||200|Related search queries"
+    "GET|/api/search/suggestions?q=BERT||200|Search suggestions by prefix"
+    "DELETE|/api/search/history|{\"userId\":\"1\"}|200|Clear search history by body"
+    "GET|/api/search/advanced?q=test&author=Smith&year=2024||200|Advanced search with filters"
 )

@@ -1180,7 +1180,147 @@ void ExportApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[ExportApi] Registered 20 routes");
+    // POST /api/export/templates — Create export template
+    router.post(prefix + "/templates", [this](const HttpRequest& req) -> HttpResponse {
+        std::string name, format;
+        nlohmann::json fields = nlohmann::json::array();
+
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            name = body.value("name", "");
+            format = body.value("format", "json");
+            if (body.contains("fields") && body["fields"].is_array()) {
+                fields = body["fields"];
+            }
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid JSON\"}");
+        }
+
+        if (name.empty())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"name is required\"}");
+
+        std::string templateId = "tpl_" + std::to_string(
+            std::chrono::system_clock::now().time_since_epoch().count());
+
+        if (database_) {
+            try {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS export_templates ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "template_id VARCHAR(64) NOT NULL, "
+                    "name VARCHAR(255) NOT NULL, "
+                    "format VARCHAR(32) NOT NULL, "
+                    "fields JSON, "
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                std::string fieldsStr = fields.dump();
+                database_->execute(
+                    "INSERT INTO export_templates (template_id, name, format, fields) VALUES ('"
+                    + StringUtil::escapeSql(templateId) + "', '"
+                    + StringUtil::escapeSql(name) + "', '"
+                    + StringUtil::escapeSql(format) + "', '"
+                    + StringUtil::escapeSql(fieldsStr) + "')");
+            } catch (const std::exception& e) {
+                spdlog::warn("[ExportApi] Create template failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["templateId"] = templateId;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // GET /api/export/templates — List export templates
+    router.get(prefix + "/templates", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["templates"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS export_templates ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "template_id VARCHAR(64) NOT NULL, "
+                    "name VARCHAR(255) NOT NULL, "
+                    "format VARCHAR(32) NOT NULL, "
+                    "fields JSON, "
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                auto results = database_->query(
+                    "SELECT * FROM export_templates ORDER BY created_at DESC LIMIT 20");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? row.at("id") : "";
+                    item["templateId"] = row.count("template_id") ? row.at("template_id") : "";
+                    item["name"] = row.count("name") ? row.at("name") : "";
+                    item["format"] = row.count("format") ? row.at("format") : "";
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    arr.push_back(item);
+                }
+                resp["templates"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[ExportApi] List templates failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/export/schedule — Schedule an export job
+    router.post(prefix + "/schedule", [this](const HttpRequest& req) -> HttpResponse {
+        std::string templateId, schedule;
+        nlohmann::json emails = nlohmann::json::array();
+
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            templateId = body.value("templateId", "");
+            schedule = body.value("schedule", "daily");
+            if (body.contains("emails") && body["emails"].is_array()) {
+                emails = body["emails"];
+            }
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid JSON\"}");
+        }
+
+        if (templateId.empty())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"templateId is required\"}");
+
+        std::string scheduleId = "sch_" + std::to_string(
+            std::chrono::system_clock::now().time_since_epoch().count());
+
+        if (database_) {
+            try {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS export_schedules ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "schedule_id VARCHAR(64) NOT NULL, "
+                    "template_id VARCHAR(64) NOT NULL, "
+                    "schedule VARCHAR(32) NOT NULL, "
+                    "emails JSON, "
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                std::string emailsStr = emails.dump();
+                database_->execute(
+                    "INSERT INTO export_schedules (schedule_id, template_id, schedule, emails) VALUES ('"
+                    + StringUtil::escapeSql(scheduleId) + "', '"
+                    + StringUtil::escapeSql(templateId) + "', '"
+                    + StringUtil::escapeSql(schedule) + "', '"
+                    + StringUtil::escapeSql(emailsStr) + "')");
+            } catch (const std::exception& e) {
+                spdlog::warn("[ExportApi] Create schedule failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["scheduleId"] = scheduleId;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[ExportApi] Registered 23 routes");
 }
 
 } // namespace PaperCrawler

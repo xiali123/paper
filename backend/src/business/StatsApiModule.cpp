@@ -919,7 +919,98 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 20 routes");
+    // GET /api/stats/authors/top — Top authors by paper count (ranked)
+    router.get(prefix + "/authors/top", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"authors\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT author, COUNT(*) as count FROM papers GROUP BY author ORDER BY count DESC LIMIT 10");
+            nlohmann::json arr = nlohmann::json::array();
+            int rank = 1;
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["name"] = row.count("author") ? row.at("author") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                item["rank"] = rank++;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["authors"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/timeline — Paper publication timeline
+    router.get(prefix + "/timeline", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"timeline\":[],\"range\":5}");
+
+        try {
+            int years = 5;
+            auto it = req.queryParams.find("years");
+            if (it != req.queryParams.end()) {
+                try { years = std::stoi(it->second); } catch (...) {}
+            }
+
+            auto results = database_->query(
+                "SELECT year, COUNT(*) as count FROM papers WHERE year >= YEAR(NOW()) - "
+                + std::to_string(years) + " GROUP BY year ORDER BY year");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["timeline"] = arr;
+            resp["range"] = years;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/geography — Geographic distribution of papers
+    router.get(prefix + "/geography", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"regions\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(authors, '(', -1), ')', 1) as region, "
+                "COUNT(*) as count FROM papers WHERE authors IS NOT NULL AND authors != '' "
+                "GROUP BY region ORDER BY count DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            int total = 0;
+            for (auto& row : results) {
+                int cnt = row.count("count") ? std::stoi(row.at("count")) : 0;
+                total += cnt;
+            }
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["name"] = row.count("region") ? row.at("region") : "Unknown";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                item["percentage"] = total > 0
+                    ? std::round((double)item["count"].get<int>() / total * 10000.0) / 100.0
+                    : 0.0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["regions"] = arr;
+            resp["total"] = total;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 23 routes");
 }
 
 std::string StatsApiModule::handleStats() {

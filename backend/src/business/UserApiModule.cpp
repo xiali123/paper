@@ -854,7 +854,161 @@ void UserApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("UserApiModule routes registered (22)");
+    // GET /api/users/:id/activity — User activity log (dedicated table)
+    router.get(prefix + "/:id/activity", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+
+        if (!impl_->database_) {
+            nlohmann::json resp;
+            resp["activities"] = nlohmann::json::array();
+            resp["total"] = 0;
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        }
+
+        try {
+            impl_->database_->execute(
+                "CREATE TABLE IF NOT EXISTS user_activity ("
+                "id INT AUTO_INCREMENT PRIMARY KEY, "
+                "user_id INT, "
+                "type VARCHAR(50), "
+                "description TEXT, "
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+            auto results = impl_->database_->query(
+                "SELECT * FROM user_activity WHERE user_id = "
+                + StringUtil::escapeSql(userId) + " ORDER BY created_at DESC LIMIT 20");
+
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                item["type"] = row.count("type") ? row.at("type") : "";
+                item["description"] = row.count("description") ? row.at("description") : "";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["activities"] = arr;
+            resp["total"] = arr.size();
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // PUT /api/users/:id/preferences — Update user preferences (dedicated table)
+    router.put(prefix + "/:id/preferences", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+
+        if (!impl_->database_) {
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        }
+
+        try {
+            impl_->database_->execute(
+                "CREATE TABLE IF NOT EXISTS user_preferences ("
+                "id INT AUTO_INCREMENT PRIMARY KEY, "
+                "user_id INT UNIQUE, "
+                "theme VARCHAR(20) DEFAULT 'light', "
+                "language VARCHAR(10) DEFAULT 'zh', "
+                "notifications TINYINT DEFAULT 1, "
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+
+            auto json = nlohmann::json::parse(req.body);
+            std::string theme = json.value("theme", "light");
+            std::string language = json.value("language", "zh");
+            int notifications = json.value("notifications", true) ? 1 : 0;
+
+            impl_->database_->execute(
+                "INSERT INTO user_preferences (user_id, theme, language, notifications) "
+                "VALUES (" + StringUtil::escapeSql(userId) + ", '"
+                + StringUtil::escapeSql(theme) + "', '"
+                + StringUtil::escapeSql(language) + "', "
+                + std::to_string(notifications) + ") "
+                "ON DUPLICATE KEY UPDATE theme = '" + StringUtil::escapeSql(theme)
+                + "', language = '" + StringUtil::escapeSql(language)
+                + "', notifications = " + std::to_string(notifications));
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/users/:id/preferences — Get user preferences (dedicated table)
+    router.get(prefix + "/:id/preferences", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+
+        if (!impl_->database_) {
+            nlohmann::json preferences;
+            preferences["theme"] = "light";
+            preferences["language"] = "zh";
+            preferences["notifications"] = true;
+            nlohmann::json resp;
+            resp["preferences"] = preferences;
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        }
+
+        try {
+            impl_->database_->execute(
+                "CREATE TABLE IF NOT EXISTS user_preferences ("
+                "id INT AUTO_INCREMENT PRIMARY KEY, "
+                "user_id INT UNIQUE, "
+                "theme VARCHAR(20) DEFAULT 'light', "
+                "language VARCHAR(10) DEFAULT 'zh', "
+                "notifications TINYINT DEFAULT 1, "
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+
+            auto results = impl_->database_->query(
+                "SELECT * FROM user_preferences WHERE user_id = "
+                + StringUtil::escapeSql(userId));
+
+            nlohmann::json preferences;
+            if (!results.empty()) {
+                auto& row = results[0];
+                preferences["theme"] = row.count("theme") ? row.at("theme") : "light";
+                preferences["language"] = row.count("language") ? row.at("language") : "zh";
+                preferences["notifications"] = row.count("notifications") ? (row.at("notifications") == "1") : true;
+                preferences["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                preferences["updatedAt"] = row.count("updated_at") ? row.at("updated_at") : "";
+            } else {
+                preferences["theme"] = "light";
+                preferences["language"] = "zh";
+                preferences["notifications"] = true;
+            }
+            nlohmann::json resp;
+            resp["preferences"] = preferences;
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("UserApiModule routes registered (25)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {

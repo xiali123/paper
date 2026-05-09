@@ -28,4 +28,10 @@ ROUTES=(
     "GET|/api/stats/compare?period=week||200|Weekly comparison"
     "GET|/api/stats/all||200|Aggregated all stats"
     "GET|/api/stats/fields||200|Research field distribution"
+
+    # Geographic & timeline analytics
+    "GET|/api/stats/authors/top||200|Top authors by paper count (ranked)"
+    "GET|/api/stats/timeline||200|Paper publication timeline"
+    "GET|/api/stats/timeline?years=10||200|Paper publication timeline (10 years)"
+    "GET|/api/stats/geography||200|Geographic distribution of papers"
 )

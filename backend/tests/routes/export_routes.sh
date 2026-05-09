@@ -25,4 +25,7 @@ ROUTES=(
     "GET|/api/export/download/1||200,404|Download export by ID"
     "DELETE|/api/export/status/1||200|Delete export task"
     "DELETE|/api/export/file/1||200|Delete export file"
+    "POST|/api/export/templates|{\"name\":\"My Template\",\"format\":\"csv\",\"fields\":[\"title\",\"authors\"]}|200|Create export template"
+    "GET|/api/export/templates||200|List export templates"
+    "POST|/api/export/schedule|{\"templateId\":\"tpl_1\",\"schedule\":\"daily\",\"emails\":[\"user@example.com\"]}|200|Schedule export job"
 )
