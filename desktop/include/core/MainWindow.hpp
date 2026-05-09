@@ -175,6 +175,11 @@ class PaperMethodologyExtractor;
 class PaperDataTransformWidget;
 class PaperExperimentTracker;
 class PaperReadingNotesOrganizer;
+class PaperCollaborationHeatmap;
+class PaperBiasDetector;
+class PaperValidationWidget;
+class PaperGrantTracker;
+class PaperReadingChallengeWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

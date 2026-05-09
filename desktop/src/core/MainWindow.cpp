@@ -172,6 +172,11 @@
 #include "tools/PaperDataTransformWidget.hpp"
 #include "workspace/PaperExperimentTracker.hpp"
 #include "reading/PaperReadingNotesOrganizer.hpp"
+#include "visualization/PaperCollaborationHeatmap.hpp"
+#include "analysis/PaperBiasDetector.hpp"
+#include "tools/PaperValidationWidget.hpp"
+#include "workspace/PaperGrantTracker.hpp"
+#include "reading/PaperReadingChallengeWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4898,6 +4903,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Collaboration Heatmap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Collaboration Heatmap");
+        dlg->setMinimumSize(600, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCollaborationHeatmap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Bias Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bias Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBiasDetector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Paper Validation", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Validation");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperValidationWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Grant Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Grant Tracker");
+        dlg->setMinimumSize(620, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGrantTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading Challenges", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Challenges");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingChallengeWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5573,6 +5633,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Reading Notes Organizer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Notes Organizer");
+    });
+    commandPalette_->addAction("Collaboration Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Collaboration Heatmap");
+    });
+    commandPalette_->addAction("Bias Detector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bias Detector");
+    });
+    commandPalette_->addAction("Paper Validation", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Validation");
+    });
+    commandPalette_->addAction("Grant Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Grant Tracker");
+    });
+    commandPalette_->addAction("Reading Challenges", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Challenges");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
