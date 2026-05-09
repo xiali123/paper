@@ -21,4 +21,9 @@ ROUTES=(
     "POST|/api/ai/sessions|{\"user_id\":1,\"title\":\"Test session\"}|200,201|Create chat session"
     "DELETE|/api/ai/sessions/1||200|Delete chat session"
     "POST|/api/ai/batch-analyze|{\"paper_ids\":[1,2],\"type\":\"summary\"}|200,400|Batch analyze papers"
+
+    # Session messages
+    "GET|/api/ai/sessions/1/messages||200|Get session messages"
+    "POST|/api/ai/sessions/1/messages|{\"content\":\"Hello\",\"role\":\"user\"}|200|Send session message"
+    "GET|/api/ai/analyze/1||200,404|Get analysis result by ID"
 )

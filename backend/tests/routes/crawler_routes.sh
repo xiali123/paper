@@ -34,4 +34,11 @@ ROUTES=(
 
     # --- Dashboard ---
     "GET|/api/crawler/dashboard||200|Get crawler dashboard"
+
+    # --- Marketplace ---
+    "POST|/api/crawler/marketplace/publish|{\"templateId\":\"test_tpl_001\"}|200,401|Publish template to marketplace"
+    "GET|/api/crawler/marketplace/templates||200,401|Browse marketplace templates"
+    "POST|/api/crawler/marketplace/templates/test_tpl_001/install|{}|200,401|Install marketplace template"
+    "POST|/api/crawler/marketplace/templates/test_tpl_001/rate|{\"rating\":4}|200,401|Rate marketplace template"
+    "GET|/api/crawler/marketplace/search?query=test||200,401|Search marketplace templates"
 )

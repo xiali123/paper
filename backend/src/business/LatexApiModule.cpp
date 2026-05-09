@@ -412,7 +412,59 @@ void LatexApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, body);
     });
 
-    spdlog::info("[LatexApi] Routes registered successfully");
+    // Collaboration
+    router.post(prefix + "/collaboration/sessions", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleJoinCollaboration(req.body);
+        return HttpResponse::json(HTTP::OK, body);
+    });
+
+    router.del(prefix + "/collaboration/sessions/:id", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleLeaveCollaboration(req.body);
+        return HttpResponse::json(HTTP::OK, body);
+    });
+
+    router.put(prefix + "/collaboration/cursor", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleUpdateCursor(req.body);
+        return HttpResponse::json(HTTP::OK, body);
+    });
+
+    router.post(prefix + "/collaboration/broadcast", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleBroadcastUpdate(req.body);
+        return HttpResponse::json(HTTP::OK, body);
+    });
+
+    router.get(prefix + "/collaboration/sessions", [this](const HttpRequest& req) -> HttpResponse {
+        std::string body = handleListCollaborationSessions();
+        return HttpResponse::json(HTTP::OK, body);
+    });
+
+    // Validate LaTeX syntax
+    router.get(prefix + "/validate", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        std::string content = req.queryParams.count("content") ? req.queryParams.at("content") : "";
+        resp["valid"] = true;
+        resp["errors"] = nlohmann::json::array();
+        if (!content.empty()) {
+            bool hasDocumentClass = content.find("\\documentclass") != std::string::npos;
+            bool hasBegin = content.find("\\begin{document}") != std::string::npos;
+            bool hasEnd = content.find("\\end{document}") != std::string::npos;
+            if (!hasDocumentClass) {
+                resp["valid"] = false;
+                resp["errors"].push_back("Missing \\documentclass");
+            }
+            if (!hasBegin) {
+                resp["valid"] = false;
+                resp["errors"].push_back("Missing \\begin{document}");
+            }
+            if (!hasEnd) {
+                resp["valid"] = false;
+                resp["errors"].push_back("Missing \\end{document}");
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[LatexApi] Registered 36 routes");
 }
 
 // ============================================================================
@@ -2747,6 +2799,136 @@ std::string LatexApiModule::compareVersions(const std::string& versionId1, const
     result["lineCount2"] = lines2.size();
 
     return result.dump();
+}
+
+// ============================================================================
+// Collaboration handlers
+// ============================================================================
+
+std::string LatexApiModule::handleJoinCollaboration(const std::string& body) {
+    try {
+        auto json = nlohmann::json::parse(body);
+        int documentId = json.value("documentId", 0);
+        std::string userId = json.value("userId", "");
+        std::string userName = json.value("userName", "");
+
+        if (documentId <= 0 || userId.empty())
+            return nlohmann::json{{"success", false}, {"error", "documentId and userId required"}}.dump();
+
+        std::string sessionId = "collab_" + std::to_string(documentId);
+        auto& session = impl_->collaborationSessions_[sessionId];
+        session.sessionId = sessionId;
+        session.documentId = documentId;
+        session.lastActivity = std::chrono::system_clock::now();
+
+        LatexCollaborationUser user;
+        user.connectionId = "conn_" + userId;
+        user.userId = userId;
+        user.userName = userName.empty() ? "User " + userId : userName;
+        user.color = "#3b82f6";
+        user.cursorPosition = {1, 1};
+        user.selectionStart = {0, 0};
+        user.selectionEnd = {0, 0};
+        user.isActive = true;
+        user.lastActivity = std::chrono::system_clock::now();
+        session.users[userId] = user;
+
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["sessionId"] = sessionId;
+        resp["activeUsers"] = session.users.size();
+        return resp.dump();
+    } catch (const std::exception& e) {
+        return nlohmann::json{{"success", false}, {"error", e.what()}}.dump();
+    }
+}
+
+std::string LatexApiModule::handleLeaveCollaboration(const std::string& body) {
+    try {
+        nlohmann::json json;
+        if (!body.empty()) json = nlohmann::json::parse(body);
+        std::string sessionId = json.value("sessionId", "");
+        std::string userId = json.value("userId", "");
+
+        if (sessionId.empty() || userId.empty())
+            return nlohmann::json{{"success", false}, {"error", "sessionId and userId required"}}.dump();
+
+        auto it = impl_->collaborationSessions_.find(sessionId);
+        if (it != impl_->collaborationSessions_.end()) {
+            it->second.users.erase(userId);
+            if (it->second.users.empty())
+                impl_->collaborationSessions_.erase(it);
+        }
+        return nlohmann::json{{"success", true}}.dump();
+    } catch (const std::exception& e) {
+        return nlohmann::json{{"success", false}, {"error", e.what()}}.dump();
+    }
+}
+
+std::string LatexApiModule::handleUpdateCursor(const std::string& body) {
+    try {
+        auto json = nlohmann::json::parse(body);
+        std::string sessionId = json.value("sessionId", "");
+        std::string userId = json.value("userId", "");
+
+        if (sessionId.empty() || userId.empty())
+            return nlohmann::json{{"success", false}, {"error", "sessionId and userId required"}}.dump();
+
+        auto it = impl_->collaborationSessions_.find(sessionId);
+        if (it == impl_->collaborationSessions_.end())
+            return nlohmann::json{{"success", false}, {"error", "Session not found"}}.dump();
+
+        auto& user = it->second.users[userId];
+        user.cursorPosition = {json.value("line", 1), json.value("column", 1)};
+        user.lastActivity = std::chrono::system_clock::now();
+
+        return nlohmann::json{{"success", true}, {"line", json.value("line", 1)}, {"column", json.value("column", 1)}}.dump();
+    } catch (const std::exception& e) {
+        return nlohmann::json{{"success", false}, {"error", e.what()}}.dump();
+    }
+}
+
+std::string LatexApiModule::handleBroadcastUpdate(const std::string& body) {
+    try {
+        auto json = nlohmann::json::parse(body);
+        std::string sessionId = json.value("sessionId", "");
+
+        if (sessionId.empty())
+            return nlohmann::json{{"success", false}, {"error", "sessionId required"}}.dump();
+
+        auto it = impl_->collaborationSessions_.find(sessionId);
+        if (it == impl_->collaborationSessions_.end())
+            return nlohmann::json{{"success", false}, {"error", "Session not found"}}.dump();
+
+        it->second.lastActivity = std::chrono::system_clock::now();
+        return nlohmann::json{{"success", true}, {"activeUsers", it->second.users.size()}}.dump();
+    } catch (const std::exception& e) {
+        return nlohmann::json{{"success", false}, {"error", e.what()}}.dump();
+    }
+}
+
+std::string LatexApiModule::handleListCollaborationSessions() {
+    nlohmann::json arr = nlohmann::json::array();
+    for (auto& [id, session] : impl_->collaborationSessions_) {
+        nlohmann::json item;
+        item["sessionId"] = session.sessionId;
+        item["documentId"] = session.documentId;
+        item["activeUsers"] = session.getActiveUserCount();
+        nlohmann::json users = nlohmann::json::array();
+        for (auto& [uid, user] : session.users) {
+            nlohmann::json u;
+            u["userId"] = user.userId;
+            u["userName"] = user.userName;
+            u["color"] = user.color;
+            users.push_back(u);
+        }
+        item["users"] = users;
+        arr.push_back(item);
+    }
+    nlohmann::json resp;
+    resp["sessions"] = arr;
+    resp["total"] = arr.size();
+    return resp.dump();
 }
 
 // ============================================================================

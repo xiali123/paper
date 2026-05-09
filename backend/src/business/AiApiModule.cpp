@@ -1228,7 +1228,94 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiApi] Registered 16 routes");
+    // Session messages — list
+    router.get(prefix + "/sessions/:id/messages", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"messages\":[],\"total\":0}");
+
+        try {
+            std::string sessionId = req.pathParams.count("id") ? req.pathParams.at("id") : "";
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 50;
+            auto results = database_->query(
+                "SELECT id, session_id, role, content, created_at FROM ai_chat_messages "
+                "WHERE session_id = '" + sessionId + "' ORDER BY created_at ASC LIMIT " + std::to_string(limit));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["sessionId"] = row.at("session_id");
+                item["role"] = row.count("role") ? row.at("role") : "user";
+                item["content"] = row.count("content") ? row.at("content") : "";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["messages"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Session messages — send
+    router.post(prefix + "/sessions/:id/messages", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string sessionId = req.pathParams.count("id") ? req.pathParams.at("id") : "";
+            std::string content = json.value("content", "");
+            std::string role = json.value("role", "user");
+
+            if (content.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"content required\"}");
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO ai_chat_messages (session_id, role, content) VALUES ('"
+                    + sessionId + "', '" + role + "', '" + ValidationHelper::sanitize(content) + "')");
+                auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+                int msgId = rows.empty() ? 0 : std::stoi(rows[0]["id"]);
+                nlohmann::json resp;
+                resp["id"] = msgId;
+                resp["sessionId"] = sessionId;
+                resp["role"] = role;
+                resp["content"] = content;
+                resp["success"] = true;
+                return HttpResponse::json(HTTP::OK, resp.dump());
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":0}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Analysis result by id
+    router.get(prefix + "/analyze/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"not found\"}");
+
+        try {
+            std::string analysisId = req.pathParams.count("id") ? req.pathParams.at("id") : "";
+            auto results = database_->query(
+                "SELECT id, paper_id, analysis_type, result, created_at FROM ai_analysis_results "
+                "WHERE id = " + analysisId);
+            if (results.empty())
+                return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"analysis not found\"}");
+
+            auto& row = results[0];
+            nlohmann::json resp;
+            resp["id"] = std::stoi(row.at("id"));
+            resp["paperId"] = row.count("paper_id") ? std::stoi(row.at("paper_id")) : 0;
+            resp["type"] = row.count("analysis_type") ? row.at("analysis_type") : "";
+            resp["result"] = row.count("result") ? row.at("result") : "";
+            resp["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiApi] Registered 19 routes");
 }
 
 } // namespace PaperCrawler

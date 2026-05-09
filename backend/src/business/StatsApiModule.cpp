@@ -761,7 +761,95 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 15 routes");
+    // Institution distribution
+    router.get(prefix + "/institutions", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"institutions\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(authors, ',', 1), '(', 1) as institution, "
+                "COUNT(*) as count FROM papers WHERE authors IS NOT NULL AND authors != '' "
+                "GROUP BY institution ORDER BY count DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["name"] = row.count("institution") ? row.at("institution") : "Unknown";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["institutions"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Keyword cloud
+    router.get(prefix + "/keywords", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"keywords\":[],\"total\":0}");
+
+        try {
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 50;
+            auto results = database_->query(
+                "SELECT keywords, COUNT(*) as count FROM papers "
+                "WHERE keywords IS NOT NULL AND keywords != '' "
+                "GROUP BY keywords ORDER BY count DESC LIMIT " + std::to_string(limit));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["keyword"] = row.count("keywords") ? row.at("keywords") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["keywords"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Period comparison
+    router.get(prefix + "/compare", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"current\":0,\"previous\":0,\"change\":0}");
+
+        try {
+            std::string period = req.queryParams.count("period") ? req.queryParams.at("period") : "month";
+            std::string currentSql, previousSql;
+            if (period == "week") {
+                currentSql = "SELECT COUNT(*) as cnt FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+                previousSql = "SELECT COUNT(*) as cnt FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)";
+            } else if (period == "year") {
+                currentSql = "SELECT COUNT(*) as cnt FROM papers WHERE YEAR(created_at) = YEAR(NOW())";
+                previousSql = "SELECT COUNT(*) as cnt FROM papers WHERE YEAR(created_at) = YEAR(NOW()) - 1";
+            } else {
+                currentSql = "SELECT COUNT(*) as cnt FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+                previousSql = "SELECT COUNT(*) as cnt FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)";
+            }
+            auto curRows = database_->query(currentSql);
+            auto prevRows = database_->query(previousSql);
+            int current = curRows.empty() ? 0 : std::stoi(curRows[0]["cnt"]);
+            int previous = prevRows.empty() ? 0 : std::stoi(prevRows[0]["cnt"]);
+            double change = previous > 0 ? ((double)(current - previous) / previous) * 100.0 : 0.0;
+
+            nlohmann::json resp;
+            resp["current"] = current;
+            resp["previous"] = previous;
+            resp["change"] = std::round(change * 100.0) / 100.0;
+            resp["period"] = period;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 18 routes");
 }
 
 std::string StatsApiModule::handleStats() {

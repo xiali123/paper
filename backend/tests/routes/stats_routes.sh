@@ -20,4 +20,10 @@ ROUTES=(
     "GET|/api/stats/research-trends||200|Research trends"
     "GET|/api/stats/growth||200|Growth timeline"
     "GET|/api/stats/ccf||200|CCF distribution"
+
+    # New analytics
+    "GET|/api/stats/institutions||200|Institution distribution"
+    "GET|/api/stats/keywords||200|Keyword cloud"
+    "GET|/api/stats/compare||200|Period comparison"
+    "GET|/api/stats/compare?period=week||200|Weekly comparison"
 )

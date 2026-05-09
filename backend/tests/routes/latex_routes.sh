@@ -51,4 +51,14 @@ ROUTES=(
 
     # Debug
     "GET|/api/latex/debug/pdf/document/1||200,404|Debug get PDF for document"
+
+    # Collaboration
+    "POST|/api/latex/collaboration/sessions|{\"documentId\":1,\"userId\":\"user1\",\"userName\":\"Test\"}|200|Join collaboration session"
+    "DELETE|/api/latex/collaboration/sessions/1|{\"sessionId\":\"collab_1\",\"userId\":\"user1\"}|200|Leave collaboration session"
+    "PUT|/api/latex/collaboration/cursor|{\"sessionId\":\"collab_1\",\"userId\":\"user1\",\"line\":5,\"column\":10}|200|Update cursor position"
+    "POST|/api/latex/collaboration/broadcast|{\"sessionId\":\"collab_1\",\"content\":\"update\"}|200|Broadcast document update"
+    "GET|/api/latex/collaboration/sessions||200|List collaboration sessions"
+
+    # Validate
+    "GET|/api/latex/validate||200|Validate LaTeX syntax"
 )
