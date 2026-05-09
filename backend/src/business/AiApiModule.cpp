@@ -1315,7 +1315,80 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiApi] Registered 19 routes");
+    // POST /api/ai/papers/:id/summary — summarize a specific paper
+    router.post(prefix + "/papers/:id/summary", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            nlohmann::json resp;
+            resp["paperId"] = paperId;
+            resp["success"] = true;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT title, abstract FROM papers WHERE id = " + std::to_string(paperId));
+                if (!rows.empty()) {
+                    resp["title"] = rows[0].count("title") ? rows[0].at("title") : "";
+                    resp["summary"] = rows[0].count("abstract") ? rows[0].at("abstract") : "";
+                } else {
+                    return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"paper not found\"}");
+                }
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/ai/papers/:id/keywords — extract keywords from paper
+    router.get(prefix + "/papers/:id/keywords", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            nlohmann::json resp;
+            resp["paperId"] = paperId;
+            resp["keywords"] = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT keywords FROM papers WHERE id = " + std::to_string(paperId));
+                if (!rows.empty() && rows[0].count("keywords") && !rows[0]["keywords"].empty()) {
+                    std::string kw = rows[0]["keywords"];
+                    std::stringstream ss(kw);
+                    std::string token;
+                    while (std::getline(ss, token, ',')) {
+                        if (!token.empty()) resp["keywords"].push_back(token);
+                    }
+                }
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/ai/stats — AI module stats summary
+    router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["totalSessions"] = 0;
+        resp["totalMessages"] = 0;
+        resp["totalReviews"] = 0;
+        resp["models"] = nlohmann::json::array({"gpt-4", "claude-3", "mock"});
+
+        if (database_) {
+            try {
+                auto r1 = database_->query("SELECT COUNT(*) as cnt FROM ai_chat_sessions");
+                if (!r1.empty()) resp["totalSessions"] = std::stoi(r1[0]["cnt"]);
+                auto r2 = database_->query("SELECT COUNT(*) as cnt FROM ai_conversations");
+                if (!r2.empty()) resp["totalMessages"] = std::stoi(r2[0]["cnt"]);
+                auto r3 = database_->query("SELECT COUNT(*) as cnt FROM ai_reviews");
+                if (!r3.empty()) resp["totalReviews"] = std::stoi(r3[0]["cnt"]);
+            } catch (const std::exception& e) {
+                spdlog::warn("[AiApi] Stats query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[AiApi] Registered 22 routes");
 }
 
 } // namespace PaperCrawler

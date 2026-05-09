@@ -1080,7 +1080,61 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[PaperApiModule] Registered 34 routes");
+    // GET /api/papers/categories — paper categories
+    router.get(prefix + "/categories", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["categories"] = nlohmann::json::array();
+
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, resp.dump());
+
+        try {
+            auto results = database_->query(
+                "SELECT keywords as category, COUNT(*) as count FROM papers "
+                "WHERE keywords IS NOT NULL AND keywords != '' "
+                "GROUP BY keywords ORDER BY count DESC LIMIT 50");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["name"] = row.at("category");
+                item["count"] = std::stoi(row.at("count"));
+                arr.push_back(item);
+            }
+            resp["categories"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/papers/:id/progress — update reading progress
+    router.post(prefix + "/:id/progress", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            int progress = json.value("progress", 0);
+            std::string status = json.value("status", "reading");
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO user_reading_history (user_id, paper_id, progress, reading_status) VALUES ("
+                    + std::to_string(userId) + ", " + std::to_string(paperId) + ", "
+                    + std::to_string(progress) + ", '" + ValidationHelper::sanitize(status) + "') "
+                    "ON DUPLICATE KEY UPDATE progress = VALUES(progress), reading_status = VALUES(reading_status)");
+            }
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["paperId"] = paperId;
+            resp["progress"] = progress;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[PaperApiModule] Registered 36 routes");
 }
 
 // ============================================================================

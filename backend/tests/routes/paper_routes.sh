@@ -45,4 +45,6 @@ ROUTES=(
     "GET|/api/papers/me||200|Get current user papers"
     "GET|/api/papers/1/similar||200,404|Find similar papers"
     "POST|/api/papers/1/share|{\"target_user_id\":\"2\"}|200|Share paper"
+    "GET|/api/papers/categories||200|Get paper categories"
+    "POST|/api/papers/1/progress|{\"user_id\":1,\"progress\":50}|200|Update reading progress"
 )

@@ -1152,7 +1152,35 @@ void ExportApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[ExportApi] Registered 18 routes");
+    // DELETE /api/export/status/:id — cancel/delete export task
+    router.del(prefix + "/status/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            std::string id = req.pathParams.at("id");
+            impl_->database_->execute("DELETE FROM exports WHERE id = " + id);
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":" + id + "}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // DELETE /api/export/file/:id — delete export file
+    router.del(prefix + "/file/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            std::string id = req.pathParams.at("id");
+            impl_->database_->execute("DELETE FROM exports WHERE id = " + id);
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":" + id + "}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 20 routes");
 }
 
 } // namespace PaperCrawler

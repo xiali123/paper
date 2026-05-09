@@ -23,4 +23,6 @@ ROUTES=(
     "POST|/api/export/batch|{\"paper_ids\":[1,2],\"format\":\"json\"}|200|Batch export papers"
     "GET|/api/export/status/1||200,404|Get export status by ID"
     "GET|/api/export/download/1||200,404|Download export by ID"
+    "DELETE|/api/export/status/1||200|Delete export task"
+    "DELETE|/api/export/file/1||200|Delete export file"
 )

@@ -26,4 +26,6 @@ ROUTES=(
     "GET|/api/stats/keywords||200|Keyword cloud"
     "GET|/api/stats/compare||200|Period comparison"
     "GET|/api/stats/compare?period=week||200|Weekly comparison"
+    "GET|/api/stats/all||200|Aggregated all stats"
+    "GET|/api/stats/fields||200|Research field distribution"
 )

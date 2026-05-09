@@ -26,4 +26,7 @@ ROUTES=(
     "GET|/api/ai/sessions/1/messages||200|Get session messages"
     "POST|/api/ai/sessions/1/messages|{\"content\":\"Hello\",\"role\":\"user\"}|200|Send session message"
     "GET|/api/ai/analyze/1||200,404|Get analysis result by ID"
+    "POST|/api/ai/papers/1/summary||200,404|Summarize paper by ID"
+    "GET|/api/ai/papers/1/keywords||200,404|Extract paper keywords"
+    "GET|/api/ai/stats||200|AI module stats"
 )
