@@ -167,6 +167,11 @@
 #include "analysis/PaperArgumentParser.hpp"
 #include "tools/PaperCodeSnippetManager.hpp"
 #include "workspace/PaperResourceAllocator.hpp"
+#include "visualization/PaperInfluenceGraph.hpp"
+#include "analysis/PaperMethodologyExtractor.hpp"
+#include "tools/PaperDataTransformWidget.hpp"
+#include "workspace/PaperExperimentTracker.hpp"
+#include "reading/PaperReadingNotesOrganizer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4838,6 +4843,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Influence Graph", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Influence Graph");
+        dlg->setMinimumSize(620, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperInfluenceGraph();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Methodology Extractor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Methodology Extractor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMethodologyExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Data Transform", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Data Transform");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDataTransformWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Experiment Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Experiment Tracker");
+        dlg->setMinimumSize(620, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperExperimentTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading Notes Organizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Notes Organizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingNotesOrganizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5498,6 +5558,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Resource Allocator", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Resource Allocator");
+    });
+    commandPalette_->addAction("Influence Graph", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Influence Graph");
+    });
+    commandPalette_->addAction("Methodology Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Methodology Extractor");
+    });
+    commandPalette_->addAction("Data Transform", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Data Transform");
+    });
+    commandPalette_->addAction("Experiment Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Experiment Tracker");
+    });
+    commandPalette_->addAction("Reading Notes Organizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Notes Organizer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

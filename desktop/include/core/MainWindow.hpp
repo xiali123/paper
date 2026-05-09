@@ -170,6 +170,11 @@ class PaperResearchTimeline;
 class PaperArgumentParser;
 class PaperCodeSnippetManager;
 class PaperResourceAllocator;
+class PaperInfluenceGraph;
+class PaperMethodologyExtractor;
+class PaperDataTransformWidget;
+class PaperExperimentTracker;
+class PaperReadingNotesOrganizer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
