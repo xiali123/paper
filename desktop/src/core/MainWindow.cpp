@@ -177,6 +177,11 @@
 #include "tools/PaperValidationWidget.hpp"
 #include "workspace/PaperGrantTracker.hpp"
 #include "reading/PaperReadingChallengeWidget.hpp"
+#include "visualization/PaperCitationTreeMap.hpp"
+#include "analysis/PaperReproducibilityChecker.hpp"
+#include "tools/PaperPomodoroTimer.hpp"
+#include "workspace/PaperDatasetManager.hpp"
+#include "reading/PaperReadingAnalyticsWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4958,6 +4963,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Citation Tree Map", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Tree Map");
+        dlg->setMinimumSize(620, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationTreeMap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reproducibility Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reproducibility Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReproducibilityChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Pomodoro Timer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Pomodoro Timer");
+        dlg->setMinimumSize(580, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPomodoroTimer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Dataset Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Dataset Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDatasetManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading Analytics", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Analytics");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingAnalyticsWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5648,6 +5708,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Reading Challenges", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Challenges");
+    });
+    commandPalette_->addAction("Citation Tree Map", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Tree Map");
+    });
+    commandPalette_->addAction("Reproducibility Checker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reproducibility Checker");
+    });
+    commandPalette_->addAction("Pomodoro Timer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Pomodoro Timer");
+    });
+    commandPalette_->addAction("Dataset Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Dataset Manager");
+    });
+    commandPalette_->addAction("Reading Analytics", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Analytics");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

@@ -180,6 +180,11 @@ class PaperBiasDetector;
 class PaperValidationWidget;
 class PaperGrantTracker;
 class PaperReadingChallengeWidget;
+class PaperCitationTreeMap;
+class PaperReproducibilityChecker;
+class PaperPomodoroTimer;
+class PaperDatasetManager;
+class PaperReadingAnalyticsWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
