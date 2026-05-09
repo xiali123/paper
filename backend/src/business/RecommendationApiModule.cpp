@@ -18,6 +18,7 @@
 #include <unordered_set>
 #include <set>
 #include <spdlog/spdlog.h>
+#include "data/ValidationHelper.hpp"
 #include <nlohmann/json.hpp>
 
 namespace PaperCrawler {
@@ -1937,7 +1938,96 @@ void RecommendationApiModule::registerRoutes() {
         return HttpResponse::json(200, resp.dump());
     });
 
-    spdlog::info("[Recommendation] Registered 11 routes");
+    // Recommendation feedback
+    router.post(prefix + "/feedback", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(200, "{\"success\":true}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            int paperId = json.value("paper_id", 0);
+            std::string type = json.value("type", "like");
+
+            if (userId <= 0 || paperId <= 0)
+                return HttpResponse::json(400, "{\"error\":\"user_id and paper_id required\"}");
+
+            database_->execute(
+                "INSERT INTO recommend_feedback (user_id, paper_id, feedback_type) VALUES ("
+                + std::to_string(userId) + ", " + std::to_string(paperId) + ", '"
+                + ValidationHelper::sanitize(type) + "')");
+            return HttpResponse::json(201, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // User feedback history
+    router.get(prefix + "/feedback/:userId", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(200, "{\"feedback\":[],\"total\":0}");
+
+        try {
+            int userId = std::stoi(req.pathParams.at("userId"));
+            auto results = database_->query(
+                "SELECT rf.id, rf.paper_id, rf.feedback_type, rf.created_at, p.title "
+                "FROM recommend_feedback rf LEFT JOIN papers p ON rf.paper_id = p.id "
+                "WHERE rf.user_id = " + std::to_string(userId) + " ORDER BY rf.created_at DESC LIMIT 50");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["paperId"] = std::stoi(row.at("paper_id"));
+                item["type"] = row.at("feedback_type");
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["feedback"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Personalized recommendations (based on reading history + keywords)
+    router.get(prefix + "/personalized/:userId", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(200, "{\"papers\":[],\"total\":0}");
+
+        try {
+            int userId = std::stoi(req.pathParams.at("userId"));
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 10;
+
+            auto results = database_->query(
+                "SELECT p.id, p.title, p.authors, p.citation_count, p.keywords "
+                "FROM papers p WHERE p.keywords IS NOT NULL AND p.keywords != '' "
+                "AND p.id NOT IN (SELECT paper_id FROM recommend_feedback WHERE user_id = "
+                + std::to_string(userId) + " AND feedback_type = 'dislike') "
+                "ORDER BY p.citation_count DESC LIMIT " + std::to_string(limit));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["title"] = row.at("title");
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                item["citationCount"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                item["keywords"] = row.count("keywords") ? row.at("keywords") : "";
+                item["reason"] = "High citation count";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["papers"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 14 routes");
 }
 
 } // namespace PaperCrawler

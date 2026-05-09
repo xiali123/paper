@@ -15,4 +15,7 @@ ROUTES=(
     "GET|/api/recommendations/collaborators/1||200|Get collaborator recommendations"
     "POST|/api/recommendations/batch|{\"paper_ids\":[1,2],\"limit\":5}|200|Batch recommendations"
     "GET|/api/recommendations/feedback/history/1||200|Get feedback history"
+    "POST|/api/recommendations/feedback|{\"user_id\":1,\"paper_id\":1,\"type\":\"like\"}|200,201|Submit feedback"
+    "GET|/api/recommendations/feedback/1||200|User feedback list"
+    "GET|/api/recommendations/personalized/1||200|Personalized recommendations"
 )
