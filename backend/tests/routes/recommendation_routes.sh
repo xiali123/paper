@@ -18,4 +18,6 @@ ROUTES=(
     "POST|/api/recommendations/feedback|{\"user_id\":1,\"paper_id\":1,\"type\":\"like\"}|200,201|Submit feedback"
     "GET|/api/recommendations/feedback/1||200|User feedback list"
     "GET|/api/recommendations/personalized/1||200|Personalized recommendations"
+    "POST|/api/recommendations/refresh||200|Refresh recommendation cache"
+    "DELETE|/api/recommendations/feedback/1||200|Delete feedback"
 )

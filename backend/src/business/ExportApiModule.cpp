@@ -1023,7 +1023,136 @@ void ExportApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[ExportApi] Registered 14 routes");
+    // POST /api/export/search — export search results
+    router.post(prefix + "/search", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string query = json.value("query", "");
+            std::string format = json.value("format", "json");
+            int limit = json.value("limit", 100);
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["format"] = format;
+            resp["query"] = query;
+            resp["count"] = 0;
+            resp["results"] = nlohmann::json::array();
+
+            if (impl_->database_ && !query.empty()) {
+                auto results = impl_->database_->query(
+                    "SELECT id, title, authors, year, journal FROM papers "
+                    "WHERE title LIKE '%" + StringUtil::escapeSql(query) + "%' "
+                    "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row.at("id"));
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    item["journal"] = row.count("journal") ? row.at("journal") : "";
+                    arr.push_back(item);
+                }
+                resp["results"] = arr;
+                resp["count"] = arr.size();
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/export/batch — batch export papers
+    router.post(prefix + "/batch", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string format = json.value("format", "json");
+            auto paperIds = json.value("paper_ids", std::vector<int>{});
+            std::string ids;
+            for (size_t i = 0; i < paperIds.size(); i++) {
+                if (i > 0) ids += ",";
+                ids += std::to_string(paperIds[i]);
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["format"] = format;
+            resp["papers"] = nlohmann::json::array();
+            resp["total"] = 0;
+
+            if (impl_->database_ && !ids.empty()) {
+                auto results = impl_->database_->query(
+                    "SELECT id, title, authors, abstract, year, keywords FROM papers "
+                    "WHERE id IN (" + ids + ")");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row.at("id"));
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["abstract"] = row.count("abstract") ? row.at("abstract") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    item["keywords"] = row.count("keywords") ? row.at("keywords") : "";
+                    arr.push_back(item);
+                }
+                resp["papers"] = arr;
+                resp["total"] = arr.size();
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/export/status/:id — get export task status
+    router.get(prefix + "/status/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"not found\"}");
+
+        try {
+            std::string id = req.pathParams.at("id");
+            auto results = impl_->database_->query(
+                "SELECT id, format, status, created_at FROM exports WHERE id = " + id);
+            if (results.empty())
+                return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"export not found\"}");
+
+            auto& row = results[0];
+            nlohmann::json resp;
+            resp["id"] = std::stoi(row.at("id"));
+            resp["format"] = row.at("format");
+            resp["status"] = row.count("status") ? row.at("status") : "completed";
+            resp["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/export/download/:id — download export result
+    router.get(prefix + "/download/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!impl_->database_)
+            return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"not found\"}");
+
+        try {
+            std::string id = req.pathParams.at("id");
+            auto results = impl_->database_->query(
+                "SELECT id, format, status, created_at FROM exports WHERE id = " + id);
+            if (results.empty())
+                return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"export not found\"}");
+
+            auto& row = results[0];
+            nlohmann::json resp;
+            resp["id"] = std::stoi(row.at("id"));
+            resp["format"] = row.at("format");
+            resp["status"] = row.count("status") ? row.at("status") : "completed";
+            resp["downloadUrl"] = "/api/export/" + row.at("format") + "?export_id=" + id;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 18 routes");
 }
 
 } // namespace PaperCrawler

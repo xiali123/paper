@@ -19,4 +19,8 @@ ROUTES=(
     "POST|/api/export/track|{\"user_id\":1,\"format\":\"json\"}|200|Track export"
     "GET|/api/export/stats||200|Export stats per format"
     "GET|/api/export/user/1||200|User exports"
+    "POST|/api/export/search|{\"query\":\"test\",\"format\":\"json\"}|200|Export search results"
+    "POST|/api/export/batch|{\"paper_ids\":[1,2],\"format\":\"json\"}|200|Batch export papers"
+    "GET|/api/export/status/1||200,404|Get export status by ID"
+    "GET|/api/export/download/1||200,404|Download export by ID"
 )

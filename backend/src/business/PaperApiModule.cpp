@@ -957,7 +957,67 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[PaperApiModule] Registered 29 routes");
+    // DELETE /api/papers/annotations/:id — delete annotation
+    router.del(prefix + "/annotations/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":0}");
+
+        try {
+            int annId = std::stoi(req.pathParams.at("id"));
+            database_->execute("DELETE FROM paper_annotations WHERE id = " + std::to_string(annId));
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":" + std::to_string(annId) + "}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // DELETE /api/papers/collections/:id/papers/:paperId — remove paper from collection
+    router.del(prefix + "/collections/:id/papers/:paperId", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            int collId = std::stoi(req.pathParams.at("id"));
+            int paperId = std::stoi(req.pathParams.at("paperId"));
+            database_->execute(
+                "DELETE FROM paper_collection_items WHERE collection_id = " + std::to_string(collId)
+                + " AND paper_id = " + std::to_string(paperId));
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/papers/me — current user's papers (stub: returns recent)
+    router.get(prefix + "/me", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"papers\":[],\"total\":0}");
+
+        try {
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+            auto results = database_->query(
+                "SELECT id, title, authors, year, created_at FROM papers ORDER BY created_at DESC LIMIT "
+                + std::to_string(limit));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["papers"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[PaperApiModule] Registered 32 routes");
 }
 
 // ============================================================================

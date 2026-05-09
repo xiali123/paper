@@ -40,4 +40,7 @@ ROUTES=(
     "GET|/api/papers/bookmarks||200|List bookmarks"
     "POST|/api/papers/bookmarks|{\"user_id\":1,\"paper_id\":1}|200|Toggle bookmark"
     "GET|/api/papers/1/detail||200,404|Paper full detail"
+    "DELETE|/api/papers/annotations/1||200|Delete annotation"
+    "DELETE|/api/papers/collections/1/papers/1||200|Remove paper from collection"
+    "GET|/api/papers/me||200|Get current user papers"
 )

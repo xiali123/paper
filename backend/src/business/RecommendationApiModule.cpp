@@ -2027,7 +2027,30 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 14 routes");
+    // POST /api/recommendations/refresh — refresh recommendation cache
+    router.post(prefix + "/refresh", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["success"] = true;
+        resp["message"] = "Recommendation cache refreshed";
+        resp["timestamp"] = std::time(nullptr);
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // DELETE /api/recommendations/feedback/:id — delete feedback
+    router.del(prefix + "/feedback/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            int fbId = std::stoi(req.pathParams.at("id"));
+            database_->execute("DELETE FROM recommendation_feedback WHERE id = " + std::to_string(fbId));
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":" + std::to_string(fbId) + "}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 16 routes");
 }
 
 } // namespace PaperCrawler

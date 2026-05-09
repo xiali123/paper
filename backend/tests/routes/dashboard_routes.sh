@@ -46,4 +46,6 @@ ROUTES=(
     "DELETE|/api/dashboard/todos/1||200|Delete todo"
     "GET|/api/dashboard/activities||200|Platform activities"
     "GET|/api/dashboard/papers/trending||200|Trending papers"
+    "PUT|/api/dashboard/todos/1|{\"title\":\"Updated\",\"priority\":\"high\"}|200|Update todo item"
+    "GET|/api/dashboard/notifications||200|Get notifications"
 )

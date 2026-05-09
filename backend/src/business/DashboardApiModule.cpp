@@ -210,7 +210,74 @@ void DashboardApiModule::registerRoutes() {
         return makeJsonResponse(HTTP::OK, handleTrendingPapers(req.queryParams));
     });
 
-    spdlog::info("[DashboardApi] Registered 17 routes under {}", prefix);
+    // PUT /api/dashboard/todos/:id — update todo item
+    router.put(prefix + "/todos/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string id = req.pathParams.at("id");
+            auto json = nlohmann::json::parse(req.body);
+            std::string title = json.value("title", "");
+            std::string priority = json.value("priority", "");
+            std::string dueDate = json.value("dueDate", "");
+
+            if (database_) {
+                std::string sql = "UPDATE dashboard_todos SET ";
+                std::vector<std::string> sets;
+                if (!title.empty()) sets.push_back("title = '" + ValidationHelper::sanitize(title) + "'");
+                if (!priority.empty()) sets.push_back("priority = '" + ValidationHelper::sanitize(priority) + "'");
+                if (!dueDate.empty()) sets.push_back("due_date = '" + ValidationHelper::sanitize(dueDate) + "'");
+                if (!sets.empty()) {
+                    std::string setClause;
+                    for (size_t i = 0; i < sets.size(); i++) {
+                        if (i > 0) setClause += ", ";
+                        setClause += sets[i];
+                    }
+                    sql += setClause + " WHERE id = " + id;
+                    database_->execute(sql);
+                }
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":" + id + "}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/dashboard/notifications — get notifications
+    router.get(prefix + "/notifications", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["notifications"] = nlohmann::json::array();
+        resp["total"] = 0;
+        resp["unreadCount"] = 0;
+
+        if (database_) {
+            try {
+                int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+                auto results = database_->query(
+                    "SELECT id, type, title, message, is_read, created_at FROM notifications "
+                    "ORDER BY created_at DESC LIMIT " + std::to_string(limit));
+                nlohmann::json arr = nlohmann::json::array();
+                int unread = 0;
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row.at("id"));
+                    item["type"] = row.count("type") ? row.at("type") : "info";
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["message"] = row.count("message") ? row.at("message") : "";
+                    item["isRead"] = row.count("is_read") && row.at("is_read") == "1";
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    if (!item["isRead"].get<bool>()) unread++;
+                    arr.push_back(item);
+                }
+                resp["notifications"] = arr;
+                resp["total"] = arr.size();
+                resp["unreadCount"] = unread;
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Notifications query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[DashboardApi] Registered 19 routes under {}", prefix);
 }
 
 // ============================================================================
