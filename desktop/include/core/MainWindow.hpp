@@ -160,6 +160,11 @@ class PaperCoReadingTracker;
 class PaperQaChatWidget;
 class PaperTrendHeatmap;
 class PaperAutoTagger;
+class PaperReadingScoreWidget;
+class PaperMathFormulaRenderer;
+class PaperReadingGroupWidget;
+class PaperAlertMonitor;
+class PaperGeographyMap;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

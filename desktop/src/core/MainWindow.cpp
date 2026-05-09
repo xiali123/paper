@@ -157,6 +157,11 @@
 #include "analysis/PaperQaChatWidget.hpp"
 #include "visualization/PaperTrendHeatmap.hpp"
 #include "analysis/PaperAutoTagger.hpp"
+#include "paper/PaperReadingScoreWidget.hpp"
+#include "tools/PaperMathFormulaRenderer.hpp"
+#include "workspace/PaperReadingGroupWidget.hpp"
+#include "tools/PaperAlertMonitor.hpp"
+#include "visualization/PaperGeographyMap.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -4718,6 +4723,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Reading Score", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Score");
+        dlg->setMinimumSize(560, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingScoreWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Math Formula Renderer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Math Formula Renderer");
+        dlg->setMinimumSize(560, 480);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMathFormulaRenderer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading Groups", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Groups");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingGroupWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Alert Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Alert Monitor");
+        dlg->setMinimumSize(600, 480);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAlertMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Geography Map", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Geography Map");
+        dlg->setMinimumSize(620, 520);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGeographyMap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5348,6 +5408,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Auto Tagger", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Auto Tagger");
+    });
+    commandPalette_->addAction("Reading Score", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Score");
+    });
+    commandPalette_->addAction("Math Formula Renderer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Math Formula Renderer");
+    });
+    commandPalette_->addAction("Reading Groups", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Groups");
+    });
+    commandPalette_->addAction("Alert Monitor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Alert Monitor");
+    });
+    commandPalette_->addAction("Geography Map", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Geography Map");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
