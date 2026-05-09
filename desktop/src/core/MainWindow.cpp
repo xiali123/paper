@@ -187,6 +187,11 @@
 #include "tools/PaperSideBySideCompare.hpp"
 #include "workspace/PaperConferencePlanner.hpp"
 #include "citation/PaperPeerReviewTracker.hpp"
+#include "tools/PaperSurveyBuilder.hpp"
+#include "analysis/PaperCitationContextAnalyzer.hpp"
+#include "reading/PaperReadingPathOptimizer.hpp"
+#include "visualization/PaperKnowledgeGraphExplorer.hpp"
+#include "citation/PaperAuthorDisambiguator.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5078,6 +5083,61 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Survey Builder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Survey Builder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSurveyBuilder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Citation Context Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Context Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationContextAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Reading Path Optimizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Path Optimizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingPathOptimizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Knowledge Graph Explorer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Knowledge Graph Explorer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKnowledgeGraphExplorer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
+    toolsMenu->addAction("Author Disambiguator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Author Disambiguator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAuthorDisambiguator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -5798,6 +5858,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Peer Review Tracker", "", "Citation", [this]() {
         ToastWidget::showInfo("Open Tools > Peer Review Tracker");
+    });
+    commandPalette_->addAction("Survey Builder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Survey Builder");
+    });
+    commandPalette_->addAction("Citation Context Analyzer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Context Analyzer");
+    });
+    commandPalette_->addAction("Reading Path Optimizer", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Path Optimizer");
+    });
+    commandPalette_->addAction("Knowledge Graph Explorer", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Knowledge Graph Explorer");
+    });
+    commandPalette_->addAction("Author Disambiguator", "", "Citation", [this]() {
+        ToastWidget::showInfo("Open Tools > Author Disambiguator");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

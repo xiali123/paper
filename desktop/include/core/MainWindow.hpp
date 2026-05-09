@@ -190,6 +190,11 @@ class PaperEntityExtractor;
 class PaperSideBySideCompare;
 class PaperConferencePlanner;
 class PaperPeerReviewTracker;
+class PaperSurveyBuilder;
+class PaperCitationContextAnalyzer;
+class PaperReadingPathOptimizer;
+class PaperKnowledgeGraphExplorer;
+class PaperAuthorDisambiguator;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
