@@ -421,6 +421,31 @@ void LatexApiModule::registerRoutes() {
 
 std::vector<LatexDocument> LatexApiModule::listDocuments(int page, int limit, const std::string& ownerId) {
     std::vector<LatexDocument> result;
+
+    if (impl_->database_) {
+        try {
+            std::string sql = "SELECT id, title, owner_id, is_collaborative, version, is_compiled, created_at, updated_at "
+                "FROM latex_documents";
+            if (!ownerId.empty()) sql += " WHERE owner_id = " + ownerId;
+            sql += " ORDER BY updated_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string((page - 1) * limit);
+
+            auto rows = impl_->database_->query(sql);
+            for (auto& row : rows) {
+                LatexDocument doc;
+                doc.id = std::stoi(row.at("id"));
+                doc.title = row.at("title");
+                doc.ownerId = row.count("owner_id") ? row.at("owner_id") : "";
+                doc.isCollaborative = row.count("is_collaborative") && row.at("is_collaborative") == "1";
+                doc.version = row.count("version") ? std::stoi(row.at("version")) : 1;
+                doc.isCompiled = row.count("is_compiled") && row.at("is_compiled") == "1";
+                result.push_back(doc);
+            }
+            return result;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] listDocuments DB failed: {}", e.what());
+        }
+    }
+
     for (const auto& [id, doc] : impl_->documents_) {
         if (ownerId.empty() || doc.ownerId == ownerId) {
             result.push_back(doc);
@@ -430,6 +455,29 @@ std::vector<LatexDocument> LatexApiModule::listDocuments(int page, int limit, co
 }
 
 std::optional<LatexDocument> LatexApiModule::getDocument(int id) {
+    if (impl_->database_) {
+        try {
+            auto rows = impl_->database_->query(
+                "SELECT id, title, content, owner_id, is_collaborative, version, is_compiled, created_at, updated_at "
+                "FROM latex_documents WHERE id = " + std::to_string(id));
+            if (!rows.empty()) {
+                auto& row = rows[0];
+                LatexDocument doc;
+                doc.id = std::stoi(row.at("id"));
+                doc.title = row.at("title");
+                doc.content = row.count("content") ? row.at("content") : "";
+                doc.ownerId = row.count("owner_id") ? row.at("owner_id") : "";
+                doc.isCollaborative = row.count("is_collaborative") && row.at("is_collaborative") == "1";
+                doc.version = row.count("version") ? std::stoi(row.at("version")) : 1;
+                doc.isCompiled = row.count("is_compiled") && row.at("is_compiled") == "1";
+                return doc;
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] getDocument DB failed: {}", e.what());
+        }
+    }
+
     auto it = impl_->documents_.find(id);
     if (it != impl_->documents_.end()) {
         return it->second;
@@ -438,6 +486,23 @@ std::optional<LatexDocument> LatexApiModule::getDocument(int id) {
 }
 
 std::optional<LatexDocument> LatexApiModule::createDocument(const LatexDocument& document) {
+    if (impl_->database_) {
+        try {
+            impl_->database_->execute(
+                "INSERT INTO latex_documents (title, content, owner_id, is_collaborative) VALUES ('"
+                + ValidationHelper::sanitize(document.title) + "', '"
+                + ValidationHelper::sanitize(document.content) + "', "
+                + (document.ownerId.empty() ? "NULL" : document.ownerId) + ", "
+                + (document.isCollaborative ? "1" : "0") + ")");
+            auto rows = impl_->database_->query("SELECT LAST_INSERT_ID() as id");
+            if (!rows.empty()) {
+                return getDocument(std::stoi(rows[0]["id"]));
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] createDocument DB failed: {}", e.what());
+        }
+    }
+
     LatexDocument newDoc = document;
     newDoc.id = impl_->nextDocumentId_++;
     newDoc.createdAt = std::chrono::system_clock::now();
@@ -448,6 +513,19 @@ std::optional<LatexDocument> LatexApiModule::createDocument(const LatexDocument&
 }
 
 bool LatexApiModule::updateDocument(int id, const LatexDocument& document) {
+    if (impl_->database_) {
+        try {
+            impl_->database_->execute(
+                "UPDATE latex_documents SET title = '" + ValidationHelper::sanitize(document.title)
+                + "', content = '" + ValidationHelper::sanitize(document.content)
+                + "', is_collaborative = " + (document.isCollaborative ? "1" : "0")
+                + " WHERE id = " + std::to_string(id));
+            return true;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] updateDocument DB failed: {}", e.what());
+        }
+    }
+
     auto it = impl_->documents_.find(id);
     if (it == impl_->documents_.end()) {
         return false;
@@ -459,6 +537,14 @@ bool LatexApiModule::updateDocument(int id, const LatexDocument& document) {
 }
 
 bool LatexApiModule::deleteDocument(int id) {
+    if (impl_->database_) {
+        try {
+            impl_->database_->execute("DELETE FROM latex_documents WHERE id = " + std::to_string(id));
+            return true;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] deleteDocument DB failed: {}", e.what());
+        }
+    }
     return impl_->documents_.erase(id) > 0;
 }
 
@@ -502,6 +588,28 @@ bool LatexApiModule::autoSaveDocument(int id, const std::string& content) {
 
 std::vector<LatexProject> LatexApiModule::listProjects(int page, int limit, const std::string& ownerId) {
     std::vector<LatexProject> result;
+
+    if (impl_->database_) {
+        try {
+            std::string sql = "SELECT id, name, description, owner_id, status FROM latex_projects";
+            if (!ownerId.empty()) sql += " WHERE owner_id = " + ownerId;
+            sql += " ORDER BY updated_at DESC LIMIT " + std::to_string(limit) + " OFFSET " + std::to_string((page - 1) * limit);
+
+            auto rows = impl_->database_->query(sql);
+            for (auto& row : rows) {
+                LatexProject proj;
+                proj.id = std::stoi(row.at("id"));
+                proj.name = row.at("name");
+                proj.description = row.count("description") ? row.at("description") : "";
+                proj.ownerId = row.count("owner_id") ? row.at("owner_id") : "";
+                result.push_back(proj);
+            }
+            return result;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] listProjects DB failed: {}", e.what());
+        }
+    }
+
     for (const auto& [id, project] : impl_->projects_) {
         if (ownerId.empty() || project.ownerId == ownerId) {
             result.push_back(project);
@@ -511,6 +619,37 @@ std::vector<LatexProject> LatexApiModule::listProjects(int page, int limit, cons
 }
 
 std::optional<LatexProject> LatexApiModule::getProject(int id) {
+    if (impl_->database_) {
+        try {
+            auto rows = impl_->database_->query(
+                "SELECT id, name, description, owner_id, status FROM latex_projects WHERE id = " + std::to_string(id));
+            if (!rows.empty()) {
+                auto& row = rows[0];
+                LatexProject proj;
+                proj.id = std::stoi(row.at("id"));
+                proj.name = row.at("name");
+                proj.description = row.count("description") ? row.at("description") : "";
+                proj.ownerId = row.count("owner_id") ? row.at("owner_id") : "";
+
+                auto files = impl_->database_->query(
+                    "SELECT id, filename, content, file_type FROM latex_project_files WHERE project_id = " + std::to_string(id));
+                for (auto& frow : files) {
+                    LatexProjectFile file;
+                    file.id = std::stoi(frow.at("id"));
+                    file.projectId = id;
+                    file.name = frow.count("filename") ? frow.at("filename") : "";
+                    file.content = frow.count("content") ? frow.at("content") : "";
+                    file.type = frow.count("file_type") ? frow.at("file_type") : "tex";
+                    proj.files.push_back(file);
+                }
+                return proj;
+            }
+            return std::nullopt;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] getProject DB failed: {}", e.what());
+        }
+    }
+
     auto it = impl_->projects_.find(id);
     if (it != impl_->projects_.end()) {
         return it->second;
@@ -519,12 +658,33 @@ std::optional<LatexProject> LatexApiModule::getProject(int id) {
 }
 
 std::optional<LatexProject> LatexApiModule::createProject(const LatexProject& project) {
+    if (impl_->database_) {
+        try {
+            impl_->database_->execute(
+                "INSERT INTO latex_projects (name, description, owner_id) VALUES ('"
+                + ValidationHelper::sanitize(project.name) + "', '"
+                + ValidationHelper::sanitize(project.description) + "', "
+                + (project.ownerId.empty() ? "NULL" : project.ownerId) + ")");
+            auto rows = impl_->database_->query("SELECT LAST_INSERT_ID() as id");
+            if (!rows.empty()) {
+                int newId = std::stoi(rows[0]["id"]);
+                std::string mainContent = getLatexTemplate();
+                impl_->database_->execute(
+                    "INSERT INTO latex_project_files (project_id, filename, content, file_type) VALUES ("
+                    + std::to_string(newId) + ", 'main.tex', '"
+                    + ValidationHelper::sanitize(mainContent) + "', 'tex')");
+                return getProject(newId);
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] createProject DB failed: {}", e.what());
+        }
+    }
+
     LatexProject newProject = project;
     newProject.id = impl_->nextProjectId_++;
     newProject.createdAt = std::chrono::system_clock::now();
     newProject.updatedAt = std::chrono::system_clock::now();
 
-    // Create main.tex file if not provided
     if (newProject.files.empty()) {
         LatexProjectFile mainFile;
         mainFile.id = 1;
@@ -543,6 +703,18 @@ std::optional<LatexProject> LatexApiModule::createProject(const LatexProject& pr
 }
 
 bool LatexApiModule::updateProject(int id, const LatexProject& project) {
+    if (impl_->database_) {
+        try {
+            impl_->database_->execute(
+                "UPDATE latex_projects SET name = '" + ValidationHelper::sanitize(project.name)
+                + "', description = '" + ValidationHelper::sanitize(project.description)
+                + "' WHERE id = " + std::to_string(id));
+            return true;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] updateProject DB failed: {}", e.what());
+        }
+    }
+
     auto it = impl_->projects_.find(id);
     if (it == impl_->projects_.end()) {
         return false;
@@ -554,6 +726,14 @@ bool LatexApiModule::updateProject(int id, const LatexProject& project) {
 }
 
 bool LatexApiModule::deleteProject(int id) {
+    if (impl_->database_) {
+        try {
+            impl_->database_->execute("DELETE FROM latex_projects WHERE id = " + std::to_string(id));
+            return true;
+        } catch (const std::exception& e) {
+            spdlog::warn("[LatexApi] deleteProject DB failed: {}", e.what());
+        }
+    }
     return impl_->projects_.erase(id) > 0;
 }
 
