@@ -1062,7 +1062,85 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 19 routes");
+    // GET /api/search/facets — get search facet counts
+    router.get(prefix + "/facets", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["years"] = nlohmann::json::array();
+        resp["journals"] = nlohmann::json::array();
+        resp["authors"] = nlohmann::json::array();
+
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, resp.dump());
+
+        try {
+            std::string query = req.queryParams.count("query") ? req.queryParams.at("query") : "";
+            std::string whereClause = query.empty() ? "" :
+                " WHERE title LIKE '%" + StringUtil::escapeSql(query) + "%'";
+
+            auto years = database_->query(
+                "SELECT year, COUNT(*) as count FROM papers" + whereClause
+                + " GROUP BY year ORDER BY count DESC LIMIT 10");
+            nlohmann::json yArr = nlohmann::json::array();
+            for (auto& row : years) {
+                nlohmann::json item;
+                item["value"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                item["count"] = std::stoi(row.at("count"));
+                yArr.push_back(item);
+            }
+            resp["years"] = yArr;
+
+            auto journals = database_->query(
+                "SELECT j.name, COUNT(p.id) as count FROM papers p "
+                "LEFT JOIN journals j ON p.journal_id = j.id"
+                + (query.empty() ? "" : " WHERE p.title LIKE '%" + StringUtil::escapeSql(query) + "%'")
+                + " GROUP BY j.name ORDER BY count DESC LIMIT 10");
+            nlohmann::json jArr = nlohmann::json::array();
+            for (auto& row : journals) {
+                nlohmann::json item;
+                item["value"] = row.count("name") && !row.at("name").empty() ? row.at("name") : "Unknown";
+                item["count"] = std::stoi(row.at("count"));
+                jArr.push_back(item);
+            }
+            resp["journals"] = jArr;
+        } catch (const std::exception& e) {
+            spdlog::warn("[SearchApi] Facets query failed: {}", e.what());
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // GET /api/search/related-searches — related search queries
+    router.get(prefix + "/related-searches", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["queries"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, resp.dump());
+
+        try {
+            std::string query = req.queryParams.count("query") ? req.queryParams.at("query") : "";
+            if (!query.empty()) {
+                auto results = database_->query(
+                    "SELECT DISTINCT query as keyword, COUNT(*) as count FROM search_history "
+                    "WHERE query LIKE '%" + StringUtil::escapeSql(query) + "%' "
+                    "GROUP BY query ORDER BY count DESC LIMIT 10");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["query"] = row.at("keyword");
+                    item["count"] = std::stoi(row.at("count"));
+                    arr.push_back(item);
+                }
+                resp["queries"] = arr;
+                resp["total"] = arr.size();
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[SearchApi] Related searches failed: {}", e.what());
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[SearchApiModule] Registered 21 routes");
 }
 
 } // namespace PaperCrawler

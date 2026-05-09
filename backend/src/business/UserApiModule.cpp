@@ -812,7 +812,49 @@ void UserApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("UserApiModule routes registered");
+    // POST /api/users/:id/notifications — create notification
+    router.post(prefix + "/:id/notifications", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int userId = std::stoi(req.pathParams.at("id"));
+            auto json = nlohmann::json::parse(req.body);
+            std::string type = json.value("type", "info");
+            std::string title = json.value("title", "");
+            std::string message = json.value("message", "");
+
+            if (title.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"title required\"}");
+
+            if (impl_->database_) {
+                impl_->database_->execute(
+                    "INSERT INTO notifications (user_id, type, title, message) VALUES ("
+                    + std::to_string(userId) + ", '" + ValidationHelper::sanitize(type)
+                    + "', '" + ValidationHelper::sanitize(title)
+                    + "', '" + ValidationHelper::sanitize(message) + "')");
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // PUT /api/users/:id/notifications/:nid — mark notification read
+    router.put(prefix + "/:id/notifications/:nid", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            std::string notifId = req.pathParams.at("nid");
+
+            if (impl_->database_) {
+                impl_->database_->execute(
+                    "UPDATE notifications SET is_read = 1 WHERE id = " + notifId
+                    + " AND user_id = " + userId);
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":" + notifId + "}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("UserApiModule routes registered (22)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {

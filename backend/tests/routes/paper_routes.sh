@@ -43,4 +43,6 @@ ROUTES=(
     "DELETE|/api/papers/annotations/1||200|Delete annotation"
     "DELETE|/api/papers/collections/1/papers/1||200|Remove paper from collection"
     "GET|/api/papers/me||200|Get current user papers"
+    "GET|/api/papers/1/similar||200,404|Find similar papers"
+    "POST|/api/papers/1/share|{\"target_user_id\":\"2\"}|200|Share paper"
 )

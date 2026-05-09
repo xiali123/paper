@@ -22,4 +22,7 @@ ROUTES=(
     "POST|/api/auth/register|{\"username\":\"testuser\",\"password\":\"Pass1234\",\"email\":\"test@test.com\"}|200,201,409|Register duplicate user"
     "GET|/api/auth/profile||200,401|Get user profile (no auth=401)"
     "PUT|/api/auth/profile|{\"full_name\":\"Test User\"}|200,401|Update profile (no auth=401)"
+    "POST|/api/auth/forgot-password|{\"email\":\"test@test.com\"}|200|Forgot password request"
+    "POST|/api/auth/deactivate|{\"user_id\":\"1\"}|200|Deactivate account"
+    "POST|/api/auth/reactivate|{\"user_id\":\"1\"}|200|Reactivate account"
 )

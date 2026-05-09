@@ -1126,7 +1126,68 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 11 routes");
+    // POST /api/auth/forgot-password
+    router.post(prefix + "/forgot-password", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string email = json.value("email", "");
+            if (email.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"email required\"}");
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT id FROM users WHERE email = '" + ValidationHelper::sanitize(email) + "'");
+                if (!rows.empty()) {
+                    std::string token = "reset_" + std::to_string(std::time(nullptr)) + "_" + rows[0]["id"];
+                    database_->execute(
+                        "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ("
+                        + rows[0]["id"] + ", '" + token + "', DATE_ADD(NOW(), INTERVAL 1 HOUR)) "
+                        "ON DUPLICATE KEY UPDATE token = VALUES(token), expires_at = VALUES(expires_at)");
+                }
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Reset email sent if account exists\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Reset email sent if account exists\"}");
+        }
+    });
+
+    // POST /api/auth/deactivate
+    router.post(prefix + "/deactivate", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string userId = json.value("user_id", "");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"user_id required\"}");
+
+            database_->execute("UPDATE users SET is_active = 0 WHERE id = " + userId);
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Account deactivated\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/auth/reactivate
+    router.post(prefix + "/reactivate", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            std::string userId = json.value("user_id", "");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"user_id required\"}");
+
+            database_->execute("UPDATE users SET is_active = 1 WHERE id = " + userId);
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Account reactivated\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 14 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

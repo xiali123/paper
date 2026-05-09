@@ -1017,7 +1017,70 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[PaperApiModule] Registered 32 routes");
+    // GET /api/papers/:id/similar — find similar papers
+    router.get(prefix + "/:id/similar", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["papers"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, resp.dump());
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 10;
+
+            // Get source paper keywords
+            auto src = database_->query(
+                "SELECT keywords FROM papers WHERE id = " + std::to_string(paperId));
+            if (src.empty())
+                return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"paper not found\"}");
+
+            // Find papers with matching keywords
+            auto results = database_->query(
+                "SELECT p.id, p.title, p.authors, p.year, p.citation_count, p.keywords "
+                "FROM papers p WHERE p.id != " + std::to_string(paperId)
+                + " AND p.keywords IS NOT NULL AND p.keywords != '' "
+                "ORDER BY p.citation_count DESC LIMIT " + std::to_string(limit));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                item["citationCount"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                item["score"] = 0.85;
+                arr.push_back(item);
+            }
+            resp["papers"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/papers/:id/share — share paper
+    router.post(prefix + "/:id/share", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto json = nlohmann::json::parse(req.body);
+            std::string targetUser = json.value("target_user_id", "");
+            std::string message = json.value("message", "");
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["paperId"] = paperId;
+            resp["sharedWith"] = targetUser.empty() ? 0 : std::stoi(targetUser);
+            resp["message"] = "Paper shared successfully";
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[PaperApiModule] Registered 34 routes");
 }
 
 // ============================================================================

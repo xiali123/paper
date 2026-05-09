@@ -26,4 +26,6 @@ ROUTES=(
     "GET|/api/users/1/notifications||200,400|Get user notifications"
     "GET|/api/users/1/preferences||200,400|Get user preferences"
     "PUT|/api/users/1/preferences|{\"theme\":\"dark\"}|200,400|Update user preferences"
+    "POST|/api/users/1/notifications|{\"type\":\"info\",\"title\":\"Test\",\"message\":\"Hello\"}|200|Create notification"
+    "PUT|/api/users/1/notifications/1||200|Mark notification read"
 )

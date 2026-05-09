@@ -26,4 +26,7 @@ ROUTES=(
     "GET|/api/search/saved||200|List saved searches"
     "POST|/api/search/saved|{\"user_id\":1,\"query\":\"test\"}|200,201|Save search"
     "GET|/api/search/trending||200|Trending from DB"
+    "GET|/api/search/facets||200|Search facets"
+    "GET|/api/search/facets?query=test||200|Search facets with query"
+    "GET|/api/search/related-searches?query=test||200|Related search queries"
 )
