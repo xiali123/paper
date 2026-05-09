@@ -649,7 +649,119 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 11 routes");
+    // Top authors by paper count
+    router.get(prefix + "/top-authors", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"authors\":[],\"total\":0}");
+
+        try {
+            int limit = 20;
+            auto it = req.queryParams.find("limit");
+            if (it != req.queryParams.end()) limit = std::stoi(it->second);
+
+            auto results = database_->query(
+                "SELECT authors, COUNT(*) as paper_count, SUM(citation_count) as total_citations "
+                "FROM papers GROUP BY authors ORDER BY paper_count DESC LIMIT " + std::to_string(limit));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["name"] = row.count("authors") ? row.at("authors") : "";
+                item["paperCount"] = row.count("paper_count") ? std::stoi(row.at("paper_count")) : 0;
+                item["totalCitations"] = row.count("total_citations") ? std::stoi(row.at("total_citations")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["authors"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Keyword research trends over years
+    router.get(prefix + "/research-trends", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"trends\":[],\"total\":0}");
+
+        try {
+            auto results = database_->query(
+                "SELECT keywords, year, COUNT(*) as count FROM papers "
+                "WHERE keywords IS NOT NULL AND keywords != '' "
+                "GROUP BY keywords, year ORDER BY count DESC LIMIT 50");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["keyword"] = row.count("keywords") ? row.at("keywords") : "";
+                item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["trends"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Growth timeline — papers per month
+    router.get(prefix + "/growth", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"growth\":[],\"total\":0}");
+
+        try {
+            int months = 12;
+            auto it = req.queryParams.find("months");
+            if (it != req.queryParams.end()) months = std::stoi(it->second);
+
+            auto results = database_->query(
+                "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count "
+                "FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(months) + " MONTH) "
+                "GROUP BY month ORDER BY month");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["month"] = row.count("month") ? row.at("month") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["growth"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // CCF level distribution
+    router.get(prefix + "/ccf", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"distribution\":[]}");
+
+        try {
+            auto results = database_->query(
+                "SELECT j.ccf_level, COUNT(p.id) as count "
+                "FROM papers p LEFT JOIN journals j ON p.journal_id = j.id "
+                "GROUP BY j.ccf_level ORDER BY count DESC");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["level"] = row.count("ccf_level") && !row.at("ccf_level").empty() ? row.at("ccf_level") : "Unknown";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["distribution"] = arr;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 15 routes");
 }
 
 std::string StatsApiModule::handleStats() {

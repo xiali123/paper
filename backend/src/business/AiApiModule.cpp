@@ -1100,7 +1100,135 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiApi] Registered 12 routes");
+    // Chat sessions — list user's sessions
+    router.get(prefix + "/sessions", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"sessions\":[],\"total\":0}");
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+            std::string sql = "SELECT id, user_id, title, model, status, created_at, updated_at "
+                "FROM ai_chat_sessions WHERE status = 'active'";
+            if (userId > 0) sql += " AND user_id = " + std::to_string(userId);
+            sql += " ORDER BY updated_at DESC LIMIT 50";
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                item["userId"] = row.count("user_id") ? std::stoi(row.at("user_id")) : 0;
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["model"] = row.count("model") ? row.at("model") : "";
+                item["status"] = row.count("status") ? row.at("status") : "active";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["sessions"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Chat sessions — create
+    router.post(prefix + "/sessions", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":0,\"message\":\"no database\"}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            std::string title = json.value("title", "New Chat");
+            std::string model = json.value("model", "gpt-4");
+
+            if (userId <= 0) return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"user_id required\"}");
+
+            database_->execute(
+                "INSERT INTO ai_chat_sessions (user_id, title, model) VALUES ("
+                + std::to_string(userId) + ", '" + ValidationHelper::sanitize(title) + "', '"
+                + ValidationHelper::sanitize(model) + "')");
+            auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+            int newId = rows.empty() ? 0 : std::stoi(rows[0]["id"]);
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["id"] = newId;
+            resp["title"] = title;
+            resp["model"] = model;
+            return HttpResponse::json(HTTP::CREATED, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Chat sessions — delete (soft delete)
+    router.del(prefix + "/sessions/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing session id\"}");
+
+            database_->execute(
+                "UPDATE ai_chat_sessions SET status = 'deleted' WHERE id = " + idIt->second);
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Papers batch AI analysis
+    router.post(prefix + "/batch-analyze", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"results\":[],\"message\":\"no database\"}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            auto paperIds = json.value("paper_ids", nlohmann::json::array());
+            std::string analysisType = json.value("type", "summary");
+
+            std::string idList;
+            for (size_t i = 0; i < paperIds.size(); i++) {
+                if (i > 0) idList += ",";
+                idList += std::to_string(paperIds[i].get<int>());
+            }
+            if (idList.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"paper_ids required\"}");
+
+            auto results = database_->query(
+                "SELECT id, title, authors, abstract, keywords, citation_count FROM papers "
+                "WHERE id IN (" + idList + ")");
+
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["authors"] = row.count("authors") ? row.at("authors") : "";
+                item["citationCount"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                item["keywords"] = row.count("keywords") ? row.at("keywords") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["type"] = analysisType;
+            resp["results"] = arr;
+            resp["count"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiApi] Registered 16 routes");
 }
 
 } // namespace PaperCrawler

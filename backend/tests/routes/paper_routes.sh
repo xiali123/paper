@@ -29,4 +29,10 @@ ROUTES=(
     "GET|/api/papers/tags||200|Get paper tags statistics"
     "POST|/api/papers/batch|{\"action\":\"delete\",\"ids\":[9999]}|200|Batch operation on papers"
     "GET|/api/papers/recent||200|Get recent papers"
+    "GET|/api/papers/1/annotations||200|Get paper annotations"
+    "POST|/api/papers/1/annotations|{\"user_id\":1,\"text\":\"Important\"}|200,201|Create annotation"
+    "GET|/api/papers/collections||200|List collections"
+    "POST|/api/papers/collections|{\"user_id\":1,\"name\":\"Test\"}|200,201|Create collection"
+    "POST|/api/papers/collections/1/papers|{\"paper_id\":1}|200|Add paper to collection"
+    "GET|/api/papers/1/tags||200|Get paper tags from table"
 )

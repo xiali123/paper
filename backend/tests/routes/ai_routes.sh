@@ -17,4 +17,8 @@ ROUTES=(
     "POST|/api/ai/translate|{\"text\":\"Hello world\",\"source_lang\":\"en\",\"target_lang\":\"zh\"}|200,400|Translate text"
     "GET|/api/ai/queue||200|Get task queue status"
     "POST|/api/ai/batch-summarize|{\"paper_ids\":[1,2]}|200,400|Batch summarize papers"
+    "GET|/api/ai/sessions||200|List chat sessions"
+    "POST|/api/ai/sessions|{\"user_id\":1,\"title\":\"Test session\"}|200,201|Create chat session"
+    "DELETE|/api/ai/sessions/1||200|Delete chat session"
+    "POST|/api/ai/batch-analyze|{\"paper_ids\":[1,2],\"type\":\"summary\"}|200,400|Batch analyze papers"
 )

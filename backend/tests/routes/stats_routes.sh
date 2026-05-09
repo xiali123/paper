@@ -16,4 +16,8 @@ ROUTES=(
     "GET|/api/stats/years||200|Year distribution"
     "GET|/api/stats/authors||200|Author stats"
     "GET|/api/stats/citation-trends||200|Citation trends"
+    "GET|/api/stats/top-authors||200|Top authors"
+    "GET|/api/stats/research-trends||200|Research trends"
+    "GET|/api/stats/growth||200|Growth timeline"
+    "GET|/api/stats/ccf||200|CCF distribution"
 )

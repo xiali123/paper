@@ -592,7 +592,198 @@ void PaperApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[PaperApiModule] Registered 17 routes");
+    // Annotations — GET list for paper
+    router.get(prefix + "/:id/annotations", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"annotations\":[],\"total\":0}");
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto results = database_->query(
+                "SELECT a.id, a.paper_id, a.user_id, a.text, a.position_data, a.created_at "
+                "FROM paper_annotations a WHERE a.paper_id = " + std::to_string(paperId)
+                + " ORDER BY a.created_at DESC LIMIT 100");
+
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["paperId"] = std::stoi(row.at("paper_id"));
+                item["userId"] = std::stoi(row.at("user_id"));
+                item["text"] = row.at("text");
+                item["position"] = row.count("position_data") ? row.at("position_data") : "";
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["annotations"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Annotations — POST create
+    router.post(prefix + "/:id/annotations", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":0,\"message\":\"no database\"}");
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            std::string text = json.value("text", "");
+            std::string position = json.value("position", "");
+
+            if (text.empty()) return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"text required\"}");
+
+            database_->execute(
+                "INSERT INTO paper_annotations (paper_id, user_id, text, position_data) VALUES ("
+                + std::to_string(paperId) + ", " + std::to_string(userId) + ", '"
+                + ValidationHelper::sanitize(text) + "', '"
+                + ValidationHelper::sanitize(position) + "')");
+            auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+            int newId = rows.empty() ? 0 : std::stoi(rows[0]["id"]);
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["id"] = newId;
+            return HttpResponse::json(HTTP::CREATED, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Collections — GET list
+    router.get(prefix + "/collections", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"collections\":[],\"total\":0}");
+
+        try {
+            int userId = 0;
+            auto it = req.queryParams.find("user_id");
+            if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+            std::string sql = "SELECT c.id, c.user_id, c.name, c.description, c.is_public, c.created_at, "
+                "(SELECT COUNT(*) FROM user_collection_papers ucp WHERE ucp.collection_id = c.id) as paper_count "
+                "FROM user_collections c";
+            if (userId > 0) sql += " WHERE c.user_id = " + std::to_string(userId);
+            sql += " ORDER BY c.updated_at DESC LIMIT 50";
+
+            auto results = database_->query(sql);
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = std::stoi(row.at("id"));
+                item["userId"] = std::stoi(row.at("user_id"));
+                item["name"] = row.at("name");
+                item["description"] = row.count("description") ? row.at("description") : "";
+                item["isPublic"] = row.count("is_public") && row.at("is_public") == "1";
+                item["paperCount"] = row.count("paper_count") ? std::stoi(row.at("paper_count")) : 0;
+                item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["collections"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Collections — POST create
+    router.post(prefix + "/collections", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":0}");
+
+        try {
+            auto json = nlohmann::json::parse(req.body);
+            int userId = json.value("user_id", 0);
+            std::string name = json.value("name", "");
+            std::string desc = json.value("description", "");
+
+            if (name.empty() || userId <= 0)
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"name and user_id required\"}");
+
+            database_->execute(
+                "INSERT INTO user_collections (user_id, name, description) VALUES ("
+                + std::to_string(userId) + ", '" + ValidationHelper::sanitize(name) + "', '"
+                + ValidationHelper::sanitize(desc) + "')");
+            auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+            int newId = rows.empty() ? 0 : std::stoi(rows[0]["id"]);
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["id"] = newId;
+            resp["name"] = name;
+            return HttpResponse::json(HTTP::CREATED, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Collections — POST add paper to collection
+    router.post(prefix + "/collections/:id/papers", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            int collId = std::stoi(req.pathParams.at("id"));
+            auto json = nlohmann::json::parse(req.body);
+            int paperId = json.value("paper_id", 0);
+            if (paperId <= 0) return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"paper_id required\"}");
+
+            database_->execute(
+                "INSERT IGNORE INTO user_collection_papers (collection_id, paper_id) VALUES ("
+                + std::to_string(collId) + ", " + std::to_string(paperId) + ")");
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Tags — GET paper tags from paper_tags table
+    router.get(prefix + "/:id/tags", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"tags\":[],\"total\":0}");
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto results = database_->query(
+                "SELECT tag FROM paper_tags WHERE paper_id = " + std::to_string(paperId));
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                arr.push_back(row.at("tag"));
+            }
+            nlohmann::json resp;
+            resp["tags"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // Tags — DELETE tag from paper
+    router.del(prefix + "/:id/tags/:tag", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            std::string tag = req.pathParams.at("tag");
+            database_->execute(
+                "DELETE FROM paper_tags WHERE paper_id = " + std::to_string(paperId)
+                + " AND tag = '" + ValidationHelper::sanitize(tag) + "'");
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[PaperApiModule] Registered 24 routes");
 }
 
 // ============================================================================
