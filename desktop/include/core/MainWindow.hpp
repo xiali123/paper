@@ -230,6 +230,11 @@ class PaperReadingSpeedTest;
 class PaperCitationSankey;
 class PaperProjectMilestone;
 class PaperFigureCaptioner;
+class PaperEvidenceStrength;
+class PaperVocabularyTracker;
+class PaperTrendSparkline;
+class PaperTeamAvailability;
+class PaperPDFAnnotator;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

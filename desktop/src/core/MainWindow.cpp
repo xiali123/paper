@@ -227,6 +227,11 @@
 #include "visualization/PaperCitationSankey.hpp"
 #include "workspace/PaperProjectMilestone.hpp"
 #include "tools/PaperFigureCaptioner.hpp"
+#include "analysis/PaperEvidenceStrength.hpp"
+#include "reading/PaperVocabularyTracker.hpp"
+#include "visualization/PaperTrendSparkline.hpp"
+#include "workspace/PaperTeamAvailability.hpp"
+#include "tools/PaperPDFAnnotator.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5537,6 +5542,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Evidence Strength", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Strength");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceStrength();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Vocabulary Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Vocabulary Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVocabularyTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Trend Sparkline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Trend Sparkline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTrendSparkline();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Team Availability", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Team Availability");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTeamAvailability();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("PDF Annotator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("PDF Annotator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPDFAnnotator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6378,6 +6433,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Figure Captioner", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Figure Captioner");
+    });
+    commandPalette_->addAction("Evidence Strength", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Strength");
+    });
+    commandPalette_->addAction("Vocabulary Tracker", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Vocabulary Tracker");
+    });
+    commandPalette_->addAction("Trend Sparkline", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Trend Sparkline");
+    });
+    commandPalette_->addAction("Team Availability", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Team Availability");
+    });
+    commandPalette_->addAction("PDF Annotator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > PDF Annotator");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
