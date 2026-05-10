@@ -43,4 +43,9 @@ ROUTES=(
     "POST|/api/recommendations/train|{\"algorithm\":\"collaborative\"}|200|Trigger model retrain"
     "GET|/api/recommendations/quality||200|Get recommendation quality metrics"
     "POST|/api/recommendations/cross-domain|{\"paperId\":1,\"domains\":[\"ml\",\"nlp\"]}|200|Get cross-domain recommendations"
+
+    # --- Round 25 Additions ---
+    "GET|/api/recommendations/engines||200|List recommendation engines"
+    "POST|/api/recommendations/explain/1|{}|200|Explain recommendation"
+    "POST|/api/recommendations/a-b-test|{\"name\":\"test1\",\"engineA\":\"collaborative\",\"engineB\":\"content\",\"duration\":7}|200|Create A/B test"
 )

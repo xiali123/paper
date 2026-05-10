@@ -51,4 +51,9 @@ ROUTES=(
     "POST|/api/export/merge|{\"exportIds\":[\"id1\",\"id2\"],\"format\":\"pdf\"}|200|Merge multiple exports"
     "GET|/api/export/templates||200|Get export templates list"
     "POST|/api/export/preview|{\"paperIds\":[1,2,3],\"format\":\"markdown\"}|200|Preview export output"
+
+    # --- Round 25 Additions ---
+    "GET|/api/export/quota||200|Get export quota"
+    "POST|/api/export/batch-status|{\"exportIds\":[\"id1\",\"id2\"]}|200|Get batch export status"
+    "POST|/api/export/compress|{\"exportIds\":[\"id1\"],\"format\":\"zip\"}|200|Compress export files"
 )

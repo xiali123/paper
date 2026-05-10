@@ -40,4 +40,9 @@ ROUTES=(
     "GET|/api/ai-co-pilot/sessions/1/context||200,404|Get session context"
     "POST|/api/ai-co-pilot/sessions/1/clear|{}|200|Clear session messages"
     "GET|/api/ai-co-pilot/sessions/search?q=test||200|Search across sessions"
+
+    # --- Round 25 Additions ---
+    "POST|/api/ai-co-pilot/analyze|{\"text\":\"This is text\",\"type\":\"grammar\"}|200|Analyze text for writing"
+    "GET|/api/ai-co-pilot/sessions/stats||200|Get AI CoPilot usage stats"
+    "POST|/api/ai-co-pilot/prompts/custom|{\"name\":\"My Prompt\",\"template\":\"Summarize\"}|200|Save custom prompt"
 )

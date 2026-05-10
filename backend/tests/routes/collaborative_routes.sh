@@ -51,4 +51,9 @@ ROUTES=(
     "POST|/api/writing/documents/1/autosave|{\"content\":\"test\",\"userId\":1}|200|Autosave document content"
     "GET|/api/writing/documents/1/activity||200|Get document activity log"
     "POST|/api/writing/documents/1/invite|{\"email\":\"user@test.com\",\"role\":\"editor\"}|200|Invite user to collaborate"
+
+    # --- Round 25 Additions ---
+    "POST|/api/writing/documents/1/merge|{\"sourceVersion\":2,\"targetVersion\":3}|200|Merge document changes"
+    "GET|/api/writing/documents/1/export/pdf||200|Export document as PDF"
+    "POST|/api/writing/documents/1/tag|{\"tag\":\"important\"}|200|Add tag to document"
 )
