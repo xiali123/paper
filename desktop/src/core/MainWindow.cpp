@@ -252,6 +252,11 @@
 #include "visualization/PaperRadarChart.hpp"
 #include "workspace/PaperContractManager.hpp"
 #include "tools/PaperCronScheduler.hpp"
+#include "analysis/PaperArgumentMapper.hpp"
+#include "reading/PaperReadingBadge.hpp"
+#include "visualization/PaperHeatmapGrid.hpp"
+#include "workspace/PaperProposalTracker.hpp"
+#include "tools/PaperLogViewer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5812,6 +5817,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Mapper", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Mapper");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentMapper();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Badge", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Badge");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingBadge();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Heatmap Grid", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Heatmap Grid");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHeatmapGrid();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Proposal Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Proposal Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProposalTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Log Viewer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Log Viewer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogViewer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6728,6 +6783,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Cron Scheduler", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Cron Scheduler");
+    });
+    commandPalette_->addAction("Argument Mapper", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Mapper");
+    });
+    commandPalette_->addAction("Reading Badge", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Badge");
+    });
+    commandPalette_->addAction("Heatmap Grid", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Heatmap Grid");
+    });
+    commandPalette_->addAction("Proposal Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Proposal Tracker");
+    });
+    commandPalette_->addAction("Log Viewer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Log Viewer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

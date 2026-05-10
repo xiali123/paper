@@ -255,6 +255,11 @@ class PaperReadingPuzzle;
 class PaperRadarChart;
 class PaperContractManager;
 class PaperCronScheduler;
+class PaperArgumentMapper;
+class PaperReadingBadge;
+class PaperHeatmapGrid;
+class PaperProposalTracker;
+class PaperLogViewer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
