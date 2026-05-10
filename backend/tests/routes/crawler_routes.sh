@@ -41,4 +41,8 @@ ROUTES=(
     "POST|/api/crawler/marketplace/templates/test_tpl_001/install|{}|200,401|Install marketplace template"
     "POST|/api/crawler/marketplace/templates/test_tpl_001/rate|{\"rating\":4}|200,401|Rate marketplace template"
     "GET|/api/crawler/marketplace/search?query=test||200,401|Search marketplace templates"
+
+    # --- v4 Additions ---
+    "GET|/api/crawler/statistics/summary||200|Get crawler statistics summary"
+    "POST|/api/crawler/tasks/task_123/cancel|{}|200|Cancel a crawl task"
 )

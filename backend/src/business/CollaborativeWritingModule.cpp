@@ -772,6 +772,91 @@ void CollaborativeWritingModule::registerRoutes() {
             return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
         }
     });
+
+    // ========================================================================
+    // New routes (v4 additions)
+    // ========================================================================
+
+    // GET /api/writing/documents/:id/versions — Get document version history (lightweight)
+    router.get(prefix + "/documents/:id/versions", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+
+            nlohmann::json data;
+            data["documentId"] = docId;
+            data["versions"] = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT id, document_id, created_at FROM collab_versions WHERE document_id = "
+                    + docId + " ORDER BY created_at DESC LIMIT 20");
+                for (const auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? row.at("id") : "";
+                    item["document_id"] = row.count("document_id") ? row.at("document_id") : "";
+                    item["created_at"] = row.count("created_at") ? row.at("created_at") : "";
+                    data["versions"].push_back(item);
+                }
+            }
+            data["total"] = data["versions"].size();
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/writing/comments/:id/reply — Reply to a comment
+    router.post(prefix + "/comments/:id/reply", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string commentId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string content = ValidationHelper::sanitize(body.value<std::string>("content", ""));
+            std::string userId = std::to_string(body.value<int>("userId", 0));
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO collab_comments (document_id, user_id, content, parent_id, created_at) "
+                    "SELECT document_id, " + userId + ", '"
+                    + StringUtil::escapeSql(content) + "', " + commentId
+                    + ", NOW() FROM collab_comments WHERE id = " + commentId);
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["replyId"] = "reply_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/writing/documents/:id/comments — Get all comments for a document (lightweight)
+    router.get(prefix + "/documents/:id/comments", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+
+            nlohmann::json data;
+            data["documentId"] = docId;
+            data["comments"] = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT * FROM collab_comments WHERE document_id = "
+                    + docId + " ORDER BY created_at DESC");
+                for (const auto& row : rows) {
+                    nlohmann::json item;
+                    for (const auto& [key, value] : row) {
+                        item[key] = value;
+                    }
+                    data["comments"].push_back(item);
+                }
+            }
+            data["total"] = data["comments"].size();
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
 }
 
 // ============================================================================

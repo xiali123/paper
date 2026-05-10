@@ -27,4 +27,7 @@ ROUTES=(
     "POST|/api/auth/reactivate|{\"user_id\":\"1\"}|200|Reactivate account"
     "POST|/api/auth/avatar|{\"user_id\":1,\"url\":\"/avatars/test.png\"}|200|Upload avatar"
     "DELETE|/api/auth/avatar|{\"user_id\":1}|200|Remove avatar"
+    "GET|/api/auth/security-log||200|Get security log"
+    "POST|/api/auth/two-factor/enable|{\"userId\":\"1\",\"method\":\"totp\"}|200|Enable two-factor auth"
+    "POST|/api/auth/two-factor/verify|{\"userId\":\"1\",\"code\":\"123456\"}|200|Verify two-factor code"
 )

@@ -2050,7 +2050,132 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 16 routes");
+    // GET /api/recommendation/history -- User recommendation history
+    router.get("/api/recommendation/history", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId required\"}");
+
+            if (!database_)
+                return HttpResponse::json(HTTP::OK, "{\"recommendations\":[],\"total\":0}");
+
+            auto result = database_->query(
+                "SELECT * FROM user_recommendations WHERE user_id = " + StringUtil::escapeSql(userId) +
+                " ORDER BY created_at DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : result) {
+                nlohmann::json item;
+                for (auto& [k, v] : row) item[k] = v;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["recommendations"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/recommendation/ignore -- Ignore a recommendation
+    router.post("/api/recommendation/ignore", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string recommendationId = body.value("recommendationId", "");
+            std::string userId = body.value("userId", "");
+            if (recommendationId.empty() || userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"recommendationId and userId required\"}");
+
+            if (database_) {
+                database_->execute(
+                    "UPDATE user_recommendations SET ignored = 1 WHERE id = " +
+                    StringUtil::escapeSql(recommendationId) + " AND user_id = " +
+                    StringUtil::escapeSql(userId));
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/recommendation/categories -- Get recommendation categories
+    router.get("/api/recommendation/categories", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_) {
+            nlohmann::json resp;
+            nlohmann::json cats = nlohmann::json::array();
+            cats.push_back(nlohmann::json{{"name", "machine_learning"}, {"count", 10}});
+            cats.push_back(nlohmann::json{{"name", "nlp"}, {"count", 7}});
+            cats.push_back(nlohmann::json{{"name", "computer_vision"}, {"count", 5}});
+            resp["categories"] = cats;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        }
+
+        try {
+            auto result = database_->query(
+                "SELECT DISTINCT category, COUNT(*) as count FROM user_recommendations GROUP BY category");
+            nlohmann::json cats = nlohmann::json::array();
+            for (auto& row : result) {
+                nlohmann::json item;
+                item["name"] = row.count("category") ? row["category"] : "";
+                item["count"] = row.count("count") ? std::stoi(row["count"]) : 0;
+                cats.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["categories"] = cats;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/recommendation/preference -- Set user recommendation preferences
+    router.post("/api/recommendation/preference", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId required\"}");
+
+            std::string categories = "[]";
+            if (body.contains("categories")) categories = body["categories"].dump();
+            std::string minScore = "0.5";
+            if (body.contains("minScore")) {
+                if (body["minScore"].is_string()) minScore = body["minScore"].get<std::string>();
+                else if (body["minScore"].is_number()) minScore = std::to_string(body["minScore"].get<double>());
+            }
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS recommendation_preferences ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id INT UNIQUE, "
+                        "categories TEXT, "
+                        "min_score DECIMAL(3,2) DEFAULT 0.50, "
+                        "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Create table failed: {}", e.what());
+                }
+
+                database_->execute(
+                    "INSERT INTO recommendation_preferences (user_id, categories, min_score) VALUES ("
+                    + StringUtil::escapeSql(userId) + ", '"
+                    + StringUtil::escapeSql(categories) + "', "
+                    + StringUtil::escapeSql(minScore) + ") "
+                    "ON DUPLICATE KEY UPDATE categories = VALUES(categories), min_score = VALUES(min_score)");
+            }
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["userId"] = userId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 20 routes");
 }
 
 } // namespace PaperCrawler

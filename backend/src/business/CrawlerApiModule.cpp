@@ -530,6 +530,70 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // New routes (v4 additions)
+    // ========================================================================
+
+    // GET /api/crawler/statistics/summary — Crawler statistics summary
+    router.get(prefix + "/statistics/summary", [this](const HttpRequest& req) {
+        try {
+            nlohmann::json data;
+            data["summary"] = nlohmann::json::object();
+            data["success"] = true;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT COUNT(*) as total_tasks, "
+                    "SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed, "
+                    "SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) as running, "
+                    "SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) as failed "
+                    "FROM distributed_crawl_tasks");
+
+                if (!rows.empty()) {
+                    data["summary"]["totalTasks"] = StringUtil::getRowInt(rows[0], "total_tasks");
+                    data["summary"]["completed"] = StringUtil::getRowInt(rows[0], "completed");
+                    data["summary"]["running"] = StringUtil::getRowInt(rows[0], "running");
+                    data["summary"]["failed"] = StringUtil::getRowInt(rows[0], "failed");
+                }
+            } else {
+                data["summary"]["totalTasks"] = 0;
+                data["summary"]["completed"] = 0;
+                data["summary"]["running"] = 0;
+                data["summary"]["failed"] = 0;
+            }
+
+            return buildJsonResponse(true, "Crawler statistics summary retrieved", data);
+        } catch (const std::exception& e) {
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // POST /api/crawler/tasks/:id/cancel — Cancel a crawl task
+    router.post(prefix + "/tasks/:id/cancel", [this](const HttpRequest& req) {
+        try {
+            auto taskIdIt = req.pathParams.find("id");
+            if (taskIdIt == req.pathParams.end()) {
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Missing task ID");
+            }
+            std::string taskId = taskIdIt->second;
+
+            if (database_) {
+                PreparedStatement updateStmt(database_,
+                    "UPDATE distributed_crawl_tasks SET status = 'cancelled' WHERE id = ?");
+                updateStmt.bind(0, taskId);
+                updateStmt.execute();
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["taskId"] = taskId;
+            data["status"] = "cancelled";
+            return buildJsonResponse(true, "Task cancelled", data);
+        } catch (const std::exception& e) {
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 

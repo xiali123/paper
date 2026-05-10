@@ -23,4 +23,9 @@ ROUTES=(
     "POST|/api/writing/documents/1/export|{\"format\":\"markdown\"}|200,404|Export document"
     "PUT|/api/writing/comments/resolve-all|{\"documentId\":\"1\"}|200|Resolve all comments"
     "POST|/api/writing/documents/1/restore|{\"versionId\":\"1\"}|200,404|Restore document version"
+
+    # --- v4 Additions ---
+    "GET|/api/writing/documents/1/versions||200,401|Get document version history"
+    "POST|/api/writing/comments/1/reply|{\"content\":\"Reply text\",\"userId\":1}|200|Reply to a comment"
+    "GET|/api/writing/documents/1/comments||200,401|Get all comments for document"
 )

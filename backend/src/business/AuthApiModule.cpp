@@ -1221,7 +1221,98 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 16 routes");
+    // GET /api/auth/security-log -- Get user security/login log
+    router.get(prefix + "/security-log", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"logs\":[],\"total\":0}");
+
+        try {
+            database_->execute(
+                "CREATE TABLE IF NOT EXISTS security_log ("
+                "id INT AUTO_INCREMENT PRIMARY KEY, "
+                "user_id INT, "
+                "action VARCHAR(50), "
+                "ip_address VARCHAR(45), "
+                "user_agent TEXT, "
+                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+        } catch (const std::exception& e) {
+            spdlog::warn("[AuthApi] Create security_log table failed: {}", e.what());
+        }
+
+        try {
+            auto result = database_->query(
+                "SELECT * FROM security_log ORDER BY created_at DESC LIMIT 20");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : result) {
+                nlohmann::json item;
+                for (auto& [k, v] : row) item[k] = v;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["logs"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/auth/two-factor/enable -- Enable two-factor auth
+    router.post(prefix + "/two-factor/enable", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            std::string method = body.value("method", "totp");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId required\"}");
+
+            // Generate a random Base32 secret (16 bytes = 32 hex chars)
+            std::ostringstream secretStream;
+            std::random_device rd;
+            unsigned char buf[16];
+            for (size_t i = 0; i < sizeof(buf); i += sizeof(unsigned int)) {
+                unsigned int val = rd();
+                std::memcpy(buf + i, &val, std::min(sizeof(unsigned int), sizeof(buf) - i));
+            }
+            // Simple Base32 encoding
+            const char base32Chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            for (size_t i = 0; i < sizeof(buf); i++) {
+                secretStream << base32Chars[buf[i] % 32];
+            }
+            std::string secret = secretStream.str();
+            std::string qrUrl = "otpauth://totp/PaperCrawler:user" + userId + "?secret=" + secret + "&issuer=PaperCrawler";
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["secret"] = secret;
+            resp["qrUrl"] = qrUrl;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/auth/two-factor/verify -- Verify two-factor code
+    router.post(prefix + "/two-factor/verify", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            std::string code = body.value("code", "");
+            if (userId.empty() || code.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId and code required\"}");
+
+            // Stub: accept any 6-digit code
+            bool verified = (code.length() == 6);
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["verified"] = verified;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 19 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

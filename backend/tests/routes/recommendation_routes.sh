@@ -20,4 +20,8 @@ ROUTES=(
     "GET|/api/recommendations/personalized/1||200|Personalized recommendations"
     "POST|/api/recommendations/refresh||200|Refresh recommendation cache"
     "DELETE|/api/recommendations/feedback/1||200|Delete feedback"
+    "GET|/api/recommendation/history|{\"userId\":\"1\"}|200|Get user recommendation history"
+    "POST|/api/recommendation/ignore|{\"recommendationId\":\"1\",\"userId\":\"1\"}|200|Ignore a recommendation"
+    "GET|/api/recommendation/categories||200|Get recommendation categories"
+    "POST|/api/recommendation/preference|{\"userId\":\"1\",\"categories\":[\"ml\",\"nlp\"],\"minScore\":0.5}|200|Set recommendation preferences"
 )
