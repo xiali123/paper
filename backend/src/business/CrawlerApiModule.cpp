@@ -594,6 +594,121 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // Additional v4 routes
+    // ========================================================================
+
+    // GET /api/crawler/tasks/:id/logs — Get task execution logs
+    router.get(prefix + "/tasks/:id/logs", [this](const HttpRequest& req) {
+        try {
+            auto taskIdIt = req.pathParams.find("id");
+            if (taskIdIt == req.pathParams.end()) {
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Missing task ID");
+            }
+            std::string taskId = taskIdIt->second;
+
+            if (database_) {
+                // Create table if not exists
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS crawl_task_logs ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "task_id INT, "
+                    "level VARCHAR(10), "
+                    "message TEXT, "
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                PreparedStatement stmt(database_,
+                    "SELECT * FROM crawl_task_logs WHERE task_id = ? "
+                    "ORDER BY created_at DESC LIMIT 50");
+                stmt.bind(0, taskId);
+                auto rows = stmt.query();
+
+                nlohmann::json logs = nlohmann::json::array();
+                for (const auto& row : rows) {
+                    nlohmann::json log;
+                    log["id"] = StringUtil::getRowInt(row, "id");
+                    log["taskId"] = StringUtil::getRowStr(row, "task_id");
+                    log["level"] = StringUtil::getRowStr(row, "level");
+                    log["message"] = StringUtil::getRowStr(row, "message");
+                    log["createdAt"] = StringUtil::getRowStr(row, "created_at");
+                    logs.push_back(log);
+                }
+                nlohmann::json data;
+                data["logs"] = logs;
+                data["total"] = logs.size();
+                data["taskId"] = taskId;
+                return buildJsonResponse(true, "Task logs retrieved", data);
+            }
+
+            // No DB stub
+            nlohmann::json data;
+            data["logs"] = nlohmann::json::array();
+            data["total"] = 0;
+            data["taskId"] = taskId;
+            return buildJsonResponse(true, "Task logs retrieved (no database)", data);
+        } catch (const std::exception& e) {
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // POST /api/crawler/tasks/:id/retry — Retry a failed task
+    router.post(prefix + "/tasks/:id/retry-v2", [this](const HttpRequest& req) {
+        try {
+            auto taskIdIt = req.pathParams.find("id");
+            if (taskIdIt == req.pathParams.end()) {
+                return buildJsonResponse(HTTP::BAD_REQUEST, "Missing task ID");
+            }
+            std::string taskId = taskIdIt->second;
+
+            if (database_) {
+                PreparedStatement updateStmt(database_,
+                    "UPDATE distributed_crawl_tasks SET status = 'pending', progress = 0 "
+                    "WHERE id = ? AND status IN ('failed', 'cancelled')");
+                updateStmt.bind(0, taskId);
+                updateStmt.execute();
+
+                nlohmann::json data;
+                data["success"] = true;
+                data["taskId"] = taskId;
+                data["status"] = "pending";
+                return buildJsonResponse(true, "Task retry initiated", data);
+            }
+
+            // No DB stub
+            nlohmann::json data;
+            data["success"] = true;
+            data["taskId"] = taskId;
+            data["status"] = "pending";
+            return buildJsonResponse(true, "Task retry initiated (stub mode)", data);
+        } catch (const std::exception& e) {
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // GET /api/crawler/health — Crawler health check
+    router.get(prefix + "/health", [this](const HttpRequest& req) {
+        try {
+            nlohmann::json data;
+            data["healthy"] = true;
+            data["uptime"] = "running";
+            data["lastCheck"] = "now";
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT COUNT(*) as total, "
+                    "SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) as active "
+                    "FROM distributed_crawl_tasks WHERE updated_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+                data["activeTasks"] = rows.empty() ? 0 : StringUtil::getRowInt(rows[0], "active");
+            } else {
+                data["activeTasks"] = 0;
+            }
+
+            return buildJsonResponse(true, "Crawler health check", data);
+        } catch (const std::exception& e) {
+            return buildJsonResponse(HTTP::INTERNAL_ERROR, "Exception: " + std::string(e.what()));
+        }
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 

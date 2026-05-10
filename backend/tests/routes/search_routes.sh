@@ -32,4 +32,7 @@ ROUTES=(
     "GET|/api/search/suggestions?q=BERT||200|Search suggestions by prefix"
     "DELETE|/api/search/history|{\"userId\":\"1\"}|200|Clear search history by body"
     "GET|/api/search/advanced?q=test&author=Smith&year=2024||200|Advanced search with filters"
+    "POST|/api/search/save-query|{\"query\":\"BERT\",\"filters\":{},\"name\":\"My saved search\"}|200|Save search query"
+    "GET|/api/search/saved-queries||200|List saved queries"
+    "DELETE|/api/search/saved-queries/1||200|Delete saved search"
 )

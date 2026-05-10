@@ -45,4 +45,9 @@ ROUTES=(
     # --- v4 Additions ---
     "GET|/api/crawler/statistics/summary||200|Get crawler statistics summary"
     "POST|/api/crawler/tasks/task_123/cancel|{}|200|Cancel a crawl task"
+
+    # --- v4 Additional ---
+    "GET|/api/crawler/tasks/task_123/logs||200|Get task execution logs"
+    "POST|/api/crawler/tasks/task_123/retry-v2|{}|200|Retry a failed task (v2)"
+    "GET|/api/crawler/health||200|Crawler health check"
 )

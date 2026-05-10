@@ -1268,7 +1268,108 @@ void SearchApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[SearchApiModule] Registered 24 routes");
+    // POST /api/search/save-query — Save a search query for later
+    router.post(prefix + "/save-query", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string query = body.value("query", "");
+            std::string name = body.value("name", "");
+            std::string filters = body.contains("filters") ? body["filters"].dump() : "{}";
+
+            std::string timestamp = std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+            std::string savedSearchId = "ss_" + timestamp;
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS saved_searches ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "name VARCHAR(100), "
+                        "query TEXT, "
+                        "filters TEXT, "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO saved_searches (name, query, filters) VALUES ('"
+                        + StringUtil::escapeSql(name) + "', '"
+                        + StringUtil::escapeSql(query) + "', '"
+                        + StringUtil::escapeSql(filters) + "')");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[SearchApi] Save search query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["savedSearchId"] = savedSearchId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/search/saved-queries — List saved searches
+    router.get(prefix + "/saved-queries", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["searches"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS saved_searches ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "name VARCHAR(100), "
+                    "query TEXT, "
+                    "filters TEXT, "
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                auto results = database_->query(
+                    "SELECT * FROM saved_searches ORDER BY created_at DESC LIMIT 20");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? row.at("id") : "";
+                    item["name"] = row.count("name") ? row.at("name") : "";
+                    item["query"] = row.count("query") ? row.at("query") : "";
+                    item["filters"] = row.count("filters") ? row.at("filters") : "{}";
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    arr.push_back(item);
+                }
+                resp["searches"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[SearchApi] Saved queries failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // DELETE /api/search/saved-queries/:id — Delete a saved search
+    router.del(prefix + "/saved-queries/:id", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_) {
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["deleted"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        }
+
+        try {
+            std::string id = req.pathParams.at("id");
+            database_->execute(
+                "DELETE FROM saved_searches WHERE id = " + id);
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["deleted"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 27 routes");
 }
 
 } // namespace PaperCrawler

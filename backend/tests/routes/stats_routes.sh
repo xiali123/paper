@@ -34,4 +34,9 @@ ROUTES=(
     "GET|/api/stats/timeline||200|Paper publication timeline"
     "GET|/api/stats/timeline?years=10||200|Paper publication timeline (10 years)"
     "GET|/api/stats/geography||200|Geographic distribution of papers"
+
+    # Citation, growth-rate & keyword analytics
+    "GET|/api/stats/citations||200|Citation statistics"
+    "GET|/api/stats/growth-rate||200|Growth rate calculation"
+    "GET|/api/stats/top-keywords||200|Top keywords in papers"
 )

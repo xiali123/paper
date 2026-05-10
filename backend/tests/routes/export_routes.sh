@@ -28,4 +28,7 @@ ROUTES=(
     "POST|/api/export/templates|{\"name\":\"My Template\",\"format\":\"csv\",\"fields\":[\"title\",\"authors\"]}|200|Create export template"
     "GET|/api/export/templates||200|List export templates"
     "POST|/api/export/schedule|{\"templateId\":\"tpl_1\",\"schedule\":\"daily\",\"emails\":[\"user@example.com\"]}|200|Schedule export job"
+    "GET|/api/export/available-formats||200|List available export formats"
+    "POST|/api/export/validate|{\"format\":\"pdf\",\"paperIds\":[1,2,3]}|200|Validate export request"
+    "GET|/api/export/export-history||200|Get export history"
 )
