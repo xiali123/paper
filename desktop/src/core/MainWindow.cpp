@@ -212,6 +212,11 @@
 #include "visualization/PaperCitationFlowDiagram.hpp"
 #include "workspace/PaperEthicsChecker.hpp"
 #include "tools/PaperRegexSearchTool.hpp"
+#include "analysis/PaperContradictionDetector.hpp"
+#include "reading/PaperAnnotationSync.hpp"
+#include "visualization/PaperResearchHeatmap.hpp"
+#include "workspace/PaperCollaborationScore.hpp"
+#include "tools/PaperMarkdownExporter.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5372,6 +5377,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Contradiction Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contradiction Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContradictionDetector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Annotation Sync", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Annotation Sync");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAnnotationSync();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Research Heatmap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Research Heatmap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResearchHeatmap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Collaboration Score", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Collaboration Score");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCollaborationScore();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Markdown Exporter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Markdown Exporter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMarkdownExporter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6168,6 +6223,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Regex Search Tool", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Regex Search Tool");
+    });
+    commandPalette_->addAction("Contradiction Detector", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Contradiction Detector");
+    });
+    commandPalette_->addAction("Annotation Sync", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Annotation Sync");
+    });
+    commandPalette_->addAction("Research Heatmap", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Research Heatmap");
+    });
+    commandPalette_->addAction("Collaboration Score", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Collaboration Score");
+    });
+    commandPalette_->addAction("Markdown Exporter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Markdown Exporter");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

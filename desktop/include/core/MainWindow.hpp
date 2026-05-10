@@ -215,6 +215,11 @@ class PaperReadingRetentionTracker;
 class PaperCitationFlowDiagram;
 class PaperEthicsChecker;
 class PaperRegexSearchTool;
+class PaperContradictionDetector;
+class PaperAnnotationSync;
+class PaperResearchHeatmap;
+class PaperCollaborationScore;
+class PaperMarkdownExporter;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
