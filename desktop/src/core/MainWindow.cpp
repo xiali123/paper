@@ -297,6 +297,11 @@
 #include "visualization/PaperWordCloud.hpp"
 #include "workspace/PaperVendorComparison.hpp"
 #include "tools/PaperDeploymentTracker.hpp"
+#include "analysis/PaperCitationAnalyzer.hpp"
+#include "reading/PaperReadingCluster.hpp"
+#include "visualization/PaperHeatmapWidget.hpp"
+#include "workspace/PaperSprintBoard.hpp"
+#include "tools/PaperKeyboardShortcut.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6307,6 +6312,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Cluster", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Cluster");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingCluster();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Heatmap Widget", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Heatmap Widget");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHeatmapWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Sprint Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sprint Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSprintBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Keyboard Shortcut", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Keyboard Shortcut");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKeyboardShortcut();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7358,6 +7413,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Deployment Tracker", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Deployment Tracker");
+    });
+    commandPalette_->addAction("Citation Analyzer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Analyzer");
+    });
+    commandPalette_->addAction("Reading Cluster", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Cluster");
+    });
+    commandPalette_->addAction("Heatmap Widget", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Heatmap Widget");
+    });
+    commandPalette_->addAction("Sprint Board", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sprint Board");
+    });
+    commandPalette_->addAction("Keyboard Shortcut", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Keyboard Shortcut");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

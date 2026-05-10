@@ -300,6 +300,11 @@ class PaperReadingScorePredictor;
 class PaperWordCloud;
 class PaperVendorComparison;
 class PaperDeploymentTracker;
+class PaperCitationAnalyzer;
+class PaperReadingCluster;
+class PaperHeatmapWidget;
+class PaperSprintBoard;
+class PaperKeyboardShortcut;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
