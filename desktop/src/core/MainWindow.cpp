@@ -332,6 +332,11 @@
 #include "visualization/PaperBubbleMatrix.hpp"
 #include "workspace/PaperTaskAutomator.hpp"
 #include "tools/PaperLogInspector.hpp"
+#include "analysis/PaperConceptGap.hpp"
+#include "reading/PaperSkillAssessor.hpp"
+#include "visualization/PaperGanttChart.hpp"
+#include "workspace/PaperPaperRecommender.hpp"
+#include "tools/PaperSnippetVault.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6692,6 +6697,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Concept Gap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Concept Gap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConceptGap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Skill Assessor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Skill Assessor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSkillAssessor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Gantt Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Gantt Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGanttChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Paper Recommender", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Recommender");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPaperRecommender();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Snippet Vault", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Snippet Vault");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSnippetVault();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7848,6 +7903,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Log Inspector", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Log Inspector");
+    });
+    commandPalette_->addAction("Concept Gap", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Concept Gap");
+    });
+    commandPalette_->addAction("Skill Assessor", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Skill Assessor");
+    });
+    commandPalette_->addAction("Gantt Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Gantt Chart");
+    });
+    commandPalette_->addAction("Paper Recommender", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Recommender");
+    });
+    commandPalette_->addAction("Snippet Vault", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Snippet Vault");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

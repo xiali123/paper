@@ -335,6 +335,11 @@ class PaperCitationLogger;
 class PaperBubbleMatrix;
 class PaperTaskAutomator;
 class PaperLogInspector;
+class PaperConceptGap;
+class PaperSkillAssessor;
+class PaperGanttChart;
+class PaperPaperRecommender;
+class PaperSnippetVault;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
