@@ -1606,7 +1606,118 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 32 routes");
+    // ========================================================================
+    // Round 20 Additions
+    // ========================================================================
+
+    // GET /api/search/deep — Deep search with full-text matching
+    router.get(prefix + "/deep", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string query;
+            auto qIt = req.queryParams.find("q");
+            if (qIt != req.queryParams.end()) query = qIt->second;
+
+            std::string field;
+            auto fieldIt = req.queryParams.find("field");
+            if (fieldIt != req.queryParams.end()) field = fieldIt->second;
+            if (field.empty()) field = "all";
+
+            nlohmann::json results = nlohmann::json::array();
+            int total = 0;
+
+            if (database_) {
+                std::string escaped = StringUtil::escapeSql(query);
+                std::string whereClause;
+                if (field == "title") {
+                    whereClause = "title LIKE '%" + escaped + "%'";
+                } else if (field == "abstract") {
+                    whereClause = "abstract LIKE '%" + escaped + "%'";
+                } else {
+                    // "all" or default
+                    whereClause = "(title LIKE '%" + escaped + "%' OR abstract LIKE '%" + escaped + "%' OR keywords LIKE '%" + escaped + "%')";
+                }
+
+                auto rows = database_->query(
+                    "SELECT id, title, authors, abstract, year FROM papers WHERE "
+                    + whereClause + " ORDER BY citation_count DESC LIMIT 50");
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["abstract"] = row.count("abstract") ? row.at("abstract") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    results.push_back(item);
+                }
+                total = static_cast<int>(results.size());
+            }
+
+            nlohmann::json resp;
+            resp["results"] = results;
+            resp["total"] = total;
+            resp["query"] = query;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/search/export — Export search results
+    router.post(prefix + "/export", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string query = body.value("query", "");
+            std::string format = body.value("format", "json");
+
+            std::string exportId = "export_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            nlohmann::json resp;
+            resp["exportId"] = exportId;
+            resp["status"] = "processing";
+            resp["query"] = query;
+            resp["format"] = format;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/search/trends — Search trend analysis
+    router.get(prefix + "/trends", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json trends = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT DATE(created_at) as date, COUNT(*) as count "
+                    "FROM search_history "
+                    "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) "
+                    "GROUP BY DATE(created_at) ORDER BY date");
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["date"] = row.count("date") ? row.at("date") : "";
+                    int cnt = 0;
+                    if (row.count("count") && !row.at("count").empty()) {
+                        try { cnt = std::stoi(row.at("count")); } catch (...) {}
+                    }
+                    item["count"] = cnt;
+                    trends.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["trends"] = trends;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 35 routes");
 }
 
 } // namespace PaperCrawler

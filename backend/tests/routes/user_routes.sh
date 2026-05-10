@@ -48,4 +48,9 @@ ROUTES=(
     "POST|/api/users/1/notes|{\"title\":\"Research Note\",\"content\":\"Important findings\",\"tags\":[\"research\"]}|200|Create user note"
     "GET|/api/users/1/notes||200|Get user notes"
     "DELETE|/api/users/1/notes/1||200|Delete user note"
+
+    # --- Round 20 Additions ---
+    "GET|/api/users/1/following||200|Get users this user follows"
+    "POST|/api/users/1/follow|{\"targetUserId\":2}|200|Follow a user"
+    "GET|/api/users/1/stats||200|Get user statistics summary"
 )

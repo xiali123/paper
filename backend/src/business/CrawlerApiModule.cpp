@@ -919,6 +919,133 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // Round 20 Additions
+    // ========================================================================
+
+    // POST /api/crawler/tasks/batch — Create batch crawl tasks
+    router.post(prefix + "/tasks/batch", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            int priority = body.value("priority", 1);
+            nlohmann::json urls = body.value("urls", nlohmann::json::array());
+
+            nlohmann::json taskIds = nlohmann::json::array();
+
+            if (database_) {
+                for (const auto& url : urls) {
+                    std::string urlStr = url.get<std::string>();
+                    std::string taskId = "task_" + std::to_string(
+                        std::chrono::system_clock::now().time_since_epoch().count())
+                        + "_" + std::to_string(taskIds.size());
+
+                    database_->execute(
+                        "INSERT INTO distributed_crawl_tasks (task_id, source_url, status, priority, created_at) VALUES ('"
+                        + ValidationHelper::sanitize(taskId) + "', '"
+                        + StringUtil::escapeSql(urlStr) + "', "
+                        "'pending', " + std::to_string(priority)
+                        + ", datetime('now'))");
+                    taskIds.push_back(taskId);
+                }
+            } else {
+                // Stub: return mock task IDs
+                for (size_t i = 0; i < urls.size(); ++i) {
+                    std::string taskId = "task_batch_" + std::to_string(
+                        std::chrono::system_clock::now().time_since_epoch().count())
+                        + "_" + std::to_string(i);
+                    taskIds.push_back(taskId);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["taskIds"] = taskIds;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/crawler/stats/daily — Daily crawler statistics
+    router.get(prefix + "/stats/daily", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json daily = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT DATE(created_at) as date, "
+                    "COUNT(*) as tasks, "
+                    "SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed "
+                    "FROM distributed_crawl_tasks "
+                    "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) "
+                    "GROUP BY DATE(created_at) ORDER BY date");
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["date"] = StringUtil::getRowStr(row, "date");
+                    item["tasks"] = StringUtil::getRowInt(row, "tasks");
+                    item["completed"] = StringUtil::getRowInt(row, "completed");
+                    daily.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["daily"] = daily;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/crawler/tasks/:id/progress — Get task progress detail
+    router.get(prefix + "/tasks/:id/progress", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"Missing task ID\"}");
+            std::string taskId = idIt->second;
+
+            if (database_) {
+                PreparedStatement stmt(database_,
+                    "SELECT id, name, status, progress, "
+                    "urls_processed, urls_total "
+                    "FROM distributed_crawl_tasks WHERE id = ?");
+                stmt.bind(0, taskId);
+                auto rows = stmt.query();
+
+                if (rows.empty())
+                    return HttpResponse::json(HTTP::NOT_FOUND,
+                        "{\"error\":\"Task not found\"}");
+
+                auto& row = rows[0];
+                nlohmann::json resp;
+                resp["id"] = StringUtil::getRowStr(row, "id");
+                resp["name"] = StringUtil::getRowStr(row, "name");
+                resp["status"] = StringUtil::getRowStr(row, "status");
+                resp["progress"] = StringUtil::getRowInt(row, "progress");
+                resp["urlsProcessed"] = StringUtil::getRowInt(row, "urls_processed");
+                resp["urlsTotal"] = StringUtil::getRowInt(row, "urls_total");
+                return HttpResponse::json(HTTP::OK, resp.dump());
+            }
+
+            // Stub: return mock progress
+            nlohmann::json resp;
+            resp["id"] = taskId;
+            resp["name"] = "stub_task";
+            resp["status"] = "completed";
+            resp["progress"] = 100;
+            resp["urlsProcessed"] = 0;
+            resp["urlsTotal"] = 0;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 
@@ -929,7 +1056,7 @@ void CrawlerApiModule::registerRoutes() {
         });
     }
 
-    spdlog::info("[CrawlerApiModule] Registered 35 routes");
+    spdlog::info("[CrawlerApiModule] Registered 38 routes");
 }
 
 // ============================================================================

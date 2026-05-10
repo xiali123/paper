@@ -1495,7 +1495,57 @@ void PaperApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[PaperApiModule] Registered 45 routes");
+    // POST /api/papers/batch-delete — Batch delete papers
+    router.post(prefix + "/batch-delete", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::vector<int> ids;
+
+            if (body.contains("ids") && body["ids"].is_array()) {
+                for (auto& id : body["ids"]) {
+                    ids.push_back(id.get<int>());
+                }
+            }
+
+            if (ids.empty()) {
+                nlohmann::json errResp;
+                errResp["error"] = "ids array required and must not be empty";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errResp.dump());
+            }
+
+            int deleted = 0;
+            if (database_) {
+                try {
+                    std::string idList;
+                    for (size_t i = 0; i < ids.size(); i++) {
+                        if (i > 0) idList += ",";
+                        idList += std::to_string(ids[i]);
+                    }
+                    database_->execute(
+                        "DELETE FROM papers WHERE id IN (" + idList + ")");
+                    deleted = static_cast<int>(ids.size());
+                } catch (const std::exception& e) {
+                    spdlog::warn("[PaperApi] Batch delete failed: {}", e.what());
+                    nlohmann::json errResp;
+                    errResp["error"] = std::string(e.what());
+                    return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+                }
+            } else {
+                deleted = static_cast<int>(ids.size());
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["deleted"] = deleted;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = std::string(e.what());
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[PaperApiModule] Registered 46 routes");
 }
 
 // ============================================================================

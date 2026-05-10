@@ -45,4 +45,9 @@ ROUTES=(
     "POST|/api/search/compare|{\"query1\":\"BERT\",\"query2\":\"transformer\"}|200|Compare search results"
     "GET|/api/search/stats||200|Search engine statistics"
     "POST|/api/search/semantic|{\"query\":\"attention mechanism\",\"limit\":5}|200|Semantic search"
+
+    # --- Round 20 Additions ---
+    "GET|/api/search/deep?q=test||200|Deep search with full-text matching"
+    "POST|/api/search/export|{\"query\":\"test\",\"format\":\"json\"}|200|Export search results"
+    "GET|/api/search/trends||200|Search trend analysis"
 )

@@ -56,4 +56,9 @@ ROUTES=(
     "GET|/api/crawler/queue||200|Get current crawl queue"
     "POST|/api/crawler/prioritize|{\"taskId\":\"task_123\",\"priority\":5}|200|Change task priority"
     "GET|/api/crawler/errors||200|Get recent crawl errors"
+
+    # --- Round 20 Additions ---
+    "POST|/api/crawler/tasks/batch|{\"urls\":[\"https://example.com\"],\"priority\":1}|200|Create batch crawl tasks"
+    "GET|/api/crawler/stats/daily||200|Daily crawler statistics"
+    "GET|/api/crawler/tasks/1/progress||200,404|Get task progress detail"
 )

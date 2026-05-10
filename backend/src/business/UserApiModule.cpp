@@ -1419,7 +1419,138 @@ void UserApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("UserApiModule routes registered (34)");
+    // GET /api/users/:id/following — Get users this user follows
+    router.get(prefix + "/:id/following", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT uf.followed_id, u.username, u.email, u.full_name "
+                    "FROM user_follows uf LEFT JOIN users u ON uf.followed_id = u.id "
+                    "WHERE uf.follower_id = " + StringUtil::escapeSql(userId)
+                    + " ORDER BY uf.created_at DESC LIMIT 50");
+
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["userId"] = StringUtil::getRowInt(row, "followed_id");
+                    item["username"] = StringUtil::getRowStr(row, "username");
+                    item["email"] = StringUtil::getRowStr(row, "email");
+                    item["fullName"] = StringUtil::getRowStr(row, "full_name");
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Following query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["following"] = arr;
+        resp["total"] = arr.size();
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/users/:id/follow — Follow a user
+    router.post(prefix + "/:id/follow", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            int targetUserId = body.value("targetUserId", 0);
+
+            if (targetUserId <= 0) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"error", "targetUserId required"}}.dump());
+            }
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "INSERT IGNORE INTO user_follows (follower_id, followed_id, created_at) VALUES ("
+                        + StringUtil::escapeSql(userId) + ", "
+                        + std::to_string(targetUserId) + ", NOW())");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Follow insert failed: {}", e.what());
+                    nlohmann::json errResp;
+                    errResp["error"] = std::string(e.what());
+                    return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = std::string(e.what());
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/users/:id/stats — Get user statistics summary
+    router.get(prefix + "/:id/stats", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+
+        int papersAdded = 0;
+        int bookmarks = 0;
+        int papersRead = 0;
+        std::string joinDate;
+
+        if (database_) {
+            try {
+                // Papers added count
+                auto paperResult = database_->query(
+                    "SELECT COUNT(*) as cnt FROM papers WHERE user_id = "
+                    + StringUtil::escapeSql(userId));
+                if (!paperResult.empty()) {
+                    papersAdded = StringUtil::getRowInt(paperResult[0], "cnt");
+                }
+
+                // Bookmarks count
+                auto bmResult = database_->query(
+                    "SELECT COUNT(*) as cnt FROM user_bookmarks WHERE user_id = "
+                    + StringUtil::escapeSql(userId));
+                if (!bmResult.empty()) {
+                    bookmarks = StringUtil::getRowInt(bmResult[0], "cnt");
+                }
+
+                // Papers read count
+                auto rhResult = database_->query(
+                    "SELECT COUNT(*) as cnt FROM reading_history WHERE user_id = "
+                    + StringUtil::escapeSql(userId));
+                if (!rhResult.empty()) {
+                    papersRead = StringUtil::getRowInt(rhResult[0], "cnt");
+                }
+
+                // Join date
+                auto userResult = database_->query(
+                    "SELECT created_at FROM users WHERE id = "
+                    + StringUtil::escapeSql(userId));
+                if (!userResult.empty()) {
+                    joinDate = StringUtil::getRowStr(userResult[0], "created_at");
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] User stats query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["papersAdded"] = papersAdded;
+        resp["bookmarks"] = bookmarks;
+        resp["papersRead"] = papersRead;
+        resp["joinDate"] = joinDate;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("UserApiModule routes registered (37)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {
