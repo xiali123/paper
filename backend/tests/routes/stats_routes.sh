@@ -64,4 +64,9 @@ ROUTES=(
     "GET|/api/stats/papers/by-year||200|Papers grouped by year"
     "GET|/api/stats/citations/distribution||200|Citation count distribution"
     "GET|/api/stats/recommendations/impact||200|Recommendation system impact"
+
+    # --- Round 27 Additions ---
+    "GET|/api/stats/papers/top-cited?limit=10||200|Get top cited papers"
+    "GET|/api/stats/activity/summary||200|Get activity summary"
+    "GET|/api/stats/journals/top||200|Top journals by paper count"
 )

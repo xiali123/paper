@@ -56,4 +56,8 @@ ROUTES=(
     "GET|/api/export/quota||200|Get export quota"
     "POST|/api/export/batch-status|{\"exportIds\":[\"id1\",\"id2\"]}|200|Get batch export status"
     "POST|/api/export/compress|{\"exportIds\":[\"id1\"],\"format\":\"zip\"}|200|Compress export files"
+
+    # --- Round 27 Additions ---
+    "POST|/api/export/schedule/enable|{\"interval\":\"daily\",\"format\":\"pdf\"}|200|Enable scheduled exports"
+    "GET|/api/export/recent||200|Get recent exports list"
 )

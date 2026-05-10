@@ -1595,7 +1595,152 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 41 routes");
+    // ========================================================================
+    // Round 27 Additions — Top cited, Activity summary, Top journals
+    // ========================================================================
+
+    // GET /api/stats/papers/top-cited — Get top cited papers
+    router.get(prefix + "/papers/top-cited", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int limit = 10;
+            auto it = req.queryParams.find("limit");
+            if (it != req.queryParams.end()) {
+                try { limit = std::stoi(it->second); } catch (...) { limit = 10; }
+            }
+
+            nlohmann::json papersArr = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT id, title, citation_count, year FROM papers "
+                    "WHERE citation_count IS NOT NULL "
+                    "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));
+
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowStr(row, "id");
+                    item["title"] = StringUtil::getRowStr(row, "title");
+                    item["citations"] = StringUtil::getRowInt(row, "citation_count");
+                    std::string yearStr = StringUtil::getRowStr(row, "year");
+                    int yr = 0;
+                    if (!yearStr.empty()) {
+                        try { yr = std::stoi(yearStr); } catch (...) { yr = 0; }
+                    }
+                    item["year"] = yr;
+                    papersArr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["papers"] = papersArr;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // GET /api/stats/activity/summary — Get overall activity summary
+    router.get(prefix + "/activity/summary", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int totalPapers = 0, totalSearches = 0, totalExports = 0, totalUsers = 0;
+            int papersThisMonth = 0, searchesToday = 0;
+
+            if (database_) {
+                auto r1 = database_->query("SELECT COUNT(*) as cnt FROM papers");
+                if (!r1.empty()) {
+                    std::string val = r1[0].count("cnt") ? r1[0].at("cnt") : "";
+                    if (!val.empty()) { try { totalPapers = std::stoi(val); } catch (...) {} }
+                }
+
+                auto r2 = database_->query("SELECT COUNT(*) as cnt FROM search_history");
+                if (!r2.empty()) {
+                    std::string val = r2[0].count("cnt") ? r2[0].at("cnt") : "";
+                    if (!val.empty()) { try { totalSearches = std::stoi(val); } catch (...) {} }
+                }
+
+                auto r3 = database_->query("SELECT COUNT(*) as cnt FROM export_tasks");
+                if (!r3.empty()) {
+                    std::string val = r3[0].count("cnt") ? r3[0].at("cnt") : "";
+                    if (!val.empty()) { try { totalExports = std::stoi(val); } catch (...) {} }
+                }
+
+                auto r4 = database_->query("SELECT COUNT(*) as cnt FROM users");
+                if (!r4.empty()) {
+                    std::string val = r4[0].count("cnt") ? r4[0].at("cnt") : "";
+                    if (!val.empty()) { try { totalUsers = std::stoi(val); } catch (...) {} }
+                }
+
+                auto r5 = database_->query(
+                    "SELECT COUNT(*) as cnt FROM papers "
+                    "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)");
+                if (!r5.empty()) {
+                    std::string val = r5[0].count("cnt") ? r5[0].at("cnt") : "";
+                    if (!val.empty()) { try { papersThisMonth = std::stoi(val); } catch (...) {} }
+                }
+
+                auto r6 = database_->query(
+                    "SELECT COUNT(*) as cnt FROM search_history "
+                    "WHERE DATE(created_at) = CURDATE()");
+                if (!r6.empty()) {
+                    std::string val = r6[0].count("cnt") ? r6[0].at("cnt") : "";
+                    if (!val.empty()) { try { searchesToday = std::stoi(val); } catch (...) {} }
+                }
+            }
+
+            nlohmann::json resp;
+            resp["totalPapers"] = totalPapers;
+            resp["totalSearches"] = totalSearches;
+            resp["totalExports"] = totalExports;
+            resp["totalUsers"] = totalUsers;
+            resp["papersThisMonth"] = papersThisMonth;
+            resp["searchesToday"] = searchesToday;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // GET /api/stats/journals/top — Top journals by paper count
+    router.get(prefix + "/journals/top", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json journalsArr = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT j.name, COUNT(p.id) as count, AVG(p.citation_count) as avgCitations "
+                    "FROM papers p LEFT JOIN journals j ON p.journal_id = j.id "
+                    "WHERE j.name IS NOT NULL AND j.name != '' "
+                    "GROUP BY j.name ORDER BY count DESC LIMIT 20");
+
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["name"] = row.count("name") ? row.at("name") : "";
+                    item["count"] = row.count("count") && !row.at("count").empty()
+                        ? std::stoi(row.at("count")) : 0;
+                    double avgCitations = 0.0;
+                    if (row.count("avgCitations") && !row.at("avgCitations").empty()) {
+                        try { avgCitations = std::stod(row.at("avgCitations")); } catch (...) { avgCitations = 0.0; }
+                    }
+                    item["avgCitations"] = avgCitations;
+                    journalsArr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["journals"] = journalsArr;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 44 routes");
 }
 
 std::string StatsApiModule::handleStats() {

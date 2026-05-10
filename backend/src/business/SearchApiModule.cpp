@@ -1947,7 +1947,102 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 38 routes");
+    // ========================================================================
+    // Round 27 Additions
+    // ========================================================================
+
+    // POST /api/search/similar — Find similar papers by text content
+    router.post(prefix + "/similar", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string text = body.value("text", "");
+            int limit = body.value("limit", 5);
+            if (text.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"text is required\"}");
+
+            nlohmann::json results = nlohmann::json::array();
+            int total = 0;
+
+            if (database_) {
+                std::string escaped = StringUtil::escapeSql(text);
+                auto rows = database_->query(
+                    "SELECT id, title, authors, abstract, year FROM papers "
+                    "WHERE title LIKE '%" + escaped + "%' "
+                    "OR abstract LIKE '%" + escaped + "%' "
+                    "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["abstract"] = row.count("abstract") ? row.at("abstract") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    results.push_back(item);
+                }
+                total = static_cast<int>(results.size());
+            }
+
+            nlohmann::json resp;
+            resp["results"] = results;
+            resp["total"] = total;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(500, errResp.dump());
+        }
+    });
+
+    // GET /api/search/stats/heatmap — Search activity heatmap
+    router.get(prefix + "/stats/heatmap", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json heatmap = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT HOUR(created_at) as hour, DAYOFWEEK(created_at) as day, COUNT(*) as count "
+                    "FROM search_history "
+                    "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) "
+                    "GROUP BY HOUR(created_at), DAYOFWEEK(created_at) "
+                    "ORDER BY day, hour");
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    int hour = 0;
+                    if (row.count("hour") && !row.at("hour").empty()) {
+                        try { hour = std::stoi(row.at("hour")); } catch (...) {}
+                    }
+                    int day = 0;
+                    if (row.count("day") && !row.at("day").empty()) {
+                        try { day = std::stoi(row.at("day")); } catch (...) {}
+                    }
+                    int count = 0;
+                    if (row.count("count") && !row.at("count").empty()) {
+                        try { count = std::stoi(row.at("count")); } catch (...) {}
+                    }
+                    item["hour"] = hour;
+                    item["day"] = day;
+                    item["count"] = count;
+                    heatmap.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["heatmap"] = heatmap;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(500, errResp.dump());
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 40 routes");
 }
 
 } // namespace PaperCrawler

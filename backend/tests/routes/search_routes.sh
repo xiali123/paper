@@ -55,4 +55,8 @@ ROUTES=(
     "POST|/api/search/index/rebuild|{\"scope\":\"full\"}|200|Trigger search index rebuild"
     "GET|/api/search/filters||200|Get available search filters"
     "POST|/api/search/analytics|{\"period\":\"7d\"}|200|Get search analytics summary"
+
+    # --- Round 27 Additions ---
+    "POST|/api/search/similar|{\"text\":\"deep learning\",\"limit\":5}|200|Find similar papers"
+    "GET|/api/search/stats/heatmap||200|Search activity heatmap"
 )

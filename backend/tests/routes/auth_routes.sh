@@ -54,4 +54,8 @@ ROUTES=(
     "GET|/api/auth/oauth/providers||200|List OAuth providers"
     "POST|/api/auth/oauth/callback|{\"provider\":\"google\",\"code\":\"abc\"}|200|Handle OAuth callback"
     "POST|/api/auth/mfa/setup|{\"userId\":1,\"method\":\"totp\"}|200|Setup MFA"
+
+    # --- Round 27 Additions ---
+    "POST|/api/auth/verify-token|{\"token\":\"abc123\"}|200|Verify token validity"
+    "GET|/api/auth/rate-limits||200|Get auth rate limits"
 )

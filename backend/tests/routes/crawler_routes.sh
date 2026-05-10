@@ -66,4 +66,9 @@ ROUTES=(
     "GET|/api/crawler/config||200|Get crawler configuration"
     "PUT|/api/crawler/config|{\"maxConcurrent\":10,\"timeout\":60}|200|Update crawler configuration"
     "GET|/api/crawler/domains||200|Get crawled domains summary"
+
+    # --- Round 27 Additions ---
+    "POST|/api/crawler/tasks/export|{\"taskIds\":[1,2],\"format\":\"json\"}|200|Export task results"
+    "GET|/api/crawler/proxy/test||200|Test proxy configuration"
+    "POST|/api/crawler/urls/validate|{\"urls\":[\"https://arxiv.org\"]}|200|Validate URLs"
 )

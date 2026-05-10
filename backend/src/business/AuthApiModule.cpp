@@ -2016,7 +2016,106 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 38 routes");
+    // ========================================================================
+    // Round 27 Additions
+    // ========================================================================
+
+    // POST /api/auth/verify-token — Verify if a token is still valid
+    router.post(prefix + "/verify-token", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string token = body.value("token", "");
+            if (token.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"token is required\"}");
+
+            token = StringUtil::escapeSql(token);
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT user_id, expires_at FROM user_sessions "
+                    "WHERE access_token_hash = SHA2('" + token + "', 256) "
+                    "AND expires_at > NOW()");
+                if (!result.empty()) {
+                    auto& row = result[0];
+                    nlohmann::json resp;
+                    resp["valid"] = true;
+                    resp["expiresAt"] = row.count("expires_at") ? row.at("expires_at") : "";
+                    int userId = 0;
+                    if (row.count("user_id") && !row.at("user_id").empty()) {
+                        try { userId = std::stoi(row.at("user_id")); } catch (...) {}
+                    }
+                    resp["userId"] = userId;
+                    return HttpResponse::json(HTTP::OK, resp.dump());
+                }
+            }
+
+            // Stub or not found
+            nlohmann::json resp;
+            resp["valid"] = false;
+            resp["expiresAt"] = "";
+            resp["userId"] = 0;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(500, errResp.dump());
+        }
+    });
+
+    // GET /api/auth/rate-limits — Get auth rate limit status
+    router.get(prefix + "/rate-limits", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int loginAttempts = 0;
+            int maxAttempts = 10;
+            std::string lockedUntil = "";
+            std::string resetAt = "";
+
+            if (database_) {
+                // Count recent failed login attempts from security_log
+                auto result = database_->query(
+                    "SELECT COUNT(*) as cnt FROM security_log "
+                    "WHERE action = 'login_failed' "
+                    "AND created_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)");
+                if (!result.empty() && result[0].count("cnt") && !result[0].at("cnt").empty()) {
+                    try { loginAttempts = std::stoi(result[0].at("cnt")); } catch (...) {}
+                }
+
+                // Check if account is locked
+                auto lockResult = database_->query(
+                    "SELECT locked_until FROM account_lockouts "
+                    "WHERE locked_until > NOW() ORDER BY locked_until DESC LIMIT 1");
+                if (!lockResult.empty() && lockResult[0].count("locked_until")) {
+                    lockedUntil = lockResult[0].at("locked_until");
+                }
+
+                // Calculate reset time (15 min window)
+                auto resetResult = database_->query(
+                    "SELECT DATE_ADD(NOW(), INTERVAL 15 MINUTE) as reset_at");
+                if (!resetResult.empty() && resetResult[0].count("reset_at")) {
+                    resetAt = resetResult[0].at("reset_at");
+                }
+            }
+
+            nlohmann::json resp;
+            resp["loginAttempts"] = loginAttempts;
+            resp["maxAttempts"] = maxAttempts;
+            resp["lockedUntil"] = lockedUntil.empty() ? nullptr : lockedUntil;
+            resp["resetAt"] = resetAt;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(500, errResp.dump());
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 40 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {
