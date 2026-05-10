@@ -58,4 +58,8 @@ ROUTES=(
     "POST|/api/ai/detect-language|{\"text\":\"Bonjour\"}|200|Detect language of text"
     "POST|/api/ai/keywords|{\"text\":\"Machine learning papers\",\"maxKeywords\":10}|200|Extract keywords"
     "GET|/api/ai/usage/history?days=30||200|Get AI usage history"
+
+    # --- Round 30 Additions ---
+    "POST|/api/ai/rephrase|{\"text\":\"Results show\",\"style\":\"academic\"}|200|Rephrase text"
+    "GET|/api/ai/capabilities||200|Get AI capabilities"
 )

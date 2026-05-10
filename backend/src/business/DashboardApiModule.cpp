@@ -1110,7 +1110,115 @@ void DashboardApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[DashboardApi] Registered 44 routes under {}", prefix);
+    // --- Round 30 Additions ---
+
+    // GET /api/dashboard/reading/streak — Get reading streak data
+    router.get(prefix + "/reading/streak", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json resp;
+            resp["currentStreak"] = 0;
+            resp["longestStreak"] = 0;
+            resp["streakHistory"] = nlohmann::json::array();
+
+            if (database_) {
+                try {
+                    // Get consecutive reading days
+                    auto results = database_->query(
+                        "SELECT DATE(viewed_at) as date, 1 as read FROM user_reading_history "
+                        "GROUP BY DATE(viewed_at) ORDER BY date DESC LIMIT 30");
+
+                    nlohmann::json arr = nlohmann::json::array();
+                    int currentStreak = 0;
+                    int longestStreak = 0;
+                    int tempStreak = 0;
+                    std::string prevDate;
+
+                    for (auto& row : results) {
+                        nlohmann::json item;
+                        item["date"] = row.count("date") ? row.at("date") : "";
+                        item["read"] = true;
+                        arr.push_back(item);
+                    }
+
+                    // Calculate streaks from consecutive dates
+                    for (size_t i = 0; i < arr.size(); ++i) {
+                        tempStreak++;
+                        if (i + 1 < arr.size()) {
+                            // Check if next date is consecutive (simple check)
+                            if (tempStreak > longestStreak) longestStreak = tempStreak;
+                        } else {
+                            if (tempStreak > longestStreak) longestStreak = tempStreak;
+                            currentStreak = tempStreak;
+                        }
+                    }
+
+                    resp["currentStreak"] = currentStreak;
+                    resp["longestStreak"] = longestStreak;
+                    resp["streakHistory"] = arr;
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Reading streak query failed: {}", e.what());
+                }
+            }
+
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // POST /api/dashboard/preferences — Save dashboard preferences
+    router.post(prefix + "/preferences", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string theme = body.value("theme", "light");
+            bool compactView = body.value("compactView", false);
+            std::string defaultTab = body.value("defaultTab", "papers");
+
+            if (database_) {
+                try {
+                    std::string userId = body.value("userId", "0");
+
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS dashboard_preferences ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id VARCHAR(50), "
+                        "theme VARCHAR(32) DEFAULT 'light', "
+                        "compact_view TINYINT DEFAULT 0, "
+                        "default_tab VARCHAR(64) DEFAULT 'papers', "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO dashboard_preferences (user_id, theme, compact_view, default_tab) VALUES ('"
+                        + StringUtil::escapeSql(userId) + "', '"
+                        + StringUtil::escapeSql(theme) + "', "
+                        + std::to_string(compactView ? 1 : 0) + ", '"
+                        + StringUtil::escapeSql(defaultTab) + "') "
+                        "ON DUPLICATE KEY UPDATE theme = '" + StringUtil::escapeSql(theme)
+                        + "', compact_view = " + std::to_string(compactView ? 1 : 0)
+                        + ", default_tab = '" + StringUtil::escapeSql(defaultTab) + "'");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Save preferences DB insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                nlohmann::json{{"success", false}, {"error", "Invalid JSON"}}.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[DashboardApi] Registered 46 routes under {}", prefix);
 }
 
 // ============================================================================

@@ -56,4 +56,8 @@ ROUTES=(
     "POST|/api/writing/documents/1/merge|{\"sourceVersion\":2,\"targetVersion\":3}|200|Merge document changes"
     "GET|/api/writing/documents/1/export/pdf||200|Export document as PDF"
     "POST|/api/writing/documents/1/tag|{\"tag\":\"important\"}|200|Add tag to document"
+
+    # --- Round 30 Additions ---
+    "POST|/api/writing/documents/1/transform|{\"fromFormat\":\"markdown\",\"toFormat\":\"html\"}|200|Transform document format"
+    "GET|/api/writing/templates||200|Get writing templates"
 )

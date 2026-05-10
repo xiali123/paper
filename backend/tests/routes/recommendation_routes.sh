@@ -53,4 +53,8 @@ ROUTES=(
     "POST|/api/recommendations/weights|{\"collaborative\":0.4,\"content\":0.3}|200|Set recommendation weights"
     "GET|/api/recommendations/user/1/profile||200|Get user recommendation profile"
     "DELETE|/api/recommendations/cache||200|Clear recommendation cache"
+
+    # --- Round 30 Additions ---
+    "POST|/api/recommendations/feedback/batch|{\"feedbacks\":[{\"paperId\":1,\"action\":\"like\"}]}|200|Submit batch feedback"
+    "GET|/api/recommendations/trending/topics||200|Get trending topics"
 )

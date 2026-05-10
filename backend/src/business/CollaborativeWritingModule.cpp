@@ -1576,7 +1576,100 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[CollabWriting] Registered 41 routes");
+    // ========================================================================
+    // Round 30 additions
+    // ========================================================================
+
+    // POST /api/writing/documents/:id/transform — Transform document format
+    router.post(prefix + "/documents/:id/transform", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            std::string fromFormat = "markdown";
+            std::string toFormat = "html";
+
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                fromFormat = body.value("fromFormat", "markdown");
+                toFormat = body.value("toFormat", "html");
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["format"] = toFormat;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT content FROM collab_documents WHERE id = " + docId);
+                if (!rows.empty() && rows[0].count("content")) {
+                    const std::string& content = rows[0].at("content");
+                    // Stub transformation: wrap content based on target format
+                    std::string transformed;
+                    if (toFormat == "html") {
+                        transformed = "<p>" + content + "</p>";
+                    } else if (toFormat == "latex") {
+                        transformed = "\\begin{document}\n" + content + "\n\\end{document}";
+                    } else {
+                        transformed = content;
+                    }
+                    resp["content"] = transformed;
+                } else {
+                    resp["content"] = "";
+                }
+            } else {
+                // Stub fallback
+                resp["content"] = "<p>Mock transformed content from " + fromFormat + " to " + toFormat + "</p>";
+            }
+
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/writing/templates — Get writing templates
+    router.get(prefix + "/templates", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json resp;
+            nlohmann::json arr = nlohmann::json::array();
+
+            if (database_) {
+                try {
+                    auto rows = database_->query(
+                        "SELECT id, name, category, description FROM writing_templates "
+                        "ORDER BY category, name LIMIT 50");
+                    for (const auto& row : rows) {
+                        nlohmann::json item;
+                        item["id"] = row.count("id") && !row.at("id").empty() ? safeStoi(row.at("id")) : 0;
+                        item["name"] = row.count("name") ? row.at("name") : "";
+                        item["category"] = row.count("category") ? row.at("category") : "";
+                        item["description"] = row.count("description") ? row.at("description") : "";
+                        arr.push_back(item);
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Writing] Templates query failed: {}", e.what());
+                }
+            } else {
+                // Stub: return 3 mock templates
+                arr.push_back({{"id", 1}, {"name", "Research Paper"}, {"category", "academic"}, {"description", "Standard academic research paper template"}});
+                arr.push_back({{"id", 2}, {"name", "Literature Review"}, {"category", "academic"}, {"description", "Comprehensive literature review template"}});
+                arr.push_back({{"id", 3}, {"name", "Case Study"}, {"category", "business"}, {"description", "Business case study analysis template"}});
+            }
+
+            resp["templates"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[CollabWriting] Registered 43 routes");
 }
 
 // ============================================================================

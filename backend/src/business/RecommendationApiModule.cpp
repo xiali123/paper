@@ -3052,7 +3052,97 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 41 routes");
+    // ========================================================================
+    // Round 30 additions
+    // ========================================================================
+
+    // POST /api/recommendations/feedback/batch — Submit batch feedback
+    router.post(prefix + "/feedback/batch", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json feedbacks = nlohmann::json::array();
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                if (body.contains("feedbacks") && body["feedbacks"].is_array()) {
+                    feedbacks = body["feedbacks"];
+                }
+            }
+
+            int count = 0;
+
+            if (database_) {
+                for (const auto& fb : feedbacks) {
+                    try {
+                        int paperId = fb.value("paperId", 0);
+                        std::string action = fb.value("action", "");
+
+                        if (paperId > 0 && !action.empty()) {
+                            database_->execute(
+                                "INSERT INTO recommendation_feedback (paper_id, action, created_at) VALUES ("
+                                + std::to_string(paperId) + ", '"
+                                + StringUtil::escapeSql(action) + "', NOW())");
+                            count++;
+                        }
+                    } catch (const std::exception& e) {
+                        spdlog::warn("[Recommendation] Batch feedback item failed: {}", e.what());
+                    }
+                }
+            } else {
+                count = static_cast<int>(feedbacks.size());
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["count"] = count;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/recommendations/trending/topics — Get trending research topics
+    router.get(prefix + "/trending/topics", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json arr = nlohmann::json::array();
+
+            if (database_) {
+                try {
+                    auto rows = database_->query(
+                        "SELECT keywords as topic, COUNT(*) as paper_count, "
+                        "AVG(citation_count) as avg_citations "
+                        "FROM papers "
+                        "WHERE keywords IS NOT NULL AND keywords != '' "
+                        "GROUP BY keywords ORDER BY paper_count DESC LIMIT 20");
+                    for (const auto& row : rows) {
+                        nlohmann::json item;
+                        item["topic"] = row.count("topic") ? row.at("topic") : "";
+                        item["paperCount"] = (row.count("paper_count") && !row.at("paper_count").empty())
+                            ? std::stoi(row.at("paper_count")) : 0;
+                        item["growth"] = 0;
+                        item["avgCitations"] = (row.count("avg_citations") && !row.at("avg_citations").empty())
+                            ? std::stod(row.at("avg_citations")) : 0.0;
+                        arr.push_back(item);
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Trending topics query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["topics"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 43 routes");
 }
 
 } // namespace PaperCrawler

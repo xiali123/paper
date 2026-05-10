@@ -91,4 +91,8 @@ ROUTES=(
     "GET|/api/dashboard/papers/monthly||200|Monthly paper additions"
     "POST|/api/dashboard/quick-note|{\"text\":\"Test note\",\"color\":\"yellow\"}|200|Create quick note"
     "GET|/api/dashboard/export/report||200|Export dashboard report"
+
+    # --- Round 30 Additions ---
+    "GET|/api/dashboard/reading/streak||200|Get reading streak"
+    "POST|/api/dashboard/preferences|{\"theme\":\"dark\"}|200|Save dashboard preferences"
 )

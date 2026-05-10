@@ -67,4 +67,8 @@ ROUTES=(
     # --- Round 28 Additions ---
     "POST|/api/users/1/avatar/remove|{}|200|Remove user avatar"
     "GET|/api/users/1/collaborations||200|Get user collaborations"
+
+    # --- Round 30 Additions ---
+    "POST|/api/users/1/verify-email|{\"email\":\"test@test.com\"}|200|Send email verification"
+    "GET|/api/users/1/oauth/connections||200|Get OAuth connections"
 )

@@ -49,4 +49,8 @@ ROUTES=(
     # --- Round 28 Additions ---
     "POST|/api/ai-co-pilot/sessions/1/export|{\"format\":\"markdown\"}|200|Export session conversation"
     "GET|/api/ai-co-pilot/prompts/popular||200|Get popular prompt templates"
+
+    # --- Round 30 Additions ---
+    "POST|/api/ai-co-pilot/sessions/1/rename|{\"name\":\"New Name\"}|200|Rename session"
+    "GET|/api/ai-co-pilot/health||200|Get AI CoPilot health"
 )
