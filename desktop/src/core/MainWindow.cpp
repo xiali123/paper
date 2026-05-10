@@ -282,6 +282,11 @@
 #include "visualization/PaperGaugeChart.hpp"
 #include "workspace/PaperPolicyManager.hpp"
 #include "tools/PaperCacheInspector.hpp"
+#include "analysis/PaperConceptExtractor.hpp"
+#include "reading/PaperReadingHeatmapGrid.hpp"
+#include "visualization/PaperSankeyDiagram.hpp"
+#include "workspace/PaperRiskAssessor.hpp"
+#include "tools/PaperFeatureFlagManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6142,6 +6147,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Concept Extractor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Concept Extractor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConceptExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Heatmap Grid", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Heatmap Grid");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingHeatmapGrid();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Sankey Diagram", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sankey Diagram");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSankeyDiagram();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Risk Assessor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Risk Assessor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRiskAssessor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Feature Flag Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Feature Flag Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFeatureFlagManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7148,6 +7203,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Cache Inspector", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Cache Inspector");
+    });
+    commandPalette_->addAction("Concept Extractor", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Concept Extractor");
+    });
+    commandPalette_->addAction("Reading Heatmap Grid", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Heatmap Grid");
+    });
+    commandPalette_->addAction("Sankey Diagram", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Sankey Diagram");
+    });
+    commandPalette_->addAction("Risk Assessor", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Risk Assessor");
+    });
+    commandPalette_->addAction("Feature Flag Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Feature Flag Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

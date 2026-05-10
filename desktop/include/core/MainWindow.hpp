@@ -285,6 +285,11 @@ class PaperReadingScorecard;
 class PaperGaugeChart;
 class PaperPolicyManager;
 class PaperCacheInspector;
+class PaperConceptExtractor;
+class PaperReadingHeatmapGrid;
+class PaperSankeyDiagram;
+class PaperRiskAssessor;
+class PaperFeatureFlagManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
