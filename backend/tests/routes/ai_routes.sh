@@ -33,4 +33,9 @@ ROUTES=(
     "GET|/api/ai/usage||200|Get AI API usage statistics"
     "POST|/api/ai/extract-entities|{\"text\":\"Apple was founded by Steve Jobs\"}|200,400|Extract named entities"
     "POST|/api/ai/generate-abstract|{\"title\":\"Test Paper\",\"content\":\"This is the content of a test paper.\"}|200,400|Generate abstract"
+
+    # New AI routes (v2)
+    "POST|/api/ai/translate|{\"text\":\"Hello world\",\"sourceLang\":\"en\",\"targetLang\":\"zh\"}|200,400|Translate text v2"
+    "GET|/api/ai/session/sess_123||200|Get AI session details"
+    "POST|/api/ai/sentiment|{\"text\":\"This paper is excellent and groundbreaking\"}|200,400|Analyze sentiment"
 )

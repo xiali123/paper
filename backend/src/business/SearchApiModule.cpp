@@ -1369,7 +1369,110 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 27 routes");
+    // GET /api/search/autocomplete — Search autocomplete suggestions (v2)
+    router.get(prefix + "/autocomplete", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string q = req.queryParams.count("q") ? req.queryParams.at("q") : "";
+            nlohmann::json data;
+            data["suggestions"] = nlohmann::json::array();
+            data["query"] = q;
+
+            if (database_ && !q.empty()) {
+                std::string escaped = StringUtil::escapeSql(q);
+                auto results = database_->query(
+                    "SELECT DISTINCT keyword FROM search_history WHERE keyword LIKE '"
+                    + escaped + "%' LIMIT 8");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    arr.push_back(row.count("keyword") ? row.at("keyword") : "");
+                }
+                data["suggestions"] = arr;
+            }
+
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/search/feedback — Submit search result feedback
+    router.post(prefix + "/feedback", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string query = body.value("query", "");
+            std::string resultId = body.value("resultId", "");
+            bool relevant = body.value("relevant", true);
+            std::string comment = body.value("comment", "");
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS search_feedback ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "query VARCHAR(200), "
+                        "result_id VARCHAR(50), "
+                        "relevant TINYINT, "
+                        "comment TEXT, "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO search_feedback (query, result_id, relevant, comment) VALUES ('"
+                        + StringUtil::escapeSql(query) + "', '"
+                        + StringUtil::escapeSql(resultId) + "', "
+                        + (relevant ? "1" : "0") + ", '"
+                        + StringUtil::escapeSql(comment) + "')");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[SearchApi] Feedback insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"error\":\"Invalid JSON: " + std::string(e.what()) + "\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/search/popular — Get popular search terms
+    router.get(prefix + "/popular", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json data;
+            data["terms"] = nlohmann::json::array();
+            data["total"] = 0;
+
+            if (database_) {
+                auto results = database_->query(
+                    "SELECT query as term, COUNT(*) as count FROM search_history "
+                    "GROUP BY query ORDER BY count DESC LIMIT 10");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["term"] = row.count("term") ? row.at("term") : "";
+                    int cnt = 0;
+                    if (row.count("count") && !row.at("count").empty()) {
+                        try { cnt = std::stoi(row.at("count")); } catch (...) {}
+                    }
+                    item["count"] = cnt;
+                    arr.push_back(item);
+                }
+                data["terms"] = arr;
+                data["total"] = arr.size();
+            }
+
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 30 routes");
 }
 
 } // namespace PaperCrawler

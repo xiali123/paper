@@ -35,4 +35,9 @@ ROUTES=(
     "POST|/api/search/save-query|{\"query\":\"BERT\",\"filters\":{},\"name\":\"My saved search\"}|200|Save search query"
     "GET|/api/search/saved-queries||200|List saved queries"
     "DELETE|/api/search/saved-queries/1||200|Delete saved search"
+
+    # New Search routes (v2)
+    "GET|/api/search/autocomplete?q=deep||200|Autocomplete suggestions v2"
+    "POST|/api/search/feedback|{\"query\":\"BERT\",\"resultId\":\"paper_1\",\"relevant\":true,\"comment\":\"Good result\"}|200|Submit search feedback"
+    "GET|/api/search/popular||200|Get popular search terms"
 )

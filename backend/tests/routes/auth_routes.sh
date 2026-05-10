@@ -36,4 +36,7 @@ ROUTES=(
     "PUT|/api/auth/security|{\"userId\":1,\"twoFactorEnabled\":true,\"loginNotifications\":true,\"sessionTimeout\":30}|200|Update security settings"
     "GET|/api/auth/security||200|Get security settings"
     "POST|/api/auth/impersonate|{\"adminUserId\":\"1\",\"targetUserId\":\"2\"}|200,403|Admin impersonation"
+    "POST|/api/auth/verify-email|{\"email\":\"test@test.com\",\"code\":\"123456\"}|200,400|Verify email with code"
+    "GET|/api/auth/login-history||200|Get recent login history"
+    "POST|/api/auth/change-email|{\"userId\":\"1\",\"newEmail\":\"new@test.com\",\"password\":\"Pass1234\"}|200,400,404|Change user email"
 )

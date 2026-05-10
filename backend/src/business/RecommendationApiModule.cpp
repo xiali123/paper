@@ -2400,7 +2400,116 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 26 routes");
+    // GET /api/recommendation/recently-viewed — Get recently viewed papers
+    router.get("/api/recommendation/recently-viewed", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json papers = nlohmann::json::array();
+
+        try {
+            std::string userId;
+            auto it = req.queryParams.find("userId");
+            if (it != req.queryParams.end()) userId = it->second;
+            if (userId.empty() && !req.body.empty()) {
+                try {
+                    auto body = nlohmann::json::parse(req.body);
+                    userId = body.value("userId", "");
+                } catch (...) {}
+            }
+
+            if (database_ && !userId.empty()) {
+                auto result = database_->query(
+                    "SELECT p.id, p.title, p.authors, urh.updated_at FROM user_reading_history urh "
+                    "JOIN papers p ON urh.paper_id = p.id "
+                    "WHERE urh.user_id = " + StringUtil::escapeSql(userId) +
+                    " ORDER BY urh.updated_at DESC LIMIT 10");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["updatedAt"] = row.count("updated_at") ? row.at("updated_at") : "";
+                    papers.push_back(item);
+                }
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[Recommendation] Recently-viewed query failed: {}", e.what());
+        }
+
+        nlohmann::json data;
+        data["papers"] = papers;
+        data["total"] = papers.size();
+        return HttpResponse::json(HTTP::OK, data.dump());
+    });
+
+    // POST /api/recommendation/collaborative — Get collaborative filtering recommendations
+    router.post("/api/recommendation/collaborative", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json papers = nlohmann::json::array();
+
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId required\"}");
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT DISTINCT p.id, p.title, p.authors FROM papers p "
+                    "JOIN user_bookmarks ub2 ON p.id = ub2.paper_id "
+                    "WHERE ub2.user_id IN ("
+                    "SELECT DISTINCT ub1.user_id FROM user_bookmarks ub1 "
+                    "WHERE ub1.paper_id IN (SELECT paper_id FROM user_bookmarks WHERE user_id = "
+                    + StringUtil::escapeSql(userId) + ") "
+                    "AND ub1.user_id != " + StringUtil::escapeSql(userId) + ") "
+                    "AND p.id NOT IN (SELECT paper_id FROM user_bookmarks WHERE user_id = "
+                    + StringUtil::escapeSql(userId) + ") LIMIT 5");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    papers.push_back(item);
+                }
+            }
+        } catch (const std::exception& e) {
+            spdlog::warn("[Recommendation] Collaborative query failed: {}", e.what());
+        }
+
+        nlohmann::json data;
+        data["papers"] = papers;
+        data["total"] = papers.size();
+        data["algorithm"] = "collaborative_filtering";
+        return HttpResponse::json(HTTP::OK, data.dump());
+    });
+
+    // GET /api/recommendation/diverse — Get diverse recommendations across categories
+    router.get("/api/recommendation/diverse", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json papers = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT p.id, p.title, p.keywords, p.year FROM papers p "
+                    "GROUP BY p.keywords ORDER BY RAND() LIMIT 10");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["keywords"] = row.count("keywords") ? row.at("keywords") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    papers.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[Recommendation] Diverse query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json data;
+        data["papers"] = papers;
+        data["total"] = papers.size();
+        data["algorithm"] = "diversity";
+        return HttpResponse::json(HTTP::OK, data.dump());
+    });
+
+    spdlog::info("[Recommendation] Registered 29 routes");
 }
 
 } // namespace PaperCrawler

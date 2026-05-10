@@ -30,4 +30,7 @@ ROUTES=(
     "GET|/api/recommendation/trending||200|Get trending papers (weighted score)"
     "POST|/api/recommendation/feedback|{\"userId\":1,\"paperId\":1,\"rating\":5,\"feedback\":\"helpful\"}|200|Submit recommendation feedback"
     "GET|/api/recommendation/stats||200|Get recommendation system statistics"
+    "GET|/api/recommendation/recently-viewed||200|Get recently viewed papers"
+    "POST|/api/recommendation/collaborative|{\"userId\":\"1\"}|200,400|Get collaborative filtering recommendations"
+    "GET|/api/recommendation/diverse||200|Get diverse recommendations across categories"
 )

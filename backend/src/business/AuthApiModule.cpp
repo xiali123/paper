@@ -1476,7 +1476,100 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 25 routes");
+    // POST /api/auth/verify-email — Verify email address with code
+    router.post(prefix + "/verify-email", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string email = body.value("email", "");
+            std::string code = body.value("code", "");
+            if (email.empty() || code.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"email and code required\"}");
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT id FROM email_verification_tokens WHERE email = '"
+                    + StringUtil::escapeSql(email) + "' AND token = '"
+                    + StringUtil::escapeSql(code) + "' AND token_type = 'email_verify' AND expires_at > NOW()");
+                if (result.empty())
+                    return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid or expired verification code\"}");
+
+                database_->execute("UPDATE users SET is_verified = 1 WHERE email = '" + StringUtil::escapeSql(email) + "'");
+                database_->execute("UPDATE email_verification_tokens SET used_at = NOW() WHERE email = '"
+                    + StringUtil::escapeSql(email) + "' AND token = '" + StringUtil::escapeSql(code) + "'");
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["verified"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/auth/login-history — Get recent login history
+    router.get(prefix + "/login-history", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json logins = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT * FROM security_log WHERE action IN ('login', 'login_failed') ORDER BY created_at DESC LIMIT 20");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    for (auto& [k, v] : row) item[k] = v;
+                    logins.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[AuthApi] Login history query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["logins"] = logins;
+        resp["total"] = logins.size();
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/auth/change-email — Change user email
+    router.post(prefix + "/change-email", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            std::string newEmail = body.value("newEmail", "");
+            std::string password = body.value("password", "");
+
+            if (userId.empty() || newEmail.empty() || password.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"userId, newEmail and password required\"}");
+
+            if (database_) {
+                auto rows = database_->query("SELECT username FROM users WHERE id = " + StringUtil::escapeSql(userId));
+                if (rows.empty())
+                    return HttpResponse::json(HTTP::NOT_FOUND, "{\"success\":false,\"error\":\"User not found\"}");
+
+                std::string username = rows[0]["username"];
+                if (!impl_->verifyPassword(username, password))
+                    return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Incorrect password\"}");
+
+                newEmail = ValidationHelper::sanitize(newEmail);
+                auto existing = database_->query("SELECT id FROM users WHERE email = '" + StringUtil::escapeSql(newEmail) + "' AND id != " + StringUtil::escapeSql(userId));
+                if (!existing.empty())
+                    return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Email already in use\"}");
+
+                database_->execute("UPDATE users SET email = '" + StringUtil::escapeSql(newEmail) + "' WHERE id = " + StringUtil::escapeSql(userId));
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["newEmail"] = newEmail;
+            data["message"] = "Confirmation email sent";
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 29 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {
