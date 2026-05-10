@@ -44,4 +44,9 @@ ROUTES=(
     "GET|/api/auth/sessions/active||200|Get active sessions"
     "POST|/api/auth/logout-all|{\"userId\":\"1\",\"keepCurrent\":true}|200|Logout all other sessions"
     "POST|/api/auth/api-key|{\"userId\":\"1\",\"name\":\"My API Key\",\"permissions\":[\"read\"]}|200|Generate API key"
+
+    # --- Round 21 Additions ---
+    "POST|/api/auth/password-reset/request|{\"email\":\"test@test.com\"}|200|Request password reset"
+    "POST|/api/auth/password-reset/confirm|{\"token\":\"abc123\",\"newPassword\":\"newpass\"}|200|Confirm password reset"
+    "GET|/api/auth/sessions/1||200,404|Get session details"
 )

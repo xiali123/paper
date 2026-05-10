@@ -71,4 +71,9 @@ ROUTES=(
     "POST|/api/dashboard/layout/save|{\"layout\":[{\"widgetId\":\"stats\",\"x\":0,\"y\":0,\"w\":6,\"h\":4}],\"userId\":\"1\"}|200|Save dashboard layout"
     "GET|/api/dashboard/layout||200|Get saved dashboard layout"
     "GET|/api/dashboard/search-history||200|Aggregated search history for dashboard"
+
+    # --- Round 21 Additions ---
+    "GET|/api/dashboard/papers/trending||200|Get trending papers"
+    "POST|/api/dashboard/feedback|{\"rating\":5,\"comment\":\"Great\"}|200|Submit dashboard feedback"
+    "GET|/api/dashboard/users/active||200|Get active users stats"
 )

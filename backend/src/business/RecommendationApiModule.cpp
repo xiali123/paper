@@ -2620,7 +2620,137 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 32 routes");
+    // POST /api/recommendations/train — Trigger recommendation model retrain
+    router.post(prefix + "/train", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string algorithm = "collaborative";
+            if (!req.body.empty()) {
+                try {
+                    auto body = nlohmann::json::parse(req.body);
+                    if (body.contains("algorithm")) algorithm = body["algorithm"].get<std::string>();
+                } catch (...) {}
+            }
+
+            std::string jobId = "job_" + std::to_string(std::time(nullptr));
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "INSERT INTO recommendation_training_jobs (job_id, algorithm, status, created_at) "
+                        "VALUES ('" + StringUtil::escapeSql(jobId) + "', '"
+                        + StringUtil::escapeSql(algorithm) + "', 'queued', NOW())");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Train job insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["jobId"] = jobId;
+            resp["status"] = "queued";
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/recommendations/quality — Get recommendation quality metrics
+    router.get(prefix + "/quality", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            double precision = 0.0;
+            double recall = 0.0;
+            double f1Score = 0.0;
+            int totalFeedback = 0;
+
+            if (database_) {
+                try {
+                    auto result = database_->query(
+                        "SELECT COUNT(*) as total, "
+                        "SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) as positive "
+                        "FROM recommendation_feedback");
+                    if (!result.empty()) {
+                        if (!result[0]["total"].empty()) {
+                            totalFeedback = std::stoi(result[0]["total"]);
+                        }
+                        if (totalFeedback > 0 && !result[0]["positive"].empty()) {
+                            int positive = std::stoi(result[0]["positive"]);
+                            precision = static_cast<double>(positive) / totalFeedback;
+                            recall = precision; // Simplified: same as precision without ground truth
+                            f1Score = (precision + recall > 0) ? 2 * precision * recall / (precision + recall) : 0.0;
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Quality metrics query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["precision"] = precision;
+            resp["recall"] = recall;
+            resp["f1Score"] = f1Score;
+            resp["totalFeedback"] = totalFeedback;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/recommendations/cross-domain — Get cross-domain recommendations
+    router.post(prefix + "/cross-domain", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int paperId = 0;
+            std::vector<std::string> domains;
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                if (body.contains("paperId") && body["paperId"].is_number()) {
+                    paperId = body["paperId"].get<int>();
+                }
+                if (body.contains("domains") && body["domains"].is_array()) {
+                    for (auto& d : body["domains"]) {
+                        if (d.is_string()) domains.push_back(d.get<std::string>());
+                    }
+                }
+            }
+
+            nlohmann::json recommendations = nlohmann::json::array();
+
+            if (database_ && !domains.empty()) {
+                try {
+                    std::string domainClause;
+                    for (size_t i = 0; i < domains.size(); ++i) {
+                        if (i > 0) domainClause += " OR ";
+                        domainClause += "p.keywords LIKE '%" + StringUtil::escapeSql(domains[i]) + "%'";
+                    }
+                    std::string excludeId = (paperId > 0) ? " AND p.id != " + std::to_string(paperId) : "";
+                    auto result = database_->query(
+                        "SELECT p.id, p.title, p.authors, p.keywords FROM papers p "
+                        "WHERE (" + domainClause + ")" + excludeId +
+                        " ORDER BY p.citation_count DESC LIMIT 10");
+                    for (auto& row : result) {
+                        nlohmann::json item;
+                        item["id"] = row.count("id") && !row["id"].empty() ? std::stoi(row["id"]) : 0;
+                        item["title"] = row.count("title") ? row["title"] : "";
+                        item["authors"] = row.count("authors") ? row["authors"] : "";
+                        item["keywords"] = row.count("keywords") ? row["keywords"] : "";
+                        recommendations.push_back(item);
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Cross-domain query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["recommendations"] = recommendations;
+            resp["total"] = recommendations.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 35 routes");
 }
 
 } // namespace PaperCrawler

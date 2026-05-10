@@ -35,4 +35,9 @@ ROUTES=(
     "POST|/api/ai-co-pilot/sessions/1/bookmark|{\"messageId\":\"1\",\"bookmarked\":true}|200|Bookmark/unbookmark a message"
     "GET|/api/ai-co-pilot/bookmarks||200|Get all bookmarked messages"
     "POST|/api/ai-co-pilot/sessions/merge|{\"sessionIds\":[\"s1\",\"s2\"],\"newName\":\"Merged\"}|200|Merge multiple sessions"
+
+    # --- Round 21 Additions ---
+    "GET|/api/ai-co-pilot/sessions/1/context||200,404|Get session context"
+    "POST|/api/ai-co-pilot/sessions/1/clear|{}|200|Clear session messages"
+    "GET|/api/ai-co-pilot/sessions/search?q=test||200|Search across sessions"
 )

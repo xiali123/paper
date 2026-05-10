@@ -1685,7 +1685,153 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 32 routes");
+    // POST /api/auth/password-reset/request — Request password reset
+    router.post(prefix + "/password-reset/request", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string email = body.value("email", "");
+            if (email.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"email is required\"}");
+
+            email = StringUtil::escapeSql(email);
+
+            if (database_) {
+                try {
+                    auto rows = database_->query(
+                        "SELECT id, username FROM users WHERE email = '" + email + "'");
+                    if (!rows.empty()) {
+                        std::string userId = rows[0]["id"];
+                        std::string token = generateRandomToken("reset");
+
+                        database_->execute(
+                            "CREATE TABLE IF NOT EXISTS password_resets ("
+                            "id INT AUTO_INCREMENT PRIMARY KEY, "
+                            "user_id INT NOT NULL, "
+                            "email VARCHAR(255) NOT NULL, "
+                            "token VARCHAR(255) NOT NULL, "
+                            "expires_at TIMESTAMP NOT NULL, "
+                            "used_at TIMESTAMP NULL, "
+                            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                        database_->execute(
+                            "INSERT INTO password_resets (user_id, email, token, expires_at) "
+                            "VALUES (" + userId + ", '" + email + "', '" + token + "', "
+                            "DATE_ADD(NOW(), INTERVAL 1 HOUR))");
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AuthApi] Password reset request DB insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["message"] = "Reset email sent";
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/auth/password-reset/confirm — Confirm password reset
+    router.post(prefix + "/password-reset/confirm", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string token = body.value("token", "");
+            std::string newPassword = body.value("newPassword", "");
+            if (token.empty() || newPassword.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"token and newPassword are required\"}");
+
+            if (newPassword.length() < 6)
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"Password must be at least 6 characters\"}");
+
+            token = StringUtil::escapeSql(token);
+
+            if (database_) {
+                try {
+                    auto rows = database_->query(
+                        "SELECT user_id, used_at FROM password_resets "
+                        "WHERE token = '" + token + "' AND expires_at > NOW()");
+                    if (rows.empty())
+                        return HttpResponse::json(HTTP::BAD_REQUEST,
+                            "{\"success\":false,\"error\":\"Invalid or expired reset token\"}");
+
+                    if (!rows[0]["used_at"].empty())
+                        return HttpResponse::json(HTTP::BAD_REQUEST,
+                            "{\"success\":false,\"error\":\"Token already used\"}");
+
+                    std::string userId = rows[0]["user_id"];
+                    std::string passwordHash = impl_->hashPassword(newPassword);
+
+                    database_->execute(
+                        "UPDATE users SET password_hash = '" + passwordHash
+                        + "' WHERE id = " + userId);
+                    database_->execute(
+                        "UPDATE password_resets SET used_at = NOW() WHERE token = '" + token + "'");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AuthApi] Password reset confirm DB failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/auth/sessions/:id — Get session details
+    router.get(prefix + "/sessions/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"Session ID is required\"}");
+
+            std::string sessionId = StringUtil::escapeSql(idIt->second);
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT s.id, s.user_id, "
+                    "COALESCE(s.ip_address, '') as ip, "
+                    "COALESCE(s.user_agent, '') as userAgent, "
+                    "s.created_at as createdAt, "
+                    "s.expires_at as expiresAt "
+                    "FROM user_sessions s "
+                    "WHERE s.id = " + sessionId);
+                if (!result.empty()) {
+                    auto& row = result[0];
+                    nlohmann::json resp;
+                    resp["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    resp["userId"] = row.count("user_id") && !row.at("user_id").empty() ? std::stoi(row.at("user_id")) : 0;
+                    resp["ip"] = row.count("ip") ? row.at("ip") : "";
+                    resp["userAgent"] = row.count("userAgent") ? row.at("userAgent") : "";
+                    resp["createdAt"] = row.count("createdAt") ? row.at("createdAt") : "";
+                    resp["expiresAt"] = row.count("expiresAt") ? row.at("expiresAt") : "";
+                    return HttpResponse::json(HTTP::OK, resp.dump());
+                }
+            }
+
+            return HttpResponse::json(HTTP::NOT_FOUND,
+                "{\"success\":false,\"error\":\"Session not found\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 35 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

@@ -38,4 +38,9 @@ ROUTES=(
     "GET|/api/recommendation/by-reading||200|Recommend based on reading history"
     "POST|/api/recommendation/reset|{\"userId\":\"1\"}|200|Reset recommendation model for user"
     "GET|/api/recommendation/explain/1||200|Explain why a paper was recommended"
+
+    # --- Round 21 Additions ---
+    "POST|/api/recommendations/train|{\"algorithm\":\"collaborative\"}|200|Trigger model retrain"
+    "GET|/api/recommendations/quality||200|Get recommendation quality metrics"
+    "POST|/api/recommendations/cross-domain|{\"paperId\":1,\"domains\":[\"ml\",\"nlp\"]}|200|Get cross-domain recommendations"
 )

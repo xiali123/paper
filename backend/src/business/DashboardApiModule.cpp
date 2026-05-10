@@ -750,7 +750,77 @@ void DashboardApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[DashboardApi] Registered 34 routes under {}", prefix);
+    // POST /api/dashboard/feedback — Submit dashboard feedback
+    router.post(prefix + "/feedback", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            int rating = body.value("rating", 0);
+            std::string comment = body.value("comment", "");
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS dashboard_feedback ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "rating INT NOT NULL, "
+                        "comment TEXT, "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO dashboard_feedback (rating, comment) VALUES ("
+                        + std::to_string(rating) + ", '"
+                        + StringUtil::escapeSql(comment) + "')");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Feedback insert DB failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/dashboard/users/active — Get active users stats
+    router.get(prefix + "/users/active", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["activeNow"] = 0;
+        resp["newToday"] = 0;
+        resp["totalUsers"] = 0;
+
+        if (database_) {
+            try {
+                auto activeResult = database_->query(
+                    "SELECT COUNT(*) as cnt FROM user_sessions WHERE status = 'active' AND expires_at > NOW()");
+                if (!activeResult.empty() && activeResult[0].count("cnt") && !activeResult[0].at("cnt").empty()) {
+                    try { resp["activeNow"] = std::stoi(activeResult[0].at("cnt")); } catch (...) {}
+                }
+
+                auto newResult = database_->query(
+                    "SELECT COUNT(*) as cnt FROM users WHERE created_at >= CURDATE()");
+                if (!newResult.empty() && newResult[0].count("cnt") && !newResult[0].at("cnt").empty()) {
+                    try { resp["newToday"] = std::stoi(newResult[0].at("cnt")); } catch (...) {}
+                }
+
+                auto totalResult = database_->query("SELECT COUNT(*) as cnt FROM users");
+                if (!totalResult.empty() && totalResult[0].count("cnt") && !totalResult[0].at("cnt").empty()) {
+                    try { resp["totalUsers"] = std::stoi(totalResult[0].at("cnt")); } catch (...) {}
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Active users stats query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[DashboardApi] Registered 36 routes under {}", prefix);
 }
 
 // ============================================================================

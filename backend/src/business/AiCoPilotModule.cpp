@@ -907,7 +907,137 @@ void AiCoPilotModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiCoPilot] Registered 32 routes at /api/ai-co-pilot");
+    // GET /api/ai-co-pilot/sessions/:id/context — Get session context/history summary
+    router.get(prefix + "/sessions/:id/context", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string sessionId = req.pathParams.at("id");
+            nlohmann::json resp;
+            resp["sessionId"] = sessionId;
+            resp["messageCount"] = 0;
+            resp["lastMessage"] = "";
+            resp["context"] = "";
+
+            if (database_) {
+                try {
+                    auto result = database_->query(
+                        "SELECT id, role, content, created_at FROM ai_conversations "
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' ORDER BY created_at DESC");
+                    if (!result.empty()) {
+                        resp["messageCount"] = result.size();
+                        auto& last = result[0];
+                        resp["lastMessage"] = last.count("content") ? last["content"] : "";
+                        // Build context summary from recent messages
+                        std::string context;
+                        int count = 0;
+                        for (auto& row : result) {
+                            if (count >= 5) break;
+                            std::string role = row.count("role") ? row["role"] : "user";
+                            std::string content = row.count("content") ? row["content"] : "";
+                            if (content.size() > 100) content = content.substr(0, 100) + "...";
+                            context += role + ": " + content + "\n";
+                            count++;
+                        }
+                        resp["context"] = context;
+                    } else {
+                        return HttpResponse::json(404, "{\"error\":\"Session not found\"}");
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AiCoPilot] Session context query failed: {}", e.what());
+                }
+            } else {
+                resp["messageCount"] = 3;
+                resp["lastMessage"] = "This is a mock last message (stub mode).";
+                resp["context"] = "user: mock question\nassistant: mock answer\nuser: mock follow-up\n";
+            }
+
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/ai-co-pilot/sessions/:id/clear — Clear session messages
+    router.post(prefix + "/sessions/:id/clear", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string sessionId = req.pathParams.at("id");
+            int cleared = 0;
+
+            if (database_) {
+                try {
+                    auto countResult = database_->query(
+                        "SELECT COUNT(*) as cnt FROM ai_conversations WHERE session_id = '"
+                        + StringUtil::escapeSql(sessionId) + "'");
+                    if (!countResult.empty() && !countResult[0]["cnt"].empty()) {
+                        cleared = std::stoi(countResult[0]["cnt"]);
+                    }
+                    database_->execute(
+                        "DELETE FROM ai_conversations WHERE session_id = '"
+                        + StringUtil::escapeSql(sessionId) + "'");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AiCoPilot] Session clear failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["cleared"] = cleared;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/ai-co-pilot/sessions/search — Search across sessions
+    router.get(prefix + "/sessions/search", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string query;
+            auto it = req.queryParams.find("q");
+            if (it != req.queryParams.end()) query = it->second;
+
+            nlohmann::json results = nlohmann::json::array();
+
+            if (database_ && !query.empty()) {
+                try {
+                    auto sessionResult = database_->query(
+                        "SELECT DISTINCT session_id FROM ai_conversations "
+                        "WHERE content LIKE '%" + StringUtil::escapeSql(query) + "%' "
+                        "ORDER BY session_id DESC LIMIT 20");
+                    for (auto& row : sessionResult) {
+                        nlohmann::json item;
+                        item["sessionId"] = row["session_id"];
+                        // Get message count for matched session
+                        auto msgCount = database_->query(
+                            "SELECT COUNT(*) as cnt FROM ai_conversations WHERE session_id = '"
+                            + StringUtil::escapeSql(row["session_id"]) + "'");
+                        item["messageCount"] = (!msgCount.empty() && !msgCount[0]["cnt"].empty())
+                            ? std::stoi(msgCount[0]["cnt"]) : 0;
+                        // Get a snippet of the matching content
+                        auto snippet = database_->query(
+                            "SELECT content FROM ai_conversations WHERE session_id = '"
+                            + StringUtil::escapeSql(row["session_id"])
+                            + "' AND content LIKE '%" + StringUtil::escapeSql(query) + "%' LIMIT 1");
+                        if (!snippet.empty() && snippet[0].count("content")) {
+                            std::string content = snippet[0]["content"];
+                            if (content.size() > 200) content = content.substr(0, 200) + "...";
+                            item["snippet"] = content;
+                        }
+                        results.push_back(item);
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AiCoPilot] Session search query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["results"] = results;
+            resp["total"] = results.size();
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiCoPilot] Registered 35 routes at /api/ai-co-pilot");
 }
 
 } // namespace PaperCrawler
