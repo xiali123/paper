@@ -1769,7 +1769,58 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[PaperApiModule] Registered 51 routes");
+    // ========================================================================
+    // Round 29 Additions
+    // ========================================================================
+
+    // GET /api/papers/:id/related-by-citations — Find papers related by citations
+    router.get(prefix + "/:id/related-by-citations", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["papers"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+
+            resp["sourceId"] = paperId;
+
+            if (database_) {
+                try {
+                    // Find papers that share citation references with the given paper
+                    auto result = database_->query(
+                        "SELECT DISTINCT p2.id, p2.title, p2.authors, p2.year, p2.citation_count "
+                        "FROM paper_references pr1 "
+                        "JOIN paper_references pr2 ON pr1.ref_paper_id = pr2.ref_paper_id "
+                        "JOIN papers p2 ON pr2.paper_id = p2.id "
+                        "WHERE pr1.paper_id = " + std::to_string(paperId)
+                        + " AND pr2.paper_id != " + std::to_string(paperId)
+                        + " ORDER BY p2.citation_count DESC LIMIT 20");
+                    nlohmann::json arr = nlohmann::json::array();
+                    for (auto& row : result) {
+                        nlohmann::json item;
+                        item["id"] = StringUtil::getRowInt(row, "id");
+                        item["title"] = StringUtil::getRowStr(row, "title");
+                        item["authors"] = StringUtil::getRowStr(row, "authors");
+                        item["year"] = StringUtil::getRowInt(row, "year");
+                        item["citationCount"] = StringUtil::getRowInt(row, "citation_count");
+                        arr.push_back(item);
+                    }
+                    resp["papers"] = arr;
+                    resp["total"] = arr.size();
+                } catch (const std::exception& e) {
+                    spdlog::warn("[PaperApi] Related-by-citations query failed: {}", e.what());
+                }
+            }
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = std::string(e.what());
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[PaperApiModule] Registered 52 routes");
 }
 
 // ============================================================================

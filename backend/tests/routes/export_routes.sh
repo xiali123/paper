@@ -60,4 +60,8 @@ ROUTES=(
     # --- Round 27 Additions ---
     "POST|/api/export/schedule/enable|{\"interval\":\"daily\",\"format\":\"pdf\"}|200|Enable scheduled exports"
     "GET|/api/export/recent||200|Get recent exports list"
+
+    # --- Round 29 Additions ---
+    "POST|/api/export/annotate|{\"exportId\":\"exp_1\",\"notes\":\"Review\"}|200|Add annotation to export"
+    "GET|/api/export/stats/summary||200|Get export stats summary"
 )

@@ -69,4 +69,8 @@ ROUTES=(
     "POST|/api/papers/batch-update|{\"updates\":[{\"id\":1,\"tags\":[\"ml\"]}]}|200|Batch update papers"
     "GET|/api/papers/duplicates?title=test||200|Find duplicate papers"
     "POST|/api/papers/1/rate|{\"rating\":5,\"review\":\"Great\"}|200|Rate a paper"
+
+    # --- Round 29 Additions ---
+    "GET|/api/papers/1/related-by-citations||200,404|Find related papers by citations"
+    "POST|/api/papers/merge|{\"sourceId\":1,\"targetId\":2}|200|Merge duplicate papers"
 )

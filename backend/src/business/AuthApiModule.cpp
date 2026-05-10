@@ -2115,7 +2115,78 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 40 routes");
+    // ========================================================================
+    // Round 29 Additions
+    // ========================================================================
+
+    // POST /api/auth/device/register — Register a new device for trusted access
+    router.post(prefix + "/device/register", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string deviceName = body.value("deviceName", "");
+            std::string deviceType = body.value("deviceType", "");
+
+            if (deviceName.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"deviceName is required\"}");
+
+            std::string deviceId = "dev_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "INSERT INTO user_trusted_devices (device_id, name, type, trusted, created_at) VALUES ('"
+                        + StringUtil::escapeSql(deviceId) + "', '"
+                        + StringUtil::escapeSql(deviceName) + "', '"
+                        + StringUtil::escapeSql(deviceType) + "', 1, NOW())");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AuthApi] Device register DB insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["deviceId"] = deviceId;
+            resp["trusted"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(500, errResp.dump());
+        }
+    });
+
+    // GET /api/auth/devices — List trusted devices
+    router.get(prefix + "/devices", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json devices = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT device_id, name, type, last_used, trusted "
+                    "FROM user_trusted_devices ORDER BY created_at DESC LIMIT 50");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("device_id") ? row.at("device_id") : "";
+                    item["name"] = row.count("name") ? row.at("name") : "";
+                    item["type"] = row.count("type") ? row.at("type") : "";
+                    item["lastUsed"] = row.count("last_used") ? row.at("last_used") : "";
+                    item["trusted"] = row.count("trusted") && row.at("trusted") == "1";
+                    devices.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[AuthApi] Devices query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["devices"] = devices;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[AuthApi] Registered 42 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

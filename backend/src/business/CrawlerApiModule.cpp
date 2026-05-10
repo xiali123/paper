@@ -1300,6 +1300,78 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // Round 29 Additions — Crawl Rules
+    // ========================================================================
+
+    // POST /api/crawler/rules — Add crawling rule/pattern
+    router.post(prefix + "/rules", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string pattern = body.value("pattern", "");
+            std::string action = body.value("action", "include");
+            int priority = body.value("priority", 1);
+
+            if (pattern.empty())
+                return HttpResponse::json(400,
+                    nlohmann::json{{"success", false}, {"error", "pattern is required"}}.dump());
+
+            std::string ruleId = "rule_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "INSERT INTO crawl_rules (rule_id, pattern, action, priority) VALUES ('"
+                        + StringUtil::escapeSql(ruleId) + "', '"
+                        + StringUtil::escapeSql(pattern) + "', '"
+                        + StringUtil::escapeSql(action) + "', "
+                        + std::to_string(priority) + ")");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[CrawlerApi] Crawl rule insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["ruleId"] = ruleId;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // GET /api/crawler/rules — List crawling rules
+    router.get(prefix + "/rules", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json rulesArr = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT id, rule_id, pattern, action, priority FROM crawl_rules "
+                    "ORDER BY priority DESC");
+
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowStr(row, "id");
+                    item["pattern"] = StringUtil::getRowStr(row, "pattern");
+                    item["action"] = StringUtil::getRowStr(row, "action");
+                    item["priority"] = StringUtil::getRowInt(row, "priority");
+                    rulesArr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["rules"] = rulesArr;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 

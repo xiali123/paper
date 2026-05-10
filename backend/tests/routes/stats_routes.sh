@@ -69,4 +69,8 @@ ROUTES=(
     "GET|/api/stats/papers/top-cited?limit=10||200|Get top cited papers"
     "GET|/api/stats/activity/summary||200|Get activity summary"
     "GET|/api/stats/journals/top||200|Top journals by paper count"
+
+    # --- Round 29 Additions ---
+    "GET|/api/stats/users/activity-distribution||200|User activity distribution"
+    "GET|/api/stats/papers/coverage||200|Papers metadata coverage"
 )

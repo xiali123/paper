@@ -2042,7 +2042,94 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 40 routes");
+    // ========================================================================
+    // Round 29 Additions — Search Boost & Paper Count
+    // ========================================================================
+
+    // POST /api/search/boost — Boost search results for specific papers
+    router.post(prefix + "/boost", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            int paperId = body.value("paperId", 0);
+            double boostFactor = body.value("boostFactor", 1.0);
+            std::string reason = body.value("reason", "");
+
+            if (paperId <= 0)
+                return HttpResponse::json(400,
+                    nlohmann::json{{"success", false}, {"error", "paperId is required"}}.dump());
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS search_boosts ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "paper_id INT NOT NULL, "
+                        "boost_factor DOUBLE DEFAULT 1.0, "
+                        "reason VARCHAR(200), "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO search_boosts (paper_id, boost_factor, reason) VALUES ("
+                        + std::to_string(paperId) + ", "
+                        + std::to_string(boostFactor) + ", '"
+                        + StringUtil::escapeSql(reason) + "')");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[SearchApi] Search boost insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // GET /api/search/papers/count — Count papers matching query
+    router.get(prefix + "/papers/count", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string query;
+            auto qIt = req.queryParams.find("q");
+            if (qIt != req.queryParams.end()) query = qIt->second;
+
+            int count = 0;
+            nlohmann::json fields;
+
+            if (database_ && !query.empty()) {
+                std::string escaped = StringUtil::escapeSql(query);
+                std::string likePattern = "%" + escaped + "%";
+
+                auto rows = database_->query(
+                    "SELECT "
+                    "COUNT(*) as total, "
+                    "SUM(CASE WHEN title LIKE '" + likePattern + "' THEN 1 ELSE 0 END) as in_title, "
+                    "SUM(CASE WHEN abstract LIKE '" + likePattern + "' THEN 1 ELSE 0 END) as in_abstract, "
+                    "SUM(CASE WHEN keywords LIKE '" + likePattern + "' THEN 1 ELSE 0 END) as in_keywords "
+                    "FROM papers");
+
+                if (!rows.empty()) {
+                    auto& r = rows[0];
+                    count = StringUtil::getRowInt(r, "total");
+                    fields["inTitle"] = StringUtil::getRowInt(r, "in_title");
+                    fields["inAbstract"] = StringUtil::getRowInt(r, "in_abstract");
+                    fields["inKeywords"] = StringUtil::getRowInt(r, "in_keywords");
+                }
+            }
+
+            nlohmann::json resp;
+            resp["query"] = query;
+            resp["count"] = count;
+            resp["fields"] = fields;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 42 routes");
 }
 
 } // namespace PaperCrawler

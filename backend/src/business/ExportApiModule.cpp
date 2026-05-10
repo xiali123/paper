@@ -2077,7 +2077,99 @@ void ExportApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[ExportApi] Registered 42 routes");
+    // ========================================================================
+    // Round 29 Additions
+    // ========================================================================
+
+    // POST /api/export/annotate — Add annotation to exported file
+    router.post(prefix + "/annotate", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string exportId = body.value("exportId", "");
+            std::string notes = body.value("notes", "");
+            int position = body.value("position", 0);
+
+            if (exportId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"exportId is required\"}");
+
+            std::string annotationId = "ann_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "INSERT INTO export_annotations (annotation_id, export_id, notes, position, created_at) VALUES ('"
+                        + StringUtil::escapeSql(annotationId) + "', '"
+                        + StringUtil::escapeSql(exportId) + "', '"
+                        + StringUtil::escapeSql(notes) + "', "
+                        + std::to_string(position) + ", NOW())");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[ExportApi] Annotate DB insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["annotationId"] = annotationId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(500, errResp.dump());
+        }
+    });
+
+    // GET /api/export/stats/summary — Get export stats summary
+    router.get(prefix + "/stats/summary", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["total"] = 0;
+        resp["formats"] = nlohmann::json::object();
+        resp["byStatus"] = nlohmann::json::object();
+        resp["avgSize"] = 0.0;
+
+        if (database_) {
+            try {
+                // Total count
+                auto totalRes = database_->query(
+                    "SELECT COUNT(*) as cnt FROM exports");
+                if (!totalRes.empty() && totalRes[0].count("cnt") && !totalRes[0].at("cnt").empty()) {
+                    try { resp["total"] = std::stoi(totalRes[0].at("cnt")); } catch (...) {}
+                }
+
+                // By format
+                auto fmtRes = database_->query(
+                    "SELECT format, COUNT(*) as cnt FROM exports GROUP BY format");
+                for (auto& row : fmtRes) {
+                    std::string fmt = row.count("format") ? row.at("format") : "unknown";
+                    int cnt = 0;
+                    if (row.count("cnt") && !row.at("cnt").empty()) {
+                        try { cnt = std::stoi(row.at("cnt")); } catch (...) {}
+                    }
+                    resp["formats"][fmt] = cnt;
+                }
+
+                // By status
+                auto statusRes = database_->query(
+                    "SELECT status, COUNT(*) as cnt FROM exports GROUP BY status");
+                for (auto& row : statusRes) {
+                    std::string status = row.count("status") ? row.at("status") : "unknown";
+                    int cnt = 0;
+                    if (row.count("cnt") && !row.at("cnt").empty()) {
+                        try { cnt = std::stoi(row.at("cnt")); } catch (...) {}
+                    }
+                    resp["byStatus"][status] = cnt;
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[ExportApi] Stats summary query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[ExportApi] Registered 44 routes");
 }
 
 } // namespace PaperCrawler

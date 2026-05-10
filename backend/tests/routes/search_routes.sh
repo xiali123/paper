@@ -59,4 +59,8 @@ ROUTES=(
     # --- Round 27 Additions ---
     "POST|/api/search/similar|{\"text\":\"deep learning\",\"limit\":5}|200|Find similar papers"
     "GET|/api/search/stats/heatmap||200|Search activity heatmap"
+
+    # --- Round 29 Additions ---
+    "POST|/api/search/boost|{\"paperId\":1,\"boostFactor\":2.0}|200|Boost search results"
+    "GET|/api/search/papers/count?q=test||200|Count matching papers"
 )

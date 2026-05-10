@@ -1740,7 +1740,98 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 44 routes");
+    // ========================================================================
+    // Round 29 Additions — User activity distribution & Papers coverage
+    // ========================================================================
+
+    // GET /api/stats/users/activity-distribution — Get user activity distribution
+    router.get(prefix + "/users/activity-distribution", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json activitiesArr = nlohmann::json::array();
+            int totalCount = 0;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT activity_type as type, COUNT(*) as count "
+                    "FROM user_activity GROUP BY activity_type ORDER BY count DESC");
+
+                for (auto& row : rows) {
+                    int cnt = row.count("count") && !row.at("count").empty()
+                        ? std::stoi(row.at("count")) : 0;
+                    totalCount += cnt;
+                }
+
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["type"] = row.count("type") ? row.at("type") : "";
+                    int cnt = row.count("count") && !row.at("count").empty()
+                        ? std::stoi(row.at("count")) : 0;
+                    item["count"] = cnt;
+                    item["percentage"] = totalCount > 0
+                        ? std::round(cnt * 10000.0 / totalCount) / 100.0 : 0.0;
+                    activitiesArr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["activities"] = activitiesArr;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // GET /api/stats/papers/coverage — Get papers metadata coverage stats
+    router.get(prefix + "/papers/coverage", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int totalPapers = 0;
+            int withAbstract = 0;
+            int withKeywords = 0;
+            int withDoi = 0;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT "
+                    "COUNT(*) as total, "
+                    "SUM(CASE WHEN abstract IS NOT NULL AND abstract != '' THEN 1 ELSE 0 END) as with_abstract, "
+                    "SUM(CASE WHEN keywords IS NOT NULL AND keywords != '' THEN 1 ELSE 0 END) as with_keywords, "
+                    "SUM(CASE WHEN doi IS NOT NULL AND doi != '' THEN 1 ELSE 0 END) as with_doi "
+                    "FROM papers");
+
+                if (!rows.empty()) {
+                    auto& r = rows[0];
+                    totalPapers = StringUtil::getRowInt(r, "total");
+                    withAbstract = StringUtil::getRowInt(r, "with_abstract");
+                    withKeywords = StringUtil::getRowInt(r, "with_keywords");
+                    withDoi = StringUtil::getRowInt(r, "with_doi");
+                }
+            }
+
+            nlohmann::json coverageRates;
+            coverageRates["abstract"] = totalPapers > 0
+                ? std::round(withAbstract * 10000.0 / totalPapers) / 100.0 : 0.0;
+            coverageRates["keywords"] = totalPapers > 0
+                ? std::round(withKeywords * 10000.0 / totalPapers) / 100.0 : 0.0;
+            coverageRates["doi"] = totalPapers > 0
+                ? std::round(withDoi * 10000.0 / totalPapers) / 100.0 : 0.0;
+
+            nlohmann::json resp;
+            resp["totalPapers"] = totalPapers;
+            resp["withAbstract"] = withAbstract;
+            resp["withKeywords"] = withKeywords;
+            resp["withDoi"] = withDoi;
+            resp["coverageRates"] = coverageRates;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 46 routes");
 }
 
 std::string StatsApiModule::handleStats() {

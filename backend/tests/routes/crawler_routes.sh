@@ -71,4 +71,8 @@ ROUTES=(
     "POST|/api/crawler/tasks/export|{\"taskIds\":[1,2],\"format\":\"json\"}|200|Export task results"
     "GET|/api/crawler/proxy/test||200|Test proxy configuration"
     "POST|/api/crawler/urls/validate|{\"urls\":[\"https://arxiv.org\"]}|200|Validate URLs"
+
+    # --- Round 29 Additions ---
+    "POST|/api/crawler/rules|{\"pattern\":\"arxiv.org/*\",\"action\":\"include\"}|200|Add crawl rule"
+    "GET|/api/crawler/rules||200|List crawl rules"
 )

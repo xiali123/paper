@@ -58,4 +58,8 @@ ROUTES=(
     # --- Round 27 Additions ---
     "POST|/api/auth/verify-token|{\"token\":\"abc123\"}|200|Verify token validity"
     "GET|/api/auth/rate-limits||200|Get auth rate limits"
+
+    # --- Round 29 Additions ---
+    "POST|/api/auth/device/register|{\"deviceName\":\"My Laptop\",\"deviceType\":\"laptop\"}|200|Register device"
+    "GET|/api/auth/devices||200|List trusted devices"
 )
