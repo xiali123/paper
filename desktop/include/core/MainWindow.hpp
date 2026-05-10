@@ -275,6 +275,11 @@ class PaperReadingAchievement;
 class PaperWaterfallChart;
 class PaperComplianceMonitor;
 class PaperLogAnalyzer;
+class PaperTopicClusterer;
+class PaperReadingDashboard;
+class PaperFunnelChart;
+class PaperAuditLogger;
+class PaperHealthMonitor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
