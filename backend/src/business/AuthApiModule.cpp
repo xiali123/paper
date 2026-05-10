@@ -7,6 +7,7 @@
 
 #include "data/PreparedStatement.hpp"
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 #include "core/MessageBus.hpp"
 #include "core/ConfigManager.hpp"
 // 移除SharedBroadcastQueue，改用DatabaseModule::getConnection()
@@ -1368,7 +1369,114 @@ void AuthApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, data.dump());
     });
 
-    spdlog::info("[AuthApi] Registered 22 routes");
+    // PUT /api/auth/security — Update security settings
+    router.put(prefix + "/security", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            int userId = body.value("userId", 0);
+            if (userId <= 0)
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"userId required\"}");
+
+            bool twoFactorEnabled = body.value("twoFactorEnabled", false);
+            bool loginNotifications = body.value("loginNotifications", true);
+            int sessionTimeout = body.value("sessionTimeout", 30);
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS user_security_settings ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id INT UNIQUE, "
+                        "two_factor_enabled TINYINT DEFAULT 0, "
+                        "login_notifications TINYINT DEFAULT 1, "
+                        "session_timeout INT DEFAULT 30, "
+                        "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AuthApi] Create user_security_settings table failed: {}", e.what());
+                }
+
+                database_->execute(
+                    "INSERT INTO user_security_settings (user_id, two_factor_enabled, login_notifications, session_timeout) "
+                    "VALUES (" + std::to_string(userId) + ", " + (twoFactorEnabled ? "1" : "0") + ", " +
+                    (loginNotifications ? "1" : "0") + ", " + std::to_string(sessionTimeout) + ") "
+                    "ON DUPLICATE KEY UPDATE two_factor_enabled = VALUES(two_factor_enabled), "
+                    "login_notifications = VALUES(login_notifications), session_timeout = VALUES(session_timeout)");
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["settings"]["twoFactorEnabled"] = twoFactorEnabled;
+            data["settings"]["loginNotifications"] = loginNotifications;
+            data["settings"]["sessionTimeout"] = sessionTimeout;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/auth/security — Get security settings
+    router.get(prefix + "/security", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json data;
+            data["settings"]["twoFactorEnabled"] = false;
+            data["settings"]["loginNotifications"] = true;
+            data["settings"]["sessionTimeout"] = 30;
+            data["settings"]["passwordStrength"] = "strong";
+            data["success"] = true;
+
+            if (database_) {
+                auto it = req.queryParams.find("userId");
+                if (it != req.queryParams.end()) {
+                    std::string userId = it->second;
+                    auto result = database_->query(
+                        "SELECT two_factor_enabled, login_notifications, session_timeout "
+                        "FROM user_security_settings WHERE user_id = " + userId);
+                    if (!result.empty()) {
+                        auto& row = result[0];
+                        data["settings"]["twoFactorEnabled"] = (row.count("two_factor_enabled") && (row.at("two_factor_enabled") == "1"));
+                        data["settings"]["loginNotifications"] = (!row.count("login_notifications") || row.at("login_notifications") != "0");
+                        if (row.count("session_timeout") && !row.at("session_timeout").empty()) {
+                            try { data["settings"]["sessionTimeout"] = std::stoi(row.at("session_timeout")); } catch (...) {}
+                        }
+                    }
+                }
+            }
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/auth/impersonate — Admin impersonation (for debugging)
+    router.post(prefix + "/impersonate", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string adminUserId = body.value("adminUserId", "");
+            std::string targetUserId = body.value("targetUserId", "");
+            if (adminUserId.empty() || targetUserId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"adminUserId and targetUserId required\"}");
+
+            // Verify admin user exists and has superadmin role
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT role FROM users WHERE id = " + StringUtil::escapeSql(adminUserId));
+                if (result.empty() || result[0].at("role") != "superadmin")
+                    return HttpResponse::json(HTTP::FORBIDDEN, "{\"success\":false,\"error\":\"Only superadmin can impersonate\"}");
+            }
+
+            std::string token = generateRandomToken("imp");
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["token"] = token;
+            data["impersonating"] = targetUserId;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 25 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

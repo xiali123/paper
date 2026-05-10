@@ -33,4 +33,7 @@ ROUTES=(
     "POST|/api/auth/email-verify|{\"email\":\"test@test.com\"}|200|Send email verification"
     "POST|/api/auth/email-verify/confirm|{\"token\":\"verify_token_123\"}|200|Confirm email with token"
     "GET|/api/auth/permissions||200|Get user permissions"
+    "PUT|/api/auth/security|{\"userId\":1,\"twoFactorEnabled\":true,\"loginNotifications\":true,\"sessionTimeout\":30}|200|Update security settings"
+    "GET|/api/auth/security||200|Get security settings"
+    "POST|/api/auth/impersonate|{\"adminUserId\":\"1\",\"targetUserId\":\"2\"}|200,403|Admin impersonation"
 )

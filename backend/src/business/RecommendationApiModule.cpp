@@ -2278,7 +2278,129 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 23 routes");
+    // GET /api/recommendation/trending — Trending papers recommendation (weighted score)
+    router.get("/api/recommendation/trending", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json papers = nlohmann::json::array();
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT id, title, citation_count, view_count FROM papers "
+                    "ORDER BY (citation_count * 0.7 + view_count * 0.3) DESC LIMIT 10");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["citationCount"] = row.count("citation_count") && !row.at("citation_count").empty() ? std::stoi(row.at("citation_count")) : 0;
+                    item["viewCount"] = row.count("view_count") && !row.at("view_count").empty() ? std::stoi(row.at("view_count")) : 0;
+                    papers.push_back(item);
+                }
+            }
+
+            nlohmann::json data;
+            data["papers"] = papers;
+            data["total"] = papers.size();
+            data["algorithm"] = "weighted_score";
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/recommendation/feedback — Submit recommendation feedback
+    router.post("/api/recommendation/feedback", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            int userId = body.value("userId", 0);
+            int paperId = body.value("paperId", 0);
+            int rating = body.value("rating", 0);
+            std::string feedback = body.value("feedback", "");
+
+            if (userId <= 0 || paperId <= 0)
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"userId and paperId required\"}");
+            if (rating < 1 || rating > 5)
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"rating must be 1-5\"}");
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS recommendation_feedback ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id INT, "
+                        "paper_id INT, "
+                        "rating INT, "
+                        "feedback TEXT, "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Create recommendation_feedback table failed: {}", e.what());
+                }
+
+                database_->execute(
+                    "INSERT INTO recommendation_feedback (user_id, paper_id, rating, feedback) VALUES (" +
+                    std::to_string(userId) + ", " + std::to_string(paperId) + ", " +
+                    std::to_string(rating) + ", '" + ValidationHelper::sanitize(feedback) + "')");
+            }
+
+            std::string feedbackId = "fb_" + std::to_string(std::time(nullptr));
+            nlohmann::json data;
+            data["success"] = true;
+            data["feedbackId"] = feedbackId;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/recommendation/stats — Recommendation system statistics
+    router.get("/api/recommendation/stats", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json stats;
+            stats["totalRecommendations"] = 0;
+            stats["acceptedRate"] = 0;
+            stats["avgRating"] = 0;
+            stats["activeUsers"] = 0;
+
+            if (database_) {
+                try {
+                    auto result = database_->query(
+                        "SELECT COUNT(*) AS total FROM recommendation_feedback");
+                    if (!result.empty() && result[0].count("total") && !result[0].at("total").empty()) {
+                        stats["totalRecommendations"] = std::stoi(result[0].at("total"));
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Stats total query failed: {}", e.what());
+                }
+                try {
+                    auto result = database_->query(
+                        "SELECT AVG(rating) AS avg_rating FROM recommendation_feedback");
+                    if (!result.empty() && result[0].count("avg_rating") && !result[0].at("avg_rating").empty()) {
+                        try { stats["avgRating"] = std::stod(result[0].at("avg_rating")); } catch (...) {}
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Stats avgRating query failed: {}", e.what());
+                }
+                try {
+                    auto result = database_->query(
+                        "SELECT COUNT(DISTINCT user_id) AS active FROM recommendation_feedback");
+                    if (!result.empty() && result[0].count("active") && !result[0].at("active").empty()) {
+                        stats["activeUsers"] = std::stoi(result[0].at("active"));
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Stats activeUsers query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json data;
+            data["stats"] = stats;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 26 routes");
 }
 
 } // namespace PaperCrawler

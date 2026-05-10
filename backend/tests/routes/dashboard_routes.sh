@@ -56,4 +56,9 @@ ROUTES=(
     "GET|/api/dashboard/recent-papers||200|Recently added papers"
     "POST|/api/dashboard/widgets/reorder|{\"widgets\":[{\"id\":1,\"position\":0},{\"id\":2,\"position\":1}]}|200|Reorder dashboard widgets"
     "GET|/api/dashboard/reading-stats||200|User reading statistics"
+
+    # Quick stats, pin widget, recent activity
+    "GET|/api/dashboard/quick-stats||200|Get lightweight quick stats"
+    "POST|/api/dashboard/pin-widget|{\"widgetId\":1,\"pinned\":true}|200|Pin/unpin dashboard widget"
+    "GET|/api/dashboard/recent-activity||200|Get compact recent activity feed"
 )

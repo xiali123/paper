@@ -1008,7 +1008,180 @@ void UserApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("UserApiModule routes registered (25)");
+    // GET /api/users/:id/reading-history — Get user reading history
+    router.get(prefix + "/:id/reading-history", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+
+        if (!impl_->database_) {
+            nlohmann::json resp;
+            resp["history"] = nlohmann::json::array();
+            resp["total"] = 0;
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        }
+
+        try {
+            auto results = impl_->database_->query(
+                "SELECT urh.*, p.title FROM user_reading_history urh "
+                "LEFT JOIN papers p ON urh.paper_id = p.id "
+                "WHERE urh.user_id = " + StringUtil::escapeSql(userId)
+                + " ORDER BY urh.updated_at DESC LIMIT 20");
+
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                item["paperId"] = row.count("paper_id") ? std::stoi(row.at("paper_id")) : 0;
+                item["title"] = row.count("title") ? row.at("title") : "";
+                item["readingStatus"] = row.count("reading_status") ? row.at("reading_status") : "";
+                item["updatedAt"] = row.count("updated_at") ? row.at("updated_at") : "";
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["history"] = arr;
+            resp["total"] = arr.size();
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // DELETE /api/users/:id/reading-history/:hid — Delete a reading history entry
+    router.del(prefix + "/:id/reading-history/:hid", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            std::string hid = req.pathParams.at("hid");
+
+            if (impl_->database_) {
+                impl_->database_->execute(
+                    "DELETE FROM user_reading_history WHERE id = " + StringUtil::escapeSql(hid)
+                    + " AND user_id = " + StringUtil::escapeSql(userId));
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true,\"deleted\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/users/:id/export-data — Export user data (GDPR compliance)
+    router.get(prefix + "/:id/export-data", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+
+        if (!impl_->database_) {
+            auto now = std::chrono::system_clock::now();
+            auto time_t_now = std::chrono::system_clock::to_time_t(now);
+            std::ostringstream ts;
+            ts << std::put_time(std::localtime(&time_t_now), "%Y-%m-%dT%H:%M:%S");
+
+            nlohmann::json resp;
+            resp["user"] = nlohmann::json::object();
+            resp["bookmarks"] = nlohmann::json::array();
+            resp["readingHistory"] = nlohmann::json::array();
+            resp["preferences"] = nlohmann::json::object();
+            resp["exportedAt"] = ts.str();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        }
+
+        try {
+            int uid = std::stoi(userId);
+
+            // User info
+            nlohmann::json userJson;
+            auto userResults = impl_->database_->query(
+                "SELECT id, username, email, full_name, role, is_active, created_at FROM users WHERE id = " + std::to_string(uid));
+            if (!userResults.empty()) {
+                auto& row = userResults[0];
+                userJson["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                userJson["username"] = row.count("username") ? row.at("username") : "";
+                userJson["email"] = row.count("email") ? row.at("email") : "";
+                userJson["fullName"] = row.count("full_name") ? row.at("full_name") : "";
+                userJson["role"] = row.count("role") ? row.at("role") : "";
+                userJson["isActive"] = row.count("is_active") ? (row.at("is_active") == "1") : false;
+                userJson["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+            }
+
+            // Bookmarks
+            nlohmann::json bookmarksArr = nlohmann::json::array();
+            try {
+                auto bmResults = impl_->database_->query(
+                    "SELECT ub.id, ub.paper_id, p.title, ub.created_at FROM user_bookmarks ub "
+                    "LEFT JOIN papers p ON ub.paper_id = p.id "
+                    "WHERE ub.user_id = " + std::to_string(uid) + " ORDER BY ub.created_at DESC");
+                for (auto& row : bmResults) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                    item["paperId"] = row.count("paper_id") ? std::stoi(row.at("paper_id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    bookmarksArr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Export bookmarks query failed: {}", e.what());
+            }
+
+            // Reading history
+            nlohmann::json historyArr = nlohmann::json::array();
+            try {
+                auto rhResults = impl_->database_->query(
+                    "SELECT urh.id, urh.paper_id, p.title, urh.reading_status, urh.updated_at "
+                    "FROM user_reading_history urh LEFT JOIN papers p ON urh.paper_id = p.id "
+                    "WHERE urh.user_id = " + std::to_string(uid) + " ORDER BY urh.updated_at DESC");
+                for (auto& row : rhResults) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                    item["paperId"] = row.count("paper_id") ? std::stoi(row.at("paper_id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["readingStatus"] = row.count("reading_status") ? row.at("reading_status") : "";
+                    item["updatedAt"] = row.count("updated_at") ? row.at("updated_at") : "";
+                    historyArr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Export reading history query failed: {}", e.what());
+            }
+
+            // Preferences
+            nlohmann::json prefsJson = nlohmann::json::object();
+            try {
+                auto prefResults = impl_->database_->query(
+                    "SELECT preference_key, preference_value FROM user_preferences WHERE user_id = " + std::to_string(uid));
+                for (auto& row : prefResults) {
+                    std::string key = row.count("preference_key") ? row.at("preference_key") : "";
+                    std::string val = row.count("preference_value") ? row.at("preference_value") : "";
+                    if (val == "true") prefsJson[key] = true;
+                    else if (val == "false") prefsJson[key] = false;
+                    else prefsJson[key] = val;
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Export preferences query failed: {}", e.what());
+            }
+
+            auto now = std::chrono::system_clock::now();
+            auto time_t_now = std::chrono::system_clock::to_time_t(now);
+            std::ostringstream ts;
+            ts << std::put_time(std::localtime(&time_t_now), "%Y-%m-%dT%H:%M:%S");
+
+            nlohmann::json resp;
+            resp["user"] = userJson;
+            resp["bookmarks"] = bookmarksArr;
+            resp["readingHistory"] = historyArr;
+            resp["preferences"] = prefsJson;
+            resp["exportedAt"] = ts.str();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("UserApiModule routes registered (28)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {

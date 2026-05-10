@@ -33,4 +33,9 @@ ROUTES=(
     "GET|/api/users/1/activity||200,400|Get user activity log"
     "PUT|/api/users/1/preferences|{\"theme\":\"dark\",\"language\":\"en\",\"notifications\":false}|200,400|Update user preferences"
     "GET|/api/users/1/preferences||200,400|Get user preferences"
+
+    # Reading history & data export
+    "GET|/api/users/1/reading-history||200,400|Get user reading history"
+    "DELETE|/api/users/1/reading-history/1||200|Delete reading history entry"
+    "GET|/api/users/1/export-data||200|Export user data (GDPR)"
 )

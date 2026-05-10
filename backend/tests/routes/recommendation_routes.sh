@@ -27,4 +27,7 @@ ROUTES=(
     "GET|/api/recommendation/similar/1||200|Get similar papers by paper id"
     "POST|/api/recommendation/blocklist|{\"userId\":\"1\",\"paperId\":\"2\"}|200|Add paper to blocklist"
     "GET|/api/recommendation/blocklist|{\"userId\":\"1\"}|200|Get user blocklist"
+    "GET|/api/recommendation/trending||200|Get trending papers (weighted score)"
+    "POST|/api/recommendation/feedback|{\"userId\":1,\"paperId\":1,\"rating\":5,\"feedback\":\"helpful\"}|200|Submit recommendation feedback"
+    "GET|/api/recommendation/stats||200|Get recommendation system statistics"
 )

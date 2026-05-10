@@ -467,7 +467,102 @@ void DashboardApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, data.dump());
     });
 
-    spdlog::info("[DashboardApi] Registered 25 routes under {}", prefix);
+    // GET /api/dashboard/quick-stats — Lightweight stats for header
+    router.get(prefix + "/quick-stats", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["papers"] = 0;
+        resp["bookmarks"] = 0;
+        resp["searches"] = 0;
+        resp["success"] = true;
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT (SELECT COUNT(*) FROM papers) as papers, "
+                    "(SELECT COUNT(*) FROM user_bookmarks) as bookmarks, "
+                    "(SELECT COUNT(*) FROM search_history) as searches");
+                if (!results.empty()) {
+                    auto& row = results[0];
+                    if (row.count("papers") && !row.at("papers").empty()) {
+                        try { resp["papers"] = std::stoi(row.at("papers")); } catch (...) {}
+                    }
+                    if (row.count("bookmarks") && !row.at("bookmarks").empty()) {
+                        try { resp["bookmarks"] = std::stoi(row.at("bookmarks")); } catch (...) {}
+                    }
+                    if (row.count("searches") && !row.at("searches").empty()) {
+                        try { resp["searches"] = std::stoi(row.at("searches")); } catch (...) {}
+                    }
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Quick stats query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/dashboard/pin-widget — Pin/unpin a dashboard widget
+    router.post(prefix + "/pin-widget", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string widgetId = std::to_string(body.value("widgetId", 0));
+            bool pinned = body.value("pinned", false);
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "UPDATE dashboard_widgets SET pinned = " + std::to_string(pinned ? 1 : 0)
+                        + " WHERE id = " + widgetId);
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Pin widget DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["widgetId"] = body.value("widgetId", 0);
+            resp["pinned"] = pinned;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/dashboard/recent-activity — Compact recent activity feed
+    router.get(prefix + "/recent-activity", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["activities"] = nlohmann::json::array();
+        resp["total"] = 0;
+        resp["period"] = "24h";
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT 'paper' as type, id, title as description, created_at as timestamp "
+                    "FROM papers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) "
+                    "UNION ALL "
+                    "SELECT 'search' as type, id, query as description, created_at as timestamp "
+                    "FROM search_history WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) "
+                    "ORDER BY timestamp DESC LIMIT 15");
+
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["type"] = row.count("type") ? row.at("type") : "";
+                    item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                    item["description"] = row.count("description") ? row.at("description") : "";
+                    item["timestamp"] = row.count("timestamp") ? row.at("timestamp") : "";
+                    arr.push_back(item);
+                }
+                resp["activities"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Recent activity query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[DashboardApi] Registered 28 routes under {}", prefix);
 }
 
 // ============================================================================
