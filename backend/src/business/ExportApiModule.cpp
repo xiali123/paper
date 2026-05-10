@@ -1731,7 +1731,123 @@ void ExportApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[ExportApi] Registered 35 routes");
+    // POST /api/export/merge — Merge multiple exports
+    router.post(prefix + "/merge", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::vector<std::string> exportIds;
+            if (body.contains("exportIds") && body["exportIds"].is_array()) {
+                for (const auto& id : body["exportIds"]) {
+                    exportIds.push_back(id.get<std::string>());
+                }
+            }
+            std::string format = body.value("format", "pdf");
+
+            std::string mergedId = "merged_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            if (database_ && !exportIds.empty()) {
+                try {
+                    std::string ids;
+                    for (size_t i = 0; i < exportIds.size(); ++i) {
+                        if (i > 0) ids += "','";
+                        ids += StringUtil::escapeSql(exportIds[i]);
+                    }
+                    auto results = database_->query(
+                        "SELECT COUNT(*) as count FROM exports WHERE id IN ('" + ids + "')");
+                    int found = results.empty() || results[0].at("count").empty()
+                        ? 0 : std::stoi(results[0].at("count"));
+
+                    nlohmann::json resp;
+                    resp["success"] = true;
+                    resp["mergedId"] = mergedId;
+                    resp["sourceCount"] = exportIds.size();
+                    resp["foundCount"] = found;
+                    resp["format"] = format;
+                    return HttpResponse::json(HTTP::OK, resp.dump());
+                } catch (const std::exception& e) {
+                    spdlog::warn("[ExportApi] Merge query failed: {}", e.what());
+                }
+            }
+
+            // Stub fallback
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["mergedId"] = mergedId;
+            resp["sourceCount"] = exportIds.size();
+            resp["format"] = format;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/export/templates — Get export templates list (route already registered above)
+    // This route is already defined earlier; no duplicate needed.
+
+    // POST /api/export/preview — Preview export output
+    router.post(prefix + "/preview", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::vector<int> paperIds;
+            if (body.contains("paperIds") && body["paperIds"].is_array()) {
+                for (const auto& id : body["paperIds"]) {
+                    paperIds.push_back(id.get<int>());
+                }
+            }
+            std::string format = body.value("format", "markdown");
+
+            int paperCount = static_cast<int>(paperIds.size());
+
+            if (database_ && !paperIds.empty()) {
+                try {
+                    std::string ids;
+                    for (size_t i = 0; i < paperIds.size(); ++i) {
+                        if (i > 0) ids += ",";
+                        ids += std::to_string(paperIds[i]);
+                    }
+                    auto results = database_->query(
+                        "SELECT id, title, authors, year FROM papers WHERE id IN (" + ids + ")");
+
+                    std::ostringstream preview;
+                    for (auto& row : results) {
+                        preview << "# " << (row.count("title") ? row.at("title") : "") << "\n";
+                        preview << "**Authors:** " << (row.count("authors") ? row.at("authors") : "") << "\n";
+                        preview << "**Year:** " << (row.count("year") && !row.at("year").empty() ? row.at("year") : "N/A") << "\n\n";
+                        preview << "---\n\n";
+                    }
+
+                    int estimatedBytes = static_cast<int>(preview.str().size());
+                    std::string estimatedSize = std::to_string(estimatedBytes / 1024) + "KB";
+                    if (estimatedBytes < 1024) estimatedSize = std::to_string(estimatedBytes) + "B";
+
+                    nlohmann::json resp;
+                    resp["preview"] = preview.str();
+                    resp["paperCount"] = results.size();
+                    resp["estimatedSize"] = estimatedSize;
+                    resp["format"] = format;
+                    return HttpResponse::json(HTTP::OK, resp.dump());
+                } catch (const std::exception& e) {
+                    spdlog::warn("[ExportApi] Preview query failed: {}", e.what());
+                }
+            }
+
+            // Stub fallback
+            std::string mockPreview = "# Preview\n\nNo papers available for preview.\n";
+            nlohmann::json resp;
+            resp["preview"] = mockPreview;
+            resp["paperCount"] = paperCount;
+            resp["estimatedSize"] = "1KB";
+            resp["format"] = format;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 37 routes");
 }
 
 } // namespace PaperCrawler

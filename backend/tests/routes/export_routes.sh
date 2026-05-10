@@ -46,4 +46,9 @@ ROUTES=(
     "POST|/api/export/duplicate-check|{\"paperIds\":[1,2,3],\"format\":\"pdf\"}|200|Check for duplicate exports"
     "GET|/api/export/formats/pdf||200|Get format details by ID"
     "POST|/api/export/notify|{\"exportId\":\"exp_1\",\"email\":\"user@example.com\",\"webhookUrl\":\"https://example.com/hook\"}|200|Set up export completion notification"
+
+    # --- Round 22 Additions ---
+    "POST|/api/export/merge|{\"exportIds\":[\"id1\",\"id2\"],\"format\":\"pdf\"}|200|Merge multiple exports"
+    "GET|/api/export/templates||200|Get export templates list"
+    "POST|/api/export/preview|{\"paperIds\":[1,2,3],\"format\":\"markdown\"}|200|Preview export output"
 )

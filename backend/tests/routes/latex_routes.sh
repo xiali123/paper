@@ -61,4 +61,9 @@ ROUTES=(
 
     # Validate
     "GET|/api/latex/validate||200|Validate LaTeX syntax"
+
+    # --- Round 22 Additions ---
+    "POST|/api/latex/templates|{\"name\":\"Test\",\"content\":\"\\\\documentclass{article}\"}|200|Save LaTeX template"
+    "GET|/api/latex/templates||200|List LaTeX templates"
+    "POST|/api/latex/validate|{\"content\":\"\\\\documentclass{article}\"}|200|Validate LaTeX syntax"
 )

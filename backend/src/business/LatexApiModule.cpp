@@ -464,7 +464,98 @@ void LatexApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[LatexApi] Registered 36 routes");
+    // ========================================================================
+    // New routes (Round 22 additions)
+    // ========================================================================
+
+    // POST /api/latex/templates — Save LaTeX template
+    router.post(prefix + "/templates", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string name = body.value<std::string>("name", "");
+            std::string content = body.value<std::string>("content", "");
+
+            nlohmann::json resp;
+            resp["success"] = true;
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO latex_templates (name, content, created_at) VALUES ('"
+                    + StringUtil::escapeSql(name) + "', '"
+                    + StringUtil::escapeSql(content) + "', NOW())");
+                auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+                if (!rows.empty() && rows[0].count("id") && !rows[0].at("id").empty()) {
+                    resp["templateId"] = rows[0].at("id");
+                } else {
+                    auto now = std::chrono::system_clock::now();
+                    auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now.time_since_epoch()).count();
+                    resp["templateId"] = "tpl_" + std::to_string(ts);
+                }
+            } else {
+                auto now = std::chrono::system_clock::now();
+                auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()).count();
+                resp["templateId"] = "tpl_" + std::to_string(ts);
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/latex/templates — List LaTeX templates (already exists above, this is kept for clarity)
+    // Note: The GET /templates route is already registered above.
+
+    // POST /api/latex/validate — Validate LaTeX syntax via POST
+    router.post(prefix + "/validate", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string content = body.value<std::string>("content", "");
+
+            nlohmann::json resp;
+            resp["errors"] = nlohmann::json::array();
+            resp["warnings"] = nlohmann::json::array();
+            resp["valid"] = true;
+
+            if (!content.empty()) {
+                bool hasDocumentClass = content.find("\\documentclass") != std::string::npos;
+                bool hasBegin = content.find("\\begin{document}") != std::string::npos;
+                bool hasEnd = content.find("\\end{document}") != std::string::npos;
+
+                if (!hasDocumentClass) {
+                    resp["valid"] = false;
+                    resp["errors"].push_back("Missing \\documentclass");
+                }
+                if (!hasBegin) {
+                    resp["valid"] = false;
+                    resp["errors"].push_back("Missing \\begin{document}");
+                }
+                if (!hasEnd) {
+                    resp["valid"] = false;
+                    resp["errors"].push_back("Missing \\end{document}");
+                }
+
+                // Warnings for best practices
+                if (content.find("\\usepackage") == std::string::npos && hasDocumentClass) {
+                    resp["warnings"].push_back("No \\usepackage declarations found");
+                }
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["valid"] = false;
+            errResp["error"] = e.what();
+            errResp["errors"] = nlohmann::json::array();
+            errResp["warnings"] = nlohmann::json::array();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[LatexApi] Registered 38 routes");
 }
 
 // ============================================================================

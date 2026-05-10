@@ -54,4 +54,9 @@ ROUTES=(
     "GET|/api/stats/journal-ranking||200|Journal ranking by paper count"
     "GET|/api/stats/year-over-year||200|Year-over-year growth comparison"
     "GET|/api/stats/engagement||200|User engagement metrics"
+
+    # --- Round 22 Additions ---
+    "GET|/api/stats/papers/by-source||200|Papers grouped by source"
+    "GET|/api/stats/users/growth||200|User registration growth"
+    "POST|/api/stats/export|{\"type\":\"papers\",\"format\":\"json\",\"dateRange\":\"30d\"}|200|Export statistics report"
 )

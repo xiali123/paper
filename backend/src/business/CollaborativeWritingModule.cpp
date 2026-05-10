@@ -1292,7 +1292,132 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[CollabWriting] Registered 35 routes");
+    // ========================================================================
+    // New routes (Round 22 additions)
+    // ========================================================================
+
+    // POST /api/writing/documents/:id/autosave — Autosave document content
+    router.post(prefix + "/documents/:id/autosave", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string content = body.value<std::string>("content", "");
+            std::string userId = std::to_string(body.value<int>("userId", 0));
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["documentId"] = docId;
+            resp["savedAt"] = "";
+
+            if (database_) {
+                database_->execute(
+                    "UPDATE collab_documents SET content = '"
+                    + StringUtil::escapeSql(content)
+                    + "', updated_at = NOW() WHERE id = " + docId);
+                auto rows = database_->query(
+                    "SELECT updated_at FROM collab_documents WHERE id = " + docId);
+                if (!rows.empty() && rows[0].count("updated_at")) {
+                    resp["savedAt"] = rows[0].at("updated_at");
+                }
+            } else {
+                auto now = std::chrono::system_clock::now();
+                auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()).count();
+                resp["savedAt"] = std::to_string(ts);
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/writing/documents/:id/activity — Get document activity log
+    router.get(prefix + "/documents/:id/activity", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+
+            nlohmann::json resp;
+            resp["activities"] = nlohmann::json::array();
+            resp["documentId"] = docId;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT type, user_id, description, timestamp FROM document_activity "
+                    "WHERE document_id = " + docId + " ORDER BY timestamp DESC LIMIT 50");
+                for (const auto& row : rows) {
+                    nlohmann::json item;
+                    item["type"] = row.count("type") ? row.at("type") : "";
+                    item["userId"] = (row.count("user_id") && !row.at("user_id").empty())
+                        ? safeStoi(row.at("user_id")) : 0;
+                    item["description"] = row.count("description") ? row.at("description") : "";
+                    item["timestamp"] = row.count("timestamp") ? row.at("timestamp") : "";
+                    resp["activities"].push_back(item);
+                }
+            }
+            resp["total"] = resp["activities"].size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // POST /api/writing/documents/:id/invite — Invite user to collaborate
+    router.post(prefix + "/documents/:id/invite", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string email = body.value<std::string>("email", "");
+            std::string role = body.value<std::string>("role", "viewer");
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["documentId"] = docId;
+
+            if (database_) {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS document_invitations ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "document_id INT, "
+                    "email VARCHAR(255), "
+                    "role VARCHAR(20) DEFAULT 'editor', "
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                database_->execute(
+                    "INSERT INTO document_invitations (document_id, email, role) VALUES ("
+                    + docId + ", '"
+                    + StringUtil::escapeSql(email) + "', '"
+                    + StringUtil::escapeSql(role) + "')");
+                auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+                if (!rows.empty() && rows[0].count("id") && !rows[0].at("id").empty()) {
+                    resp["inviteId"] = rows[0].at("id");
+                } else {
+                    auto now = std::chrono::system_clock::now();
+                    auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now.time_since_epoch()).count();
+                    resp["inviteId"] = "inv_" + std::to_string(ts);
+                }
+            } else {
+                auto now = std::chrono::system_clock::now();
+                auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()).count();
+                resp["inviteId"] = "inv_" + std::to_string(ts);
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[CollabWriting] Registered 38 routes");
 }
 
 // ============================================================================

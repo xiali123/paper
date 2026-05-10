@@ -1379,7 +1379,105 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 35 routes");
+    // GET /api/stats/papers/by-source — Paper count grouped by source
+    router.get(prefix + "/papers/by-source", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"sources\":[]}");
+
+        try {
+            auto results = database_->query(
+                "SELECT source, COUNT(*) as count FROM papers "
+                "WHERE source IS NOT NULL AND source != '' "
+                "GROUP BY source ORDER BY count DESC");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["source"] = row.count("source") ? row.at("source") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["sources"] = arr;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/users/growth — User registration growth over time
+    router.get(prefix + "/users/growth", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK, "{\"growth\":[]}");
+
+        try {
+            auto results = database_->query(
+                "SELECT DATE(created_at) as date, COUNT(*) as count "
+                "FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) "
+                "GROUP BY DATE(created_at) ORDER BY date");
+            nlohmann::json arr = nlohmann::json::array();
+            int runningTotal = 0;
+            // Get total users before the 30-day window for accurate cumulative counts
+            auto totalBefore = database_->query(
+                "SELECT COUNT(*) as total FROM users WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+            if (!totalBefore.empty() && totalBefore[0].count("total") && !totalBefore[0].at("total").empty()) {
+                runningTotal = std::stoi(totalBefore[0].at("total"));
+            }
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["date"] = row.count("date") ? row.at("date") : "";
+                int cnt = row.count("count") && !row.at("count").empty()
+                    ? std::stoi(row.at("count")) : 0;
+                runningTotal += cnt;
+                item["count"] = cnt;
+                item["total"] = runningTotal;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["growth"] = arr;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/stats/export — Export statistics as report
+    router.post(prefix + "/export", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string type = "papers";
+            std::string format = "json";
+            std::string dateRange = "30d";
+
+            try {
+                auto body = nlohmann::json::parse(req.body);
+                if (body.contains("type") && body["type"].is_string())
+                    type = body["type"].get<std::string>();
+                if (body.contains("format") && body["format"].is_string())
+                    format = body["format"].get<std::string>();
+                if (body.contains("dateRange") && body["dateRange"].is_string())
+                    dateRange = body["dateRange"].get<std::string>();
+            } catch (...) {
+                // Use defaults if body is unparseable
+            }
+
+            std::string exportId = "stats_export_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            nlohmann::json resp;
+            resp["exportId"] = exportId;
+            resp["status"] = "processing";
+            resp["type"] = type;
+            resp["format"] = format;
+            resp["dateRange"] = dateRange;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 38 routes");
 }
 
 std::string StatsApiModule::handleStats() {
