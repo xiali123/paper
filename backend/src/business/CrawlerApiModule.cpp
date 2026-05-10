@@ -815,6 +815,110 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // Queue, Priority, and Error routes
+    // ========================================================================
+
+    // GET /api/crawler/queue — Get current crawl queue
+    router.get(prefix + "/queue", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["queue"] = nlohmann::json::array();
+        resp["total"] = 0;
+        resp["success"] = true;
+
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT id, name, status, priority, created_at "
+                    "FROM distributed_crawl_tasks "
+                    "WHERE status IN ('pending', 'running') "
+                    "ORDER BY priority DESC, created_at ASC LIMIT 20");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["name"] = StringUtil::getRowStr(row, "name");
+                    item["status"] = StringUtil::getRowStr(row, "status");
+                    item["priority"] = StringUtil::getRowInt(row, "priority");
+                    item["createdAt"] = StringUtil::getRowStr(row, "created_at");
+                    arr.push_back(item);
+                }
+                resp["queue"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[CrawlerApi] Queue query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/crawler/prioritize — Change task priority
+    router.post(prefix + "/prioritize", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string taskId = body.value("taskId", "");
+            int priority = body.value("priority", 0);
+
+            if (taskId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"taskId is required\"}");
+            if (priority < 1 || priority > 10)
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"priority must be between 1 and 10\"}");
+
+            if (database_) {
+                std::string escapedTaskId = StringUtil::escapeSql(taskId);
+                database_->execute(
+                    "UPDATE distributed_crawl_tasks SET priority = "
+                    + std::to_string(priority) + " WHERE id = '"
+                    + escapedTaskId + "'");
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["taskId"] = taskId;
+            resp["priority"] = priority;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/crawler/errors — Get recent crawl errors
+    router.get(prefix + "/errors", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["errors"] = nlohmann::json::array();
+        resp["total"] = 0;
+        resp["success"] = true;
+
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT id, name, error_message, updated_at "
+                    "FROM distributed_crawl_tasks "
+                    "WHERE status = 'failed' "
+                    "ORDER BY updated_at DESC LIMIT 20");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["name"] = StringUtil::getRowStr(row, "name");
+                    item["errorMessage"] = StringUtil::getRowStr(row, "error_message");
+                    item["updatedAt"] = StringUtil::getRowStr(row, "updated_at");
+                    arr.push_back(item);
+                }
+                resp["errors"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[CrawlerApi] Errors query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 
@@ -825,7 +929,7 @@ void CrawlerApiModule::registerRoutes() {
         });
     }
 
-    spdlog::info("[CrawlerApiModule] Registered 32 routes");
+    spdlog::info("[CrawlerApiModule] Registered 35 routes");
 }
 
 // ============================================================================

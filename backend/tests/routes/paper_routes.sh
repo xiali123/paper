@@ -53,4 +53,7 @@ ROUTES=(
     "POST|/api/papers/1/cite|{\"style\":\"apa\"}|200|Generate citation for paper"
     "GET|/api/papers/duplicates||200|Find potential duplicate papers"
     "POST|/api/papers/merge|{\"sourceId\":1,\"targetId\":2}|200|Merge duplicate papers"
+    "GET|/api/papers/1/related-by-keywords||200|Get related papers by shared keywords"
+    "POST|/api/papers/import-url|{\"url\":\"https://arxiv.org/abs/2401.00001\",\"title\":\"Test Paper\"}|200|Import paper from URL"
+    "GET|/api/papers/export-stats||200|Paper export statistics"
 )

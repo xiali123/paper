@@ -43,4 +43,9 @@ ROUTES=(
     "POST|/api/users/1/avatar-upload|{\"filename\":\"avatar.png\",\"mimeType\":\"image/png\",\"size\":1024}|200|Upload user avatar"
     "GET|/api/users/1/bookmarks||200|Get user bookmarked papers"
     "DELETE|/api/users/1/account|{\"password\":\"confirm_pass\"}|200|Soft delete user account"
+
+    # User notes
+    "POST|/api/users/1/notes|{\"title\":\"Research Note\",\"content\":\"Important findings\",\"tags\":[\"research\"]}|200|Create user note"
+    "GET|/api/users/1/notes||200|Get user notes"
+    "DELETE|/api/users/1/notes/1||200|Delete user note"
 )

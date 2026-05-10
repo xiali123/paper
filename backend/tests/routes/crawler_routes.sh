@@ -53,4 +53,7 @@ ROUTES=(
     "GET|/api/crawler/sources||200|List crawler sources"
     "POST|/api/crawler/sources/add|{\"url\":\"https://example.com\",\"name\":\"Test Source\"}|200|Add new crawl source"
     "GET|/api/crawler/performance||200|Get crawler performance metrics"
+    "GET|/api/crawler/queue||200|Get current crawl queue"
+    "POST|/api/crawler/prioritize|{\"taskId\":\"task_123\",\"priority\":5}|200|Change task priority"
+    "GET|/api/crawler/errors||200|Get recent crawl errors"
 )

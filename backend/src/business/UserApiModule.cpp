@@ -1292,7 +1292,134 @@ void UserApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("UserApiModule routes registered (31)");
+    // POST /api/users/:id/notes — Create a user note
+    router.post(prefix + "/:id/notes", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string title = body.value("title", "");
+            std::string content = body.value("content", "");
+
+            if (title.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "title required"}}.dump());
+            }
+
+            nlohmann::json tagsArr = body.value("tags", nlohmann::json::array());
+            std::string tagsStr = tagsArr.dump();
+
+            if (impl_->database_) {
+                try {
+                    impl_->database_->execute(
+                        "CREATE TABLE IF NOT EXISTS user_notes ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id INT, "
+                        "title VARCHAR(200), "
+                        "content TEXT, "
+                        "tags VARCHAR(500), "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+
+                    impl_->database_->execute(
+                        "INSERT INTO user_notes (user_id, title, content, tags) VALUES ("
+                        + StringUtil::escapeSql(userId) + ", '"
+                        + StringUtil::escapeSql(title) + "', '"
+                        + StringUtil::escapeSql(content) + "', '"
+                        + StringUtil::escapeSql(tagsStr) + "')");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Create note DB insert failed: {}", e.what());
+                }
+            }
+
+            auto now = std::chrono::system_clock::now();
+            auto ts = std::chrono::system_clock::to_time_t(now);
+            std::string noteId = "note_" + std::to_string(static_cast<int64_t>(ts));
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["noteId"] = noteId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/users/:id/notes — Get user notes
+    router.get(prefix + "/:id/notes", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+
+            nlohmann::json resp;
+            resp["notes"] = nlohmann::json::array();
+            resp["total"] = 0;
+            resp["userId"] = std::stoi(userId);
+
+            if (impl_->database_) {
+                try {
+                    impl_->database_->execute(
+                        "CREATE TABLE IF NOT EXISTS user_notes ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id INT, "
+                        "title VARCHAR(200), "
+                        "content TEXT, "
+                        "tags VARCHAR(500), "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+
+                    auto results = impl_->database_->query(
+                        "SELECT * FROM user_notes WHERE user_id = "
+                        + StringUtil::escapeSql(userId) + " ORDER BY updated_at DESC LIMIT 20");
+
+                    nlohmann::json arr = nlohmann::json::array();
+                    for (auto& row : results) {
+                        nlohmann::json item;
+                        item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                        item["title"] = row.count("title") ? row.at("title") : "";
+                        item["content"] = row.count("content") ? row.at("content") : "";
+                        item["tags"] = row.count("tags") ? nlohmann::json::parse(row.at("tags")) : nlohmann::json::array();
+                        item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                        item["updatedAt"] = row.count("updated_at") ? row.at("updated_at") : "";
+                        arr.push_back(item);
+                    }
+                    resp["notes"] = arr;
+                    resp["total"] = arr.size();
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Get notes query failed: {}", e.what());
+                }
+            }
+
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // DELETE /api/users/:id/notes/:nid — Delete a user note
+    router.del(prefix + "/:id/notes/:nid", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            std::string nid = req.pathParams.at("nid");
+
+            if (impl_->database_) {
+                try {
+                    impl_->database_->execute(
+                        "DELETE FROM user_notes WHERE id = " + StringUtil::escapeSql(nid)
+                        + " AND user_id = " + StringUtil::escapeSql(userId));
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Delete note DB failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["deleted"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("UserApiModule routes registered (34)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {

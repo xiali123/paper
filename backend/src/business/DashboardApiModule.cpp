@@ -277,33 +277,38 @@ void DashboardApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    // GET /api/dashboard/search-history — recent search history
+    // GET /api/dashboard/search-history — User search history for dashboard (aggregated)
     router.get(prefix + "/search-history", [this](const HttpRequest& req) -> HttpResponse {
-        nlohmann::json resp;
-        resp["searches"] = nlohmann::json::array();
-        resp["total"] = 0;
+        try {
+            nlohmann::json resp;
+            resp["queries"] = nlohmann::json::array();
+            resp["total"] = 0;
 
-        if (database_) {
-            try {
-                int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
-                auto results = database_->query(
-                    "SELECT id, query, created_at FROM search_history ORDER BY created_at DESC LIMIT "
-                    + std::to_string(limit));
-                nlohmann::json arr = nlohmann::json::array();
-                for (auto& row : results) {
-                    nlohmann::json item;
-                    item["id"] = std::stoi(row.at("id"));
-                    item["query"] = row.count("query") ? row.at("query") : "";
-                    item["timestamp"] = row.count("created_at") ? row.at("created_at") : "";
-                    arr.push_back(item);
+            if (database_) {
+                try {
+                    auto results = database_->query(
+                        "SELECT query, COUNT(*) as count FROM search_history "
+                        "GROUP BY query ORDER BY count DESC LIMIT 10");
+
+                    nlohmann::json arr = nlohmann::json::array();
+                    for (auto& row : results) {
+                        nlohmann::json item;
+                        item["query"] = row.count("query") ? row.at("query") : "";
+                        item["count"] = row.count("count") && !row.at("count").empty() ? std::stoi(row.at("count")) : 0;
+                        arr.push_back(item);
+                    }
+                    resp["queries"] = arr;
+                    resp["total"] = arr.size();
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Search history aggregated query failed: {}", e.what());
                 }
-                resp["searches"] = arr;
-                resp["total"] = arr.size();
-            } catch (const std::exception& e) {
-                spdlog::warn("[DashboardApi] Search history failed: {}", e.what());
             }
+
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
         }
-        return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
     // GET /api/dashboard/system-health — system health check
@@ -672,7 +677,80 @@ void DashboardApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, data.dump());
     });
 
-    spdlog::info("[DashboardApi] Registered 31 routes under {}", prefix);
+    // POST /api/dashboard/layout/save — Save dashboard layout configuration
+    router.post(prefix + "/layout/save", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+
+            if (!body.contains("layout") || !body["layout"].is_array()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "layout array is required"}}.dump());
+            }
+
+            if (database_) {
+                try {
+                    std::string userId = body.value("userId", "0");
+                    std::string layoutJson = body["layout"].dump();
+
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS dashboard_layouts ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id VARCHAR(50), "
+                        "layout_json TEXT, "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO dashboard_layouts (user_id, layout_json) VALUES ('"
+                        + StringUtil::escapeSql(userId) + "', '"
+                        + StringUtil::escapeSql(layoutJson) + "') "
+                        "ON DUPLICATE KEY UPDATE layout_json = '" + StringUtil::escapeSql(layoutJson) + "'");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Layout save DB failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["saved"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/dashboard/layout — Get saved dashboard layout
+    router.get(prefix + "/layout", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json resp;
+            resp["layout"] = nlohmann::json::array();
+
+            if (database_) {
+                try {
+                    std::string userId = "0";
+                    auto it = req.queryParams.find("userId");
+                    if (it != req.queryParams.end()) userId = it->second;
+
+                    auto results = database_->query(
+                        "SELECT layout_json FROM dashboard_layouts WHERE user_id = '"
+                        + StringUtil::escapeSql(userId) + "' ORDER BY updated_at DESC LIMIT 1");
+
+                    if (!results.empty() && results[0].count("layout_json")) {
+                        resp["layout"] = nlohmann::json::parse(results[0].at("layout_json"));
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Layout get DB failed: {}", e.what());
+                }
+            }
+
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[DashboardApi] Registered 34 routes under {}", prefix);
 }
 
 // ============================================================================

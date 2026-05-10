@@ -66,4 +66,9 @@ ROUTES=(
     "POST|/api/dashboard/widgets/add|{\"type\":\"chart\",\"position\":2,\"config\":{\"title\":\"My Chart\"}}|200|Add dashboard widget"
     "DELETE|/api/dashboard/widgets/wgt_123||200|Remove dashboard widget"
     "GET|/api/dashboard/paper-stats||200|Paper statistics for dashboard cards"
+
+    # Layout management and aggregated search history
+    "POST|/api/dashboard/layout/save|{\"layout\":[{\"widgetId\":\"stats\",\"x\":0,\"y\":0,\"w\":6,\"h\":4}],\"userId\":\"1\"}|200|Save dashboard layout"
+    "GET|/api/dashboard/layout||200|Get saved dashboard layout"
+    "GET|/api/dashboard/search-history||200|Aggregated search history for dashboard"
 )
