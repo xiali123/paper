@@ -320,6 +320,11 @@ class PaperReadingFlow;
 class PaperViolinPlot;
 class PaperMeetingScheduler;
 class PaperContextMenuEditor;
+class PaperArgumentMiner;
+class PaperReadingWorkshop;
+class PaperRadarSpinner;
+class PaperInventoryTracker;
+class PaperNotificationFilter;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

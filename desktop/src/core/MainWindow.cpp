@@ -317,6 +317,11 @@
 #include "visualization/PaperViolinPlot.hpp"
 #include "workspace/PaperMeetingScheduler.hpp"
 #include "tools/PaperContextMenuEditor.hpp"
+#include "analysis/PaperArgumentMiner.hpp"
+#include "reading/PaperReadingWorkshop.hpp"
+#include "visualization/PaperRadarSpinner.hpp"
+#include "workspace/PaperInventoryTracker.hpp"
+#include "tools/PaperNotificationFilter.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6527,6 +6532,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Miner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Miner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentMiner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Workshop", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Workshop");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingWorkshop();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Radar Spinner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Radar Spinner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRadarSpinner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Inventory Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Inventory Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperInventoryTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Notification Filter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Notification Filter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNotificationFilter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7638,6 +7693,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Context Menu Editor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Context Menu Editor");
+    });
+    commandPalette_->addAction("Argument Miner", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Miner");
+    });
+    commandPalette_->addAction("Reading Workshop", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Workshop");
+    });
+    commandPalette_->addAction("Radar Spinner", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Radar Spinner");
+    });
+    commandPalette_->addAction("Inventory Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Inventory Tracker");
+    });
+    commandPalette_->addAction("Notification Filter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Notification Filter");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
