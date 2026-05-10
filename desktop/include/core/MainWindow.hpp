@@ -235,6 +235,11 @@ class PaperVocabularyTracker;
 class PaperTrendSparkline;
 class PaperTeamAvailability;
 class PaperPDFAnnotator;
+class PaperNoveltyScorer;
+class PaperReadingGoalWidget;
+class PaperImpactTreemap;
+class PaperBudgetForecast;
+class PaperCodeSnippetExtractor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

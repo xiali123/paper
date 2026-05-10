@@ -232,6 +232,11 @@
 #include "visualization/PaperTrendSparkline.hpp"
 #include "workspace/PaperTeamAvailability.hpp"
 #include "tools/PaperPDFAnnotator.hpp"
+#include "analysis/PaperNoveltyScorer.hpp"
+#include "reading/PaperReadingGoalWidget.hpp"
+#include "visualization/PaperImpactTreemap.hpp"
+#include "workspace/PaperBudgetForecast.hpp"
+#include "tools/PaperCodeSnippetExtractor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5592,6 +5597,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Novelty Scorer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Novelty Scorer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNoveltyScorer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Goals", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Goals");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingGoalWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Impact Treemap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Impact Treemap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperImpactTreemap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Budget Forecast", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Budget Forecast");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBudgetForecast();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Code Snippet Extractor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Code Snippet Extractor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCodeSnippetExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6448,6 +6503,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("PDF Annotator", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > PDF Annotator");
+    });
+    commandPalette_->addAction("Novelty Scorer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Novelty Scorer");
+    });
+    commandPalette_->addAction("Reading Goals", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Goals");
+    });
+    commandPalette_->addAction("Impact Treemap", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Impact Treemap");
+    });
+    commandPalette_->addAction("Budget Forecast", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Budget Forecast");
+    });
+    commandPalette_->addAction("Code Snippet Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Code Snippet Extractor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
