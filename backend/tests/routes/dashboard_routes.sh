@@ -61,4 +61,9 @@ ROUTES=(
     "GET|/api/dashboard/quick-stats||200|Get lightweight quick stats"
     "POST|/api/dashboard/pin-widget|{\"widgetId\":1,\"pinned\":true}|200|Pin/unpin dashboard widget"
     "GET|/api/dashboard/recent-activity||200|Get compact recent activity feed"
+
+    # Widget management and paper stats
+    "POST|/api/dashboard/widgets/add|{\"type\":\"chart\",\"position\":2,\"config\":{\"title\":\"My Chart\"}}|200|Add dashboard widget"
+    "DELETE|/api/dashboard/widgets/wgt_123||200|Remove dashboard widget"
+    "GET|/api/dashboard/paper-stats||200|Paper statistics for dashboard cards"
 )

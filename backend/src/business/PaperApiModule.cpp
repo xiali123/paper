@@ -1269,7 +1269,136 @@ void PaperApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[PaperApiModule] Registered 39 routes");
+    // POST /api/papers/:id/cite — Generate citation for a paper
+    router.post(prefix + "/:id/cite", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto body = nlohmann::json::parse(req.body);
+            std::string style = body.value("style", "apa");
+
+            if (style != "apa" && style != "mla" && style != "chicago" && style != "bibtex")
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"style must be one of: apa, mla, chicago, bibtex\"}");
+
+            std::string title, authors, year, journal;
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT title, authors, year, journal FROM papers WHERE id = "
+                    + std::to_string(paperId));
+                if (!rows.empty()) {
+                    title = StringUtil::getRowStr(rows[0], "title");
+                    authors = StringUtil::getRowStr(rows[0], "authors");
+                    year = StringUtil::getRowStr(rows[0], "year");
+                    journal = StringUtil::getRowStr(rows[0], "journal");
+                }
+            }
+
+            std::string citation;
+            if (title.empty()) {
+                citation = "Paper #" + std::to_string(paperId) + " (" + style + " style citation)";
+            } else if (style == "bibtex") {
+                citation = "@article{paper" + std::to_string(paperId) + ",\n"
+                    + "  title={" + title + "},\n"
+                    + "  author={" + authors + "},\n"
+                    + "  year={" + year + "},\n"
+                    + "  journal={" + journal + "}\n}";
+            } else if (style == "apa") {
+                citation = authors + " (" + year + "). " + title + ". " + journal + ".";
+            } else if (style == "mla") {
+                citation = authors + ". \"" + title + ".\" " + journal + " (" + year + ").";
+            } else {
+                citation = authors + ". " + title + ". " + journal + ", " + year + ".";
+            }
+
+            nlohmann::json resp;
+            resp["citation"] = citation;
+            resp["style"] = style;
+            resp["paperId"] = paperId;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/papers/duplicates — Find potential duplicate papers
+    router.get(prefix + "/duplicates", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json dupArr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT p1.id as id1, p1.title as title1, p2.id as id2, p2.title as title2 "
+                    "FROM papers p1 JOIN papers p2 ON p1.id < p2.id "
+                    "AND SOUNDEX(p1.title) = SOUNDEX(p2.title) LIMIT 20");
+
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id1"] = StringUtil::getRowInt(row, "id1");
+                    item["title1"] = StringUtil::getRowStr(row, "title1");
+                    item["id2"] = StringUtil::getRowInt(row, "id2");
+                    item["title2"] = StringUtil::getRowStr(row, "title2");
+                    dupArr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] Duplicates query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["duplicates"] = dupArr;
+        resp["total"] = dupArr.size();
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/papers/merge — Merge duplicate papers
+    router.post(prefix + "/merge", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            int sourceId = body.value("sourceId", 0);
+            int targetId = body.value("targetId", 0);
+            bool keepBoth = body.value("keepBoth", false);
+
+            if (sourceId <= 0 || targetId <= 0)
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"sourceId and targetId required\"}");
+
+            if (sourceId == targetId)
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"sourceId and targetId must be different\"}");
+
+            if (database_) {
+                // Update references from sourceId to targetId
+                database_->execute(
+                    "UPDATE paper_tags SET paper_id = " + std::to_string(targetId)
+                    + " WHERE paper_id = " + std::to_string(sourceId));
+                database_->execute(
+                    "UPDATE paper_annotations SET paper_id = " + std::to_string(targetId)
+                    + " WHERE paper_id = " + std::to_string(sourceId));
+                database_->execute(
+                    "UPDATE user_bookmarks SET paper_id = " + std::to_string(targetId)
+                    + " WHERE paper_id = " + std::to_string(sourceId));
+
+                if (!keepBoth) {
+                    database_->execute(
+                        "DELETE FROM papers WHERE id = " + std::to_string(sourceId));
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["merged"] = true;
+            resp["targetId"] = targetId;
+            resp["sourceId"] = sourceId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[PaperApiModule] Registered 42 routes");
 }
 
 // ============================================================================

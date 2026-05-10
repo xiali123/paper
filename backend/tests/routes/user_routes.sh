@@ -38,4 +38,9 @@ ROUTES=(
     "GET|/api/users/1/reading-history||200,400|Get user reading history"
     "DELETE|/api/users/1/reading-history/1||200|Delete reading history entry"
     "GET|/api/users/1/export-data||200|Export user data (GDPR)"
+
+    # Avatar upload, bookmarks, account deletion
+    "POST|/api/users/1/avatar-upload|{\"filename\":\"avatar.png\",\"mimeType\":\"image/png\",\"size\":1024}|200|Upload user avatar"
+    "GET|/api/users/1/bookmarks||200|Get user bookmarked papers"
+    "DELETE|/api/users/1/account|{\"password\":\"confirm_pass\"}|200|Soft delete user account"
 )

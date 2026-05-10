@@ -709,6 +709,112 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // Crawler source and performance routes
+    // ========================================================================
+
+    // GET /api/crawler/sources — List crawler sources/configurations
+    router.get(prefix + "/sources", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json srcArr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT DISTINCT source_url, COUNT(*) as task_count "
+                    "FROM distributed_crawl_tasks GROUP BY source_url "
+                    "ORDER BY task_count DESC LIMIT 20");
+
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["url"] = StringUtil::getRowStr(row, "source_url");
+                    item["taskCount"] = StringUtil::getRowInt(row, "task_count");
+                    srcArr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[CrawlerApi] Sources query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["sources"] = srcArr;
+        resp["total"] = srcArr.size();
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/crawler/sources/add — Add a new crawl source
+    router.post(prefix + "/sources/add", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string url = body.value("url", "");
+            std::string name = body.value("name", "");
+            std::string schedule = body.value("schedule", "daily");
+            int maxDepth = body.value("maxDepth", 2);
+
+            if (url.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"url is required\"}");
+
+            std::string sourceId = "src_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "INSERT INTO crawl_sources (source_id, url, name, schedule, max_depth) VALUES ('"
+                        + ValidationHelper::sanitize(sourceId) + "', '"
+                        + ValidationHelper::sanitize(url) + "', '"
+                        + ValidationHelper::sanitize(name) + "', '"
+                        + ValidationHelper::sanitize(schedule) + "', "
+                        + std::to_string(maxDepth) + ")");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[CrawlerApi] Source insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["sourceId"] = sourceId;
+            resp["url"] = url;
+            resp["name"] = name;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/crawler/performance — Get crawler performance metrics
+    router.get(prefix + "/performance", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json perfArr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT DATE(completed_at) as date, COUNT(*) as completed, "
+                    "AVG(TIMESTAMPDIFF(MINUTE, created_at, completed_at)) as avgDuration "
+                    "FROM distributed_crawl_tasks "
+                    "WHERE status = 'completed' AND completed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) "
+                    "GROUP BY DATE(completed_at) ORDER BY date");
+
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["date"] = StringUtil::getRowStr(row, "date");
+                    item["completed"] = StringUtil::getRowInt(row, "completed");
+                    item["avgDuration"] = StringUtil::getRowDouble(row, "avgDuration");
+                    perfArr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[CrawlerApi] Performance query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["performance"] = perfArr;
+        resp["period"] = "7d";
+        resp["success"] = true;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 
@@ -718,6 +824,8 @@ void CrawlerApiModule::registerRoutes() {
             handleWebSocketMessage(message);
         });
     }
+
+    spdlog::info("[CrawlerApiModule] Registered 32 routes");
 }
 
 // ============================================================================

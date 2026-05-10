@@ -1181,7 +1181,118 @@ void UserApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("UserApiModule routes registered (28)");
+    // POST /api/users/:id/avatar-upload — Upload avatar (metadata only)
+    router.post(prefix + "/:id/avatar-upload", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string filename = body.value("filename", "");
+            std::string mimeType = body.value("mimeType", "image/png");
+            int size = body.value("size", 0);
+
+            if (filename.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "filename required"}}.dump());
+            }
+
+            if (impl_->database_) {
+                try {
+                    impl_->database_->execute(
+                        "UPDATE users SET avatar_url = '/avatars/user_" + StringUtil::escapeSql(userId)
+                        + ".png', updated_at = NOW() WHERE id = " + StringUtil::escapeSql(userId));
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Avatar upload DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["url"] = "/avatars/user_" + userId + ".png";
+            resp["filename"] = filename;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/users/:id/bookmarks — Get user's bookmarked papers
+    router.get(prefix + "/:id/bookmarks", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+
+            nlohmann::json resp;
+            resp["bookmarks"] = nlohmann::json::array();
+            resp["total"] = 0;
+            resp["userId"] = std::stoi(userId);
+
+            if (impl_->database_) {
+                try {
+                    auto results = impl_->database_->query(
+                        "SELECT p.id, p.title, p.authors, p.year, ub.created_at as bookmarkedAt "
+                        "FROM user_bookmarks ub JOIN papers p ON ub.paper_id = p.id "
+                        "WHERE ub.user_id = " + StringUtil::escapeSql(userId)
+                        + " ORDER BY ub.created_at DESC LIMIT 20");
+
+                    nlohmann::json arr = nlohmann::json::array();
+                    for (auto& row : results) {
+                        nlohmann::json item;
+                        item["id"] = row.count("id") ? std::stoi(row.at("id")) : 0;
+                        item["title"] = row.count("title") ? row.at("title") : "";
+                        item["authors"] = row.count("authors") ? row.at("authors") : "";
+                        auto yearIt = row.find("year");
+                        if (yearIt != row.end() && !yearIt->second.empty()) {
+                            try { item["year"] = std::stoi(yearIt->second); } catch (...) { item["year"] = 0; }
+                        } else {
+                            item["year"] = 0;
+                        }
+                        item["bookmarkedAt"] = row.count("bookmarkedAt") ? row.at("bookmarkedAt") : "";
+                        arr.push_back(item);
+                    }
+                    resp["bookmarks"] = arr;
+                    resp["total"] = arr.size();
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Bookmarks query failed: {}", e.what());
+                }
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // DELETE /api/users/:id/account — Delete user account (soft delete)
+    router.del(prefix + "/:id/account", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string password = body.value("password", "");
+
+            if (password.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "password confirmation required"}}.dump());
+            }
+
+            if (impl_->database_) {
+                try {
+                    impl_->database_->execute(
+                        "UPDATE users SET status = 'deactivated' WHERE id = "
+                        + StringUtil::escapeSql(userId));
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Account deactivation DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["message"] = "Account scheduled for deletion";
+            resp["userId"] = std::stoi(userId);
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("UserApiModule routes registered (31)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {

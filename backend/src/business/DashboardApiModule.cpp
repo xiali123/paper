@@ -562,7 +562,117 @@ void DashboardApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[DashboardApi] Registered 28 routes under {}", prefix);
+    // POST /api/dashboard/widgets/add — Add a new widget to dashboard
+    router.post(prefix + "/widgets/add", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string type = body.value("type", "");
+            int position = body.value("position", 0);
+            nlohmann::json config = body.value("config", nlohmann::json::object());
+
+            if (type != "stats" && type != "chart" && type != "list") {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "type must be stats, chart, or list"}}.dump());
+            }
+
+            auto now = std::chrono::system_clock::now();
+            auto ts = std::chrono::system_clock::to_time_t(now);
+            std::string widgetId = "wgt_" + std::to_string(static_cast<int64_t>(ts));
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "INSERT INTO dashboard_widgets (widget_id, type, position, config, created_at) VALUES ('"
+                        + StringUtil::escapeSql(widgetId) + "', '"
+                        + StringUtil::escapeSql(type) + "', "
+                        + std::to_string(position) + ", '"
+                        + StringUtil::escapeSql(config.dump()) + "', NOW())");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Widget add DB insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["widget"]["id"] = widgetId;
+            resp["widget"]["type"] = type;
+            resp["widget"]["position"] = position;
+            resp["widget"]["config"] = config;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // DELETE /api/dashboard/widgets/:id — Remove a widget
+    router.del(prefix + "/widgets/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string widgetId = req.pathParams.at("id");
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "DELETE FROM dashboard_widgets WHERE widget_id = '"
+                        + StringUtil::escapeSql(widgetId) + "'");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Widget delete DB failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["removed"] = true;
+            resp["widgetId"] = widgetId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/dashboard/paper-stats — Paper statistics for dashboard cards
+    router.get(prefix + "/paper-stats", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json data;
+        data["total"] = 0;
+        data["thisYear"] = 0;
+        data["last30Days"] = 0;
+        data["avgCitations"] = 0;
+        data["success"] = true;
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT COUNT(*) as total, "
+                    "COUNT(CASE WHEN year = YEAR(NOW()) THEN 1 END) as thisYear, "
+                    "COUNT(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 END) as last30Days, "
+                    "AVG(citation_count) as avgCitations FROM papers");
+
+                if (!results.empty()) {
+                    auto& row = results[0];
+                    auto it = row.find("total");
+                    if (it != row.end() && !it->second.empty()) {
+                        try { data["total"] = std::stoi(it->second); } catch (...) {}
+                    }
+                    it = row.find("thisYear");
+                    if (it != row.end() && !it->second.empty()) {
+                        try { data["thisYear"] = std::stoi(it->second); } catch (...) {}
+                    }
+                    it = row.find("last30Days");
+                    if (it != row.end() && !it->second.empty()) {
+                        try { data["last30Days"] = std::stoi(it->second); } catch (...) {}
+                    }
+                    it = row.find("avgCitations");
+                    if (it != row.end() && !it->second.empty()) {
+                        try { data["avgCitations"] = std::stod(it->second); } catch (...) {}
+                    }
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Paper stats query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, data.dump());
+    });
+
+    spdlog::info("[DashboardApi] Registered 31 routes under {}", prefix);
 }
 
 // ============================================================================

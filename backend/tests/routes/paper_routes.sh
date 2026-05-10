@@ -50,4 +50,7 @@ ROUTES=(
     "GET|/api/papers/favorites?userId=1||200|Get user favorite papers"
     "POST|/api/papers/batch-tag|{\"paperIds\":[1,2,3],\"tags\":[\"ml\",\"nlp\"]}|200|Batch add tags to papers"
     "GET|/api/papers/yours?userId=1||200|Get current user papers"
+    "POST|/api/papers/1/cite|{\"style\":\"apa\"}|200|Generate citation for paper"
+    "GET|/api/papers/duplicates||200|Find potential duplicate papers"
+    "POST|/api/papers/merge|{\"sourceId\":1,\"targetId\":2}|200|Merge duplicate papers"
 )

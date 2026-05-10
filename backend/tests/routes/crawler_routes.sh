@@ -50,4 +50,7 @@ ROUTES=(
     "GET|/api/crawler/tasks/task_123/logs||200|Get task execution logs"
     "POST|/api/crawler/tasks/task_123/retry-v2|{}|200|Retry a failed task (v2)"
     "GET|/api/crawler/health||200|Crawler health check"
+    "GET|/api/crawler/sources||200|List crawler sources"
+    "POST|/api/crawler/sources/add|{\"url\":\"https://example.com\",\"name\":\"Test Source\"}|200|Add new crawl source"
+    "GET|/api/crawler/performance||200|Get crawler performance metrics"
 )
