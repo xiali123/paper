@@ -315,6 +315,11 @@ class PaperReadingCompetency;
 class PaperParallelCoordinates;
 class PaperResourceScheduler;
 class PaperScriptRunner;
+class PaperTopicEvolution;
+class PaperReadingFlow;
+class PaperViolinPlot;
+class PaperMeetingScheduler;
+class PaperContextMenuEditor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

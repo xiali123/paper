@@ -312,6 +312,11 @@
 #include "visualization/PaperParallelCoordinates.hpp"
 #include "workspace/PaperResourceScheduler.hpp"
 #include "tools/PaperScriptRunner.hpp"
+#include "analysis/PaperTopicEvolution.hpp"
+#include "reading/PaperReadingFlow.hpp"
+#include "visualization/PaperViolinPlot.hpp"
+#include "workspace/PaperMeetingScheduler.hpp"
+#include "tools/PaperContextMenuEditor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6472,6 +6477,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Evolution", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Evolution");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicEvolution();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Flow", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Flow");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingFlow();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Violin Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Violin Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperViolinPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Meeting Scheduler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Meeting Scheduler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMeetingScheduler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Context Menu Editor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Context Menu Editor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContextMenuEditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7568,6 +7623,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Script Runner", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Script Runner");
+    });
+    commandPalette_->addAction("Topic Evolution", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Evolution");
+    });
+    commandPalette_->addAction("Reading Flow", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Flow");
+    });
+    commandPalette_->addAction("Violin Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Violin Plot");
+    });
+    commandPalette_->addAction("Meeting Scheduler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Meeting Scheduler");
+    });
+    commandPalette_->addAction("Context Menu Editor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Context Menu Editor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
