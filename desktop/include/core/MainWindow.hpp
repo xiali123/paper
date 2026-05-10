@@ -280,6 +280,11 @@ class PaperReadingDashboard;
 class PaperFunnelChart;
 class PaperAuditLogger;
 class PaperHealthMonitor;
+class PaperArgumentStrength;
+class PaperReadingScorecard;
+class PaperGaugeChart;
+class PaperPolicyManager;
+class PaperCacheInspector;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

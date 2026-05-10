@@ -277,6 +277,11 @@
 #include "visualization/PaperFunnelChart.hpp"
 #include "workspace/PaperAuditLogger.hpp"
 #include "tools/PaperHealthMonitor.hpp"
+#include "analysis/PaperArgumentStrength.hpp"
+#include "reading/PaperReadingScorecard.hpp"
+#include "visualization/PaperGaugeChart.hpp"
+#include "workspace/PaperPolicyManager.hpp"
+#include "tools/PaperCacheInspector.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6087,6 +6092,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Strength", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Strength");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentStrength();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Scorecard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Scorecard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingScorecard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Gauge Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Gauge Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGaugeChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Policy Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Policy Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPolicyManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cache Inspector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cache Inspector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCacheInspector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7078,6 +7133,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Health Monitor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Health Monitor");
+    });
+    commandPalette_->addAction("Argument Strength", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Strength");
+    });
+    commandPalette_->addAction("Reading Scorecard", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Scorecard");
+    });
+    commandPalette_->addAction("Gauge Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Gauge Chart");
+    });
+    commandPalette_->addAction("Policy Manager", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Policy Manager");
+    });
+    commandPalette_->addAction("Cache Inspector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cache Inspector");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
