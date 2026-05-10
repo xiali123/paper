@@ -64,4 +64,9 @@ ROUTES=(
     "GET|/api/papers/1/references||200,404|Get paper references"
     "POST|/api/papers/1/notes|{\"content\":\"Important finding\",\"page\":5}|200|Add note to paper"
     "GET|/api/papers/1/notes||200,404|Get notes for paper"
+
+    # --- Round 26 Additions ---
+    "POST|/api/papers/batch-update|{\"updates\":[{\"id\":1,\"tags\":[\"ml\"]}]}|200|Batch update papers"
+    "GET|/api/papers/duplicates?title=test||200|Find duplicate papers"
+    "POST|/api/papers/1/rate|{\"rating\":5,\"review\":\"Great\"}|200|Rate a paper"
 )

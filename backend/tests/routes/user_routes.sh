@@ -58,4 +58,9 @@ ROUTES=(
     "GET|/api/users/1/achievements||200|Get user achievements"
     "POST|/api/users/1/deactivate|{\"reason\":\"break\"}|200|Deactivate user account"
     "GET|/api/users/1/security||200|Get user security settings"
+
+    # --- Round 26 Additions ---
+    "GET|/api/users/1/paper-stats||200|Get user paper statistics"
+    "POST|/api/users/1/export-data|{}|200|Export all user data"
+    "GET|/api/users/1/reading-goals||200|Get reading goals"
 )

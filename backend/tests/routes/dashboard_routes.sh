@@ -81,4 +81,9 @@ ROUTES=(
     "GET|/api/dashboard/notifications||200|Get dashboard notifications"
     "POST|/api/dashboard/notifications/1/read|{}|200|Mark notification as read"
     "GET|/api/dashboard/papers/recent-views||200|Get recently viewed papers"
+
+    # --- Round 26 Additions ---
+    "GET|/api/dashboard/search-history/stats||200|Get search history statistics"
+    "POST|/api/dashboard/widgets/reset|{}|200|Reset dashboard widgets"
+    "GET|/api/dashboard/system/info||200|Get system info"
 )

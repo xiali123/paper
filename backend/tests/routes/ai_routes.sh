@@ -53,4 +53,9 @@ ROUTES=(
     "POST|/api/ai/code-explain|{\"code\":\"def hello(): pass\",\"language\":\"python\"}|200|Explain code snippet"
     "GET|/api/ai/models||200|List available AI models"
     "POST|/api/ai/compare|{\"text1\":\"hello\",\"text2\":\"world\",\"aspect\":\"similarity\"}|200|Compare two texts"
+
+    # --- Round 26 Additions ---
+    "POST|/api/ai/detect-language|{\"text\":\"Bonjour\"}|200|Detect language of text"
+    "POST|/api/ai/keywords|{\"text\":\"Machine learning papers\",\"maxKeywords\":10}|200|Extract keywords"
+    "GET|/api/ai/usage/history?days=30||200|Get AI usage history"
 )
