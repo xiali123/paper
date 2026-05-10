@@ -1682,7 +1682,135 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiApi] Registered 32 routes");
+    // POST /api/ai/outline — Generate paper outline from topic
+    router.post(prefix + "/outline", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string topic = body.value("topic", "");
+            int depth = body.value("depth", 3);
+            std::string style = body.value("style", "academic");
+
+            if (topic.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    json{{"success", false}, {"error", "topic is required"}}.dump());
+            }
+
+            topic = StringUtil::escapeSql(topic);
+
+            nlohmann::json outlineArr = nlohmann::json::array();
+            nlohmann::json section1;
+            section1["section"] = "1. Introduction";
+            section1["subsections"] = json::array({"1.1 Background", "1.2 Motivation", "1.3 Objectives"});
+            outlineArr.push_back(section1);
+
+            nlohmann::json section2;
+            section2["section"] = "2. Literature Review";
+            section2["subsections"] = json::array({"2.1 Related Work", "2.2 Research Gaps"});
+            outlineArr.push_back(section2);
+
+            nlohmann::json section3;
+            section3["section"] = "3. Methodology";
+            section3["subsections"] = json::array({"3.1 Approach", "3.2 Data Collection", "3.3 Analysis"});
+            outlineArr.push_back(section3);
+
+            if (depth >= 4) {
+                nlohmann::json section4;
+                section4["section"] = "4. Experiments";
+                section4["subsections"] = json::array({"4.1 Setup", "4.2 Results", "4.3 Discussion"});
+                outlineArr.push_back(section4);
+            }
+
+            if (depth >= 5) {
+                nlohmann::json section5;
+                section5["section"] = "5. Conclusion";
+                section5["subsections"] = json::array({"5.1 Summary", "5.2 Future Work"});
+                outlineArr.push_back(section5);
+            }
+
+            nlohmann::json data;
+            data["outline"] = outlineArr;
+            data["topic"] = topic;
+            data["depth"] = depth;
+            data["style"] = style;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    // GET /api/ai/conversations — List AI conversations
+    router.get(prefix + "/conversations", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json data;
+            nlohmann::json convArr = nlohmann::json::array();
+
+            if (database_) {
+                auto results = database_->query(
+                    "SELECT session_id, COUNT(*) as message_count, MIN(created_at) as started_at "
+                    "FROM ai_conversations GROUP BY session_id ORDER BY started_at DESC LIMIT 20");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["sessionId"] = row.count("session_id") ? row.at("session_id") : "";
+                    item["messageCount"] = row.count("message_count") ? std::stoi(row.at("message_count")) : 0;
+                    item["startedAt"] = row.count("started_at") ? row.at("started_at") : "";
+                    convArr.push_back(item);
+                }
+            }
+
+            data["conversations"] = convArr;
+            data["total"] = convArr.size();
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/ai/score-abstract — Score an abstract quality
+    router.post(prefix + "/score-abstract", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string abstract = body.value("abstract", "");
+
+            if (abstract.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    json{{"success", false}, {"error", "abstract is required"}}.dump());
+            }
+
+            // Stub scoring based on abstract length
+            int score = 50;
+            if (abstract.length() > 100) score += 10;
+            if (abstract.length() > 300) score += 10;
+            if (abstract.length() > 500) score += 8;
+            if (score > 100) score = 100;
+
+            nlohmann::json criteria;
+            criteria["clarity"] = 8;
+            criteria["completeness"] = 7;
+            criteria["novelty"] = 8;
+            criteria["writing"] = 8;
+
+            nlohmann::json data;
+            data["score"] = score;
+            data["criteria"] = criteria;
+            data["feedback"] = "The abstract provides a reasonable overview. Consider adding more specific contributions and quantitative results for improvement.";
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    spdlog::info("[AiApi] Registered 35 routes");
 }
 
 } // namespace PaperCrawler

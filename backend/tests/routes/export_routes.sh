@@ -36,4 +36,9 @@ ROUTES=(
     "POST|/api/export/customize|{\"format\":\"json\",\"includeAbstract\":true,\"fields\":[\"title\",\"authors\"]}|200|Customize export settings"
     "GET|/api/export/stats||200|Export statistics"
     "POST|/api/export/share|{\"exportId\":\"exp_1\",\"emails\":[\"user@example.com\"],\"message\":\"Check this export\"}|200|Share export result"
+
+    # --- Schedule management ---
+    "POST|/api/export/schedule/create|{\"name\":\"Weekly Report\",\"format\":\"pdf\",\"frequency\":\"weekly\",\"filters\":{},\"email\":\"user@example.com\"}|200|Create scheduled export job"
+    "GET|/api/export/schedule/list||200|List scheduled exports"
+    "DELETE|/api/export/schedule/1||200|Delete scheduled export"
 )

@@ -1041,6 +1041,126 @@ void CollaborativeWritingModule::registerRoutes() {
             return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
         }
     });
+
+    // ========================================================================
+    // New routes (v6 additions)
+    // ========================================================================
+
+    // PUT /api/writing/documents/:id/permissions — Update document permissions
+    router.put(prefix + "/documents/:id/permissions", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = std::to_string(body.value("userId", 0));
+            std::string role = body.value("role", "viewer");
+
+            if (database_) {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS document_collaborators ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "document_id INT, "
+                    "user_id INT, "
+                    "role VARCHAR(20) DEFAULT 'editor', "
+                    "joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    "UNIQUE KEY uniq (document_id, user_id))");
+
+                database_->execute(
+                    "INSERT INTO document_collaborators (document_id, user_id, role) VALUES ("
+                    + docId + ", " + userId + ", '"
+                    + StringUtil::escapeSql(role)
+                    + "') ON DUPLICATE KEY UPDATE role = VALUES(role)");
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["documentId"] = docId;
+            data["userId"] = body.value("userId", 0);
+            data["role"] = role;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/writing/documents/:id/stats — Get document editing stats
+    router.get(prefix + "/documents/:id/stats", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+
+            nlohmann::json stats;
+            stats["versions"] = 0;
+            stats["comments"] = 0;
+            stats["collaborators"] = 0;
+
+            if (database_) {
+                try {
+                    auto verRows = database_->query(
+                        "SELECT COUNT(*) as version_count FROM collab_versions WHERE document_id = " + docId);
+                    if (!verRows.empty() && verRows[0].count("version_count") && !verRows[0].at("version_count").empty()) {
+                        stats["versions"] = safeStoi(verRows[0].at("version_count"));
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Writing] Stats version query failed: {}", e.what());
+                }
+
+                try {
+                    auto comRows = database_->query(
+                        "SELECT COUNT(*) as comment_count FROM collab_comments WHERE document_id = " + docId);
+                    if (!comRows.empty() && comRows[0].count("comment_count") && !comRows[0].at("comment_count").empty()) {
+                        stats["comments"] = safeStoi(comRows[0].at("comment_count"));
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Writing] Stats comment query failed: {}", e.what());
+                }
+
+                try {
+                    auto colRows = database_->query(
+                        "SELECT COUNT(*) as collab_count FROM document_collaborators WHERE document_id = " + docId);
+                    if (!colRows.empty() && colRows[0].count("collab_count") && !colRows[0].at("collab_count").empty()) {
+                        stats["collaborators"] = safeStoi(colRows[0].at("collab_count"));
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Writing] Stats collaborator query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json data;
+            data["stats"] = stats;
+            data["documentId"] = docId;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/writing/documents/:id/lock — Lock/unlock document for editing
+    router.post(prefix + "/documents/:id/lock", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            bool locked = body.value("locked", true);
+            std::string userId = std::to_string(body.value("userId", 0));
+
+            if (database_) {
+                database_->execute(
+                    "UPDATE collab_documents SET locked = "
+                    + std::string(locked ? "1" : "0")
+                    + ", locked_by = " + userId
+                    + " WHERE id = " + docId);
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["documentId"] = docId;
+            data["locked"] = locked;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
 }
 
 // ============================================================================

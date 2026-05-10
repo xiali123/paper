@@ -36,4 +36,9 @@ ROUTES=(
     "GET|/api/writing/documents/1/collaborators||200|Get document collaborators"
     "POST|/api/writing/documents/1/share-link|{\"expiresIn\":24}|200|Generate share link for document"
     "GET|/api/writing/documents/recent||200|Get recently edited documents"
+
+    # --- v6 Additions ---
+    "PUT|/api/writing/documents/1/permissions|{\"userId\":2,\"role\":\"editor\"}|200|Update document permissions"
+    "GET|/api/writing/documents/1/stats||200|Get document editing stats"
+    "POST|/api/writing/documents/1/lock|{\"locked\":true,\"userId\":1}|200|Lock/unlock document for editing"
 )

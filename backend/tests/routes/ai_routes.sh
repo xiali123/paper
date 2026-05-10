@@ -38,4 +38,9 @@ ROUTES=(
     "POST|/api/ai/translate|{\"text\":\"Hello world\",\"sourceLang\":\"en\",\"targetLang\":\"zh\"}|200,400|Translate text v2"
     "GET|/api/ai/session/sess_123||200|Get AI session details"
     "POST|/api/ai/sentiment|{\"text\":\"This paper is excellent and groundbreaking\"}|200,400|Analyze sentiment"
+
+    # Outline, conversations, and abstract scoring
+    "POST|/api/ai/outline|{\"topic\":\"deep learning\",\"depth\":3,\"style\":\"academic\"}|200,400|Generate paper outline"
+    "GET|/api/ai/conversations||200|List AI conversations"
+    "POST|/api/ai/score-abstract|{\"abstract\":\"This paper proposes a novel method for deep learning.\"}|200,400|Score abstract quality"
 )

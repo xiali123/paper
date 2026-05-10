@@ -1188,7 +1188,102 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 29 routes");
+    // GET /api/stats/export-summary — Export statistics summary
+    router.get(prefix + "/export-summary", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json data;
+            nlohmann::json exportArr = nlohmann::json::array();
+            int totalExports = 0;
+
+            if (database_) {
+                auto results = database_->query(
+                    "SELECT format, COUNT(*) as count FROM export_tasks GROUP BY format");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["format"] = row.count("format") ? row.at("format") : "";
+                    int cnt = row.count("count") ? std::stoi(row.at("count")) : 0;
+                    item["count"] = cnt;
+                    totalExports += cnt;
+                    exportArr.push_back(item);
+                }
+            }
+
+            data["exports"] = exportArr;
+            data["totalExports"] = totalExports;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/user-activity — User activity statistics
+    router.get(prefix + "/user-activity", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json data;
+            nlohmann::json activityArr = nlohmann::json::array();
+
+            if (database_) {
+                auto results = database_->query(
+                    "SELECT DATE(created_at) as date, COUNT(DISTINCT user_id) as activeUsers "
+                    "FROM user_activity GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 14");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["date"] = row.count("date") ? row.at("date") : "";
+                    item["activeUsers"] = row.count("activeUsers") ? std::stoi(row.at("activeUsers")) : 0;
+                    activityArr.push_back(item);
+                }
+            }
+
+            data["activity"] = activityArr;
+            data["period"] = "14d";
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/search-analytics — Search analytics
+    router.get(prefix + "/search-analytics", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json data;
+            nlohmann::json analytics = nlohmann::json::object();
+            analytics["totalSearches"] = 0;
+            analytics["uniqueQueries"] = 0;
+            analytics["avgQueryLength"] = 0.0;
+
+            if (database_) {
+                auto results = database_->query(
+                    "SELECT COUNT(*) as totalSearches, COUNT(DISTINCT query) as uniqueQueries, "
+                    "AVG(LENGTH(query)) as avgQueryLength FROM search_history "
+                    "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+                if (!results.empty()) {
+                    auto& row = results[0];
+                    analytics["totalSearches"] = row.count("totalSearches") && !row.at("totalSearches").empty()
+                        ? std::stoi(row.at("totalSearches")) : 0;
+                    analytics["uniqueQueries"] = row.count("uniqueQueries") && !row.at("uniqueQueries").empty()
+                        ? std::stoi(row.at("uniqueQueries")) : 0;
+                    try {
+                        analytics["avgQueryLength"] = row.count("avgQueryLength") && !row.at("avgQueryLength").empty()
+                            ? std::stod(row.at("avgQueryLength")) : 0.0;
+                    } catch (...) { analytics["avgQueryLength"] = 0.0; }
+                }
+            }
+
+            data["analytics"] = analytics;
+            data["period"] = "30d";
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 32 routes");
 }
 
 std::string StatsApiModule::handleStats() {

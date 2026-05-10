@@ -44,4 +44,9 @@ ROUTES=(
     "GET|/api/stats/reading-progress||200|User reading progress stats"
     "GET|/api/stats/collection-size||200|Collection size distribution"
     "GET|/api/stats/activity-heatmap||200|Activity heatmap data"
+
+    # Export summary, user activity, and search analytics
+    "GET|/api/stats/export-summary||200|Export statistics summary"
+    "GET|/api/stats/user-activity||200|User activity statistics"
+    "GET|/api/stats/search-analytics||200|Search analytics"
 )

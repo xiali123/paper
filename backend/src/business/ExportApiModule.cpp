@@ -1482,7 +1482,114 @@ void ExportApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[ExportApi] Registered 29 routes");
+    // POST /api/export/schedule/create — Create scheduled export job
+    router.post(prefix + "/schedule/create", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string name = body.value("name", "");
+            std::string format = body.value("format", "json");
+            std::string frequency = body.value("frequency", "daily");
+            nlohmann::json filters = body.value("filters", nlohmann::json::object());
+            std::string email = body.value("email", "");
+
+            if (name.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"name is required\"}");
+
+            std::string scheduleId = "sch_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS export_schedules ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "schedule_id VARCHAR(64) NOT NULL, "
+                        "name VARCHAR(255) NOT NULL, "
+                        "format VARCHAR(32) NOT NULL, "
+                        "frequency VARCHAR(32) NOT NULL, "
+                        "filters JSON, "
+                        "email VARCHAR(255), "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                    std::string filtersStr = filters.dump();
+                    database_->execute(
+                        "INSERT INTO export_schedules (schedule_id, name, format, frequency, filters, email) VALUES ('"
+                        + StringUtil::escapeSql(scheduleId) + "', '"
+                        + StringUtil::escapeSql(name) + "', '"
+                        + StringUtil::escapeSql(format) + "', '"
+                        + StringUtil::escapeSql(frequency) + "', '"
+                        + StringUtil::escapeSql(filtersStr) + "', '"
+                        + StringUtil::escapeSql(email) + "')");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[ExportApi] Create schedule failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["scheduleId"] = scheduleId;
+            resp["name"] = name;
+            resp["frequency"] = frequency;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/export/schedule/list — List scheduled exports
+    router.get(prefix + "/schedule/list", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["schedules"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT * FROM export_schedules ORDER BY created_at DESC LIMIT 20");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? row.at("id") : "";
+                    item["scheduleId"] = row.count("schedule_id") ? row.at("schedule_id") : "";
+                    item["name"] = row.count("name") ? row.at("name") : "";
+                    item["format"] = row.count("format") ? row.at("format") : "";
+                    item["frequency"] = row.count("frequency") ? row.at("frequency") : "";
+                    item["email"] = row.count("email") ? row.at("email") : "";
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    arr.push_back(item);
+                }
+                resp["schedules"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[ExportApi] List schedules failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // DELETE /api/export/schedule/:id — Delete a scheduled export
+    router.del(prefix + "/schedule/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string scheduleId = req.pathParams.at("id");
+
+            if (database_) {
+                database_->execute(
+                    "DELETE FROM export_schedules WHERE id = " + scheduleId);
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["deleted"] = true;
+            resp["scheduleId"] = scheduleId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 32 routes");
 }
 
 } // namespace PaperCrawler
