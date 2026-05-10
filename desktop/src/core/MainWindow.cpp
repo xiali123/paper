@@ -222,6 +222,11 @@
 #include "visualization/PaperKeywordEvolution.hpp"
 #include "workspace/PaperReviewAssignment.hpp"
 #include "tools/PaperTableExtractor.hpp"
+#include "analysis/PaperMethodologyComparator.hpp"
+#include "reading/PaperReadingSpeedTest.hpp"
+#include "visualization/PaperCitationSankey.hpp"
+#include "workspace/PaperProjectMilestone.hpp"
+#include "tools/PaperFigureCaptioner.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5482,6 +5487,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Methodology Comparator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Methodology Comparator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMethodologyComparator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Speed Test", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Speed Test");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSpeedTest();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Citation Sankey", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Sankey");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationSankey();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Project Milestone", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Project Milestone");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProjectMilestone();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Figure Captioner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Figure Captioner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFigureCaptioner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6308,6 +6363,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Table Extractor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Table Extractor");
+    });
+    commandPalette_->addAction("Methodology Comparator", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Methodology Comparator");
+    });
+    commandPalette_->addAction("Reading Speed Test", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Speed Test");
+    });
+    commandPalette_->addAction("Citation Sankey", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Sankey");
+    });
+    commandPalette_->addAction("Project Milestone", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Project Milestone");
+    });
+    commandPalette_->addAction("Figure Captioner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Figure Captioner");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

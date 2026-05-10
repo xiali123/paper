@@ -225,6 +225,11 @@ class PaperReadingSessionTimer;
 class PaperKeywordEvolution;
 class PaperReviewAssignment;
 class PaperTableExtractor;
+class PaperMethodologyComparator;
+class PaperReadingSpeedTest;
+class PaperCitationSankey;
+class PaperProjectMilestone;
+class PaperFigureCaptioner;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
