@@ -1161,6 +1161,138 @@ void CollaborativeWritingModule::registerRoutes() {
                 "{\"error\":\"" + std::string(e.what()) + "\"}");
         }
     });
+
+    // ========================================================================
+    // New routes (v7 additions)
+    // ========================================================================
+
+    // GET /api/writing/documents/:id/diff — Get diff between two versions
+    router.get(prefix + "/documents/:id/diff", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+
+            std::string versionId1, versionId2;
+            auto v1It = req.queryParams.find("versionId1");
+            auto v2It = req.queryParams.find("versionId2");
+            if (v1It != req.queryParams.end()) versionId1 = v1It->second;
+            if (v2It != req.queryParams.end()) versionId2 = v2It->second;
+
+            nlohmann::json diff;
+            diff["added"] = 0;
+            diff["removed"] = 0;
+            diff["changes"] = nlohmann::json::array();
+
+            if (database_ && !versionId1.empty() && !versionId2.empty()) {
+                auto rows1 = database_->query(
+                    "SELECT content FROM collab_versions WHERE id = "
+                    + versionId1 + " AND document_id = " + docId);
+                auto rows2 = database_->query(
+                    "SELECT content FROM collab_versions WHERE id = "
+                    + versionId2 + " AND document_id = " + docId);
+
+                std::string content1 = (!rows1.empty() && rows1[0].count("content"))
+                    ? rows1[0].at("content") : "";
+                std::string content2 = (!rows2.empty() && rows2[0].count("content"))
+                    ? rows2[0].at("content") : "";
+
+                // Simple line-based diff count
+                int added = 0;
+                int removed = 0;
+                if (content2.size() > content1.size()) {
+                    added = static_cast<int>(content2.size() - content1.size());
+                } else if (content1.size() > content2.size()) {
+                    removed = static_cast<int>(content1.size() - content2.size());
+                }
+
+                diff["added"] = added;
+                diff["removed"] = removed;
+            }
+
+            nlohmann::json data;
+            data["diff"] = diff;
+            data["versionId1"] = versionId1;
+            data["versionId2"] = versionId2;
+            data["documentId"] = docId;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/writing/comments/:id/react — Add reaction to a comment
+    router.post(prefix + "/comments/:id/react", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string commentId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = std::to_string(body.value("userId", 0));
+            std::string emoji = body.value("emoji", "");
+
+            if (database_ && !emoji.empty()) {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS comment_reactions ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "comment_id INT, "
+                    "user_id INT, "
+                    "emoji VARCHAR(10), "
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    "UNIQUE KEY uniq (comment_id, user_id, emoji))");
+
+                database_->execute(
+                    "INSERT INTO comment_reactions (comment_id, user_id, emoji) VALUES ("
+                    + commentId + ", " + userId + ", '"
+                    + StringUtil::escapeSql(emoji) + "') "
+                    "ON DUPLICATE KEY UPDATE emoji = VALUES(emoji)");
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["commentId"] = commentId;
+            data["emoji"] = emoji;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/writing/documents/search — Search within documents
+    router.get(prefix + "/documents/search", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string query;
+            auto qIt = req.queryParams.find("q");
+            if (qIt != req.queryParams.end()) query = qIt->second;
+
+            nlohmann::json data;
+            data["documents"] = nlohmann::json::array();
+            data["total"] = 0;
+            data["query"] = query;
+
+            if (database_ && !query.empty()) {
+                auto rows = database_->query(
+                    "SELECT id, title FROM collab_documents WHERE title LIKE '%"
+                    + StringUtil::escapeSql(query) + "%' OR content LIKE '%"
+                    + StringUtil::escapeSql(query) + "%' LIMIT 10");
+
+                nlohmann::json arr = nlohmann::json::array();
+                for (const auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? safeStoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    arr.push_back(item);
+                }
+                data["documents"] = arr;
+                data["total"] = arr.size();
+            }
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[CollabWriting] Registered 35 routes");
 }
 
 // ============================================================================

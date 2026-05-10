@@ -1810,7 +1810,102 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiApi] Registered 35 routes");
+    // POST /api/ai/glossary — Generate glossary from paper content
+    router.post(prefix + "/glossary", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+
+            if (!body.contains("terms") || !body["terms"].is_array()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "terms array is required"}}.dump());
+            }
+
+            std::string context = body.value("context", "");
+            nlohmann::json glossaryArr = nlohmann::json::array();
+
+            for (const auto& term : body["terms"]) {
+                if (!term.is_string()) continue;
+                std::string t = term.get<std::string>();
+                nlohmann::json item;
+                item["term"] = t;
+                item["definition"] = "[Definition] " + t + " is a concept in " + (context.empty() ? "research" : context);
+                glossaryArr.push_back(item);
+            }
+
+            nlohmann::json data;
+            data["glossary"] = glossaryArr;
+            data["total"] = glossaryArr.size();
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                nlohmann::json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                nlohmann::json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    // POST /api/ai/summarize-batch — Summarize multiple texts
+    router.post(prefix + "/summarize-batch", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+
+            if (!body.contains("texts") || !body["texts"].is_array()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "texts array is required"}}.dump());
+            }
+
+            int maxLength = body.value("maxLength", 100);
+            nlohmann::json summariesArr = nlohmann::json::array();
+
+            for (const auto& text : body["texts"]) {
+                if (!text.is_string()) continue;
+                std::string original = text.get<std::string>();
+                std::string summary = original.length() > (size_t)maxLength
+                    ? original.substr(0, maxLength) + "..."
+                    : original;
+
+                nlohmann::json item;
+                item["original"] = original;
+                item["summary"] = "[Summary] " + summary;
+                summariesArr.push_back(item);
+            }
+
+            nlohmann::json data;
+            data["summaries"] = summariesArr;
+            data["total"] = summariesArr.size();
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                nlohmann::json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                nlohmann::json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    // GET /api/ai/quota — Get AI usage quota
+    router.get(prefix + "/quota", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json quota;
+            quota["daily"] = 100;
+            quota["used"] = 0;
+            quota["remaining"] = 100;
+            quota["resetAt"] = "tomorrow";
+
+            nlohmann::json data;
+            data["quota"] = quota;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                nlohmann::json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    spdlog::info("[AiApi] Registered 38 routes");
 }
 
 } // namespace PaperCrawler

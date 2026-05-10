@@ -43,4 +43,9 @@ ROUTES=(
     "POST|/api/ai/outline|{\"topic\":\"deep learning\",\"depth\":3,\"style\":\"academic\"}|200,400|Generate paper outline"
     "GET|/api/ai/conversations||200|List AI conversations"
     "POST|/api/ai/score-abstract|{\"abstract\":\"This paper proposes a novel method for deep learning.\"}|200,400|Score abstract quality"
+
+    # Glossary, batch summarize, quota
+    "POST|/api/ai/glossary|{\"terms\":[\"BERT\",\"Transformer\"],\"context\":\"NLP research\"}|200,400|Generate glossary"
+    "POST|/api/ai/summarize-batch|{\"texts\":[\"text1\",\"text2\"],\"maxLength\":100}|200,400|Summarize batch texts"
+    "GET|/api/ai/quota||200|Get AI usage quota"
 )

@@ -41,4 +41,9 @@ ROUTES=(
     "POST|/api/export/schedule/create|{\"name\":\"Weekly Report\",\"format\":\"pdf\",\"frequency\":\"weekly\",\"filters\":{},\"email\":\"user@example.com\"}|200|Create scheduled export job"
     "GET|/api/export/schedule/list||200|List scheduled exports"
     "DELETE|/api/export/schedule/1||200|Delete scheduled export"
+
+    # --- v7 Additions ---
+    "POST|/api/export/duplicate-check|{\"paperIds\":[1,2,3],\"format\":\"pdf\"}|200|Check for duplicate exports"
+    "GET|/api/export/formats/pdf||200|Get format details by ID"
+    "POST|/api/export/notify|{\"exportId\":\"exp_1\",\"email\":\"user@example.com\",\"webhookUrl\":\"https://example.com/hook\"}|200|Set up export completion notification"
 )

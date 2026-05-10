@@ -41,4 +41,9 @@ ROUTES=(
     "PUT|/api/writing/documents/1/permissions|{\"userId\":2,\"role\":\"editor\"}|200|Update document permissions"
     "GET|/api/writing/documents/1/stats||200|Get document editing stats"
     "POST|/api/writing/documents/1/lock|{\"locked\":true,\"userId\":1}|200|Lock/unlock document for editing"
+
+    # --- v7 Additions ---
+    "GET|/api/writing/documents/1/diff?versionId1=1&versionId2=2||200|Get diff between two versions"
+    "POST|/api/writing/comments/1/react|{\"userId\":1,\"emoji\":\"\xf0\x9f\x91\x8d\"}|200|Add reaction to a comment"
+    "GET|/api/writing/documents/search?q=test||200|Search within documents"
 )

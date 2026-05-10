@@ -49,4 +49,9 @@ ROUTES=(
     "GET|/api/stats/export-summary||200|Export statistics summary"
     "GET|/api/stats/user-activity||200|User activity statistics"
     "GET|/api/stats/search-analytics||200|Search analytics"
+
+    # Journal ranking, year-over-year, engagement
+    "GET|/api/stats/journal-ranking||200|Journal ranking by paper count"
+    "GET|/api/stats/year-over-year||200|Year-over-year growth comparison"
+    "GET|/api/stats/engagement||200|User engagement metrics"
 )

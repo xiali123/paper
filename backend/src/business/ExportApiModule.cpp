@@ -8,6 +8,7 @@
 #include "messages/DatabaseConnectionMessage.hpp"
 #include <nlohmann/json.hpp>
 #include "data/StringUtil.hpp"
+#include <set>
 #include <sstream>
 #include <iomanip>
 #include <fstream>
@@ -1589,7 +1590,148 @@ void ExportApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[ExportApi] Registered 32 routes");
+    // POST /api/export/duplicate-check — Check for duplicate exports
+    router.post(prefix + "/duplicate-check", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::vector<int> paperIds;
+            if (body.contains("paperIds") && body["paperIds"].is_array()) {
+                for (const auto& id : body["paperIds"]) {
+                    paperIds.push_back(id.get<int>());
+                }
+            }
+            std::string format = body.value("format", "");
+
+            nlohmann::json data;
+            data["duplicates"] = nlohmann::json::array();
+            data["uniquePapers"] = nlohmann::json::array();
+            data["totalDuplicates"] = 0;
+            data["success"] = true;
+
+            if (database_ && !paperIds.empty() && !format.empty()) {
+                std::string ids;
+                for (size_t i = 0; i < paperIds.size(); ++i) {
+                    if (i > 0) ids += ",";
+                    ids += std::to_string(paperIds[i]);
+                }
+
+                auto results = database_->query(
+                    "SELECT DISTINCT paper_id FROM export_tasks WHERE format = '"
+                    + StringUtil::escapeSql(format) + "' AND paper_count = "
+                    + std::to_string(paperIds.size()));
+
+                nlohmann::json dupArr = nlohmann::json::array();
+                nlohmann::json uniqueArr = nlohmann::json::array();
+                std::set<int> dupSet;
+                for (auto& row : results) {
+                    if (row.count("paper_id") && !row.at("paper_id").empty()) {
+                        dupSet.insert(std::stoi(row.at("paper_id")));
+                    }
+                }
+
+                for (int pid : paperIds) {
+                    if (dupSet.count(pid)) {
+                        dupArr.push_back(pid);
+                    } else {
+                        uniqueArr.push_back(pid);
+                    }
+                }
+
+                data["duplicates"] = dupArr;
+                data["uniquePapers"] = uniqueArr;
+                data["totalDuplicates"] = dupArr.size();
+            }
+
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/export/formats/:id — Get format details
+    router.get(prefix + "/formats/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string formatId = req.pathParams.at("id");
+
+            // Normalize to lowercase for matching
+            std::string lower = formatId;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+            nlohmann::json fmt;
+            fmt["id"] = formatId;
+
+            if (lower == "pdf") {
+                fmt["name"] = "PDF";
+                fmt["description"] = "Portable Document Format for sharing and printing";
+                fmt["maxSize"] = "50MB";
+                fmt["fields"] = std::vector<std::string>{"title", "authors", "abstract", "year", "journal"};
+            } else if (lower == "bib" || lower == "bibtex") {
+                fmt["name"] = "BibTeX";
+                fmt["description"] = "Bibliography format for LaTeX citations";
+                fmt["maxSize"] = "10MB";
+                fmt["fields"] = std::vector<std::string>{"title", "authors", "year", "journal", "doi"};
+            } else if (lower == "csv") {
+                fmt["name"] = "CSV";
+                fmt["description"] = "Comma-separated values for spreadsheet import";
+                fmt["maxSize"] = "100MB";
+                fmt["fields"] = std::vector<std::string>{"title", "authors", "year", "journal", "citation_count"};
+            } else if (lower == "json") {
+                fmt["name"] = "JSON";
+                fmt["description"] = "JavaScript Object Notation for data interchange";
+                fmt["maxSize"] = "100MB";
+                fmt["fields"] = std::vector<std::string>{"title", "authors", "abstract", "year", "keywords"};
+            } else if (lower == "xml") {
+                fmt["name"] = "XML";
+                fmt["description"] = "Extensible Markup Language for structured data";
+                fmt["maxSize"] = "100MB";
+                fmt["fields"] = std::vector<std::string>{"title", "authors", "year", "journal"};
+            } else if (lower == "markdown" || lower == "md") {
+                fmt["name"] = "Markdown";
+                fmt["description"] = "Lightweight markup language for text formatting";
+                fmt["maxSize"] = "50MB";
+                fmt["fields"] = std::vector<std::string>{"title", "authors", "abstract", "year"};
+            } else {
+                fmt["name"] = formatId;
+                fmt["description"] = "Custom export format";
+                fmt["maxSize"] = "50MB";
+                fmt["fields"] = std::vector<std::string>{"title", "authors"};
+            }
+
+            nlohmann::json data;
+            data["format"] = fmt;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/export/notify — Set up export completion notification
+    router.post(prefix + "/notify", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string exportId = body.value("exportId", "");
+            std::string email = body.value("email", "");
+            std::string webhookUrl = body.value("webhookUrl", "");
+
+            nlohmann::json notification;
+            notification["email"] = email;
+            notification["webhookUrl"] = webhookUrl;
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["exportId"] = exportId;
+            data["notification"] = notification;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 35 routes");
 }
 
 } // namespace PaperCrawler
