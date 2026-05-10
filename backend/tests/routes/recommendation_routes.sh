@@ -33,4 +33,9 @@ ROUTES=(
     "GET|/api/recommendation/recently-viewed||200|Get recently viewed papers"
     "POST|/api/recommendation/collaborative|{\"userId\":\"1\"}|200,400|Get collaborative filtering recommendations"
     "GET|/api/recommendation/diverse||200|Get diverse recommendations across categories"
+
+    # --- v6 Additions ---
+    "GET|/api/recommendation/by-reading||200|Recommend based on reading history"
+    "POST|/api/recommendation/reset|{\"userId\":\"1\"}|200|Reset recommendation model for user"
+    "GET|/api/recommendation/explain/1||200|Explain why a paper was recommended"
 )

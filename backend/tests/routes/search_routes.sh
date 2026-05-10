@@ -40,4 +40,9 @@ ROUTES=(
     "GET|/api/search/autocomplete?q=deep||200|Autocomplete suggestions v2"
     "POST|/api/search/feedback|{\"query\":\"BERT\",\"resultId\":\"paper_1\",\"relevant\":true,\"comment\":\"Good result\"}|200|Submit search feedback"
     "GET|/api/search/popular||200|Get popular search terms"
+
+    # New Search routes (v3)
+    "POST|/api/search/compare|{\"query1\":\"BERT\",\"query2\":\"transformer\"}|200|Compare search results"
+    "GET|/api/search/stats||200|Search engine statistics"
+    "POST|/api/search/semantic|{\"query\":\"attention mechanism\",\"limit\":5}|200|Semantic search"
 )

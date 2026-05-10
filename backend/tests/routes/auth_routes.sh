@@ -39,4 +39,9 @@ ROUTES=(
     "POST|/api/auth/verify-email|{\"email\":\"test@test.com\",\"code\":\"123456\"}|200,400|Verify email with code"
     "GET|/api/auth/login-history||200|Get recent login history"
     "POST|/api/auth/change-email|{\"userId\":\"1\",\"newEmail\":\"new@test.com\",\"password\":\"Pass1234\"}|200,400,404|Change user email"
+
+    # New Auth routes (v3)
+    "GET|/api/auth/sessions/active||200|Get active sessions"
+    "POST|/api/auth/logout-all|{\"userId\":\"1\",\"keepCurrent\":true}|200|Logout all other sessions"
+    "POST|/api/auth/api-key|{\"userId\":\"1\",\"name\":\"My API Key\",\"permissions\":[\"read\"]}|200|Generate API key"
 )

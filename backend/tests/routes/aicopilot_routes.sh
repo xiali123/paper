@@ -30,4 +30,9 @@ ROUTES=(
     "POST|/api/ai-co-pilot/sessions/1/pin|{\"pinned\":true}|200|Pin/unpin a session"
     "GET|/api/ai-co-pilot/sessions/pinned||200|Get pinned sessions"
     "POST|/api/ai-co-pilot/sessions/1/summarize||200|Summarize a conversation session"
+
+    # --- v6 Additions ---
+    "POST|/api/ai-co-pilot/sessions/1/bookmark|{\"messageId\":\"1\",\"bookmarked\":true}|200|Bookmark/unbookmark a message"
+    "GET|/api/ai-co-pilot/bookmarks||200|Get all bookmarked messages"
+    "POST|/api/ai-co-pilot/sessions/merge|{\"sessionIds\":[\"s1\",\"s2\"],\"newName\":\"Merged\"}|200|Merge multiple sessions"
 )

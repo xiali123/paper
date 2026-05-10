@@ -1569,7 +1569,123 @@ void AuthApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AuthApi] Registered 29 routes");
+    // GET /api/auth/sessions/active — Get all active sessions for current user
+    router.get(prefix + "/sessions/active", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json sessions = nlohmann::json::array();
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT id, user_id, ip_address, user_agent, created_at, last_active "
+                    "FROM user_sessions WHERE status = 'active' "
+                    "ORDER BY last_active DESC LIMIT 10");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["userId"] = row.count("user_id") && !row.at("user_id").empty() ? std::stoi(row.at("user_id")) : 0;
+                    item["ipAddress"] = row.count("ip_address") ? row.at("ip_address") : "";
+                    item["userAgent"] = row.count("user_agent") ? row.at("user_agent") : "";
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    item["lastActive"] = row.count("last_active") ? row.at("last_active") : "";
+                    sessions.push_back(item);
+                }
+            }
+
+            nlohmann::json data;
+            data["sessions"] = sessions;
+            data["total"] = sessions.size();
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/auth/logout-all — Logout from all other sessions
+    router.post(prefix + "/logout-all", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"userId required\"}");
+
+            int terminatedCount = 0;
+
+            if (database_) {
+                auto before = database_->query(
+                    "SELECT COUNT(*) as cnt FROM user_sessions WHERE user_id = "
+                    + StringUtil::escapeSql(userId) + " AND status = 'active'");
+                if (!before.empty() && before[0].count("cnt") && !before[0].at("cnt").empty()) {
+                    try { terminatedCount = std::stoi(before[0].at("cnt")); } catch (...) {}
+                }
+
+                database_->execute(
+                    "UPDATE user_sessions SET status = 'expired' WHERE user_id = "
+                    + StringUtil::escapeSql(userId) + " AND status = 'active'");
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["terminatedCount"] = terminatedCount;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/auth/api-key — Generate API key
+    router.post(prefix + "/api-key", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            std::string name = body.value("name", "My API Key");
+            std::vector<std::string> permissions;
+            if (body.contains("permissions") && body["permissions"].is_array()) {
+                for (auto& p : body["permissions"]) {
+                    permissions.push_back(p.get<std::string>());
+                }
+            }
+            if (permissions.empty()) permissions.push_back("read");
+
+            // Generate random hex string for API key
+            std::ostringstream hexStream;
+            std::random_device rd;
+            unsigned char buf[16];
+            for (size_t i = 0; i < sizeof(buf); i += sizeof(unsigned int)) {
+                unsigned int val = rd();
+                std::memcpy(buf + i, &val, std::min(sizeof(unsigned int), sizeof(buf) - i));
+            }
+            for (unsigned char c : buf) {
+                hexStream << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(c);
+            }
+            std::string apiKey = "pk_" + hexStream.str();
+
+            // Generate timestamp
+            auto now = std::chrono::system_clock::now();
+            auto time_t_now = std::chrono::system_clock::to_time_t(now);
+            std::ostringstream tsStream;
+            tsStream << std::put_time(std::gmtime(&time_t_now), "%Y-%m-%dT%H:%M:%SZ");
+            std::string created = tsStream.str();
+
+            nlohmann::json permArray = nlohmann::json::array();
+            for (auto& p : permissions) permArray.push_back(p);
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["apiKey"] = apiKey;
+            data["name"] = name;
+            data["permissions"] = permArray;
+            data["created"] = created;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 32 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

@@ -806,7 +806,108 @@ void AiCoPilotModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiCoPilot] Registered 29 routes at /api/ai-co-pilot");
+    // POST /api/ai-co-pilot/sessions/:id/bookmark — Bookmark/unbookmark a message
+    router.post(prefix + "/sessions/:id/bookmark", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string sessionId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string messageId = body.value("messageId", "");
+            bool bookmarked = body.value("bookmarked", true);
+
+            if (messageId.empty())
+                return HttpResponse::json(400, "{\"error\":\"messageId required\"}");
+
+            if (database_) {
+                database_->execute(
+                    "UPDATE ai_conversations SET bookmarked = "
+                    + std::string(bookmarked ? "1" : "0")
+                    + " WHERE id = " + messageId
+                    + " AND session_id = '" + sessionId + "'");
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["sessionId"] = sessionId;
+            resp["messageId"] = messageId;
+            resp["bookmarked"] = bookmarked;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/ai-co-pilot/bookmarks — Get all bookmarked messages across sessions
+    router.get(prefix + "/bookmarks", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json arr = nlohmann::json::array();
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT ac.id, ac.session_id, ac.role, ac.content, ac.created_at, "
+                    "s.name as sessionName FROM ai_conversations ac "
+                    "LEFT JOIN ai_copilot_sessions s ON ac.session_id = s.id "
+                    "WHERE ac.bookmarked = 1 ORDER BY ac.created_at DESC LIMIT 20");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row["id"].empty() ? std::stoi(row["id"]) : 0;
+                    item["sessionId"] = row.count("session_id") ? row["session_id"] : "";
+                    item["role"] = row.count("role") ? row["role"] : "";
+                    item["content"] = row.count("content") ? row["content"] : "";
+                    item["createdAt"] = row.count("created_at") ? row["created_at"] : "";
+                    item["sessionName"] = row.count("sessionName") ? row["sessionName"] : "";
+                    arr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["bookmarks"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/ai-co-pilot/sessions/merge — Merge multiple sessions
+    router.post(prefix + "/sessions/merge", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string newName = body.value("newName", "Merged Session");
+            nlohmann::json sessionIdsJson = body.value("sessionIds", nlohmann::json::array());
+
+            if (sessionIdsJson.empty() || !sessionIdsJson.is_array() || sessionIdsJson.size() < 2)
+                return HttpResponse::json(400, "{\"error\":\"sessionIds must contain at least 2 IDs\"}");
+
+            std::string targetSessionId = sessionIdsJson[0].get<std::string>();
+            int mergedCount = 0;
+
+            if (database_) {
+                for (size_t i = 1; i < sessionIdsJson.size(); ++i) {
+                    std::string srcId = sessionIdsJson[i].get<std::string>();
+                    database_->execute(
+                        "UPDATE ai_conversations SET session_id = '" + targetSessionId
+                        + "' WHERE session_id = '" + srcId + "'");
+                    database_->execute(
+                        "DELETE FROM ai_copilot_sessions WHERE id = '" + srcId + "'");
+                    mergedCount++;
+                }
+                database_->execute(
+                    "UPDATE ai_copilot_sessions SET name = '"
+                    + StringUtil::escapeSql(newName) + "' WHERE id = '" + targetSessionId + "'");
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["mergedSessionId"] = targetSessionId;
+            resp["newName"] = newName;
+            resp["mergedCount"] = mergedCount;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiCoPilot] Registered 32 routes at /api/ai-co-pilot");
 }
 
 } // namespace PaperCrawler

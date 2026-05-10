@@ -1472,7 +1472,141 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 30 routes");
+    // POST /api/search/compare — Compare search results side by side
+    router.post(prefix + "/compare", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string query1 = body.value("query1", "");
+            std::string query2 = body.value("query2", "");
+            if (query1.empty() || query2.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"query1 and query2 required\"}");
+
+            nlohmann::json results1 = nlohmann::json::array();
+            nlohmann::json results2 = nlohmann::json::array();
+
+            if (database_) {
+                std::string esc1 = StringUtil::escapeSql(query1);
+                std::string esc2 = StringUtil::escapeSql(query2);
+
+                auto rows1 = database_->query(
+                    "SELECT id, title, authors, year FROM papers WHERE title LIKE '%"
+                    + esc1 + "%' LIMIT 5");
+                for (auto& row : rows1) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    results1.push_back(item);
+                }
+
+                auto rows2 = database_->query(
+                    "SELECT id, title, authors, year FROM papers WHERE title LIKE '%"
+                    + esc2 + "%' LIMIT 5");
+                for (auto& row : rows2) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    results2.push_back(item);
+                }
+            }
+
+            nlohmann::json data;
+            data["results1"] = results1;
+            data["results2"] = results2;
+            data["query1"] = query1;
+            data["query2"] = query2;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/search/stats — Search engine statistics
+    router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json stats;
+            stats["totalSearches"] = 0;
+            stats["uniqueQueries"] = 0;
+            stats["uniqueUsers"] = 0;
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT COUNT(*) as totalSearches, "
+                    "COUNT(DISTINCT query) as uniqueQueries, "
+                    "COUNT(DISTINCT user_id) as uniqueUsers "
+                    "FROM search_history");
+                if (!result.empty()) {
+                    auto& row = result[0];
+                    if (row.count("totalSearches") && !row.at("totalSearches").empty()) {
+                        try { stats["totalSearches"] = std::stoi(row.at("totalSearches")); } catch (...) {}
+                    }
+                    if (row.count("uniqueQueries") && !row.at("uniqueQueries").empty()) {
+                        try { stats["uniqueQueries"] = std::stoi(row.at("uniqueQueries")); } catch (...) {}
+                    }
+                    if (row.count("uniqueUsers") && !row.at("uniqueUsers").empty()) {
+                        try { stats["uniqueUsers"] = std::stoi(row.at("uniqueUsers")); } catch (...) {}
+                    }
+                }
+            }
+
+            nlohmann::json data;
+            data["stats"] = stats;
+            data["success"] = true;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/search/semantic — Semantic search (stub)
+    router.post(prefix + "/semantic", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string query = body.value("query", "");
+            int limit = body.value("limit", 5);
+            if (query.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"query required\"}");
+
+            nlohmann::json results = nlohmann::json::array();
+            int total = 0;
+
+            if (database_) {
+                std::string escaped = StringUtil::escapeSql(query);
+                auto rows = database_->query(
+                    "SELECT id, title, authors FROM papers WHERE title LIKE '%"
+                    + escaped + "%' OR keywords LIKE '%"
+                    + escaped + "%' LIMIT " + std::to_string(limit));
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    results.push_back(item);
+                }
+                total = static_cast<int>(results.size());
+            }
+
+            nlohmann::json data;
+            data["results"] = results;
+            data["total"] = total;
+            data["query"] = query;
+            data["type"] = "semantic";
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 32 routes");
 }
 
 } // namespace PaperCrawler

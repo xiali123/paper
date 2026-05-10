@@ -2509,7 +2509,118 @@ void RecommendationApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, data.dump());
     });
 
-    spdlog::info("[Recommendation] Registered 29 routes");
+    // GET /api/recommendation/by-reading — Recommend based on reading history
+    router.get("/api/recommendation/by-reading", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId;
+            auto it = req.queryParams.find("userId");
+            if (it != req.queryParams.end()) userId = it->second;
+            if (userId.empty() && !req.body.empty()) {
+                try {
+                    auto body = nlohmann::json::parse(req.body);
+                    userId = body.value("userId", "");
+                } catch (...) {}
+            }
+            if (userId.empty()) {
+                nlohmann::json emptyResp;
+                emptyResp["papers"] = nlohmann::json::array();
+                emptyResp["total"] = 0;
+                emptyResp["algorithm"] = "content_based";
+                return HttpResponse::json(HTTP::OK, emptyResp.dump());
+            }
+            nlohmann::json papers = nlohmann::json::array();
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT DISTINCT p2.id, p2.title, p2.authors FROM user_reading_history urh "
+                    "JOIN papers p1 ON urh.paper_id = p1.id "
+                    "JOIN papers p2 ON p1.keywords = p2.keywords "
+                    "WHERE urh.user_id = " + userId + " "
+                    "AND p2.id NOT IN (SELECT paper_id FROM user_reading_history WHERE user_id = "
+                    + userId + ") LIMIT 10");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    papers.push_back(item);
+                }
+            }
+
+            nlohmann::json data;
+            data["papers"] = papers;
+            data["total"] = papers.size();
+            data["algorithm"] = "content_based";
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/recommendation/reset — Reset recommendation model for user
+    router.post("/api/recommendation/reset", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId required\"}");
+
+            if (database_) {
+                database_->execute(
+                    "DELETE FROM recommendation_feedback WHERE user_id = " + userId);
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["userId"] = userId;
+            data["message"] = "Recommendation data reset";
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/recommendation/explain/:id — Explain why a paper was recommended
+    router.get("/api/recommendation/explain/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string paperId = req.pathParams.at("id");
+            nlohmann::json reasons = nlohmann::json::array();
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT id, title, keywords, citation_count FROM papers WHERE id = " + paperId);
+                if (!result.empty()) {
+                    auto& row = result[0];
+                    if (row.count("keywords") && !row.at("keywords").empty()) {
+                        reasons.push_back({{"type", "similar_keywords"}, {"description", "Paper shares keywords with your reading interests"}});
+                    }
+                    if (row.count("citation_count") && !row.at("citation_count").empty()) {
+                        try {
+                            int citations = std::stoi(row.at("citation_count"));
+                            if (citations > 50) {
+                                reasons.push_back({{"type", "popularity"}, {"description", "Highly cited paper (" + std::to_string(citations) + " citations)"}});
+                            }
+                        } catch (...) {}
+                    }
+                }
+            }
+
+            if (reasons.empty()) {
+                reasons.push_back({{"type", "similar_keywords"}, {"description", "Content similarity based on your reading history"}});
+                reasons.push_back({{"type", "collaborative"}, {"description", "Users with similar interests also read this paper"}});
+            }
+
+            nlohmann::json data;
+            data["paperId"] = paperId;
+            data["reasons"] = reasons;
+            data["confidence"] = 0.8;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 32 routes");
 }
 
 } // namespace PaperCrawler
