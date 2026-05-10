@@ -330,6 +330,11 @@ class PaperAnnotationStudio;
 class PaperFlowDiagram;
 class PaperFundingMonitor;
 class PaperUpdateChecker;
+class PaperBiasScanner;
+class PaperCitationLogger;
+class PaperBubbleMatrix;
+class PaperTaskAutomator;
+class PaperLogInspector;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

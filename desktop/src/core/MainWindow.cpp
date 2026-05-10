@@ -327,6 +327,11 @@
 #include "visualization/PaperFlowDiagram.hpp"
 #include "workspace/PaperFundingMonitor.hpp"
 #include "tools/PaperUpdateChecker.hpp"
+#include "analysis/PaperBiasScanner.hpp"
+#include "reading/PaperCitationLogger.hpp"
+#include "visualization/PaperBubbleMatrix.hpp"
+#include "workspace/PaperTaskAutomator.hpp"
+#include "tools/PaperLogInspector.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6637,6 +6642,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Bias Scanner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bias Scanner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBiasScanner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Citation Logger", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Logger");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationLogger();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bubble Matrix", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bubble Matrix");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBubbleMatrix();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Task Automator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Task Automator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTaskAutomator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Log Inspector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Log Inspector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogInspector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7778,6 +7833,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Update Checker", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Update Checker");
+    });
+    commandPalette_->addAction("Bias Scanner", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Bias Scanner");
+    });
+    commandPalette_->addAction("Citation Logger", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Logger");
+    });
+    commandPalette_->addAction("Bubble Matrix", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Bubble Matrix");
+    });
+    commandPalette_->addAction("Task Automator", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Task Automator");
+    });
+    commandPalette_->addAction("Log Inspector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Log Inspector");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
