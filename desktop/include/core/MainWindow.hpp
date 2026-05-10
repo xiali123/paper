@@ -260,6 +260,11 @@ class PaperReadingBadge;
 class PaperHeatmapGrid;
 class PaperProposalTracker;
 class PaperLogViewer;
+class PaperFallacyDetector;
+class PaperReadingStreakBoard;
+class PaperScatterPlot;
+class PaperVendorRating;
+class PaperConfigEditor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

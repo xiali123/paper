@@ -257,6 +257,11 @@
 #include "visualization/PaperHeatmapGrid.hpp"
 #include "workspace/PaperProposalTracker.hpp"
 #include "tools/PaperLogViewer.hpp"
+#include "analysis/PaperFallacyDetector.hpp"
+#include "reading/PaperReadingStreakBoard.hpp"
+#include "visualization/PaperScatterPlot.hpp"
+#include "workspace/PaperVendorRating.hpp"
+#include "tools/PaperConfigEditor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5867,6 +5872,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Fallacy Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Fallacy Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFallacyDetector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Streak Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Streak Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingStreakBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Scatter Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Scatter Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperScatterPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Vendor Rating", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Vendor Rating");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVendorRating();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Config Editor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Config Editor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConfigEditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6798,6 +6853,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Log Viewer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Log Viewer");
+    });
+    commandPalette_->addAction("Fallacy Detector", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Fallacy Detector");
+    });
+    commandPalette_->addAction("Reading Streak Board", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Streak Board");
+    });
+    commandPalette_->addAction("Scatter Plot", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Scatter Plot");
+    });
+    commandPalette_->addAction("Vendor Rating", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Vendor Rating");
+    });
+    commandPalette_->addAction("Config Editor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Config Editor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
