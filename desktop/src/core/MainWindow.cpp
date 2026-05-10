@@ -247,6 +247,11 @@
 #include "visualization/PaperBubbleChart.hpp"
 #include "workspace/PaperExpenseLogger.hpp"
 #include "tools/PaperWebScraper.hpp"
+#include "analysis/PaperHypothesisTracker.hpp"
+#include "reading/PaperReadingPuzzle.hpp"
+#include "visualization/PaperRadarChart.hpp"
+#include "workspace/PaperContractManager.hpp"
+#include "tools/PaperCronScheduler.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5757,6 +5762,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Hypothesis Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hypothesis Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHypothesisTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Puzzle", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Puzzle");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingPuzzle();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Radar Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Radar Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRadarChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Contract Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contract Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContractManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cron Scheduler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cron Scheduler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCronScheduler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6658,6 +6713,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Web Scraper", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Web Scraper");
+    });
+    commandPalette_->addAction("Hypothesis Tracker", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Hypothesis Tracker");
+    });
+    commandPalette_->addAction("Reading Puzzle", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Puzzle");
+    });
+    commandPalette_->addAction("Radar Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Radar Chart");
+    });
+    commandPalette_->addAction("Contract Manager", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Contract Manager");
+    });
+    commandPalette_->addAction("Cron Scheduler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cron Scheduler");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

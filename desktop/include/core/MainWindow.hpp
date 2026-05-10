@@ -250,6 +250,11 @@ class PaperReadingChallenge;
 class PaperBubbleChart;
 class PaperExpenseLogger;
 class PaperWebScraper;
+class PaperHypothesisTracker;
+class PaperReadingPuzzle;
+class PaperRadarChart;
+class PaperContractManager;
+class PaperCronScheduler;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
