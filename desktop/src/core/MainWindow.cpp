@@ -292,6 +292,11 @@
 #include "visualization/PaperTreemapChart.hpp"
 #include "workspace/PaperCostEstimator.hpp"
 #include "tools/PaperPluginInstaller.hpp"
+#include "analysis/PaperArgumentVisualizer.hpp"
+#include "reading/PaperReadingScorePredictor.hpp"
+#include "visualization/PaperWordCloud.hpp"
+#include "workspace/PaperVendorComparison.hpp"
+#include "tools/PaperDeploymentTracker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6252,6 +6257,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Visualizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Visualizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentVisualizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Score Predictor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Score Predictor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingScorePredictor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Word Cloud", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Word Cloud");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWordCloud();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Vendor Comparison", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Vendor Comparison");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVendorComparison();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Deployment Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Deployment Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDeploymentTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7288,6 +7343,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Plugin Installer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Plugin Installer");
+    });
+    commandPalette_->addAction("Argument Visualizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Visualizer");
+    });
+    commandPalette_->addAction("Score Predictor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Score Predictor");
+    });
+    commandPalette_->addAction("Word Cloud", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Word Cloud");
+    });
+    commandPalette_->addAction("Vendor Comparison", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Vendor Comparison");
+    });
+    commandPalette_->addAction("Deployment Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Deployment Tracker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

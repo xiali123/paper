@@ -295,6 +295,11 @@ class PaperReadingProgressGrid;
 class PaperTreemapChart;
 class PaperCostEstimator;
 class PaperPluginInstaller;
+class PaperArgumentVisualizer;
+class PaperReadingScorePredictor;
+class PaperWordCloud;
+class PaperVendorComparison;
+class PaperDeploymentTracker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
