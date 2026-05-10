@@ -29,4 +29,8 @@ ROUTES=(
     "POST|/api/ai/papers/1/summary||200,404|Summarize paper by ID"
     "GET|/api/ai/papers/1/keywords||200,404|Extract paper keywords"
     "GET|/api/ai/stats||200|AI module stats"
+    "POST|/api/ai/paraphrase|{\"text\":\"This is a test sentence\",\"style\":\"academic\"}|200,400|Paraphrase text"
+    "GET|/api/ai/usage||200|Get AI API usage statistics"
+    "POST|/api/ai/extract-entities|{\"text\":\"Apple was founded by Steve Jobs\"}|200,400|Extract named entities"
+    "POST|/api/ai/generate-abstract|{\"title\":\"Test Paper\",\"content\":\"This is the content of a test paper.\"}|200,400|Generate abstract"
 )

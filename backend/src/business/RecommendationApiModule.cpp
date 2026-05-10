@@ -2175,7 +2175,110 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 20 routes");
+    // GET /api/recommendation/similar/:id — Get similar papers to a given paper
+    router.get("/api/recommendation/similar/:id", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string id = req.pathParams.at("id");
+
+            nlohmann::json resp;
+            resp["papers"] = nlohmann::json::array();
+            resp["sourcePaperId"] = id;
+            resp["total"] = 0;
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT p.id, p.title, p.authors, p.year FROM papers p WHERE p.id != "
+                    + id + " ORDER BY p.citation_count DESC LIMIT 5");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    item["year"] = row.count("year") && !row.at("year").empty() ? std::stoi(row.at("year")) : 0;
+                    arr.push_back(item);
+                }
+                resp["papers"] = arr;
+                resp["total"] = arr.size();
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/recommendation/blocklist — Add paper to blocklist (never recommend)
+    router.post("/api/recommendation/blocklist", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string userId = body.value("userId", "");
+            std::string paperId = body.value("paperId", "");
+            if (userId.empty() || paperId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId and paperId required\"}");
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS recommendation_blocklist ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "user_id INT, "
+                        "paper_id INT, "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                        "UNIQUE KEY uniq (user_id, paper_id))");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Create blocklist table failed: {}", e.what());
+                }
+
+                database_->execute(
+                    "INSERT IGNORE INTO recommendation_blocklist (user_id, paper_id) VALUES ("
+                    + userId + ", " + paperId + ")");
+            }
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/recommendation/blocklist — Get user's blocklist
+    router.get("/api/recommendation/blocklist", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId;
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                userId = body.value("userId", "");
+            }
+            if (userId.empty()) {
+                auto it = req.queryParams.find("userId");
+                if (it != req.queryParams.end()) userId = it->second;
+            }
+            if (userId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId required\"}");
+
+            nlohmann::json resp;
+            resp["blocklist"] = nlohmann::json::array();
+            resp["total"] = 0;
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT rb.paper_id, p.title FROM recommendation_blocklist rb "
+                    "LEFT JOIN papers p ON rb.paper_id = p.id WHERE rb.user_id = " + userId);
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["paperId"] = row.count("paper_id") && !row.at("paper_id").empty() ? std::stoi(row.at("paper_id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    arr.push_back(item);
+                }
+                resp["blocklist"] = arr;
+                resp["total"] = arr.size();
+            }
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 23 routes");
 }
 
 } // namespace PaperCrawler

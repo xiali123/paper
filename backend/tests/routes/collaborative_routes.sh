@@ -28,4 +28,7 @@ ROUTES=(
     "GET|/api/writing/documents/1/versions||200,401|Get document version history"
     "POST|/api/writing/comments/1/reply|{\"content\":\"Reply text\",\"userId\":1}|200|Reply to a comment"
     "GET|/api/writing/documents/1/comments||200,401|Get all comments for document"
+    "PUT|/api/writing/documents/1/title|{\"title\":\"New Title\"}|200|Update document title"
+    "GET|/api/writing/documents/1/word-count||200|Get word count stats"
+    "POST|/api/writing/documents/1/duplicate|{\"title\":\"Copy of Doc\"}|200|Duplicate a document"
 )

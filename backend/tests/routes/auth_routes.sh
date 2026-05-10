@@ -30,4 +30,7 @@ ROUTES=(
     "GET|/api/auth/security-log||200|Get security log"
     "POST|/api/auth/two-factor/enable|{\"userId\":\"1\",\"method\":\"totp\"}|200|Enable two-factor auth"
     "POST|/api/auth/two-factor/verify|{\"userId\":\"1\",\"code\":\"123456\"}|200|Verify two-factor code"
+    "POST|/api/auth/email-verify|{\"email\":\"test@test.com\"}|200|Send email verification"
+    "POST|/api/auth/email-verify/confirm|{\"token\":\"verify_token_123\"}|200|Confirm email with token"
+    "GET|/api/auth/permissions||200|Get user permissions"
 )

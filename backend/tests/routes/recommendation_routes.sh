@@ -24,4 +24,7 @@ ROUTES=(
     "POST|/api/recommendation/ignore|{\"recommendationId\":\"1\",\"userId\":\"1\"}|200|Ignore a recommendation"
     "GET|/api/recommendation/categories||200|Get recommendation categories"
     "POST|/api/recommendation/preference|{\"userId\":\"1\",\"categories\":[\"ml\",\"nlp\"],\"minScore\":0.5}|200|Set recommendation preferences"
+    "GET|/api/recommendation/similar/1||200|Get similar papers by paper id"
+    "POST|/api/recommendation/blocklist|{\"userId\":\"1\",\"paperId\":\"2\"}|200|Add paper to blocklist"
+    "GET|/api/recommendation/blocklist|{\"userId\":\"1\"}|200|Get user blocklist"
 )

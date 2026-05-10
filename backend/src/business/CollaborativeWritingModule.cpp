@@ -857,6 +857,99 @@ void CollaborativeWritingModule::registerRoutes() {
             return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
         }
     });
+
+    // PUT /api/writing/documents/:id/title — Update document title
+    router.put("/api/writing/documents/:id/title", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string title = body.value("title", "");
+
+            if (database_ && !title.empty()) {
+                database_->execute(
+                    "UPDATE collab_documents SET title = '"
+                    + StringUtil::escapeSql(title) + "' WHERE id = " + docId);
+            }
+            nlohmann::json data;
+            data["success"] = true;
+            data["documentId"] = docId;
+            data["title"] = title;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/writing/documents/:id/word-count — Get word count stats
+    router.get("/api/writing/documents/:id/word-count", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+
+            nlohmann::json stats;
+            stats["words"] = 0;
+            stats["characters"] = 0;
+            stats["paragraphs"] = 0;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT content FROM collab_documents WHERE id = " + docId);
+                if (!rows.empty() && rows[0].count("content")) {
+                    const std::string& content = rows[0].at("content");
+                    stats["characters"] = static_cast<int>(content.size());
+
+                    int words = 0;
+                    int paragraphs = 0;
+                    bool inWord = false;
+                    for (char c : content) {
+                        if (c == '\n') paragraphs++;
+                        if (std::isspace(static_cast<unsigned char>(c))) {
+                            inWord = false;
+                        } else if (!inWord) {
+                            inWord = true;
+                            words++;
+                        }
+                    }
+                    if (!content.empty()) paragraphs++;
+                    stats["words"] = words;
+                    stats["paragraphs"] = paragraphs;
+                }
+            }
+
+            nlohmann::json data;
+            data["documentId"] = docId;
+            data["stats"] = stats;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/writing/documents/:id/duplicate — Duplicate a document
+    router.post("/api/writing/documents/:id/duplicate", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            std::string newTitle = "Copy of ...";
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                newTitle = body.value("title", "Copy of ...");
+            }
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO collab_documents (title, content, created_at) "
+                    "SELECT CONCAT('Copy of ', title), content, NOW() "
+                    "FROM collab_documents WHERE id = " + docId);
+            }
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["sourceId"] = docId;
+            data["newTitle"] = newTitle;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
 }
 
 // ============================================================================
