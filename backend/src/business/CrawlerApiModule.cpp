@@ -1046,6 +1046,135 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // Round 24 Additions — Config & Domains
+    // ========================================================================
+
+    // GET /api/crawler/config — Get crawler configuration
+    router.get(prefix + "/config", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json resp;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT config_key, config_value FROM crawler_config");
+                for (auto& row : rows) {
+                    std::string key = StringUtil::getRowStr(row, "config_key");
+                    std::string val = StringUtil::getRowStr(row, "config_value");
+                    if (key == "maxConcurrent") {
+                        resp["maxConcurrent"] = val.empty() ? 5 : std::stoi(val);
+                    } else if (key == "retryLimit") {
+                        resp["retryLimit"] = val.empty() ? 3 : std::stoi(val);
+                    } else if (key == "timeout") {
+                        resp["timeout"] = val.empty() ? 30 : std::stoi(val);
+                    } else if (key == "userAgent") {
+                        resp["userAgent"] = val;
+                    }
+                }
+            }
+
+            // Fill defaults for missing keys
+            if (!resp.contains("maxConcurrent")) resp["maxConcurrent"] = 5;
+            if (!resp.contains("retryLimit"))    resp["retryLimit"] = 3;
+            if (!resp.contains("timeout"))       resp["timeout"] = 30;
+            if (!resp.contains("userAgent"))     resp["userAgent"] = "PaperCrawler/1.0";
+
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // PUT /api/crawler/config — Update crawler configuration
+    router.put(prefix + "/config", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            nlohmann::json updated = nlohmann::json::array();
+
+            if (database_) {
+                std::vector<std::string> keys;
+                if (body.contains("maxConcurrent") && body["maxConcurrent"].is_number()) {
+                    keys.push_back("maxConcurrent");
+                    database_->execute(
+                        "INSERT INTO crawler_config (config_key, config_value) VALUES ('maxConcurrent', '"
+                        + std::to_string(body["maxConcurrent"].get<int>())
+                        + "') ON UPDATE config_value = VALUES(config_value)");
+                }
+                if (body.contains("retryLimit") && body["retryLimit"].is_number()) {
+                    keys.push_back("retryLimit");
+                    database_->execute(
+                        "INSERT INTO crawler_config (config_key, config_value) VALUES ('retryLimit', '"
+                        + std::to_string(body["retryLimit"].get<int>())
+                        + "') ON UPDATE config_value = VALUES(config_value)");
+                }
+                if (body.contains("timeout") && body["timeout"].is_number()) {
+                    keys.push_back("timeout");
+                    database_->execute(
+                        "INSERT INTO crawler_config (config_key, config_value) VALUES ('timeout', '"
+                        + std::to_string(body["timeout"].get<int>())
+                        + "') ON UPDATE config_value = VALUES(config_value)");
+                }
+                if (body.contains("userAgent") && body["userAgent"].is_string()) {
+                    keys.push_back("userAgent");
+                    std::string escaped = StringUtil::escapeSql(body["userAgent"].get<std::string>());
+                    database_->execute(
+                        "INSERT INTO crawler_config (config_key, config_value) VALUES ('userAgent', '"
+                        + escaped + "') ON UPDATE config_value = VALUES(config_value)");
+                }
+                for (auto& k : keys) updated.push_back(k);
+            } else {
+                // Stub: echo back whatever was sent
+                for (auto it = body.begin(); it != body.end(); ++it) {
+                    updated.push_back(it.key());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["updated"] = updated;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/crawler/domains — Get crawled domains summary
+    router.get(prefix + "/domains", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json domainsArr = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(source_url, '/', 3), '://', -1) as domain, "
+                    "COUNT(*) as taskCount, "
+                    "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedCount "
+                    "FROM distributed_crawl_tasks "
+                    "GROUP BY domain ORDER BY taskCount DESC LIMIT 50");
+
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["domain"] = StringUtil::getRowStr(row, "domain");
+                    item["taskCount"] = StringUtil::getRowInt(row, "taskCount");
+                    int completed = StringUtil::getRowInt(row, "completedCount");
+                    int total = StringUtil::getRowInt(row, "taskCount");
+                    item["successRate"] = total > 0
+                        ? std::round(completed * 10000.0 / total) / 100.0 : 0.0;
+                    domainsArr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["domains"] = domainsArr;
+            resp["total"] = domainsArr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 
@@ -1056,7 +1185,7 @@ void CrawlerApiModule::registerRoutes() {
         });
     }
 
-    spdlog::info("[CrawlerApiModule] Registered 38 routes");
+    spdlog::info("[CrawlerApiModule] Registered 41 routes");
 }
 
 // ============================================================================

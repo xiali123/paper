@@ -61,4 +61,9 @@ ROUTES=(
     "POST|/api/crawler/tasks/batch|{\"urls\":[\"https://example.com\"],\"priority\":1}|200|Create batch crawl tasks"
     "GET|/api/crawler/stats/daily||200|Daily crawler statistics"
     "GET|/api/crawler/tasks/1/progress||200,404|Get task progress detail"
+
+    # --- Round 24 Additions ---
+    "GET|/api/crawler/config||200|Get crawler configuration"
+    "PUT|/api/crawler/config|{\"maxConcurrent\":10,\"timeout\":60}|200|Update crawler configuration"
+    "GET|/api/crawler/domains||200|Get crawled domains summary"
 )

@@ -49,4 +49,9 @@ ROUTES=(
     "POST|/api/auth/password-reset/request|{\"email\":\"test@test.com\"}|200|Request password reset"
     "POST|/api/auth/password-reset/confirm|{\"token\":\"abc123\",\"newPassword\":\"newpass\"}|200|Confirm password reset"
     "GET|/api/auth/sessions/1||200,404|Get session details"
+
+    # --- Round 24 Additions ---
+    "GET|/api/auth/oauth/providers||200|List OAuth providers"
+    "POST|/api/auth/oauth/callback|{\"provider\":\"google\",\"code\":\"abc\"}|200|Handle OAuth callback"
+    "POST|/api/auth/mfa/setup|{\"userId\":1,\"method\":\"totp\"}|200|Setup MFA"
 )

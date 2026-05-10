@@ -59,4 +59,9 @@ ROUTES=(
     "GET|/api/stats/papers/by-source||200|Papers grouped by source"
     "GET|/api/stats/users/growth||200|User registration growth"
     "POST|/api/stats/export|{\"type\":\"papers\",\"format\":\"json\",\"dateRange\":\"30d\"}|200|Export statistics report"
+
+    # --- Round 24 Additions ---
+    "GET|/api/stats/papers/by-year||200|Papers grouped by year"
+    "GET|/api/stats/citations/distribution||200|Citation count distribution"
+    "GET|/api/stats/recommendations/impact||200|Recommendation system impact"
 )

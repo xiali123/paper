@@ -50,4 +50,9 @@ ROUTES=(
     "GET|/api/search/deep?q=test||200|Deep search with full-text matching"
     "POST|/api/search/export|{\"query\":\"test\",\"format\":\"json\"}|200|Export search results"
     "GET|/api/search/trends||200|Search trend analysis"
+
+    # --- Round 24 Additions ---
+    "POST|/api/search/index/rebuild|{\"scope\":\"full\"}|200|Trigger search index rebuild"
+    "GET|/api/search/filters||200|Get available search filters"
+    "POST|/api/search/analytics|{\"period\":\"7d\"}|200|Get search analytics summary"
 )

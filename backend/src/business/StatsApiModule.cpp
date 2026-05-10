@@ -8,6 +8,7 @@
 #include "core/MessageBus.hpp"
 #include "messages/DatabaseConnectionMessage.hpp"
 #include "business/JsonHelper.hpp"
+#include "data/StringUtil.hpp"
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <map>
@@ -1477,7 +1478,124 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 38 routes");
+    // ========================================================================
+    // Round 24 Additions — Papers by year, citation distribution, recommendation impact
+    // ========================================================================
+
+    // GET /api/stats/papers/by-year — Papers grouped by publication year
+    router.get(prefix + "/papers/by-year", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json yearsArr = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT year, COUNT(*) as count FROM papers "
+                    "WHERE year IS NOT NULL AND year != '' "
+                    "GROUP BY year ORDER BY year DESC");
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    std::string yearStr = row.count("year") ? row.at("year") : "";
+                    int yr = 0;
+                    if (!yearStr.empty()) {
+                        try { yr = std::stoi(yearStr); } catch (...) { yr = 0; }
+                    }
+                    item["year"] = yr;
+                    item["count"] = row.count("count") && !row.at("count").empty()
+                        ? std::stoi(row.at("count")) : 0;
+                    yearsArr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["years"] = yearsArr;
+            resp["total"] = yearsArr.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/citations/distribution — Citation count distribution
+    router.get(prefix + "/citations/distribution", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json distArr = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT "
+                    "SUM(CASE WHEN citation_count = 0 THEN 1 ELSE 0 END) as range_0, "
+                    "SUM(CASE WHEN citation_count BETWEEN 1 AND 10 THEN 1 ELSE 0 END) as range_1_10, "
+                    "SUM(CASE WHEN citation_count BETWEEN 11 AND 50 THEN 1 ELSE 0 END) as range_11_50, "
+                    "SUM(CASE WHEN citation_count BETWEEN 51 AND 100 THEN 1 ELSE 0 END) as range_51_100, "
+                    "SUM(CASE WHEN citation_count > 100 THEN 1 ELSE 0 END) as range_100_plus "
+                    "FROM papers");
+
+                if (!rows.empty()) {
+                    auto& r = rows[0];
+                    nlohmann::json r0;  r0["range"] = "0";     r0["count"] = StringUtil::getRowInt(r, "range_0");       distArr.push_back(r0);
+                    nlohmann::json r1;  r1["range"] = "1-10";  r1["count"] = StringUtil::getRowInt(r, "range_1_10");    distArr.push_back(r1);
+                    nlohmann::json r2;  r2["range"] = "11-50"; r2["count"] = StringUtil::getRowInt(r, "range_11_50");   distArr.push_back(r2);
+                    nlohmann::json r3;  r3["range"] = "51-100";r3["count"] = StringUtil::getRowInt(r, "range_51_100");  distArr.push_back(r3);
+                    nlohmann::json r4;  r4["range"] = "100+";  r4["count"] = StringUtil::getRowInt(r, "range_100_plus");distArr.push_back(r4);
+                }
+            } else {
+                // Stub: return empty distribution with zero counts
+                nlohmann::json r0; r0["range"] = "0";      r0["count"] = 0; distArr.push_back(r0);
+                nlohmann::json r1; r1["range"] = "1-10";   r1["count"] = 0; distArr.push_back(r1);
+                nlohmann::json r2; r2["range"] = "11-50";  r2["count"] = 0; distArr.push_back(r2);
+                nlohmann::json r3; r3["range"] = "51-100"; r3["count"] = 0; distArr.push_back(r3);
+                nlohmann::json r4; r4["range"] = "100+";   r4["count"] = 0; distArr.push_back(r4);
+            }
+
+            nlohmann::json resp;
+            resp["distribution"] = distArr;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/recommendations/impact — Recommendation system impact
+    router.get(prefix + "/recommendations/impact", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int totalRecommended = 0;
+            int accepted = 0;
+            int rejected = 0;
+            double acceptRate = 0.0;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT "
+                    "COUNT(*) as totalRecommended, "
+                    "SUM(CASE WHEN feedback = 'accepted' THEN 1 ELSE 0 END) as accepted, "
+                    "SUM(CASE WHEN feedback = 'rejected' THEN 1 ELSE 0 END) as rejected "
+                    "FROM recommendation_feedback");
+
+                if (!rows.empty()) {
+                    auto& r = rows[0];
+                    totalRecommended = StringUtil::getRowInt(r, "totalRecommended");
+                    accepted = StringUtil::getRowInt(r, "accepted");
+                    rejected = StringUtil::getRowInt(r, "rejected");
+                    acceptRate = totalRecommended > 0
+                        ? std::round(accepted * 10000.0 / totalRecommended) / 100.0 : 0.0;
+                }
+            }
+
+            nlohmann::json resp;
+            resp["totalRecommended"] = totalRecommended;
+            resp["accepted"] = accepted;
+            resp["rejected"] = rejected;
+            resp["acceptRate"] = acceptRate;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 41 routes");
 }
 
 std::string StatsApiModule::handleStats() {

@@ -1717,7 +1717,237 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 35 routes");
+    // ========================================================================
+    // Round 24 Additions
+    // ========================================================================
+
+    // POST /api/search/index/rebuild — Trigger search index rebuild
+    router.post(prefix + "/index/rebuild", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string scope = body.value("scope", "full");
+            scope = StringUtil::escapeSql(scope);
+
+            std::string jobId = "rebuild_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+
+            if (database_) {
+                try {
+                    // Record rebuild job
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS index_rebuild_jobs ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "job_id VARCHAR(100) NOT NULL, "
+                        "scope VARCHAR(50) DEFAULT 'full', "
+                        "status VARCHAR(20) DEFAULT 'started', "
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO index_rebuild_jobs (job_id, scope, status) VALUES ('"
+                        + StringUtil::escapeSql(jobId) + "', '"
+                        + scope + "', 'started')");
+
+                    // Trigger actual index rebuild
+                    impl_->rebuildSearchIndex();
+                } catch (const std::exception& e) {
+                    spdlog::warn("[SearchApi] Index rebuild job insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["jobId"] = jobId;
+            resp["status"] = "started";
+            resp["scope"] = scope;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/search/filters — Get available search filters
+    router.get(prefix + "/filters", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json filters = nlohmann::json::array();
+
+            if (database_) {
+                // Year range filter
+                auto yearRows = database_->query(
+                    "SELECT DISTINCT year FROM papers WHERE year IS NOT NULL ORDER BY year DESC LIMIT 20");
+                nlohmann::json yearOptions = nlohmann::json::array();
+                for (auto& row : yearRows) {
+                    if (row.count("year") && !row.at("year").empty()) {
+                        try { yearOptions.push_back(std::stoi(row.at("year"))); } catch (...) {}
+                    }
+                }
+                nlohmann::json yearFilter;
+                yearFilter["field"] = "year";
+                yearFilter["type"] = "select";
+                yearFilter["options"] = yearOptions;
+                filters.push_back(yearFilter);
+
+                // Journal filter
+                auto journalRows = database_->query(
+                    "SELECT DISTINCT journal FROM papers WHERE journal IS NOT NULL AND journal != '' ORDER BY journal LIMIT 30");
+                nlohmann::json journalOptions = nlohmann::json::array();
+                for (auto& row : journalRows) {
+                    if (row.count("journal")) journalOptions.push_back(row.at("journal"));
+                }
+                nlohmann::json journalFilter;
+                journalFilter["field"] = "journal";
+                journalFilter["type"] = "select";
+                journalFilter["options"] = journalOptions;
+                filters.push_back(journalFilter);
+
+                // CCF level filter
+                auto ccfRows = database_->query(
+                    "SELECT DISTINCT ccf_level FROM papers WHERE ccf_level IS NOT NULL AND ccf_level != '' ORDER BY ccf_level");
+                nlohmann::json ccfOptions = nlohmann::json::array();
+                for (auto& row : ccfRows) {
+                    if (row.count("ccf_level")) ccfOptions.push_back(row.at("ccf_level"));
+                }
+                if (!ccfOptions.empty()) {
+                    nlohmann::json ccfFilter;
+                    ccfFilter["field"] = "ccf_level";
+                    ccfFilter["type"] = "select";
+                    ccfFilter["options"] = ccfOptions;
+                    filters.push_back(ccfFilter);
+                }
+            } else {
+                // Stub: return 5 mock filters
+                nlohmann::json f1;
+                f1["field"] = "year";
+                f1["type"] = "range";
+                f1["options"] = {"2020", "2021", "2022", "2023", "2024", "2025"};
+                filters.push_back(f1);
+
+                nlohmann::json f2;
+                f2["field"] = "journal";
+                f2["type"] = "select";
+                f2["options"] = {"Nature", "Science", "ICML", "NeurIPS", "CVPR"};
+                filters.push_back(f2);
+
+                nlohmann::json f3;
+                f3["field"] = "ccf_level";
+                f3["type"] = "select";
+                f3["options"] = {"CCF-A", "CCF-B", "CCF-C"};
+                filters.push_back(f3);
+
+                nlohmann::json f4;
+                f4["field"] = "citation_count";
+                f4["type"] = "range";
+                f4["options"] = {"0-10", "10-50", "50-100", "100+"};
+                filters.push_back(f4);
+
+                nlohmann::json f5;
+                f5["field"] = "author";
+                f5["type"] = "text";
+                f5["options"] = nlohmann::json::array();
+                filters.push_back(f5);
+            }
+
+            nlohmann::json resp;
+            resp["filters"] = filters;
+            resp["count"] = filters.size();
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // POST /api/search/analytics — Get search analytics summary
+    router.post(prefix + "/analytics", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string period = body.value("period", "7d");
+
+            int totalSearches = 0;
+            int uniqueQueries = 0;
+            double avgResultsPerSearch = 0.0;
+            nlohmann::json topQueries = nlohmann::json::array();
+
+            if (database_) {
+                // Determine date range from period string
+                std::string intervalClause;
+                if (period == "1d") {
+                    intervalClause = "INTERVAL 1 DAY";
+                } else if (period == "30d") {
+                    intervalClause = "INTERVAL 30 DAY";
+                } else if (period == "90d") {
+                    intervalClause = "INTERVAL 90 DAY";
+                } else {
+                    intervalClause = "INTERVAL 7 DAY";  // default 7d
+                }
+
+                // Total searches
+                auto totalRes = database_->query(
+                    "SELECT COUNT(*) as cnt FROM search_history "
+                    "WHERE created_at >= DATE_SUB(NOW(), " + intervalClause + ")");
+                if (!totalRes.empty() && totalRes[0].count("cnt") && !totalRes[0].at("cnt").empty()) {
+                    try { totalSearches = std::stoi(totalRes[0]["cnt"]); } catch (...) {}
+                }
+
+                // Unique queries
+                auto uniqueRes = database_->query(
+                    "SELECT COUNT(DISTINCT query) as cnt FROM search_history "
+                    "WHERE created_at >= DATE_SUB(NOW(), " + intervalClause + ")");
+                if (!uniqueRes.empty() && uniqueRes[0].count("cnt") && !uniqueRes[0].at("cnt").empty()) {
+                    try { uniqueQueries = std::stoi(uniqueRes[0]["cnt"]); } catch (...) {}
+                }
+
+                // Average results per search
+                auto avgRes = database_->query(
+                    "SELECT AVG(result_count) as avg_cnt FROM search_history "
+                    "WHERE created_at >= DATE_SUB(NOW(), " + intervalClause + ")");
+                if (!avgRes.empty() && avgRes[0].count("avg_cnt") && !avgRes[0].at("avg_cnt").empty()) {
+                    try { avgResultsPerSearch = std::stod(avgRes[0]["avg_cnt"]); } catch (...) {}
+                }
+
+                // Top queries
+                auto topRes = database_->query(
+                    "SELECT query, COUNT(*) as cnt FROM search_history "
+                    "WHERE created_at >= DATE_SUB(NOW(), " + intervalClause + ") "
+                    "GROUP BY query ORDER BY cnt DESC LIMIT 10");
+                for (auto& row : topRes) {
+                    nlohmann::json item;
+                    item["query"] = row.count("query") ? row.at("query") : "";
+                    int cnt = 0;
+                    if (row.count("cnt") && !row.at("cnt").empty()) {
+                        try { cnt = std::stoi(row.at("cnt")); } catch (...) {}
+                    }
+                    item["count"] = cnt;
+                    topQueries.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["totalSearches"] = totalSearches;
+            resp["uniqueQueries"] = uniqueQueries;
+            resp["topQueries"] = topQueries;
+            resp["avgResultsPerSearch"] = avgResultsPerSearch;
+            resp["period"] = period;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[SearchApiModule] Registered 38 routes");
 }
 
 } // namespace PaperCrawler
