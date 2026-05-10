@@ -302,6 +302,11 @@
 #include "visualization/PaperHeatmapWidget.hpp"
 #include "workspace/PaperSprintBoard.hpp"
 #include "tools/PaperKeyboardShortcut.hpp"
+#include "analysis/PaperClaimTracker.hpp"
+#include "reading/PaperReadingCalendar.hpp"
+#include "visualization/PaperNetworkGraph3D.hpp"
+#include "workspace/PaperTimeTracker.hpp"
+#include "tools/PaperThemeBuilder.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6362,6 +6367,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Claim Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Claim Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClaimTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Calendar", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Calendar");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingCalendar();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Network Graph 3D", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Network Graph 3D");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNetworkGraph3D();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Time Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Time Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTimeTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Theme Builder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Theme Builder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperThemeBuilder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7428,6 +7483,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Keyboard Shortcut", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Keyboard Shortcut");
+    });
+    commandPalette_->addAction("Claim Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Claim Tracker");
+    });
+    commandPalette_->addAction("Reading Calendar", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Calendar");
+    });
+    commandPalette_->addAction("Network Graph 3D", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Network Graph 3D");
+    });
+    commandPalette_->addAction("Time Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Time Tracker");
+    });
+    commandPalette_->addAction("Theme Builder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Theme Builder");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

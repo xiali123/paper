@@ -305,6 +305,11 @@ class PaperReadingCluster;
 class PaperHeatmapWidget;
 class PaperSprintBoard;
 class PaperKeyboardShortcut;
+class PaperClaimTracker;
+class PaperReadingCalendar;
+class PaperNetworkGraph3D;
+class PaperTimeTracker;
+class PaperThemeBuilder;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
