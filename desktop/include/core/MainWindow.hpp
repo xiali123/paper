@@ -270,6 +270,11 @@ class PaperReadingGamification;
 class PaperContourPlot;
 class PaperLicenseTracker;
 class PaperEnvironmentSwitcher;
+class PaperSentimentTracker;
+class PaperReadingAchievement;
+class PaperWaterfallChart;
+class PaperComplianceMonitor;
+class PaperLogAnalyzer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

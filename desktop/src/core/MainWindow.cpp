@@ -267,6 +267,11 @@
 #include "visualization/PaperContourPlot.hpp"
 #include "workspace/PaperLicenseTracker.hpp"
 #include "tools/PaperEnvironmentSwitcher.hpp"
+#include "analysis/PaperSentimentTracker.hpp"
+#include "reading/PaperReadingAchievement.hpp"
+#include "visualization/PaperWaterfallChart.hpp"
+#include "workspace/PaperComplianceMonitor.hpp"
+#include "tools/PaperLogAnalyzer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5977,6 +5982,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Sentiment Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sentiment Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSentimentTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Achievement", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Achievement");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingAchievement();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Waterfall Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Waterfall Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWaterfallChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Compliance Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Compliance Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperComplianceMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Log Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Log Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6938,6 +6993,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Environment Switcher", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Environment Switcher");
+    });
+    commandPalette_->addAction("Sentiment Tracker", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Sentiment Tracker");
+    });
+    commandPalette_->addAction("Reading Achievement", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Achievement");
+    });
+    commandPalette_->addAction("Waterfall Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Waterfall Chart");
+    });
+    commandPalette_->addAction("Compliance Monitor", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Compliance Monitor");
+    });
+    commandPalette_->addAction("Log Analyzer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Log Analyzer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
