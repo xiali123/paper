@@ -217,6 +217,11 @@
 #include "visualization/PaperResearchHeatmap.hpp"
 #include "workspace/PaperCollaborationScore.hpp"
 #include "tools/PaperMarkdownExporter.hpp"
+#include "analysis/PaperClaimStrengthAnalyzer.hpp"
+#include "reading/PaperReadingSessionTimer.hpp"
+#include "visualization/PaperKeywordEvolution.hpp"
+#include "workspace/PaperReviewAssignment.hpp"
+#include "tools/PaperTableExtractor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5427,6 +5432,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Claim Strength Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Claim Strength Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClaimStrengthAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Session Timer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Session Timer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSessionTimer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Keyword Evolution", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Keyword Evolution");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKeywordEvolution();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Review Assignment", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Review Assignment");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReviewAssignment();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Table Extractor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Table Extractor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTableExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6238,6 +6293,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Markdown Exporter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Markdown Exporter");
+    });
+    commandPalette_->addAction("Claim Strength Analyzer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Claim Strength Analyzer");
+    });
+    commandPalette_->addAction("Reading Session Timer", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Session Timer");
+    });
+    commandPalette_->addAction("Keyword Evolution", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Keyword Evolution");
+    });
+    commandPalette_->addAction("Review Assignment", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Review Assignment");
+    });
+    commandPalette_->addAction("Table Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Table Extractor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

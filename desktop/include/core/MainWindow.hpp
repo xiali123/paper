@@ -220,6 +220,11 @@ class PaperAnnotationSync;
 class PaperResearchHeatmap;
 class PaperCollaborationScore;
 class PaperMarkdownExporter;
+class PaperClaimStrengthAnalyzer;
+class PaperReadingSessionTimer;
+class PaperKeywordEvolution;
+class PaperReviewAssignment;
+class PaperTableExtractor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
