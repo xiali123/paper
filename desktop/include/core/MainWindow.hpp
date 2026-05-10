@@ -240,6 +240,11 @@ class PaperReadingGoalWidget;
 class PaperImpactTreemap;
 class PaperBudgetForecast;
 class PaperCodeSnippetExtractor;
+class PaperClaimVerifier;
+class PaperReadingMilestone;
+class PaperDonutChart;
+class PaperInvoiceTracker;
+class PaperApiTester;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

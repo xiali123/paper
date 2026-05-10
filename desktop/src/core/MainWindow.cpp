@@ -237,6 +237,11 @@
 #include "visualization/PaperImpactTreemap.hpp"
 #include "workspace/PaperBudgetForecast.hpp"
 #include "tools/PaperCodeSnippetExtractor.hpp"
+#include "analysis/PaperClaimVerifier.hpp"
+#include "reading/PaperReadingMilestone.hpp"
+#include "visualization/PaperDonutChart.hpp"
+#include "workspace/PaperInvoiceTracker.hpp"
+#include "tools/PaperApiTester.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5647,6 +5652,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Claim Verifier", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Claim Verifier");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClaimVerifier();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Milestone", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Milestone");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingMilestone();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Donut Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Donut Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDonutChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Invoice Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Invoice Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperInvoiceTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("API Tester", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("API Tester");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperApiTester();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6518,6 +6573,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Code Snippet Extractor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Code Snippet Extractor");
+    });
+    commandPalette_->addAction("Claim Verifier", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Claim Verifier");
+    });
+    commandPalette_->addAction("Reading Milestone", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Milestone");
+    });
+    commandPalette_->addAction("Donut Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Donut Chart");
+    });
+    commandPalette_->addAction("Invoice Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Invoice Tracker");
+    });
+    commandPalette_->addAction("API Tester", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > API Tester");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
