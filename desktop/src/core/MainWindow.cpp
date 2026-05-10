@@ -287,6 +287,11 @@
 #include "visualization/PaperSankeyDiagram.hpp"
 #include "workspace/PaperRiskAssessor.hpp"
 #include "tools/PaperFeatureFlagManager.hpp"
+#include "analysis/PaperEntityRecognizer.hpp"
+#include "reading/PaperReadingProgressGrid.hpp"
+#include "visualization/PaperTreemapChart.hpp"
+#include "workspace/PaperCostEstimator.hpp"
+#include "tools/PaperPluginInstaller.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6197,6 +6202,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Entity Recognizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Entity Recognizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEntityRecognizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Progress Grid", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Progress Grid");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingProgressGrid();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Treemap Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Treemap Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTreemapChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cost Estimator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cost Estimator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCostEstimator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Plugin Installer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Plugin Installer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPluginInstaller();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7218,6 +7273,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Feature Flag Manager", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Feature Flag Manager");
+    });
+    commandPalette_->addAction("Entity Recognizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Entity Recognizer");
+    });
+    commandPalette_->addAction("Reading Progress Grid", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Progress Grid");
+    });
+    commandPalette_->addAction("Treemap Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Treemap Chart");
+    });
+    commandPalette_->addAction("Cost Estimator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cost Estimator");
+    });
+    commandPalette_->addAction("Plugin Installer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Plugin Installer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

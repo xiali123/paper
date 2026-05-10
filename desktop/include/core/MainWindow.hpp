@@ -290,6 +290,11 @@ class PaperReadingHeatmapGrid;
 class PaperSankeyDiagram;
 class PaperRiskAssessor;
 class PaperFeatureFlagManager;
+class PaperEntityRecognizer;
+class PaperReadingProgressGrid;
+class PaperTreemapChart;
+class PaperCostEstimator;
+class PaperPluginInstaller;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
