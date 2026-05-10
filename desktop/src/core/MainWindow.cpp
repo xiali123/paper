@@ -262,6 +262,11 @@
 #include "visualization/PaperScatterPlot.hpp"
 #include "workspace/PaperVendorRating.hpp"
 #include "tools/PaperConfigEditor.hpp"
+#include "analysis/PaperBiasChecker.hpp"
+#include "reading/PaperReadingGamification.hpp"
+#include "visualization/PaperContourPlot.hpp"
+#include "workspace/PaperLicenseTracker.hpp"
+#include "tools/PaperEnvironmentSwitcher.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5922,6 +5927,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Bias Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bias Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBiasChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Gamification", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Gamification");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingGamification();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Contour Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contour Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContourPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("License Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("License Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLicenseTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Environment Switcher", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Environment Switcher");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEnvironmentSwitcher();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6868,6 +6923,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Config Editor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Config Editor");
+    });
+    commandPalette_->addAction("Bias Checker", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Bias Checker");
+    });
+    commandPalette_->addAction("Reading Gamification", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Gamification");
+    });
+    commandPalette_->addAction("Contour Plot", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Contour Plot");
+    });
+    commandPalette_->addAction("License Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > License Tracker");
+    });
+    commandPalette_->addAction("Environment Switcher", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Environment Switcher");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

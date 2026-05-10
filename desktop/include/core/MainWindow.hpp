@@ -265,6 +265,11 @@ class PaperReadingStreakBoard;
 class PaperScatterPlot;
 class PaperVendorRating;
 class PaperConfigEditor;
+class PaperBiasChecker;
+class PaperReadingGamification;
+class PaperContourPlot;
+class PaperLicenseTracker;
+class PaperEnvironmentSwitcher;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
