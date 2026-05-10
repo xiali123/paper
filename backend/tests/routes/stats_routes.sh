@@ -39,4 +39,9 @@ ROUTES=(
     "GET|/api/stats/citations||200|Citation statistics"
     "GET|/api/stats/growth-rate||200|Growth rate calculation"
     "GET|/api/stats/top-keywords||200|Top keywords in papers"
+
+    # Reading progress, collection & activity analytics
+    "GET|/api/stats/reading-progress||200|User reading progress stats"
+    "GET|/api/stats/collection-size||200|Collection size distribution"
+    "GET|/api/stats/activity-heatmap||200|Activity heatmap data"
 )

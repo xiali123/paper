@@ -704,7 +704,109 @@ void AiCoPilotModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiCoPilot] Registered 26 routes at /api/ai-co-pilot");
+    // POST /api/ai-co-pilot/sessions/:id/pin — Pin/unpin a session
+    router.post(prefix + "/sessions/:id/pin", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string sessionId = req.pathParams.at("id");
+            bool pinned = true;
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                pinned = body.value("pinned", true);
+            }
+
+            if (database_) {
+                database_->execute(
+                    "UPDATE ai_copilot_sessions SET pinned = "
+                    + std::string(pinned ? "1" : "0")
+                    + " WHERE id = " + sessionId);
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["sessionId"] = sessionId;
+            resp["pinned"] = pinned;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/ai-co-pilot/sessions/pinned — Get pinned sessions
+    router.get(prefix + "/sessions/pinned", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json arr = nlohmann::json::array();
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT id, name, created_at FROM ai_copilot_sessions "
+                    "WHERE pinned = 1 ORDER BY updated_at DESC");
+
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row["id"].empty() ? std::stoi(row["id"]) : 0;
+                    item["name"] = row.count("name") ? row["name"] : "";
+                    item["createdAt"] = row.count("created_at") ? row["created_at"] : "";
+                    arr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["sessions"] = arr;
+            resp["total"] = arr.size();
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/ai-co-pilot/sessions/:id/summarize — Summarize a conversation session
+    router.post(prefix + "/sessions/:id/summarize", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string sessionId = req.pathParams.at("id");
+            int messageCount = 0;
+            std::string summary = "Summary not available (no messages found).";
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT COUNT(*) as cnt FROM ai_conversations WHERE session_id = '"
+                    + sessionId + "'");
+
+                if (!result.empty() && !result[0]["cnt"].empty()) {
+                    messageCount = std::stoi(result[0]["cnt"]);
+                }
+
+                if (messageCount > 0) {
+                    // Fetch first few messages to build a stub summary
+                    auto msgs = database_->query(
+                        "SELECT role, content FROM ai_conversations WHERE session_id = '"
+                        + sessionId + "' ORDER BY created_at ASC LIMIT 3");
+
+                    std::string topics;
+                    for (auto& row : msgs) {
+                        std::string content = row.count("content") ? row["content"] : "";
+                        if (content.size() > 80) content = content.substr(0, 80) + "...";
+                        if (!topics.empty()) topics += "; ";
+                        topics += content;
+                    }
+                    summary = "Session about: " + topics;
+                }
+            } else {
+                messageCount = 0;
+                summary = "Session summary (stub mode, no database).";
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["sessionId"] = sessionId;
+            resp["summary"] = summary;
+            resp["messageCount"] = messageCount;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiCoPilot] Registered 29 routes at /api/ai-co-pilot");
 }
 
 } // namespace PaperCrawler

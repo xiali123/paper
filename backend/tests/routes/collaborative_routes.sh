@@ -31,4 +31,9 @@ ROUTES=(
     "PUT|/api/writing/documents/1/title|{\"title\":\"New Title\"}|200|Update document title"
     "GET|/api/writing/documents/1/word-count||200|Get word count stats"
     "POST|/api/writing/documents/1/duplicate|{\"title\":\"Copy of Doc\"}|200|Duplicate a document"
+
+    # --- v5 Additions ---
+    "GET|/api/writing/documents/1/collaborators||200|Get document collaborators"
+    "POST|/api/writing/documents/1/share-link|{\"expiresIn\":24}|200|Generate share link for document"
+    "GET|/api/writing/documents/recent||200|Get recently edited documents"
 )

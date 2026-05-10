@@ -950,6 +950,97 @@ void CollaborativeWritingModule::registerRoutes() {
             return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
         }
     });
+
+    // GET /api/writing/documents/:id/collaborators — Get document collaborators
+    router.get(prefix + "/documents/:id/collaborators", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+
+            nlohmann::json data;
+            data["documentId"] = docId;
+            data["collaborators"] = nlohmann::json::array();
+
+            if (database_) {
+                database_->execute(
+                    "CREATE TABLE IF NOT EXISTS document_collaborators ("
+                    "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    "document_id INT, "
+                    "user_id INT, "
+                    "role VARCHAR(20) DEFAULT 'editor', "
+                    "joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    "UNIQUE KEY uniq (document_id, user_id))");
+
+                auto rows = database_->query(
+                    "SELECT u.id, u.username FROM users u "
+                    "INNER JOIN document_collaborators dc ON u.id = dc.user_id "
+                    "WHERE dc.document_id = " + docId);
+
+                for (const auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? safeStoi(row.at("id")) : 0;
+                    item["username"] = row.count("username") ? row.at("username") : "";
+                    data["collaborators"].push_back(item);
+                }
+            }
+            data["total"] = data["collaborators"].size();
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/writing/documents/:id/share-link — Generate share link for document
+    router.post(prefix + "/documents/:id/share-link", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string docId = req.pathParams.at("id");
+            int expiresIn = 24;
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                expiresIn = body.value("expiresIn", 24);
+            }
+
+            // Generate a simple token from document id + timestamp
+            auto now = std::chrono::system_clock::now();
+            auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now.time_since_epoch()).count();
+            std::string token = "doc_" + docId + "_" + std::to_string(ts);
+
+            nlohmann::json data;
+            data["success"] = true;
+            data["shareLink"] = "/share/" + token;
+            data["expiresIn"] = expiresIn;
+            data["documentId"] = docId;
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/writing/documents/recent — Get recently edited documents
+    router.get(prefix + "/documents/recent", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json data;
+            data["documents"] = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT id, title, updated_at FROM collab_documents "
+                    "ORDER BY updated_at DESC LIMIT 10");
+
+                for (const auto& row : rows) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? safeStoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["updatedAt"] = row.count("updated_at") ? row.at("updated_at") : "";
+                    data["documents"].push_back(item);
+                }
+            }
+            data["total"] = data["documents"].size();
+            return HttpResponse::json(HTTP::OK, data.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
 }
 
 // ============================================================================

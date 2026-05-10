@@ -1099,7 +1099,96 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 26 routes");
+    // GET /api/stats/reading-progress — User reading progress stats
+    router.get(prefix + "/reading-progress", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK,
+                nlohmann::json{{"progress", {{"unread", 0}, {"reading", 0}, {"completed", 0}}},
+                               {"total", 0}, {"success", true}}.dump());
+
+        try {
+            auto results = database_->query(
+                "SELECT reading_status, COUNT(*) as count FROM user_reading_history GROUP BY reading_status");
+            int unread = 0, reading = 0, completed = 0;
+            for (auto& row : results) {
+                std::string status = row.count("reading_status") ? row.at("reading_status") : "";
+                int cnt = row.count("count") ? std::stoi(row.at("count")) : 0;
+                if (status == "unread")     unread = cnt;
+                else if (status == "reading")   reading = cnt;
+                else if (status == "completed") completed = cnt;
+            }
+            int total = unread + reading + completed;
+            nlohmann::json resp;
+            resp["progress"]["unread"] = unread;
+            resp["progress"]["reading"] = reading;
+            resp["progress"]["completed"] = completed;
+            resp["total"] = total;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/collection-size — Collection size distribution
+    router.get(prefix + "/collection-size", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK,
+                nlohmann::json{{"users", nlohmann::json::array()}, {"success", true}}.dump());
+
+        try {
+            auto results = database_->query(
+                "SELECT u.username, COUNT(ub.id) as bookmarks FROM users u "
+                "LEFT JOIN user_bookmarks ub ON u.id = ub.user_id "
+                "GROUP BY u.id ORDER BY bookmarks DESC LIMIT 10");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["username"] = row.count("username") ? row.at("username") : "";
+                item["bookmarks"] = row.count("bookmarks") ? std::stoi(row.at("bookmarks")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["users"] = arr;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/stats/activity-heatmap — Activity heatmap data (for calendar view)
+    router.get(prefix + "/activity-heatmap", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK,
+                nlohmann::json{{"heatmap", nlohmann::json::array()}, {"period", "90d"}, {"success", true}}.dump());
+
+        try {
+            auto results = database_->query(
+                "SELECT DATE(created_at) as date, COUNT(*) as count FROM papers "
+                "WHERE created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) "
+                "GROUP BY DATE(created_at) ORDER BY date");
+            nlohmann::json arr = nlohmann::json::array();
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["date"] = row.count("date") ? row.at("date") : "";
+                item["count"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["heatmap"] = arr;
+            resp["period"] = "90d";
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 29 routes");
 }
 
 std::string StatsApiModule::handleStats() {

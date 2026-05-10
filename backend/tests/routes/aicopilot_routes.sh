@@ -25,4 +25,9 @@ ROUTES=(
     "POST|/api/ai-co-pilot/sessions/1/rename|{\"name\":\"New Session Name\"}|200|Rename session"
     "GET|/api/ai-co-pilot/sessions/recent||200|Get recent sessions"
     "POST|/api/ai-co-pilot/export|{\"sessionId\":\"session_001\",\"format\":\"markdown\"}|200|Export conversation"
+
+    # --- v5 Additions ---
+    "POST|/api/ai-co-pilot/sessions/1/pin|{\"pinned\":true}|200|Pin/unpin a session"
+    "GET|/api/ai-co-pilot/sessions/pinned||200|Get pinned sessions"
+    "POST|/api/ai-co-pilot/sessions/1/summarize||200|Summarize a conversation session"
 )

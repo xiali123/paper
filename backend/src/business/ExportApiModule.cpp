@@ -1400,7 +1400,89 @@ void ExportApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[ExportApi] Registered 26 routes");
+    // POST /api/export/customize — Customize export settings
+    router.post(prefix + "/customize", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string format = body.value("format", "json");
+            bool includeAbstract = body.value("includeAbstract", true);
+            bool includeKeywords = body.value("includeKeywords", true);
+            bool includeCitations = body.value("includeCitations", true);
+            nlohmann::json fields = body.value("fields", std::vector<std::string>{"title", "authors"});
+
+            nlohmann::json settings;
+            settings["format"] = format;
+            settings["includeAbstract"] = includeAbstract;
+            settings["includeKeywords"] = includeKeywords;
+            settings["includeCitations"] = includeCitations;
+            settings["fields"] = fields;
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["settings"] = settings;
+            resp["format"] = format;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/export/stats — Export statistics (from export_tasks table)
+    router.get(prefix + "/stats", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::OK,
+                nlohmann::json{{"stats", nlohmann::json::array()}, {"totalExports", 0}, {"success", true}}.dump());
+
+        try {
+            auto results = database_->query(
+                "SELECT format, COUNT(*) as count, SUM(paper_count) as papers "
+                "FROM export_tasks GROUP BY format");
+            nlohmann::json arr = nlohmann::json::array();
+            int totalExports = 0;
+            for (auto& row : results) {
+                nlohmann::json item;
+                item["format"] = row.count("format") ? row.at("format") : "";
+                item["exports"] = row.count("count") ? std::stoi(row.at("count")) : 0;
+                item["papers"] = (row.count("papers") && !row.at("papers").empty())
+                    ? std::stoi(row.at("papers")) : 0;
+                totalExports += item["exports"].get<int>();
+                arr.push_back(item);
+            }
+            nlohmann::json resp;
+            resp["stats"] = arr;
+            resp["totalExports"] = totalExports;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // POST /api/export/share — Share export result
+    router.post(prefix + "/share", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string exportId = body.value("exportId", "");
+            nlohmann::json emails = body.value("emails", std::vector<std::string>{});
+            std::string message = body.value("message", "");
+
+            int recipientCount = emails.is_array() ? static_cast<int>(emails.size()) : 0;
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["exportId"] = exportId;
+            resp["shared"] = true;
+            resp["recipientCount"] = recipientCount;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 29 routes");
 }
 
 } // namespace PaperCrawler

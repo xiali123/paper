@@ -31,4 +31,9 @@ ROUTES=(
     "GET|/api/export/available-formats||200|List available export formats"
     "POST|/api/export/validate|{\"format\":\"pdf\",\"paperIds\":[1,2,3]}|200|Validate export request"
     "GET|/api/export/export-history||200|Get export history"
+
+    # Customize, stats & share
+    "POST|/api/export/customize|{\"format\":\"json\",\"includeAbstract\":true,\"fields\":[\"title\",\"authors\"]}|200|Customize export settings"
+    "GET|/api/export/stats||200|Export statistics"
+    "POST|/api/export/share|{\"exportId\":\"exp_1\",\"emails\":[\"user@example.com\"],\"message\":\"Check this export\"}|200|Share export result"
 )
