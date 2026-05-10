@@ -322,6 +322,11 @@
 #include "visualization/PaperRadarSpinner.hpp"
 #include "workspace/PaperInventoryTracker.hpp"
 #include "tools/PaperNotificationFilter.hpp"
+#include "analysis/PaperEvidenceEvaluator.hpp"
+#include "reading/PaperAnnotationStudio.hpp"
+#include "visualization/PaperFlowDiagram.hpp"
+#include "workspace/PaperFundingMonitor.hpp"
+#include "tools/PaperUpdateChecker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6582,6 +6587,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Evidence Evaluator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Evaluator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceEvaluator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Annotation Studio", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Annotation Studio");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAnnotationStudio();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Flow Diagram", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Flow Diagram");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFlowDiagram();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Funding Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Funding Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFundingMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Update Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Update Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperUpdateChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7708,6 +7763,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Notification Filter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Notification Filter");
+    });
+    commandPalette_->addAction("Evidence Evaluator", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Evaluator");
+    });
+    commandPalette_->addAction("Annotation Studio", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Annotation Studio");
+    });
+    commandPalette_->addAction("Flow Diagram", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Flow Diagram");
+    });
+    commandPalette_->addAction("Funding Monitor", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Funding Monitor");
+    });
+    commandPalette_->addAction("Update Checker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Update Checker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

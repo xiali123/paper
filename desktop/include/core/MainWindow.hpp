@@ -325,6 +325,11 @@ class PaperReadingWorkshop;
 class PaperRadarSpinner;
 class PaperInventoryTracker;
 class PaperNotificationFilter;
+class PaperEvidenceEvaluator;
+class PaperAnnotationStudio;
+class PaperFlowDiagram;
+class PaperFundingMonitor;
+class PaperUpdateChecker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
