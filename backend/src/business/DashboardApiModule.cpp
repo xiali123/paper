@@ -357,7 +357,117 @@ void DashboardApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[DashboardApi] Registered 22 routes under {}", prefix);
+    // GET /api/dashboard/recent-papers — 最近添加的论文
+    router.get(prefix + "/recent-papers", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["papers"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT id, title, authors, year, created_at FROM papers ORDER BY created_at DESC LIMIT 10");
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = std::stoi(row.at("id"));
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    auto yearIt = row.find("year");
+                    if (yearIt != row.end() && !yearIt->second.empty()) {
+                        try { item["year"] = std::stoi(yearIt->second); } catch (...) { item["year"] = 0; }
+                    } else {
+                        item["year"] = 0;
+                    }
+                    item["createdAt"] = row.count("created_at") ? row.at("created_at") : "";
+                    arr.push_back(item);
+                }
+                resp["papers"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Recent papers query failed: {}", e.what());
+            }
+        }
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/dashboard/widgets/reorder — 重新排序仪表盘小组件
+    router.post(prefix + "/widgets/reorder", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+
+            if (!body.contains("widgets") || !body["widgets"].is_array()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    json{{"success", false}, {"error", "widgets array is required"}}.dump());
+            }
+
+            if (database_) {
+                try {
+                    for (const auto& widget : body["widgets"]) {
+                        std::string id = std::to_string(widget.value("id", 0));
+                        int position = widget.value("position", 0);
+                        database_->execute(
+                            "UPDATE dashboard_widgets SET position = " + std::to_string(position)
+                            + " WHERE id = " + id);
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Widget reorder DB update failed: {}", e.what());
+                }
+            }
+
+            return HttpResponse::json(HTTP::OK, "{\"success\":true}");
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    // GET /api/dashboard/reading-stats — 用户阅读统计
+    router.get(prefix + "/reading-stats", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json data;
+        nlohmann::json stats;
+        stats["totalRead"] = 0;
+        stats["completed"] = 0;
+        stats["inProgress"] = 0;
+        stats["avgPerWeek"] = 0;
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT COUNT(*) as total, "
+                    "SUM(CASE WHEN reading_status='completed' THEN 1 ELSE 0 END) as completed, "
+                    "SUM(CASE WHEN reading_status='in_progress' THEN 1 ELSE 0 END) as inProgress "
+                    "FROM user_reading_history");
+
+                if (!results.empty()) {
+                    auto& row = results[0];
+                    auto it = row.find("total");
+                    if (it != row.end() && !it->second.empty()) {
+                        try { stats["totalRead"] = std::stoi(it->second); } catch (...) {}
+                    }
+                    it = row.find("completed");
+                    if (it != row.end() && !it->second.empty()) {
+                        try { stats["completed"] = std::stoi(it->second); } catch (...) {}
+                    }
+                    it = row.find("inProgress");
+                    if (it != row.end() && !it->second.empty()) {
+                        try { stats["inProgress"] = std::stoi(it->second); } catch (...) {}
+                    }
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Reading stats query failed: {}", e.what());
+            }
+        }
+
+        data["stats"] = stats;
+        data["success"] = true;
+        return HttpResponse::json(HTTP::OK, data.dump());
+    });
+
+    spdlog::info("[DashboardApi] Registered 25 routes under {}", prefix);
 }
 
 // ============================================================================

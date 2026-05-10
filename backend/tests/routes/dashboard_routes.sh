@@ -51,4 +51,9 @@ ROUTES=(
     "GET|/api/dashboard/search-history||200|Recent search history"
     "GET|/api/dashboard/system-health||200|System health check"
     "GET|/api/dashboard/top-papers||200|Top cited papers"
+
+    # New endpoints (batch 3)
+    "GET|/api/dashboard/recent-papers||200|Recently added papers"
+    "POST|/api/dashboard/widgets/reorder|{\"widgets\":[{\"id\":1,\"position\":0},{\"id\":2,\"position\":1}]}|200|Reorder dashboard widgets"
+    "GET|/api/dashboard/reading-stats||200|User reading statistics"
 )

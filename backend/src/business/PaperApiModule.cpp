@@ -2,6 +2,7 @@
 #include "data/DatabaseModule.hpp"
 #include "data/PreparedStatement.hpp"
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 #include "business/PaperApiModule.hpp"
 #include "business/JsonHelper.hpp"
 #include "repositories/PaperRepository.hpp"
@@ -865,11 +866,16 @@ void PaperApiModule::registerRoutes() {
             nlohmann::json arr = nlohmann::json::array();
             for (auto& row : results) {
                 nlohmann::json item;
-                item["id"] = std::stoi(row.at("id"));
-                item["paperId"] = std::stoi(row.at("paper_id"));
+                auto safeInt = [](const std::map<std::string,std::string>& r, const std::string& k) -> int {
+                    auto it = r.find(k);
+                    if (it == r.end() || it->second.empty()) return 0;
+                    try { return std::stoi(it->second); } catch (...) { return 0; }
+                };
+                item["id"] = safeInt(row, "id");
+                item["paperId"] = safeInt(row, "paper_id");
                 item["title"] = row.count("title") ? row.at("title") : "";
                 item["authors"] = row.count("authors") ? row.at("authors") : "";
-                item["citationCount"] = row.count("citation_count") ? std::stoi(row.at("citation_count")) : 0;
+                item["citationCount"] = safeInt(row, "citation_count");
                 item["bookmarkedAt"] = row.count("created_at") ? row.at("created_at") : "";
                 arr.push_back(item);
             }
@@ -1134,7 +1140,136 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[PaperApiModule] Registered 36 routes");
+    // GET /api/papers/favorites — get user's favorite/starred papers
+    router.get(prefix + "/favorites", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                int userId = 0;
+                auto it = req.queryParams.find("userId");
+                if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+                std::string sql =
+                    "SELECT p.id, p.title, p.authors, p.journal, p.citation_count, p.created_at "
+                    "FROM papers p INNER JOIN user_bookmarks ub ON p.id = ub.paper_id";
+                if (userId > 0)
+                    sql += " WHERE ub.user_id = " + std::to_string(userId);
+                sql += " ORDER BY ub.created_at DESC LIMIT 20";
+
+                auto results = database_->query(sql);
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["title"] = StringUtil::getRowStr(row, "title");
+                    item["authors"] = StringUtil::getRowStr(row, "authors");
+                    item["journal"] = StringUtil::getRowStr(row, "journal");
+                    item["citationCount"] = StringUtil::getRowInt(row, "citation_count");
+                    item["createdAt"] = StringUtil::getRowStr(row, "created_at");
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] Favorites query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["papers"] = arr;
+        resp["total"] = arr.size();
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/papers/batch-tag — batch add tags to papers
+    router.post(prefix + "/batch-tag", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::vector<int> paperIds;
+            std::vector<std::string> tags;
+
+            if (body.contains("paperIds") && body["paperIds"].is_array()) {
+                for (auto& id : body["paperIds"])
+                    paperIds.push_back(id.get<int>());
+            }
+            if (body.contains("tags") && body["tags"].is_array()) {
+                for (auto& tag : body["tags"])
+                    tags.push_back(tag.get<std::string>());
+            }
+
+            if (paperIds.empty() || tags.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"paperIds and tags arrays required\"}");
+
+            int tagged = 0;
+            if (database_) {
+                for (int paperId : paperIds) {
+                    for (const auto& tag : tags) {
+                        try {
+                            database_->execute(
+                                "INSERT IGNORE INTO paper_tags (paper_id, tag) VALUES ("
+                                + std::to_string(paperId) + ", '"
+                                + ValidationHelper::sanitize(tag) + "')");
+                            ++tagged;
+                        } catch (const std::exception& e) {
+                            spdlog::warn("[PaperApi] Batch tag insert failed for paper {}: {}",
+                                         paperId, e.what());
+                        }
+                    }
+                }
+            } else {
+                tagged = static_cast<int>(paperIds.size() * tags.size());
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["tagged"] = tagged;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/papers/yours — get current user's papers
+    router.get(prefix + "/yours", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                int userId = 0;
+                auto it = req.queryParams.find("userId");
+                if (it != req.queryParams.end()) userId = std::stoi(it->second);
+
+                std::string sql =
+                    "SELECT id, title, authors, year, journal, citation_count, created_at "
+                    "FROM papers";
+                if (userId > 0)
+                    sql += " WHERE user_id = " + std::to_string(userId);
+                sql += " ORDER BY created_at DESC LIMIT 20";
+
+                auto results = database_->query(sql);
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["title"] = StringUtil::getRowStr(row, "title");
+                    item["authors"] = StringUtil::getRowStr(row, "authors");
+                    item["year"] = StringUtil::getRowInt(row, "year");
+                    item["journal"] = StringUtil::getRowStr(row, "journal");
+                    item["citationCount"] = StringUtil::getRowInt(row, "citation_count");
+                    item["createdAt"] = StringUtil::getRowStr(row, "created_at");
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] Yours query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["papers"] = arr;
+        resp["total"] = arr.size();
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[PaperApiModule] Registered 39 routes");
 }
 
 // ============================================================================

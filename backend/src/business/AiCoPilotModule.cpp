@@ -1,6 +1,7 @@
 #include "business/AiCoPilotModule.hpp"
 #include "data/DatabaseModule.hpp"
 #include "data/ValidationHelper.hpp"
+#include "data/StringUtil.hpp"
 #include "core/Router.hpp"
 #include "core/HttpTypes.hpp"
 #include "../../core/external/nlohmann/json.hpp"
@@ -620,7 +621,90 @@ void AiCoPilotModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiCoPilot] Registered 23 routes at /api/ai-co-pilot");
+    // POST /api/ai-co-pilot/sessions/:id/rename — rename a session
+    router.post(prefix + "/sessions/:id/rename", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string sessionId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string name = body.value("name", "");
+
+            if (name.empty())
+                return HttpResponse::json(400, "{\"error\":\"name is required\"}");
+
+            if (database_) {
+                database_->execute(
+                    "UPDATE ai_copilot_sessions SET name = '"
+                    + StringUtil::escapeSql(name) + "' WHERE id = " + sessionId);
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["sessionId"] = sessionId;
+            resp["name"] = name;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/ai-co-pilot/sessions/recent — get recent sessions (lighter than full list)
+    router.get(prefix + "/sessions/recent", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto result = database_->query(
+                    "SELECT id, name, created_at FROM ai_copilot_sessions "
+                    "ORDER BY updated_at DESC LIMIT 5");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["name"] = StringUtil::getRowStr(row, "name");
+                    item["createdAt"] = StringUtil::getRowStr(row, "created_at");
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[AiCoPilot] Recent sessions query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["sessions"] = arr;
+        resp["total"] = arr.size();
+        return HttpResponse::json(200, resp.dump());
+    });
+
+    // POST /api/ai-co-pilot/export — export conversation
+    router.post(prefix + "/export", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string sessionId = body.value("sessionId", "");
+            std::string format = body.value("format", "markdown");
+
+            std::string content;
+
+            if (database_ && !sessionId.empty()) {
+                auto messages = database_->query(
+                    "SELECT role, content, created_at FROM ai_conversations "
+                    "WHERE session_id = '" + sessionId + "' ORDER BY created_at ASC");
+                for (auto& row : messages) {
+                    content += "**" + StringUtil::getRowStr(row, "role", "user") + "**\n\n";
+                    content += StringUtil::getRowStr(row, "content", "") + "\n\n---\n\n";
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["content"] = content;
+            resp["format"] = format;
+            resp["sessionId"] = sessionId;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[AiCoPilot] Registered 26 routes at /api/ai-co-pilot");
 }
 
 } // namespace PaperCrawler

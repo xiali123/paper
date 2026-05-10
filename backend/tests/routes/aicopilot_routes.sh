@@ -22,4 +22,7 @@ ROUTES=(
     "GET|/api/ai-co-pilot/sessions/1/messages||200|Get session messages"
     "POST|/api/ai-co-pilot/regenerate/1||200|Regenerate review"
     "POST|/api/ai-co-pilot/feedback|{\"type\":\"review\",\"rating\":5,\"comment\":\"Good\"}|200|Submit AI feedback"
+    "POST|/api/ai-co-pilot/sessions/1/rename|{\"name\":\"New Session Name\"}|200|Rename session"
+    "GET|/api/ai-co-pilot/sessions/recent||200|Get recent sessions"
+    "POST|/api/ai-co-pilot/export|{\"sessionId\":\"session_001\",\"format\":\"markdown\"}|200|Export conversation"
 )

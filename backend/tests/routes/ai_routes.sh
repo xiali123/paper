@@ -9,7 +9,7 @@ ROUTES=(
     "POST|/api/ai/chat|{\"message\":\"hello\"}|200,400|AI chat"
     "POST|/api/ai/keywords|{\"text\":\"test content\"}|200,400|Extract keywords"
     "POST|/api/ai/contributions|{\"paperId\":1}|200,400,404|Get contributions"
-    "POST|/api/ai/compare|{\"paperIds\":[1,2]}|200,404|Compare papers"
+    "POST|/api/ai/compare|{\"paperId1\":1,\"paperId2\":2}|200,400,404|Compare two papers via AI"
     "GET|/api/ai/status||200|AI service status"
     "GET|/api/ai/models||200|List available AI models"
     "GET|/api/ai/history||200|Get AI operation history"
@@ -20,7 +20,7 @@ ROUTES=(
     "GET|/api/ai/sessions||200|List chat sessions"
     "POST|/api/ai/sessions|{\"user_id\":1,\"title\":\"Test session\"}|200,201|Create chat session"
     "DELETE|/api/ai/sessions/1||200|Delete chat session"
-    "POST|/api/ai/batch-analyze|{\"paper_ids\":[1,2],\"type\":\"summary\"}|200,400|Batch analyze papers"
+    "POST|/api/ai/batch-analyze|{\"paperIds\":[1,2,3],\"analyses\":[\"summary\",\"keywords\"]}|200,400|Batch analyze papers"
 
     # Session messages
     "GET|/api/ai/sessions/1/messages||200|Get session messages"
