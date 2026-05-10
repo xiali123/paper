@@ -307,6 +307,11 @@
 #include "visualization/PaperNetworkGraph3D.hpp"
 #include "workspace/PaperTimeTracker.hpp"
 #include "tools/PaperThemeBuilder.hpp"
+#include "analysis/PaperSentimentExplorer.hpp"
+#include "reading/PaperReadingCompetency.hpp"
+#include "visualization/PaperParallelCoordinates.hpp"
+#include "workspace/PaperResourceScheduler.hpp"
+#include "tools/PaperScriptRunner.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6417,6 +6422,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Sentiment Explorer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sentiment Explorer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSentimentExplorer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Competency", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Competency");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingCompetency();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Parallel Coordinates", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Parallel Coordinates");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperParallelCoordinates();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Resource Scheduler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Resource Scheduler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResourceScheduler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Script Runner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Script Runner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperScriptRunner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7498,6 +7553,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Theme Builder", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Theme Builder");
+    });
+    commandPalette_->addAction("Sentiment Explorer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sentiment Explorer");
+    });
+    commandPalette_->addAction("Reading Competency", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Competency");
+    });
+    commandPalette_->addAction("Parallel Coordinates", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Parallel Coordinates");
+    });
+    commandPalette_->addAction("Resource Scheduler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Resource Scheduler");
+    });
+    commandPalette_->addAction("Script Runner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Script Runner");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

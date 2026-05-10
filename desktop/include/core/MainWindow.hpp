@@ -310,6 +310,11 @@ class PaperReadingCalendar;
 class PaperNetworkGraph3D;
 class PaperTimeTracker;
 class PaperThemeBuilder;
+class PaperSentimentExplorer;
+class PaperReadingCompetency;
+class PaperParallelCoordinates;
+class PaperResourceScheduler;
+class PaperScriptRunner;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
