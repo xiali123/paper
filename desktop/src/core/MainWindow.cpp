@@ -242,6 +242,11 @@
 #include "visualization/PaperDonutChart.hpp"
 #include "workspace/PaperInvoiceTracker.hpp"
 #include "tools/PaperApiTester.hpp"
+#include "analysis/PaperEvidenceChain.hpp"
+#include "reading/PaperReadingChallenge.hpp"
+#include "visualization/PaperBubbleChart.hpp"
+#include "workspace/PaperExpenseLogger.hpp"
+#include "tools/PaperWebScraper.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5702,6 +5707,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Evidence Chain", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Chain");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceChain();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Challenge", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Challenge");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingChallenge();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bubble Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bubble Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBubbleChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Expense Logger", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Expense Logger");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperExpenseLogger();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Web Scraper", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Web Scraper");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWebScraper();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6588,6 +6643,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("API Tester", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > API Tester");
+    });
+    commandPalette_->addAction("Evidence Chain", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Chain");
+    });
+    commandPalette_->addAction("Reading Challenge", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Challenge");
+    });
+    commandPalette_->addAction("Bubble Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Bubble Chart");
+    });
+    commandPalette_->addAction("Expense Logger", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Expense Logger");
+    });
+    commandPalette_->addAction("Web Scraper", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Web Scraper");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

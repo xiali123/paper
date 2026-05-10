@@ -245,6 +245,11 @@ class PaperReadingMilestone;
 class PaperDonutChart;
 class PaperInvoiceTracker;
 class PaperApiTester;
+class PaperEvidenceChain;
+class PaperReadingChallenge;
+class PaperBubbleChart;
+class PaperExpenseLogger;
+class PaperWebScraper;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
