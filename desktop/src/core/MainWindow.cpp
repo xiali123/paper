@@ -207,6 +207,11 @@
 #include "visualization/PaperCitationImpactCloud.hpp"
 #include "workspace/PaperBudgetPlanner.hpp"
 #include "tools/PaperBatchRenamer.hpp"
+#include "analysis/PaperSemanticSimilarityMatrix.hpp"
+#include "reading/PaperReadingRetentionTracker.hpp"
+#include "visualization/PaperCitationFlowDiagram.hpp"
+#include "workspace/PaperEthicsChecker.hpp"
+#include "tools/PaperRegexSearchTool.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -5317,6 +5322,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Semantic Similarity Matrix", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Semantic Similarity Matrix");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSemanticSimilarityMatrix();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Retention Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Retention Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingRetentionTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Citation Flow Diagram", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Flow Diagram");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationFlowDiagram();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Ethics Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Ethics Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEthicsChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Regex Search Tool", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Regex Search Tool");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRegexSearchTool();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -6098,6 +6153,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Batch Renamer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Batch Renamer");
+    });
+    commandPalette_->addAction("Semantic Similarity Matrix", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Semantic Similarity Matrix");
+    });
+    commandPalette_->addAction("Reading Retention Tracker", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Retention Tracker");
+    });
+    commandPalette_->addAction("Citation Flow Diagram", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Flow Diagram");
+    });
+    commandPalette_->addAction("Ethics Checker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Ethics Checker");
+    });
+    commandPalette_->addAction("Regex Search Tool", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Regex Search Tool");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

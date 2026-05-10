@@ -210,6 +210,11 @@ class PaperReadingMoodTracker;
 class PaperCitationImpactCloud;
 class PaperBudgetPlanner;
 class PaperBatchRenamer;
+class PaperSemanticSimilarityMatrix;
+class PaperReadingRetentionTracker;
+class PaperCitationFlowDiagram;
+class PaperEthicsChecker;
+class PaperRegexSearchTool;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
