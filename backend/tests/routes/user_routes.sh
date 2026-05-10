@@ -53,4 +53,9 @@ ROUTES=(
     "GET|/api/users/1/following||200|Get users this user follows"
     "POST|/api/users/1/follow|{\"targetUserId\":2}|200|Follow a user"
     "GET|/api/users/1/stats||200|Get user statistics summary"
+
+    # --- Round 23 Additions ---
+    "GET|/api/users/1/achievements||200|Get user achievements"
+    "POST|/api/users/1/deactivate|{\"reason\":\"break\"}|200|Deactivate user account"
+    "GET|/api/users/1/security||200|Get user security settings"
 )

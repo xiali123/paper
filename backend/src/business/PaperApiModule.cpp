@@ -1545,7 +1545,127 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[PaperApiModule] Registered 46 routes");
+    // GET /api/papers/:id/references — Get paper references/bibliography
+    router.get(prefix + "/:id/references", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["references"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                int paperId = std::stoi(req.pathParams.at("id"));
+
+                // Query papers that this paper cites (from paper_references table)
+                auto results = database_->query(
+                    "SELECT pr.ref_paper_id as id, p.title, p.authors, p.journal, p.year, pr.context "
+                    "FROM paper_references pr LEFT JOIN papers p ON pr.ref_paper_id = p.id "
+                    "WHERE pr.paper_id = " + std::to_string(paperId)
+                    + " ORDER BY pr.id LIMIT 50");
+
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["title"] = StringUtil::getRowStr(row, "title");
+                    item["authors"] = StringUtil::getRowStr(row, "authors");
+                    item["journal"] = StringUtil::getRowStr(row, "journal");
+                    item["year"] = StringUtil::getRowStr(row, "year");
+                    item["context"] = StringUtil::getRowStr(row, "context");
+                    arr.push_back(item);
+                }
+                resp["references"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] References query failed: {}", e.what());
+                nlohmann::json errResp;
+                errResp["error"] = std::string(e.what());
+                return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/papers/:id/notes — Add note to paper
+    router.post(prefix + "/:id/notes", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto body = nlohmann::json::parse(req.body);
+            std::string content = body.value("content", "");
+            int page = body.value("page", 0);
+
+            if (content.empty()) {
+                nlohmann::json errResp;
+                errResp["error"] = "content is required";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errResp.dump());
+            }
+
+            std::string noteId;
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO paper_notes (paper_id, content, page_number) VALUES ("
+                    + std::to_string(paperId) + ", '"
+                    + StringUtil::escapeSql(content) + "', "
+                    + std::to_string(page) + ")");
+                auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+                if (!rows.empty()) {
+                    noteId = rows[0]["id"];
+                }
+            } else {
+                auto now = std::chrono::system_clock::now();
+                auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()).count();
+                noteId = "note_" + std::to_string(ts);
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["noteId"] = noteId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = std::string(e.what());
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/papers/:id/notes — Get notes for paper
+    router.get(prefix + "/:id/notes", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["notes"] = nlohmann::json::array();
+        resp["total"] = 0;
+
+        if (database_) {
+            try {
+                int paperId = std::stoi(req.pathParams.at("id"));
+
+                auto results = database_->query(
+                    "SELECT id, paper_id, content, page_number, created_at "
+                    "FROM paper_notes WHERE paper_id = " + std::to_string(paperId)
+                    + " ORDER BY created_at DESC LIMIT 100");
+
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["paperId"] = StringUtil::getRowInt(row, "paper_id");
+                    item["content"] = StringUtil::getRowStr(row, "content");
+                    item["page"] = StringUtil::getRowInt(row, "page_number");
+                    item["createdAt"] = StringUtil::getRowStr(row, "created_at");
+                    arr.push_back(item);
+                }
+                resp["notes"] = arr;
+                resp["total"] = arr.size();
+            } catch (const std::exception& e) {
+                spdlog::warn("[PaperApi] Notes query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[PaperApiModule] Registered 49 routes");
 }
 
 // ============================================================================

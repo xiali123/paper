@@ -48,4 +48,9 @@ ROUTES=(
     "POST|/api/ai/glossary|{\"terms\":[\"BERT\",\"Transformer\"],\"context\":\"NLP research\"}|200,400|Generate glossary"
     "POST|/api/ai/summarize-batch|{\"texts\":[\"text1\",\"text2\"],\"maxLength\":100}|200,400|Summarize batch texts"
     "GET|/api/ai/quota||200|Get AI usage quota"
+
+    # --- Round 23 Additions ---
+    "POST|/api/ai/code-explain|{\"code\":\"def hello(): pass\",\"language\":\"python\"}|200|Explain code snippet"
+    "GET|/api/ai/models||200|List available AI models"
+    "POST|/api/ai/compare|{\"text1\":\"hello\",\"text2\":\"world\",\"aspect\":\"similarity\"}|200|Compare two texts"
 )

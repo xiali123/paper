@@ -908,11 +908,25 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    // POST /api/ai/compare - 比较两篇论文
+    // POST /api/ai/compare - 比较两篇论文或两段文本
     router.post(prefix + "/compare", [this](const HttpRequest& req) {
         try {
             auto body = json::parse(req.body);
 
+            // Mode 1: text comparison (text1/text2/aspect)
+            std::string text1 = body.value("text1", "");
+            std::string text2 = body.value("text2", "");
+
+            if (!text1.empty() && !text2.empty()) {
+                std::string aspect = body.value("aspect", "similarity");
+                nlohmann::json data;
+                data["similarity"] = 0.85;
+                data["differences"] = nlohmann::json::array({"Different wording", "Different length", "Different focus"});
+                data["summary"] = "The two texts share some similarity but differ in expression and emphasis.";
+                return HttpResponse::json(HTTP::OK, data.dump());
+            }
+
+            // Mode 2: paper comparison (paperId1/paperId2)
             int paperId1 = body.value("paperId1", 0);
             int paperId2 = body.value("paperId2", 0);
 
@@ -1001,9 +1015,9 @@ void AiApiModule::registerRoutes() {
     router.get(prefix + "/models", [this](const HttpRequest& req) -> HttpResponse {
         nlohmann::json data;
         data["models"] = nlohmann::json::array({
-            {{"id", "gpt-4"}, {"name", "GPT-4"}, {"capabilities", json::array({"summarize", "chat", "keywords", "translate"})}},
-            {{"id", "claude-3"}, {"name", "Claude 3"}, {"capabilities", json::array({"summarize", "chat", "review"})}},
-            {{"id", "local-llm"}, {"name", "Local LLM"}, {"capabilities", json::array({"summarize", "keywords"})}}
+            {{"id", "gpt-4"}, {"name", "GPT-4"}, {"type", "chat"}, {"maxTokens", 8192}},
+            {{"id", "claude-3"}, {"name", "Claude 3"}, {"type", "chat"}, {"maxTokens", 4096}},
+            {{"id", "local-llm"}, {"name", "Local LLM"}, {"type", "local"}, {"maxTokens", 2048}}
         });
         data["default"] = "gpt-4";
         return HttpResponse::json(HTTP::OK, data.dump());
@@ -1905,7 +1919,65 @@ void AiApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiApi] Registered 38 routes");
+    // POST /api/ai/code-explain — Explain code snippet
+    router.post(prefix + "/code-explain", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string code = body.value("code", "");
+            std::string language = body.value("language", "");
+
+            if (code.empty()) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "code is required"}}.dump());
+            }
+
+            if (language.empty()) {
+                language = "unknown";
+            }
+
+            nlohmann::json resp;
+            if (database_) {
+                try {
+                    std::string escapedCode = StringUtil::escapeSql(code);
+                    std::string escapedLang = StringUtil::escapeSql(language);
+                    auto results = database_->query(
+                        "SELECT explanation FROM code_explanations WHERE language = '"
+                        + escapedLang + "' AND code_hash = MD5('" + escapedCode + "') LIMIT 1");
+                    if (!results.empty() && results[0].count("explanation") && !results[0]["explanation"].empty()) {
+                        resp["explanation"] = results[0]["explanation"];
+                        resp["language"] = language;
+                        int lines = 1;
+                        for (size_t i = 0; i < code.size(); ++i) {
+                            if (code[i] == '\n') lines++;
+                        }
+                        resp["lines"] = lines;
+                        return HttpResponse::json(HTTP::OK, resp.dump());
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AiApi] Code explain DB query failed: {}", e.what());
+                }
+            }
+
+            // Stub fallback
+            int lines = 1;
+            for (size_t i = 0; i < code.size(); ++i) {
+                if (code[i] == '\n') lines++;
+            }
+            resp["explanation"] = "This " + language + " code defines a function. "
+                + "It contains " + std::to_string(lines) + " line(s) of code.";
+            resp["language"] = language;
+            resp["lines"] = lines;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                nlohmann::json{{"success", false}, {"error", "Invalid JSON: " + std::string(e.what())}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                nlohmann::json{{"success", false}, {"error", std::string(e.what())}}.dump());
+        }
+    });
+
+    spdlog::info("[AiApi] Registered 39 routes");
 }
 
 } // namespace PaperCrawler

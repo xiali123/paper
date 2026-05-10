@@ -59,4 +59,9 @@ ROUTES=(
 
     # --- Round 20 Additions ---
     "POST|/api/papers/batch-delete|{\"ids\":[1,2,3]}|200|Batch delete papers"
+
+    # --- Round 23 Additions ---
+    "GET|/api/papers/1/references||200,404|Get paper references"
+    "POST|/api/papers/1/notes|{\"content\":\"Important finding\",\"page\":5}|200|Add note to paper"
+    "GET|/api/papers/1/notes||200,404|Get notes for paper"
 )

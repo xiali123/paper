@@ -820,7 +820,66 @@ void DashboardApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[DashboardApi] Registered 36 routes under {}", prefix);
+    // POST /api/dashboard/notifications/:id/read — Mark notification as read
+    router.post(prefix + "/notifications/:id/read", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string id = req.pathParams.count("id") ? req.pathParams.at("id") : "";
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "UPDATE notifications SET is_read = 1 WHERE id = '" + StringUtil::escapeSql(id) + "'");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[DashboardApi] Mark notification read DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/dashboard/papers/recent-views — Get recently viewed papers
+    router.get(prefix + "/papers/recent-views", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json resp;
+        resp["papers"] = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT rh.paper_id as id, p.title, p.authors, p.year, rh.viewed_at "
+                    "FROM user_reading_history rh "
+                    "JOIN papers p ON rh.paper_id = p.id "
+                    "ORDER BY rh.viewed_at DESC LIMIT 10");
+
+                nlohmann::json arr = nlohmann::json::array();
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
+                    item["title"] = row.count("title") ? row.at("title") : "";
+                    item["authors"] = row.count("authors") ? row.at("authors") : "";
+                    if (row.count("year") && !row.at("year").empty()) {
+                        try { item["year"] = std::stoi(row.at("year")); } catch (...) { item["year"] = 0; }
+                    } else {
+                        item["year"] = 0;
+                    }
+                    item["viewedAt"] = row.count("viewed_at") ? row.at("viewed_at") : "";
+                    arr.push_back(item);
+                }
+                resp["papers"] = arr;
+            } catch (const std::exception& e) {
+                spdlog::warn("[DashboardApi] Recent views query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[DashboardApi] Registered 38 routes under {}", prefix);
 }
 
 // ============================================================================

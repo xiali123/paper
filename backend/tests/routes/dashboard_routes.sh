@@ -76,4 +76,9 @@ ROUTES=(
     "GET|/api/dashboard/papers/trending||200|Get trending papers"
     "POST|/api/dashboard/feedback|{\"rating\":5,\"comment\":\"Great\"}|200|Submit dashboard feedback"
     "GET|/api/dashboard/users/active||200|Get active users stats"
+
+    # --- Round 23 Additions ---
+    "GET|/api/dashboard/notifications||200|Get dashboard notifications"
+    "POST|/api/dashboard/notifications/1/read|{}|200|Mark notification as read"
+    "GET|/api/dashboard/papers/recent-views||200|Get recently viewed papers"
 )

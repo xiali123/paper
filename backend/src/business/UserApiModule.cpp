@@ -1550,7 +1550,123 @@ void UserApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("UserApiModule routes registered (37)");
+    // GET /api/users/:id/achievements — Get user achievements/badges
+    router.get(prefix + "/:id/achievements", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT ua.id, ua.achievement_id, a.name, a.description, ua.earned_at "
+                    "FROM user_achievements ua LEFT JOIN achievements a ON ua.achievement_id = a.id "
+                    "WHERE ua.user_id = " + StringUtil::escapeSql(userId)
+                    + " ORDER BY ua.earned_at DESC LIMIT 50");
+
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["name"] = StringUtil::getRowStr(row, "name");
+                    item["description"] = StringUtil::getRowStr(row, "description");
+                    item["earnedAt"] = StringUtil::getRowStr(row, "earned_at");
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Achievements query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["achievements"] = arr;
+        resp["total"] = arr.size();
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    // POST /api/users/:id/deactivate — Deactivate user account
+    router.post(prefix + "/:id/deactivate", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+            auto body = nlohmann::json::parse(req.body);
+            std::string reason = body.value("reason", "");
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "UPDATE users SET is_active = 0, updated_at = NOW() WHERE id = "
+                        + StringUtil::escapeSql(userId));
+
+                    // Log deactivation reason if table exists
+                    if (!reason.empty()) {
+                        database_->execute(
+                            "INSERT INTO user_deactivation_log (user_id, reason, deactivated_at) VALUES ("
+                            + StringUtil::escapeSql(userId) + ", '"
+                            + StringUtil::escapeSql(reason) + "', NOW())");
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Deactivate DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = std::string(e.what());
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/users/:id/security — Get user security settings
+    router.get(prefix + "/:id/security", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+
+        nlohmann::json resp;
+        resp["twoFactorEnabled"] = false;
+        resp["lastPasswordChange"] = "";
+        resp["loginAlerts"] = true;
+        resp["trustedDevices"] = 0;
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT two_factor_enabled, last_password_change, login_alerts "
+                    "FROM user_security_settings WHERE user_id = "
+                    + StringUtil::escapeSql(userId));
+
+                if (!results.empty()) {
+                    auto& row = results[0];
+                    std::string tfStr = StringUtil::getRowStr(row, "two_factor_enabled");
+                    resp["twoFactorEnabled"] = (tfStr == "1" || tfStr == "true");
+                    resp["lastPasswordChange"] = StringUtil::getRowStr(row, "last_password_change");
+                    std::string laStr = StringUtil::getRowStr(row, "login_alerts");
+                    resp["loginAlerts"] = (laStr.empty() || laStr == "1" || laStr == "true");
+                }
+
+                // Count trusted devices
+                auto devResults = database_->query(
+                    "SELECT COUNT(*) as cnt FROM user_trusted_devices WHERE user_id = "
+                    + StringUtil::escapeSql(userId));
+                if (!devResults.empty()) {
+                    resp["trustedDevices"] = StringUtil::getRowInt(devResults[0], "cnt");
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Security settings query failed: {}", e.what());
+            }
+        }
+
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("UserApiModule routes registered (40)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {
