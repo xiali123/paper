@@ -63,4 +63,8 @@ ROUTES=(
     "GET|/api/users/1/paper-stats||200|Get user paper statistics"
     "POST|/api/users/1/export-data|{}|200|Export all user data"
     "GET|/api/users/1/reading-goals||200|Get reading goals"
+
+    # --- Round 28 Additions ---
+    "POST|/api/users/1/avatar/remove|{}|200|Remove user avatar"
+    "GET|/api/users/1/collaborations||200|Get user collaborations"
 )

@@ -48,4 +48,9 @@ ROUTES=(
     "GET|/api/recommendations/engines||200|List recommendation engines"
     "POST|/api/recommendations/explain/1|{}|200|Explain recommendation"
     "POST|/api/recommendations/a-b-test|{\"name\":\"test1\",\"engineA\":\"collaborative\",\"engineB\":\"content\",\"duration\":7}|200|Create A/B test"
+
+    # --- Round 28 Additions ---
+    "POST|/api/recommendations/weights|{\"collaborative\":0.4,\"content\":0.3}|200|Set recommendation weights"
+    "GET|/api/recommendations/user/1/profile||200|Get user recommendation profile"
+    "DELETE|/api/recommendations/cache||200|Clear recommendation cache"
 )

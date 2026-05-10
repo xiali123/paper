@@ -45,4 +45,8 @@ ROUTES=(
     "POST|/api/ai-co-pilot/analyze|{\"text\":\"This is text\",\"type\":\"grammar\"}|200|Analyze text for writing"
     "GET|/api/ai-co-pilot/sessions/stats||200|Get AI CoPilot usage stats"
     "POST|/api/ai-co-pilot/prompts/custom|{\"name\":\"My Prompt\",\"template\":\"Summarize\"}|200|Save custom prompt"
+
+    # --- Round 28 Additions ---
+    "POST|/api/ai-co-pilot/sessions/1/export|{\"format\":\"markdown\"}|200|Export session conversation"
+    "GET|/api/ai-co-pilot/prompts/popular||200|Get popular prompt templates"
 )

@@ -555,7 +555,84 @@ void LatexApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[LatexApi] Registered 38 routes");
+    // POST /api/latex/compile/check — Pre-compile check
+    router.post(prefix + "/compile/check", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string content;
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                content = body.value<std::string>("content", "");
+            }
+
+            nlohmann::json resp;
+            resp["ready"] = true;
+            resp["errors"] = 0;
+            resp["warnings"] = 0;
+            resp["packages"] = nlohmann::json::array();
+
+            if (!content.empty()) {
+                // Extract documentclass package
+                size_t dcPos = content.find("\\documentclass{");
+                if (dcPos != std::string::npos) {
+                    size_t start = dcPos + 15;
+                    size_t end = content.find("}", start);
+                    if (end != std::string::npos) {
+                        std::string pkg = content.substr(start, end - start);
+                        resp["packages"].push_back(pkg);
+                    }
+                }
+
+                // Check for common errors
+                bool hasBegin = content.find("\\begin{document}") != std::string::npos;
+                bool hasEnd = content.find("\\end{document}") != std::string::npos;
+                if (!hasBegin) resp["errors"] = 1;
+                if (!hasEnd && hasBegin) resp["errors"] = resp["errors"].get<int>() + 1;
+                if (content.find("\\usepackage") == std::string::npos) resp["warnings"] = 1;
+
+                resp["ready"] = resp["errors"].get<int>() == 0;
+            }
+
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/latex/snippets — Get LaTeX code snippets library
+    router.get(prefix + "/snippets", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT id, name, category, code FROM latex_snippets ORDER BY category, name");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row["id"].empty() ? std::stoi(row["id"]) : 0;
+                    item["name"] = row.count("name") ? row["name"] : "";
+                    item["category"] = row.count("category") ? row["category"] : "";
+                    item["code"] = row.count("code") ? row["code"] : "";
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[LatexApi] Snippets query failed: {}", e.what());
+            }
+        } else {
+            // Stub: return 3 mock snippets
+            arr.push_back({{"id", 1}, {"name", "Table"}, {"category", "structure"}, {"code", "\\begin{table}[h]\n\\centering\n\\begin{tabular}{|c|c|}\n\\hline\nA & B \\\\\n\\hline\n\\end{tabular}\n\\caption{Caption}\n\\end{table}"}});
+            arr.push_back({{"id", 2}, {"name", "Figure"}, {"category", "float"}, {"code", "\\begin{figure}[h]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{figure.png}\n\\caption{Caption}\n\\label{fig:label}\n\\end{figure}"}});
+            arr.push_back({{"id", 3}, {"name", "Equation"}, {"category", "math"}, {"code", "\\begin{equation}\nE = mc^2\n\\label{eq:einstein}\n\\end{equation}"}});
+        }
+
+        nlohmann::json resp;
+        resp["snippets"] = arr;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("[LatexApi] Registered 40 routes");
 }
 
 // ============================================================================

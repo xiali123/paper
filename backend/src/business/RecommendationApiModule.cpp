@@ -2913,7 +2913,146 @@ void RecommendationApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[Recommendation] Registered 38 routes");
+    // --- Round 28 Additions ---
+
+    // POST /api/recommendations/weights — Set recommendation algorithm weights
+    router.post(prefix + "/weights", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            double collaborative = body.value("collaborative", 0.0);
+            double content = body.value("content", 0.0);
+            double popularity = body.value("popularity", 0.0);
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "CREATE TABLE IF NOT EXISTS recommendation_weights ("
+                        "id INT AUTO_INCREMENT PRIMARY KEY, "
+                        "collaborative DOUBLE DEFAULT 0.4, "
+                        "content DOUBLE DEFAULT 0.3, "
+                        "popularity DOUBLE DEFAULT 0.3, "
+                        "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+
+                    database_->execute(
+                        "INSERT INTO recommendation_weights (id, collaborative, content, popularity) "
+                        "VALUES (1, " + std::to_string(collaborative) + ", "
+                        + std::to_string(content) + ", "
+                        + std::to_string(popularity) + ") "
+                        "ON DUPLICATE KEY UPDATE collaborative = " + std::to_string(collaborative)
+                        + ", content = " + std::to_string(content)
+                        + ", popularity = " + std::to_string(popularity));
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Weights DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["weights"]["collaborative"] = collaborative;
+            resp["weights"]["content"] = content;
+            resp["weights"]["popularity"] = popularity;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/recommendations/user/:id/profile — Get user recommendation profile
+    router.get(prefix + "/user/:id/profile", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.count("id") ? req.pathParams.at("id") : "";
+
+            nlohmann::json resp;
+            resp["userId"] = userId;
+
+            if (database_) {
+                try {
+                    auto results = database_->query(
+                        "SELECT preferred_topics, reading_level, diversity_score "
+                        "FROM user_recommendation_profiles WHERE user_id = "
+                        + StringUtil::escapeSql(userId) + " LIMIT 1");
+
+                    if (!results.empty()) {
+                        auto& row = results[0];
+                        if (row.count("preferred_topics") && !row.at("preferred_topics").empty()) {
+                            try {
+                                resp["preferredTopics"] = nlohmann::json::parse(row.at("preferred_topics"));
+                            } catch (...) {
+                                resp["preferredTopics"] = nlohmann::json::array();
+                            }
+                        } else {
+                            resp["preferredTopics"] = nlohmann::json::array();
+                        }
+                        resp["readingLevel"] = row.count("reading_level") ? row.at("reading_level") : "intermediate";
+                        if (row.count("diversity_score") && !row.at("diversity_score").empty()) {
+                            try { resp["diversityScore"] = std::stod(row.at("diversity_score")); } catch (...) { resp["diversityScore"] = 0.5; }
+                        } else {
+                            resp["diversityScore"] = 0.5;
+                        }
+                    } else {
+                        resp["preferredTopics"] = nlohmann::json::array();
+                        resp["readingLevel"] = "intermediate";
+                        resp["diversityScore"] = 0.5;
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] User profile query failed: {}", e.what());
+                    resp["preferredTopics"] = nlohmann::json::array();
+                    resp["readingLevel"] = "intermediate";
+                    resp["diversityScore"] = 0.5;
+                }
+            } else {
+                // Stub fallback
+                resp["preferredTopics"] = nlohmann::json::array({"machine learning", "natural language processing", "computer vision"});
+                resp["readingLevel"] = "advanced";
+                resp["diversityScore"] = 0.7;
+            }
+
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // DELETE /api/recommendations/cache — Clear recommendation cache
+    router.del(prefix + "/cache", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int cleared = 0;
+
+            if (database_) {
+                try {
+                    auto countResult = database_->query("SELECT COUNT(*) as cnt FROM recommendation_cache");
+                    if (!countResult.empty() && countResult[0].count("cnt") && !countResult[0].at("cnt").empty()) {
+                        try { cleared = std::stoi(countResult[0].at("cnt")); } catch (...) {}
+                    }
+                    database_->execute("DELETE FROM recommendation_cache");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[Recommendation] Cache clear DB failed: {}", e.what());
+                }
+            }
+
+            // Also clear in-memory cache
+            {
+                std::lock_guard<std::mutex> lock(impl_->cacheMutex_);
+                cleared += static_cast<int>(impl_->inMemoryCache_.size());
+                impl_->inMemoryCache_.clear();
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["cleared"] = cleared;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[Recommendation] Registered 41 routes");
 }
 
 } // namespace PaperCrawler

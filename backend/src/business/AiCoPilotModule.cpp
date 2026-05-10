@@ -1178,7 +1178,81 @@ void AiCoPilotModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[AiCoPilot] Registered 38 routes at /api/ai-co-pilot");
+    // POST /api/ai-co-pilot/sessions/:id/export — Export session conversation
+    router.post(prefix + "/sessions/:id/export", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string sessionId = req.pathParams.at("id");
+            std::string format = "markdown";
+            if (!req.body.empty()) {
+                auto body = nlohmann::json::parse(req.body);
+                format = body.value("format", "markdown");
+            }
+
+            std::string content;
+
+            if (database_) {
+                try {
+                    auto messages = database_->query(
+                        "SELECT role, content, created_at FROM ai_conversations "
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId)
+                        + "' ORDER BY created_at ASC");
+                    for (auto& row : messages) {
+                        content += "**" + StringUtil::getRowStr(row, "role", "user") + "**\n\n";
+                        content += StringUtil::getRowStr(row, "content", "") + "\n\n---\n\n";
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AiCoPilot] Session export query failed: {}", e.what());
+                }
+            } else {
+                content = "# Session Export (Stub)\n\n**user**\n\nHello\n\n---\n\n**assistant**\n\nHi, how can I help?\n\n---\n\n";
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["content"] = content;
+            resp["format"] = format;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = std::string(e.what());
+            return HttpResponse::json(500, errResp.dump());
+        }
+    });
+
+    // GET /api/ai-co-pilot/prompts/popular — Get popular prompt templates
+    router.get(prefix + "/prompts/popular", [this](const HttpRequest& req) -> HttpResponse {
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT id, name, usage_count as usageCount, category FROM ai_custom_prompts "
+                    "ORDER BY usage_count DESC LIMIT 20");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") && !row["id"].empty() ? std::stoi(row["id"]) : 0;
+                    item["name"] = StringUtil::getRowStr(row, "name");
+                    item["usageCount"] = StringUtil::getRowInt(row, "usageCount");
+                    item["category"] = StringUtil::getRowStr(row, "category");
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[AiCoPilot] Popular prompts query failed: {}", e.what());
+            }
+        } else {
+            // Stub: return 3 mock prompts
+            arr.push_back({{"id", 1}, {"name", "Summarize Paper"}, {"usageCount", 150}, {"category", "analysis"}});
+            arr.push_back({{"id", 2}, {"name", "Find Related Work"}, {"usageCount", 98}, {"category", "search"}});
+            arr.push_back({{"id", 3}, {"name", "Improve Writing"}, {"usageCount", 75}, {"category", "writing"}});
+        }
+
+        nlohmann::json resp;
+        resp["prompts"] = arr;
+        return HttpResponse::json(200, resp.dump());
+    });
+
+    spdlog::info("[AiCoPilot] Registered 40 routes at /api/ai-co-pilot");
 }
 
 } // namespace PaperCrawler

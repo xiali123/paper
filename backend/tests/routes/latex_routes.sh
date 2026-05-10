@@ -66,4 +66,8 @@ ROUTES=(
     "POST|/api/latex/templates|{\"name\":\"Test\",\"content\":\"\\\\documentclass{article}\"}|200|Save LaTeX template"
     "GET|/api/latex/templates||200|List LaTeX templates"
     "POST|/api/latex/validate|{\"content\":\"\\\\documentclass{article}\"}|200|Validate LaTeX syntax"
+
+    # --- Round 28 Additions ---
+    "POST|/api/latex/compile/check|{\"content\":\"\\\\documentclass{article}\"}|200|Pre-compile check"
+    "GET|/api/latex/snippets||200|Get LaTeX snippets library"
 )

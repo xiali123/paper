@@ -86,4 +86,9 @@ ROUTES=(
     "GET|/api/dashboard/search-history/stats||200|Get search history statistics"
     "POST|/api/dashboard/widgets/reset|{}|200|Reset dashboard widgets"
     "GET|/api/dashboard/system/info||200|Get system info"
+
+    # --- Round 28 Additions ---
+    "GET|/api/dashboard/papers/monthly||200|Monthly paper additions"
+    "POST|/api/dashboard/quick-note|{\"text\":\"Test note\",\"color\":\"yellow\"}|200|Create quick note"
+    "GET|/api/dashboard/export/report||200|Export dashboard report"
 )

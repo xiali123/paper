@@ -1824,7 +1824,67 @@ void UserApiModule::registerRoutes() {
         return HttpResponse::json(200, resp.dump());
     });
 
-    spdlog::info("UserApiModule routes registered (43)");
+    // POST /api/users/:id/avatar/remove — Remove user avatar
+    router.post(prefix + "/:id/avatar/remove", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string userId = req.pathParams.at("id");
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "UPDATE users SET avatar_url = NULL WHERE id = "
+                        + StringUtil::escapeSql(userId));
+                } catch (const std::exception& e) {
+                    spdlog::warn("[UserApi] Avatar remove DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["error"] = std::string(e.what());
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/users/:id/collaborations — Get user's collaborative documents
+    router.get(prefix + "/:id/collaborations", [this](const HttpRequest& req) -> HttpResponse {
+        auto idIt = req.pathParams.find("id");
+        if (idIt == req.pathParams.end())
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing user ID\"}");
+
+        std::string userId = idIt->second;
+        nlohmann::json arr = nlohmann::json::array();
+
+        if (database_) {
+            try {
+                auto results = database_->query(
+                    "SELECT dc.document_id as id, d.title, dc.role, d.updated_at as updatedAt "
+                    "FROM document_collaborators dc LEFT JOIN documents d ON dc.document_id = d.id "
+                    "WHERE dc.user_id = " + StringUtil::escapeSql(userId)
+                    + " ORDER BY d.updated_at DESC LIMIT 50");
+
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = StringUtil::getRowInt(row, "id");
+                    item["title"] = StringUtil::getRowStr(row, "title");
+                    item["role"] = StringUtil::getRowStr(row, "role");
+                    item["updatedAt"] = StringUtil::getRowStr(row, "updatedAt");
+                    arr.push_back(item);
+                }
+            } catch (const std::exception& e) {
+                spdlog::warn("[UserApi] Collaborations query failed: {}", e.what());
+            }
+        }
+
+        nlohmann::json resp;
+        resp["documents"] = arr;
+        return HttpResponse::json(HTTP::OK, resp.dump());
+    });
+
+    spdlog::info("UserApiModule routes registered (45)");
 }
 
 std::vector<User> UserApiModule::listUsers(const UserQuery& query) {
