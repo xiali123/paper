@@ -352,6 +352,11 @@
 #include "visualization/PaperRingChart.hpp"
 #include "workspace/PaperMilestoneTracker.hpp"
 #include "tools/PaperPluginManager.hpp"
+#include "analysis/PaperContradictionFinder.hpp"
+#include "reading/PaperSpacedRepetition.hpp"
+#include "visualization/PaperAreaChart.hpp"
+#include "workspace/PaperRiskMatrix.hpp"
+#include "tools/PaperMacroRecorder.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6912,6 +6917,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Contradiction Finder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contradiction Finder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContradictionFinder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Spaced Repetition", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Spaced Repetition");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSpacedRepetition();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Area Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Area Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAreaChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Risk Matrix", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Risk Matrix");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRiskMatrix();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Macro Recorder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Macro Recorder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMacroRecorder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8128,6 +8183,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Plugin Manager", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Plugin Manager");
+    });
+    commandPalette_->addAction("Contradiction Finder", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Contradiction Finder");
+    });
+    commandPalette_->addAction("Spaced Repetition", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Spaced Repetition");
+    });
+    commandPalette_->addAction("Area Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Area Chart");
+    });
+    commandPalette_->addAction("Risk Matrix", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Risk Matrix");
+    });
+    commandPalette_->addAction("Macro Recorder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Macro Recorder");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

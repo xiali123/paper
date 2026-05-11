@@ -355,6 +355,11 @@ class PaperFlashcardDeck;
 class PaperRingChart;
 class PaperMilestoneTracker;
 class PaperPluginManager;
+class PaperContradictionFinder;
+class PaperSpacedRepetition;
+class PaperAreaChart;
+class PaperRiskMatrix;
+class PaperMacroRecorder;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
