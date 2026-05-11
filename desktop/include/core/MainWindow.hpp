@@ -390,6 +390,11 @@ class PaperReadingThermometer;
 class PaperStepChart;
 class PaperProjectBoard;
 class PaperClipboardManager;
+class PaperAnomalyDetector;
+class PaperReadingRadar;
+class PaperTreemapWidget;
+class PaperSurveyManager;
+class PaperBookmarkOrganizer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

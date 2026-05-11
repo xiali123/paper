@@ -387,6 +387,11 @@
 #include "visualization/PaperStepChart.hpp"
 #include "workspace/PaperProjectBoard.hpp"
 #include "tools/PaperClipboardManager.hpp"
+#include "analysis/PaperAnomalyDetector.hpp"
+#include "reading/PaperReadingRadar.hpp"
+#include "visualization/PaperTreemapWidget.hpp"
+#include "workspace/PaperSurveyManager.hpp"
+#include "tools/PaperBookmarkOrganizer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7297,6 +7302,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Anomaly Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Anomaly Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAnomalyDetector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Radar", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Radar");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingRadar();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Treemap Widget", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Treemap Widget");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTreemapWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Survey Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Survey Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSurveyManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bookmark Organizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bookmark Organizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBookmarkOrganizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8618,6 +8673,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Clipboard Manager", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Clipboard Manager");
+    });
+    commandPalette_->addAction("Anomaly Detector", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Anomaly Detector");
+    });
+    commandPalette_->addAction("Reading Radar", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Radar");
+    });
+    commandPalette_->addAction("Treemap Widget", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Treemap Widget");
+    });
+    commandPalette_->addAction("Survey Manager", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Survey Manager");
+    });
+    commandPalette_->addAction("Bookmark Organizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bookmark Organizer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
