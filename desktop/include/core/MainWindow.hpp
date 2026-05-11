@@ -340,6 +340,11 @@ class PaperSkillAssessor;
 class PaperGanttChart;
 class PaperPaperRecommender;
 class PaperSnippetVault;
+class PaperNoveltyScore;
+class PaperStudyPlanner;
+class PaperDotPlot;
+class PaperLabNotebook;
+class PaperVersionTree;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
