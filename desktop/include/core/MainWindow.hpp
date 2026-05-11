@@ -395,6 +395,11 @@ class PaperReadingRadar;
 class PaperTreemapWidget;
 class PaperSurveyManager;
 class PaperBookmarkOrganizer;
+class PaperPatternMiner;
+class PaperReadingPulse;
+class PaperRadialChart;
+class PaperCollaborationHub;
+class PaperCodeVault;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

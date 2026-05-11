@@ -392,6 +392,11 @@
 #include "visualization/PaperTreemapWidget.hpp"
 #include "workspace/PaperSurveyManager.hpp"
 #include "tools/PaperBookmarkOrganizer.hpp"
+#include "analysis/PaperPatternMiner.hpp"
+#include "reading/PaperReadingPulse.hpp"
+#include "visualization/PaperRadialChart.hpp"
+#include "workspace/PaperCollaborationHub.hpp"
+#include "tools/PaperCodeVault.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7352,6 +7357,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Pattern Miner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Pattern Miner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPatternMiner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Pulse", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Pulse");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingPulse();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Radial Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Radial Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRadialChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Collaboration Hub", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Collaboration Hub");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCollaborationHub();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Code Vault", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Code Vault");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCodeVault();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8688,6 +8743,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Bookmark Organizer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Bookmark Organizer");
+    });
+    commandPalette_->addAction("Pattern Miner", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Pattern Miner");
+    });
+    commandPalette_->addAction("Reading Pulse", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Pulse");
+    });
+    commandPalette_->addAction("Radial Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Radial Chart");
+    });
+    commandPalette_->addAction("Collaboration Hub", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Collaboration Hub");
+    });
+    commandPalette_->addAction("Code Vault", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Code Vault");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
