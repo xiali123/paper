@@ -380,6 +380,11 @@ class PaperPaperTimeline;
 class PaperLollipopChart;
 class PaperConferenceTracker;
 class PaperDiffViewer;
+class PaperClusterValidator;
+class PaperReferenceGraph;
+class PaperHistogramWidget;
+class PaperExperimentLogger;
+class PaperArchiveManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

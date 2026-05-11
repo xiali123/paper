@@ -377,6 +377,11 @@
 #include "visualization/PaperLollipopChart.hpp"
 #include "workspace/PaperConferenceTracker.hpp"
 #include "tools/PaperDiffViewer.hpp"
+#include "analysis/PaperClusterValidator.hpp"
+#include "reading/PaperReferenceGraph.hpp"
+#include "visualization/PaperHistogramWidget.hpp"
+#include "workspace/PaperExperimentLogger.hpp"
+#include "tools/PaperArchiveManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7187,6 +7192,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Cluster Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cluster Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClusterValidator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reference Graph", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reference Graph");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReferenceGraph();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Histogram Widget", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Histogram Widget");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHistogramWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Experiment Logger", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Experiment Logger");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperExperimentLogger();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Archive Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Archive Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArchiveManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8478,6 +8533,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Diff Viewer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Diff Viewer");
+    });
+    commandPalette_->addAction("Cluster Validator", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Cluster Validator");
+    });
+    commandPalette_->addAction("Reference Graph", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reference Graph");
+    });
+    commandPalette_->addAction("Histogram Widget", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Histogram Widget");
+    });
+    commandPalette_->addAction("Experiment Logger", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Experiment Logger");
+    });
+    commandPalette_->addAction("Archive Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Archive Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
