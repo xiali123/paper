@@ -382,6 +382,11 @@
 #include "visualization/PaperHistogramWidget.hpp"
 #include "workspace/PaperExperimentLogger.hpp"
 #include "tools/PaperArchiveManager.hpp"
+#include "analysis/PaperTopicTracker.hpp"
+#include "reading/PaperReadingThermometer.hpp"
+#include "visualization/PaperStepChart.hpp"
+#include "workspace/PaperProjectBoard.hpp"
+#include "tools/PaperClipboardManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7242,6 +7247,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Thermometer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Thermometer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingThermometer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Step Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Step Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStepChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Project Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Project Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProjectBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Clipboard Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Clipboard Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClipboardManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8548,6 +8603,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Archive Manager", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Archive Manager");
+    });
+    commandPalette_->addAction("Topic Tracker", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Tracker");
+    });
+    commandPalette_->addAction("Reading Thermometer", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Thermometer");
+    });
+    commandPalette_->addAction("Step Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Step Chart");
+    });
+    commandPalette_->addAction("Project Board", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Project Board");
+    });
+    commandPalette_->addAction("Clipboard Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Clipboard Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

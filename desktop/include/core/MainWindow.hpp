@@ -385,6 +385,11 @@ class PaperReferenceGraph;
 class PaperHistogramWidget;
 class PaperExperimentLogger;
 class PaperArchiveManager;
+class PaperTopicTracker;
+class PaperReadingThermometer;
+class PaperStepChart;
+class PaperProjectBoard;
+class PaperClipboardManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
