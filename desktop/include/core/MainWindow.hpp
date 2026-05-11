@@ -375,6 +375,11 @@ class PaperNoteOrganizer;
 class PaperBulletChart;
 class PaperAssetManager;
 class PaperRegexTester;
+class PaperOutlierDetector;
+class PaperPaperTimeline;
+class PaperLollipopChart;
+class PaperConferenceTracker;
+class PaperDiffViewer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

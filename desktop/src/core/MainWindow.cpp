@@ -372,6 +372,11 @@
 #include "visualization/PaperBulletChart.hpp"
 #include "workspace/PaperAssetManager.hpp"
 #include "tools/PaperRegexTester.hpp"
+#include "analysis/PaperOutlierDetector.hpp"
+#include "reading/PaperPaperTimeline.hpp"
+#include "visualization/PaperLollipopChart.hpp"
+#include "workspace/PaperConferenceTracker.hpp"
+#include "tools/PaperDiffViewer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7132,6 +7137,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Outlier Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Outlier Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperOutlierDetector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Paper Timeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Timeline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPaperTimeline();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lollipop Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lollipop Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLollipopChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Conference Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Conference Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConferenceTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Diff Viewer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Diff Viewer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDiffViewer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8408,6 +8463,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Regex Tester", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Regex Tester");
+    });
+    commandPalette_->addAction("Outlier Detector", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Outlier Detector");
+    });
+    commandPalette_->addAction("Paper Timeline", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Timeline");
+    });
+    commandPalette_->addAction("Lollipop Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Lollipop Chart");
+    });
+    commandPalette_->addAction("Conference Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Conference Tracker");
+    });
+    commandPalette_->addAction("Diff Viewer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Diff Viewer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
