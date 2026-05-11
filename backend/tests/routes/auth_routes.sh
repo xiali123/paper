@@ -62,4 +62,8 @@ ROUTES=(
     # --- Round 29 Additions ---
     "POST|/api/auth/device/register|{\"deviceName\":\"My Laptop\",\"deviceType\":\"laptop\"}|200|Register device"
     "GET|/api/auth/devices||200|List trusted devices"
+
+    # --- Round 31 Additions ---
+    "POST|/api/auth/token/refresh|{\"refreshToken\":\"rt_abc\"}|200|Refresh auth token"
+    "GET|/api/auth/permissions/list||200|List all permissions"
 )

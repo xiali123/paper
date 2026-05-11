@@ -63,4 +63,8 @@ ROUTES=(
     # --- Round 29 Additions ---
     "POST|/api/search/boost|{\"paperId\":1,\"boostFactor\":2.0}|200|Boost search results"
     "GET|/api/search/papers/count?q=test||200|Count matching papers"
+
+    # --- Round 31 Additions ---
+    "POST|/api/search/reindex|{\"paperIds\":[1,2,3]}|200|Reindex papers"
+    "GET|/api/search/synonyms||200|Get search synonyms"
 )

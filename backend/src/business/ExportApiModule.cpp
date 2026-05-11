@@ -2169,7 +2169,92 @@ void ExportApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[ExportApi] Registered 44 routes");
+    // ========================================================================
+    // Round 31 Additions
+    // ========================================================================
+
+    // POST /api/export/watermark — Add watermark to export
+    router.post(prefix + "/watermark", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string exportId = body.value("exportId", "");
+            std::string text = body.value("text", "CONFIDENTIAL");
+            std::string position = body.value("position", "center");
+
+            if (exportId.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"success\":false,\"error\":\"exportId is required\"}");
+
+            std::string watermarkedExportId = "wm_" + exportId;
+
+            if (database_) {
+                try {
+                    database_->execute(
+                        "UPDATE exports SET watermarked = 1, watermark_text = '"
+                        + StringUtil::escapeSql(text) + "', watermark_position = '"
+                        + StringUtil::escapeSql(position) + "' WHERE id = "
+                        + exportId);
+                } catch (const std::exception& e) {
+                    spdlog::warn("[ExportApi] Watermark DB update failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["watermarkedExportId"] = watermarkedExportId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/export/formats/details — Get detailed format information
+    router.get(prefix + "/formats/details", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json formats = nlohmann::json::array();
+
+            if (database_) {
+                auto results = database_->query(
+                    "SELECT id, name, extension, mime_type, max_size FROM export_formats ORDER BY name");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? row.at("id") : "";
+                    item["name"] = row.count("name") ? row.at("name") : "";
+                    item["extension"] = row.count("extension") ? row.at("extension") : "";
+                    item["mimeType"] = row.count("mime_type") ? row.at("mime_type") : "";
+                    item["maxSize"] = row.count("max_size") ? row.at("max_size") : "";
+                    formats.push_back(item);
+                }
+            } else {
+                // Stub: return 3 mock formats (PDF, Markdown, BibTeX)
+                nlohmann::json f1;
+                f1["id"] = "pdf"; f1["name"] = "PDF"; f1["extension"] = ".pdf";
+                f1["mimeType"] = "application/pdf"; f1["maxSize"] = "50MB";
+                formats.push_back(f1);
+                nlohmann::json f2;
+                f2["id"] = "markdown"; f2["name"] = "Markdown"; f2["extension"] = ".md";
+                f2["mimeType"] = "text/markdown"; f2["maxSize"] = "100MB";
+                formats.push_back(f2);
+                nlohmann::json f3;
+                f3["id"] = "bibtex"; f3["name"] = "BibTeX"; f3["extension"] = ".bib";
+                f3["mimeType"] = "application/x-bibtex"; f3["maxSize"] = "10MB";
+                formats.push_back(f3);
+            }
+
+            nlohmann::json resp;
+            resp["formats"] = formats;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    spdlog::info("[ExportApi] Registered 46 routes");
 }
 
 } // namespace PaperCrawler

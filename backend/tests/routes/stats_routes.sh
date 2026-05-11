@@ -73,4 +73,8 @@ ROUTES=(
     # --- Round 29 Additions ---
     "GET|/api/stats/users/activity-distribution||200|User activity distribution"
     "GET|/api/stats/papers/coverage||200|Papers metadata coverage"
+
+    # --- Round 31 Additions ---
+    "GET|/api/stats/reading/time||200|Get reading time stats"
+    "GET|/api/stats/exports/by-format||200|Get export stats by format"
 )

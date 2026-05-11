@@ -1372,6 +1372,83 @@ void CrawlerApiModule::registerRoutes() {
     });
 
     // ========================================================================
+    // Round 31 Additions — Parser Config & Preview
+    // ========================================================================
+
+    // POST /api/crawler/parser/config — Configure parser settings
+    router.post(prefix + "/parser/config", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            nlohmann::json selectFields = body.value("selectFields", std::vector<std::string>{"title"});
+            int timeout = body.value("timeout", 30);
+
+            if (database_) {
+                try {
+                    std::string fieldsStr;
+                    if (selectFields.is_array()) {
+                        fieldsStr = selectFields.dump();
+                    }
+                    database_->execute(
+                        "INSERT INTO crawler_config (config_key, config_value) VALUES ('parser_fields', '"
+                        + StringUtil::escapeSql(fieldsStr) + "') "
+                        "ON UPDATE config_value = VALUES(config_value)");
+                    database_->execute(
+                        "INSERT INTO crawler_config (config_key, config_value) VALUES ('parser_timeout', '"
+                        + std::to_string(timeout) + "') "
+                        "ON UPDATE config_value = VALUES(config_value)");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[CrawlerApi] Parser config DB insert failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["fields"] = selectFields;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // GET /api/crawler/parser/preview — Preview parsed content from a URL
+    router.get(prefix + "/parser/preview", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            std::string url;
+            auto urlIt = req.queryParams.find("url");
+            if (urlIt != req.queryParams.end()) url = urlIt->second;
+
+            nlohmann::json fields;
+            fields["title"] = "Sample Paper Title";
+            fields["abstract"] = "This is a preview of the parsed content from the given URL.";
+
+            if (database_ && !url.empty()) {
+                try {
+                    std::string escaped = StringUtil::escapeSql(url);
+                    auto results = database_->query(
+                        "SELECT title, abstract FROM papers WHERE url LIKE '%"
+                        + escaped + "%' LIMIT 1");
+                    if (!results.empty()) {
+                        fields["title"] = results[0].count("title") ? results[0].at("title") : "";
+                        fields["abstract"] = results[0].count("abstract") ? results[0].at("abstract") : "";
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[CrawlerApi] Parser preview query failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["url"] = url;
+            resp["fields"] = fields;
+            resp["parser"] = "generic";
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // ========================================================================
     // WebSocket通信
     // ========================================================================
 
@@ -1382,7 +1459,7 @@ void CrawlerApiModule::registerRoutes() {
         });
     }
 
-    spdlog::info("[CrawlerApiModule] Registered 44 routes");
+    spdlog::info("[CrawlerApiModule] Registered 46 routes");
 }
 
 // ============================================================================

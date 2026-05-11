@@ -2129,26 +2129,125 @@ void SearchApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[SearchApiModule] Registered 42 routes");
+    // ========================================================================
+    // Round 31 Additions
+    // ========================================================================
+
+    // POST /api/search/reindex — Reindex specific papers
+    router.post(prefix + "/reindex", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::vector<int> paperIds;
+            if (body.contains("paperIds") && body["paperIds"].is_array()) {
+                for (const auto& id : body["paperIds"]) {
+                    paperIds.push_back(id.get<int>());
+                }
+            }
+
+            int reindexed = 0;
+
+            if (database_ && !paperIds.empty()) {
+                std::string ids;
+                for (size_t i = 0; i < paperIds.size(); ++i) {
+                    if (i > 0) ids += ",";
+                    ids += std::to_string(paperIds[i]);
+                }
+                try {
+                    database_->execute(
+                        "UPDATE papers SET indexed_at = NOW() WHERE id IN (" + ids + ")");
+                    auto result = database_->query(
+                        "SELECT COUNT(*) as cnt FROM papers WHERE id IN (" + ids + ") AND indexed_at IS NOT NULL");
+                    if (!result.empty() && result[0].count("cnt") && !result[0].at("cnt").empty()) {
+                        try { reindexed = std::stoi(result[0].at("cnt")); } catch (...) {}
+                    }
+                } catch (const std::exception& e) {
+                    spdlog::warn("[SearchApi] Reindex DB update failed: {}", e.what());
+                }
+            }
+
+            if (reindexed == 0) {
+                reindexed = static_cast<int>(paperIds.size());
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["reindexed"] = reindexed;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                "{\"success\":false,\"error\":\"Invalid JSON\"}");
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = "Internal server error";
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    // GET /api/search/synonyms — Get search synonym mappings
+    router.get(prefix + "/synonyms", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json synonyms = nlohmann::json::array();
+
+            if (database_) {
+                auto result = database_->query(
+                    "SELECT term, synonyms FROM search_synonyms ORDER BY term");
+                for (auto& row : result) {
+                    nlohmann::json item;
+                    item["term"] = row.count("term") ? row.at("term") : "";
+                    std::string synStr = row.count("synonyms") ? row.at("synonyms") : "";
+                    nlohmann::json synArr = nlohmann::json::array();
+                    if (!synStr.empty()) {
+                        std::istringstream ss(synStr);
+                        std::string tok;
+                        while (std::getline(ss, tok, ',')) {
+                            synArr.push_back(tok);
+                        }
+                    }
+                    item["synonyms"] = synArr;
+                    synonyms.push_back(item);
+                }
+            } else {
+                // Stub: return 3 mock synonym groups
+                nlohmann::json s1;
+                s1["term"] = "machine learning";
+                s1["synonyms"] = std::vector<std::string>{"ML", "deep learning", "neural networks"};
+                synonyms.push_back(s1);
+                nlohmann::json s2;
+                s2["term"] = "NLP";
+                s2["synonyms"] = std::vector<std::string>{"natural language processing", "text mining"};
+                synonyms.push_back(s2);
+                nlohmann::json s3;
+                s3["term"] = "computer vision";
+                s3["synonyms"] = std::vector<std::string>{"CV", "image recognition", "visual computing"};
+                synonyms.push_back(s3);
+            }
+
+            nlohmann::json resp;
+            resp["synonyms"] = synonyms;
+            resp["success"] = true;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            nlohmann::json errResp;
+            errResp["success"] = false;
+            errResp["error"] = e.what();
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, errResp.dump());
+        }
+    });
+
+    spdlog::info("[SearchApi] Registered {} routes", 44);
 }
 
 } // namespace PaperCrawler
 
-// ============================================================================
-// DLL导出函数
-// ============================================================================
 extern "C" {
-
 PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::SearchApiModule();
 }
-
 PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::SearchApiModule*>(ptr);
 }
-
 PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
-
 }

@@ -1067,19 +1067,78 @@ void PaperApiModule::registerRoutes() {
         }
     });
 
-    // POST /api/papers/:id/share — share paper
+    // POST /api/papers/:id/share — share paper with another user
     router.post(prefix + "/:id/share", [this](const HttpRequest& req) -> HttpResponse {
         try {
             int paperId = std::stoi(req.pathParams.at("id"));
             auto json = nlohmann::json::parse(req.body);
-            std::string targetUser = json.value("target_user_id", "");
-            std::string message = json.value("message", "");
+            int targetUserId = json.value("targetUserId", 0);
+            std::string note = json.value("note", "");
+            std::string permission = json.value("permission", "read");
+
+            if (targetUserId <= 0) {
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    "{\"error\":\"targetUserId is required\"}");
+            }
+
+            std::string shareId;
+
+            if (database_) {
+                database_->execute(
+                    "INSERT INTO paper_shares (paper_id, target_user_id, note, permission) VALUES ("
+                    + std::to_string(paperId) + ", "
+                    + std::to_string(targetUserId) + ", '"
+                    + StringUtil::escapeSql(note) + "', '"
+                    + StringUtil::escapeSql(permission) + "')");
+                auto rows = database_->query("SELECT LAST_INSERT_ID() as id");
+                if (!rows.empty()) {
+                    shareId = rows[0]["id"];
+                }
+            } else {
+                auto now = std::chrono::system_clock::now();
+                auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now.time_since_epoch()).count();
+                shareId = "share_" + std::to_string(ts);
+            }
 
             nlohmann::json resp;
             resp["success"] = true;
-            resp["paperId"] = paperId;
-            resp["sharedWith"] = targetUser.empty() ? 0 : std::stoi(targetUser);
-            resp["message"] = "Paper shared successfully";
+            resp["shareId"] = shareId;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
+        }
+    });
+
+    // GET /api/papers/:id/metadata — Get complete paper metadata
+    router.get(prefix + "/:id/metadata", [this](const HttpRequest& req) -> HttpResponse {
+        if (!database_)
+            return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"Paper not found\"}");
+
+        try {
+            int paperId = std::stoi(req.pathParams.at("id"));
+            auto results = database_->query(
+                "SELECT p.id, p.title, p.authors, p.abstract, p.year, "
+                "j.name as journal, p.doi, p.keywords, p.citation_count as citations, "
+                "p.source, p.created_at "
+                "FROM papers p LEFT JOIN journals j ON p.journal_id = j.id "
+                "WHERE p.id = " + std::to_string(paperId));
+            if (results.empty())
+                return HttpResponse::json(HTTP::NOT_FOUND, "{\"error\":\"Paper not found\"}");
+
+            auto& row = results[0];
+            nlohmann::json resp;
+            resp["id"] = StringUtil::getRowInt(row, "id");
+            resp["title"] = StringUtil::getRowStr(row, "title");
+            resp["authors"] = StringUtil::getRowStr(row, "authors");
+            resp["abstract"] = StringUtil::getRowStr(row, "abstract");
+            resp["year"] = StringUtil::getRowStr(row, "year");
+            resp["journal"] = StringUtil::getRowStr(row, "journal");
+            resp["doi"] = StringUtil::getRowStr(row, "doi");
+            resp["keywords"] = StringUtil::getRowStr(row, "keywords");
+            resp["citations"] = StringUtil::getRowInt(row, "citations");
+            resp["source"] = StringUtil::getRowStr(row, "source");
+            resp["createdAt"] = StringUtil::getRowStr(row, "created_at");
             return HttpResponse::json(HTTP::OK, resp.dump());
         } catch (const std::exception& e) {
             return HttpResponse::json(HTTP::INTERNAL_ERROR, "{\"error\":\"" + std::string(e.what()) + "\"}");
@@ -1820,7 +1879,7 @@ void PaperApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[PaperApiModule] Registered 52 routes");
+    spdlog::info("[PaperApiModule] Registered 53 routes");
 }
 
 // ============================================================================

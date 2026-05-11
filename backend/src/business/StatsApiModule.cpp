@@ -1831,7 +1831,107 @@ void StatsApiModule::registerRoutes() {
         }
     });
 
-    spdlog::info("[StatsApi] Registered 46 routes");
+    // ========================================================================
+    // Round 31 Additions — Reading time & Export format stats
+    // ========================================================================
+
+    // GET /api/stats/reading/time — Get total reading time stats
+    router.get(prefix + "/reading/time", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            int totalMinutes = 0;
+            double avgPerDay = 0.0;
+            double avgPerSession = 0.0;
+            nlohmann::json topPapers = nlohmann::json::array();
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT SUM(reading_time_minutes) as totalMinutes, "
+                    "AVG(reading_time_minutes) as avgPerSession, "
+                    "COUNT(DISTINCT DATE(viewed_at)) as activeDays "
+                    "FROM user_reading_history "
+                    "WHERE reading_time_minutes IS NOT NULL");
+
+                if (!rows.empty()) {
+                    auto& r = rows[0];
+                    std::string val;
+                    val = r.count("totalMinutes") ? r.at("totalMinutes") : "";
+                    if (!val.empty()) { try { totalMinutes = std::stoi(val); } catch (...) {} }
+
+                    val = r.count("avgPerSession") ? r.at("avgPerSession") : "";
+                    if (!val.empty()) { try { avgPerSession = std::stod(val); } catch (...) {} }
+
+                    int activeDays = 0;
+                    val = r.count("activeDays") ? r.at("activeDays") : "";
+                    if (!val.empty()) { try { activeDays = std::stoi(val); } catch (...) {} }
+                    avgPerDay = activeDays > 0 ? (double)totalMinutes / activeDays : 0.0;
+                }
+
+                auto paperRows = database_->query(
+                    "SELECT paper_id, SUM(reading_time_minutes) as totalMinutes "
+                    "FROM user_reading_history "
+                    "WHERE reading_time_minutes IS NOT NULL "
+                    "GROUP BY paper_id ORDER BY totalMinutes DESC LIMIT 10");
+                for (auto& row : paperRows) {
+                    nlohmann::json item;
+                    item["paperId"] = StringUtil::getRowInt(row, "paper_id");
+                    item["minutes"] = StringUtil::getRowInt(row, "totalMinutes");
+                    topPapers.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["totalMinutes"] = totalMinutes;
+            resp["avgPerDay"] = std::round(avgPerDay * 100.0) / 100.0;
+            resp["avgPerSession"] = std::round(avgPerSession * 100.0) / 100.0;
+            resp["topPapers"] = topPapers;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    // GET /api/stats/exports/by-format — Get export stats by format
+    router.get(prefix + "/exports/by-format", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json formatsArr = nlohmann::json::array();
+            int totalCount = 0;
+
+            if (database_) {
+                auto rows = database_->query(
+                    "SELECT format, COUNT(*) as count FROM exports "
+                    "GROUP BY format ORDER BY count DESC");
+
+                for (auto& row : rows) {
+                    int cnt = row.count("count") && !row.at("count").empty()
+                        ? std::stoi(row.at("count")) : 0;
+                    totalCount += cnt;
+                }
+
+                for (auto& row : rows) {
+                    nlohmann::json item;
+                    item["format"] = row.count("format") ? row.at("format") : "";
+                    int cnt = row.count("count") && !row.at("count").empty()
+                        ? std::stoi(row.at("count")) : 0;
+                    item["count"] = cnt;
+                    item["percentage"] = totalCount > 0
+                        ? std::round(cnt * 10000.0 / totalCount) / 100.0 : 0.0;
+                    formatsArr.push_back(item);
+                }
+            }
+
+            nlohmann::json resp;
+            resp["formats"] = formatsArr;
+            resp["success"] = true;
+            return HttpResponse::json(200, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(500,
+                nlohmann::json{{"success", false}, {"error", e.what()}}.dump());
+        }
+    });
+
+    spdlog::info("[StatsApi] Registered 48 routes");
 }
 
 std::string StatsApiModule::handleStats() {
@@ -1965,53 +2065,39 @@ std::string StatsApiModule::handlePerformance() {
     for (const auto& pair : metrics.requestCounts) {
         requestCounts[pair.first] = pair.second;
     }
+    json["requestCounts"] = requestCounts;
 
-    nlohmann::json throughput;
+    nlohmann::json avgResponseTimes;
+    for (const auto& pair : metrics.averageResponseTimes) {
+        avgResponseTimes[pair.first] = pair.second.count();
+    }
+    json["averageResponseTimes"] = avgResponseTimes;
+
+    nlohmann::json throughputJson;
     for (const auto& pair : metrics.throughput) {
-        throughput[pair.first] = pair.second;
+        throughputJson[pair.first] = pair.second;
     }
+    json["throughput"] = throughputJson;
 
-    json["request_counts"] = requestCounts;
-    json["throughput"] = throughput;
-
-    return JsonHelper::buildJsonResponse({
-        {"performance_metrics", json.dump()}
-    });
-}
-
-std::string StatsApiModule::handleRealtime() {
-    return JsonHelper::buildJsonResponse({
-        {"realtime_stats", getRealtimeStats()}
-    });
-}
-
-void StatsApiModule::monitorLoop() {
-    while (streaming_) {
-        // 收集实时统计数据（当前为空循环占位）
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+    nlohmann::json errorCountsJson;
+    for (const auto& pair : metrics.errorCounts) {
+        errorCountsJson[pair.first] = pair.second;
     }
+    json["errorCounts"] = errorCountsJson;
+
+    return json.dump();
 }
 
 } // namespace PaperCrawler
 
-// ============================================================================
-// DLL导出函数
-// ============================================================================
-
-
 extern "C" {
-
 PAPERCRAWLER_API void* createModule() {
     return new PaperCrawler::StatsApiModule();
 }
-
 PAPERCRAWLER_API void destroyModule(void* ptr) {
     delete static_cast<PaperCrawler::StatsApiModule*>(ptr);
 }
-
 PAPERCRAWLER_API const char* getModuleVersion() {
     return "1.0.0";
 }
-
 }
-

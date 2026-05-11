@@ -75,4 +75,8 @@ ROUTES=(
     # --- Round 29 Additions ---
     "POST|/api/crawler/rules|{\"pattern\":\"arxiv.org/*\",\"action\":\"include\"}|200|Add crawl rule"
     "GET|/api/crawler/rules||200|List crawl rules"
+
+    # --- Round 31 Additions ---
+    "POST|/api/crawler/parser/config|{\"selectFields\":[\"title\"],\"timeout\":30}|200|Configure parser"
+    "GET|/api/crawler/parser/preview?url=https://arxiv.org||200|Preview parsed content"
 )

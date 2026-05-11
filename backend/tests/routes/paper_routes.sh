@@ -44,7 +44,6 @@ ROUTES=(
     "DELETE|/api/papers/collections/1/papers/1||200|Remove paper from collection"
     "GET|/api/papers/me||200|Get current user papers"
     "GET|/api/papers/1/similar||200,404|Find similar papers"
-    "POST|/api/papers/1/share|{\"target_user_id\":\"2\"}|200|Share paper"
     "GET|/api/papers/categories||200|Get paper categories"
     "POST|/api/papers/1/progress|{\"user_id\":1,\"progress\":50}|200|Update reading progress"
     "GET|/api/papers/favorites?userId=1||200|Get user favorite papers"
@@ -73,4 +72,8 @@ ROUTES=(
     # --- Round 29 Additions ---
     "GET|/api/papers/1/related-by-citations||200,404|Find related papers by citations"
     "POST|/api/papers/merge|{\"sourceId\":1,\"targetId\":2}|200|Merge duplicate papers"
+
+    # --- Round 31 Additions ---
+    "POST|/api/papers/1/share|{\"targetUserId\":2,\"note\":\"Check this\"}|200|Share paper"
+    "GET|/api/papers/1/metadata||200,404|Get paper metadata"
 )

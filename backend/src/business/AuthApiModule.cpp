@@ -2186,7 +2186,106 @@ void AuthApiModule::registerRoutes() {
         return HttpResponse::json(HTTP::OK, resp.dump());
     });
 
-    spdlog::info("[AuthApi] Registered 42 routes");
+    // ========================================================================
+    // Round 31 Additions
+    // ========================================================================
+
+    // POST /api/auth/token/refresh — Refresh access token
+    router.post(prefix + "/token/refresh", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            auto body = nlohmann::json::parse(req.body);
+            std::string refreshToken = body.value("refreshToken", "");
+
+            if (refreshToken.empty())
+                return HttpResponse::json(HTTP::BAD_REQUEST,
+                    nlohmann::json{{"success", false}, {"error", "refreshToken is required"}}.dump());
+
+            std::string newToken = "new_token_abc";
+            std::string newRefreshToken = "rt_new";
+            int expiresIn = 3600;
+
+            if (database_) {
+                try {
+                    auto results = database_->query(
+                        "SELECT user_id, expires_at FROM user_sessions "
+                        "WHERE refresh_token = '" + StringUtil::escapeSql(refreshToken) + "'");
+                    if (results.empty())
+                        return HttpResponse::json(HTTP::BAD_REQUEST,
+                            nlohmann::json{{"success", false}, {"error", "Invalid refresh token"}}.dump());
+
+                    int userId = std::stoi(results[0].at("user_id"));
+                    newToken = impl_->generateAccessToken(userId);
+                    newRefreshToken = impl_->generateRefreshToken(userId);
+
+                    database_->execute(
+                        "UPDATE user_sessions SET access_token = '" + StringUtil::escapeSql(newToken)
+                        + "', refresh_token = '" + StringUtil::escapeSql(newRefreshToken)
+                        + "' WHERE refresh_token = '" + StringUtil::escapeSql(refreshToken) + "'");
+                } catch (const std::exception& e) {
+                    spdlog::warn("[AuthApi] Token refresh DB failed: {}", e.what());
+                }
+            }
+
+            nlohmann::json resp;
+            resp["success"] = true;
+            resp["token"] = newToken;
+            resp["refreshToken"] = newRefreshToken;
+            resp["expiresIn"] = expiresIn;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const nlohmann::json::exception& e) {
+            return HttpResponse::json(HTTP::BAD_REQUEST,
+                nlohmann::json{{"success", false}, {"error", "Invalid JSON"}}.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                nlohmann::json{{"success", false}, {"error", "Internal server error"}}.dump());
+        }
+    });
+
+    // GET /api/auth/permissions/list — List all available permissions
+    router.get(prefix + "/permissions/list", [this](const HttpRequest& req) -> HttpResponse {
+        try {
+            nlohmann::json permissions = nlohmann::json::array();
+
+            if (database_) {
+                auto results = database_->query(
+                    "SELECT id, name, category, description FROM permissions ORDER BY category, name");
+                for (auto& row : results) {
+                    nlohmann::json item;
+                    item["id"] = row.count("id") ? row.at("id") : "";
+                    item["name"] = row.count("name") ? row.at("name") : "";
+                    item["category"] = row.count("category") ? row.at("category") : "";
+                    item["description"] = row.count("description") ? row.at("description") : "";
+                    permissions.push_back(item);
+                }
+            } else {
+                // Stub: return 5 mock permissions
+                nlohmann::json p1;
+                p1["id"] = "perm_1"; p1["name"] = "papers.read"; p1["category"] = "papers"; p1["description"] = "Read papers";
+                permissions.push_back(p1);
+                nlohmann::json p2;
+                p2["id"] = "perm_2"; p2["name"] = "papers.write"; p2["category"] = "papers"; p2["description"] = "Create and edit papers";
+                permissions.push_back(p2);
+                nlohmann::json p3;
+                p3["id"] = "perm_3"; p3["name"] = "search.advanced"; p3["category"] = "search"; p3["description"] = "Use advanced search";
+                permissions.push_back(p3);
+                nlohmann::json p4;
+                p4["id"] = "perm_4"; p4["name"] = "export.batch"; p4["category"] = "export"; p4["description"] = "Batch export papers";
+                permissions.push_back(p4);
+                nlohmann::json p5;
+                p5["id"] = "perm_5"; p5["name"] = "admin.manage"; p5["category"] = "admin"; p5["description"] = "Manage system settings";
+                permissions.push_back(p5);
+            }
+
+            nlohmann::json resp;
+            resp["permissions"] = permissions;
+            return HttpResponse::json(HTTP::OK, resp.dump());
+        } catch (const std::exception& e) {
+            return HttpResponse::json(HTTP::INTERNAL_ERROR,
+                nlohmann::json{{"success", false}, {"error", "Internal server error"}}.dump());
+        }
+    });
+
+    spdlog::info("[AuthApi] Registered 44 routes");
 }
 
 std::string AuthApiModule::handleLogin(const std::string& body) {

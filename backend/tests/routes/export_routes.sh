@@ -64,4 +64,8 @@ ROUTES=(
     # --- Round 29 Additions ---
     "POST|/api/export/annotate|{\"exportId\":\"exp_1\",\"notes\":\"Review\"}|200|Add annotation to export"
     "GET|/api/export/stats/summary||200|Get export stats summary"
+
+    # --- Round 31 Additions ---
+    "POST|/api/export/watermark|{\"exportId\":\"exp_1\",\"text\":\"TEST\"}|200|Add watermark"
+    "GET|/api/export/formats/details||200|Get format details"
 )
