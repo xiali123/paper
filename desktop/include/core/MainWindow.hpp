@@ -365,6 +365,11 @@ class PaperVocabularyBuilder;
 class PaperCandlestickChart;
 class PaperBudgetTracker;
 class PaperColorPicker;
+class PaperCorrelationEngine;
+class PaperQuizGenerator;
+class PaperPyramidChart;
+class PaperTeamScoreboard;
+class PaperFontBrowser;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

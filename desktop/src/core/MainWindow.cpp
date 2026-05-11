@@ -362,6 +362,11 @@
 #include "visualization/PaperCandlestickChart.hpp"
 #include "workspace/PaperBudgetTracker.hpp"
 #include "tools/PaperColorPicker.hpp"
+#include "analysis/PaperCorrelationEngine.hpp"
+#include "reading/PaperQuizGenerator.hpp"
+#include "visualization/PaperPyramidChart.hpp"
+#include "workspace/PaperTeamScoreboard.hpp"
+#include "tools/PaperFontBrowser.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7022,6 +7027,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Correlation Engine", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Correlation Engine");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCorrelationEngine();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Quiz Generator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Quiz Generator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperQuizGenerator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Pyramid Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Pyramid Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPyramidChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Team Scoreboard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Team Scoreboard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTeamScoreboard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Font Browser", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Font Browser");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFontBrowser();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8268,6 +8323,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Color Picker", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Color Picker");
+    });
+    commandPalette_->addAction("Correlation Engine", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Correlation Engine");
+    });
+    commandPalette_->addAction("Quiz Generator", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Quiz Generator");
+    });
+    commandPalette_->addAction("Pyramid Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Pyramid Chart");
+    });
+    commandPalette_->addAction("Team Scoreboard", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Team Scoreboard");
+    });
+    commandPalette_->addAction("Font Browser", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Font Browser");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
