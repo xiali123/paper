@@ -367,6 +367,11 @@
 #include "visualization/PaperPyramidChart.hpp"
 #include "workspace/PaperTeamScoreboard.hpp"
 #include "tools/PaperFontBrowser.hpp"
+#include "analysis/PaperFactorAnalyzer.hpp"
+#include "reading/PaperNoteOrganizer.hpp"
+#include "visualization/PaperBulletChart.hpp"
+#include "workspace/PaperAssetManager.hpp"
+#include "tools/PaperRegexTester.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7077,6 +7082,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Factor Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Factor Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFactorAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Note Organizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Note Organizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNoteOrganizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bullet Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bullet Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBulletChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Asset Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Asset Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAssetManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Regex Tester", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Regex Tester");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRegexTester();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8338,6 +8393,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Font Browser", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Font Browser");
+    });
+    commandPalette_->addAction("Factor Analyzer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Factor Analyzer");
+    });
+    commandPalette_->addAction("Note Organizer", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Note Organizer");
+    });
+    commandPalette_->addAction("Bullet Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Bullet Chart");
+    });
+    commandPalette_->addAction("Asset Manager", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Asset Manager");
+    });
+    commandPalette_->addAction("Regex Tester", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Regex Tester");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

@@ -370,6 +370,11 @@ class PaperQuizGenerator;
 class PaperPyramidChart;
 class PaperTeamScoreboard;
 class PaperFontBrowser;
+class PaperFactorAnalyzer;
+class PaperNoteOrganizer;
+class PaperBulletChart;
+class PaperAssetManager;
+class PaperRegexTester;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
