@@ -360,6 +360,11 @@ class PaperSpacedRepetition;
 class PaperAreaChart;
 class PaperRiskMatrix;
 class PaperMacroRecorder;
+class PaperHypothesisTester;
+class PaperVocabularyBuilder;
+class PaperCandlestickChart;
+class PaperBudgetTracker;
+class PaperColorPicker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

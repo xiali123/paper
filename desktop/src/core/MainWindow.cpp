@@ -357,6 +357,11 @@
 #include "visualization/PaperAreaChart.hpp"
 #include "workspace/PaperRiskMatrix.hpp"
 #include "tools/PaperMacroRecorder.hpp"
+#include "analysis/PaperHypothesisTester.hpp"
+#include "reading/PaperVocabularyBuilder.hpp"
+#include "visualization/PaperCandlestickChart.hpp"
+#include "workspace/PaperBudgetTracker.hpp"
+#include "tools/PaperColorPicker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6967,6 +6972,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Hypothesis Tester", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hypothesis Tester");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHypothesisTester();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Vocabulary Builder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Vocabulary Builder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVocabularyBuilder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Candlestick Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Candlestick Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCandlestickChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Budget Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Budget Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBudgetTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Color Picker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Color Picker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperColorPicker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8198,6 +8253,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Macro Recorder", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Macro Recorder");
+    });
+    commandPalette_->addAction("Hypothesis Tester", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Hypothesis Tester");
+    });
+    commandPalette_->addAction("Vocabulary Builder", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Vocabulary Builder");
+    });
+    commandPalette_->addAction("Candlestick Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Candlestick Chart");
+    });
+    commandPalette_->addAction("Budget Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Budget Tracker");
+    });
+    commandPalette_->addAction("Color Picker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Color Picker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
