@@ -345,6 +345,11 @@ class PaperStudyPlanner;
 class PaperDotPlot;
 class PaperLabNotebook;
 class PaperVersionTree;
+class PaperClaimValidator;
+class PaperReadingJournal;
+class PaperStackedChart;
+class PaperTeamWorkspace;
+class PaperMarkupEditor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

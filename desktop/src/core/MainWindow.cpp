@@ -342,6 +342,11 @@
 #include "visualization/PaperDotPlot.hpp"
 #include "workspace/PaperLabNotebook.hpp"
 #include "tools/PaperVersionTree.hpp"
+#include "analysis/PaperClaimValidator.hpp"
+#include "reading/PaperReadingJournal.hpp"
+#include "visualization/PaperStackedChart.hpp"
+#include "workspace/PaperTeamWorkspace.hpp"
+#include "tools/PaperMarkupEditor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6802,6 +6807,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Claim Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Claim Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClaimValidator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Journal", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Journal");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingJournal();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Stacked Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Stacked Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStackedChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Team Workspace", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Team Workspace");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTeamWorkspace();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Markup Editor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Markup Editor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMarkupEditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -7988,6 +8043,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Version Tree", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Version Tree");
+    });
+    commandPalette_->addAction("Claim Validator", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Claim Validator");
+    });
+    commandPalette_->addAction("Reading Journal", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Journal");
+    });
+    commandPalette_->addAction("Stacked Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Stacked Chart");
+    });
+    commandPalette_->addAction("Team Workspace", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Team Workspace");
+    });
+    commandPalette_->addAction("Markup Editor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Markup Editor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
