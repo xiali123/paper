@@ -347,6 +347,11 @@
 #include "visualization/PaperStackedChart.hpp"
 #include "workspace/PaperTeamWorkspace.hpp"
 #include "tools/PaperMarkupEditor.hpp"
+#include "analysis/PaperCohortAnalyzer.hpp"
+#include "reading/PaperFlashcardDeck.hpp"
+#include "visualization/PaperRingChart.hpp"
+#include "workspace/PaperMilestoneTracker.hpp"
+#include "tools/PaperPluginManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -6857,6 +6862,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Cohort Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cohort Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCohortAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Flashcard Deck", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Flashcard Deck");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFlashcardDeck();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Ring Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Ring Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRingChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Milestone Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Milestone Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMilestoneTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Plugin Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Plugin Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPluginManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8058,6 +8113,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Markup Editor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Markup Editor");
+    });
+    commandPalette_->addAction("Cohort Analyzer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Cohort Analyzer");
+    });
+    commandPalette_->addAction("Flashcard Deck", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Flashcard Deck");
+    });
+    commandPalette_->addAction("Ring Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Ring Chart");
+    });
+    commandPalette_->addAction("Milestone Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Milestone Tracker");
+    });
+    commandPalette_->addAction("Plugin Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Plugin Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

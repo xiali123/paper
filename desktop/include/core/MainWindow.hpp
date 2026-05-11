@@ -350,6 +350,11 @@ class PaperReadingJournal;
 class PaperStackedChart;
 class PaperTeamWorkspace;
 class PaperMarkupEditor;
+class PaperCohortAnalyzer;
+class PaperFlashcardDeck;
+class PaperRingChart;
+class PaperMilestoneTracker;
+class PaperPluginManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
