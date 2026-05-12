@@ -422,6 +422,11 @@
 #include "visualization/PaperHeatmapMatrix.hpp"
 #include "workspace/PaperPipelineView.hpp"
 #include "tools/PaperDiffTool.hpp"
+#include "analysis/PaperKnowledgeExtractor.hpp"
+#include "reading/PaperReadingElevation.hpp"
+#include "visualization/PaperBoxPlotWidget.hpp"
+#include "workspace/PaperTimelineGantt.hpp"
+#include "tools/PaperFileWatcher.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7682,6 +7687,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Knowledge Extractor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Knowledge Extractor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKnowledgeExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Elevation", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Elevation");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingElevation();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Box Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Box Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBoxPlotWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Timeline Gantt", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Timeline Gantt");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTimelineGantt();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("File Watcher", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("File Watcher");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFileWatcher();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9108,6 +9163,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Diff Tool", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Diff Tool");
+    });
+    commandPalette_->addAction("Knowledge Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Knowledge Extractor");
+    });
+    commandPalette_->addAction("Reading Elevation", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Elevation");
+    });
+    commandPalette_->addAction("Box Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Box Plot");
+    });
+    commandPalette_->addAction("Timeline Gantt", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Timeline Gantt");
+    });
+    commandPalette_->addAction("File Watcher", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > File Watcher");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

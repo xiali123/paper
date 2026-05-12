@@ -425,6 +425,11 @@ class PaperReadingGradient;
 class PaperHeatmapMatrix;
 class PaperPipelineView;
 class PaperDiffTool;
+class PaperKnowledgeExtractor;
+class PaperReadingElevation;
+class PaperBoxPlotWidget;
+class PaperTimelineGantt;
+class PaperFileWatcher;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
