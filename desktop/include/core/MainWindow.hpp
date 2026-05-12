@@ -610,6 +610,11 @@ class PaperReadingQuest;
 class PaperRadialBarChart;
 class PaperSeminarScheduler;
 class PaperMetricExporter;
+class PaperAssumptionMap;
+class PaperReadingSummit;
+class PaperBubbleHeatmap;
+class PaperLabRotation;
+class PaperDeployTracker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

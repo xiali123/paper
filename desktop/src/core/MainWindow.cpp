@@ -607,6 +607,11 @@
 #include "visualization/PaperRadialBarChart.hpp"
 #include "workspace/PaperSeminarScheduler.hpp"
 #include "tools/PaperMetricExporter.hpp"
+#include "analysis/PaperAssumptionMap.hpp"
+#include "reading/PaperReadingSummit.hpp"
+#include "visualization/PaperBubbleHeatmap.hpp"
+#include "workspace/PaperLabRotation.hpp"
+#include "tools/PaperDeployTracker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9717,6 +9722,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Assumption Map", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Assumption Map");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAssumptionMap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Summit", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Summit");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSummit();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bubble Heatmap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bubble Heatmap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBubbleHeatmap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lab Rotation", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lab Rotation");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLabRotation();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Deploy Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Deploy Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDeployTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11698,6 +11753,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Metric Exporter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Metric Exporter");
+    });
+    commandPalette_->addAction("Assumption Map", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Assumption Map");
+    });
+    commandPalette_->addAction("Reading Summit", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Summit");
+    });
+    commandPalette_->addAction("Bubble Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bubble Heatmap");
+    });
+    commandPalette_->addAction("Lab Rotation", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Lab Rotation");
+    });
+    commandPalette_->addAction("Deploy Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Deploy Tracker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
