@@ -692,6 +692,11 @@
 #include "visualization/PaperTreemapChart2.hpp"
 #include "workspace/PaperProposalWriter.hpp"
 #include "tools/PaperApiDebugger.hpp"
+#include "analysis/PaperFallacyMapper2.hpp"
+#include "reading/PaperReadingOdyssey2.hpp"
+#include "visualization/PaperStepPlot2.hpp"
+#include "workspace/PaperDeployTracker2.hpp"
+#include "tools/PaperTrafficMonitor2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10653,6 +10658,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Fallacy Mapper", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Fallacy Mapper");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFallacyMapper2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Odyssey", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Odyssey");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingOdyssey2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Step Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Step Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStepPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Deploy Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Deploy Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDeployTracker2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Traffic Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Traffic Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTrafficMonitor2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12889,6 +12944,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("API Debugger", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > API Debugger");
+    });
+    commandPalette_->addAction("Fallacy Mapper", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Fallacy Mapper");
+    });
+    commandPalette_->addAction("Reading Odyssey", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Odyssey");
+    });
+    commandPalette_->addAction("Step Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Step Plot");
+    });
+    commandPalette_->addAction("Deploy Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Deploy Tracker");
+    });
+    commandPalette_->addAction("Traffic Monitor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Traffic Monitor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

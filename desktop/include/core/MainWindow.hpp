@@ -695,6 +695,11 @@ class PaperReadingExpedition2;
 class PaperTreemapChart2;
 class PaperProposalWriter;
 class PaperApiDebugger;
+class PaperFallacyMapper2;
+class PaperReadingOdyssey2;
+class PaperStepPlot2;
+class PaperDeployTracker2;
+class PaperTrafficMonitor2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
