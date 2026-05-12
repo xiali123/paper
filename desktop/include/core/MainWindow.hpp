@@ -665,6 +665,11 @@ class PaperBookmarkVault;
 class PaperMarimekko2;
 class PaperAssetLedger;
 class PaperSecretWarden;
+class PaperCitationBinder;
+class PaperHighlightCollector;
+class PaperWaterfall2;
+class PaperCalendarSync;
+class PaperDnsLookup;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
