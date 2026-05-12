@@ -415,6 +415,11 @@ class PaperReadingSprint;
 class PaperParallelPlot;
 class PaperVersionTracker;
 class PaperTimerWidget;
+class PaperSemanticMapper;
+class PaperReadingWaves;
+class PaperDendrogramView;
+class PaperWorkflowBoard;
+class PaperChecksumTool;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

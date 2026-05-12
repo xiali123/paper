@@ -412,6 +412,11 @@
 #include "visualization/PaperParallelPlot.hpp"
 #include "workspace/PaperVersionTracker.hpp"
 #include "tools/PaperTimerWidget.hpp"
+#include "analysis/PaperSemanticMapper.hpp"
+#include "reading/PaperReadingWaves.hpp"
+#include "visualization/PaperDendrogramView.hpp"
+#include "workspace/PaperWorkflowBoard.hpp"
+#include "tools/PaperChecksumTool.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7572,6 +7577,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Semantic Mapper", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Semantic Mapper");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSemanticMapper();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Waves", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Waves");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingWaves();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Dendrogram View", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Dendrogram View");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDendrogramView();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Workflow Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Workflow Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWorkflowBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Checksum Tool", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Checksum Tool");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperChecksumTool();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8968,6 +9023,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Timer Widget", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Timer Widget");
+    });
+    commandPalette_->addAction("Semantic Mapper", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Semantic Mapper");
+    });
+    commandPalette_->addAction("Reading Waves", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Waves");
+    });
+    commandPalette_->addAction("Dendrogram View", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Dendrogram View");
+    });
+    commandPalette_->addAction("Workflow Board", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Workflow Board");
+    });
+    commandPalette_->addAction("Checksum Tool", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Checksum Tool");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
