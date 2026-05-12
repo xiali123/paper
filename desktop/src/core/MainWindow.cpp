@@ -572,6 +572,11 @@
 #include "visualization/PaperDendrogramPlot.hpp"
 #include "workspace/PaperResearchFund.hpp"
 #include "tools/PaperPayloadInspector.hpp"
+#include "analysis/PaperEvidenceTree.hpp"
+#include "reading/PaperReadingMarathon.hpp"
+#include "visualization/PaperRidgelineChart2.hpp"
+#include "workspace/PaperPaperVote.hpp"
+#include "tools/PaperHeaderAnalyzer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9332,6 +9337,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Evidence Tree", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Tree");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceTree();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Marathon", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Marathon");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingMarathon();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Ridgeline Chart 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Ridgeline Chart 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRidgelineChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Paper Vote", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Paper Vote");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPaperVote();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Header Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Header Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHeaderAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11208,6 +11263,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Payload Inspector", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Payload Inspector");
+    });
+    commandPalette_->addAction("Evidence Tree", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Tree");
+    });
+    commandPalette_->addAction("Reading Marathon", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Marathon");
+    });
+    commandPalette_->addAction("Ridgeline Chart 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Ridgeline Chart 2");
+    });
+    commandPalette_->addAction("Paper Vote", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Paper Vote");
+    });
+    commandPalette_->addAction("Header Analyzer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Header Analyzer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

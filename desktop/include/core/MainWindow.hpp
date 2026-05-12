@@ -575,6 +575,11 @@ class PaperReadingSurge;
 class PaperDendrogramPlot;
 class PaperResearchFund;
 class PaperPayloadInspector;
+class PaperEvidenceTree;
+class PaperReadingMarathon;
+class PaperRidgelineChart2;
+class PaperPaperVote;
+class PaperHeaderAnalyzer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
