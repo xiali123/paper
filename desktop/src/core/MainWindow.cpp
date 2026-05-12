@@ -552,6 +552,11 @@
 #include "visualization/PaperTreeMapChart.hpp"
 #include "workspace/PaperResourcePool2.hpp"
 #include "tools/PaperBatchTester.hpp"
+#include "analysis/PaperTopicSentiment2.hpp"
+#include "reading/PaperReadingMilestone2.hpp"
+#include "visualization/PaperParallelPlot2.hpp"
+#include "workspace/PaperKnowledgeBase2.hpp"
+#include "tools/PaperLogAnalyzer2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9112,6 +9117,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Sentiment 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Sentiment 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicSentiment2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Milestone 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Milestone 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingMilestone2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Parallel Plot 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Parallel Plot 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperParallelPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Knowledge Base 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Knowledge Base 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKnowledgeBase2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Log Analyzer 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Log Analyzer 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogAnalyzer2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10928,6 +10983,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Batch Tester", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Batch Tester");
+    });
+    commandPalette_->addAction("Topic Sentiment 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Sentiment 2");
+    });
+    commandPalette_->addAction("Reading Milestone 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Milestone 2");
+    });
+    commandPalette_->addAction("Parallel Plot 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Parallel Plot 2");
+    });
+    commandPalette_->addAction("Knowledge Base 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Knowledge Base 2");
+    });
+    commandPalette_->addAction("Log Analyzer 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Log Analyzer 2");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

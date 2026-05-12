@@ -555,6 +555,11 @@ class PaperReadingCompass2;
 class PaperTreeMapChart;
 class PaperResourcePool2;
 class PaperBatchTester;
+class PaperTopicSentiment2;
+class PaperReadingMilestone2;
+class PaperParallelPlot2;
+class PaperKnowledgeBase2;
+class PaperLogAnalyzer2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
