@@ -510,6 +510,11 @@ class PaperReadingZoneTracker;
 class PaperRidgelinePlot;
 class PaperMeetingNotes;
 class PaperSchemaMigrator;
+class PaperTopicSentiment;
+class PaperReadingFlowState;
+class PaperHexbinPlot;
+class PaperCodeReviewTracker;
+class PaperApiVersionChecker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

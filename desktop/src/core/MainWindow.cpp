@@ -507,6 +507,11 @@
 #include "visualization/PaperRidgelinePlot.hpp"
 #include "workspace/PaperMeetingNotes.hpp"
 #include "tools/PaperSchemaMigrator.hpp"
+#include "analysis/PaperTopicSentiment.hpp"
+#include "reading/PaperReadingFlowState.hpp"
+#include "visualization/PaperHexbinPlot.hpp"
+#include "workspace/PaperCodeReviewTracker.hpp"
+#include "tools/PaperApiVersionChecker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8617,6 +8622,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Sentiment", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Sentiment");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicSentiment();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Flow State", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Flow State");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingFlowState();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Hexbin Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hexbin Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHexbinPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Code Review Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Code Review Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCodeReviewTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("API Version Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("API Version Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperApiVersionChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10298,6 +10353,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Schema Migrator", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Schema Migrator");
+    });
+    commandPalette_->addAction("Topic Sentiment", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Sentiment");
+    });
+    commandPalette_->addAction("Reading Flow State", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Flow State");
+    });
+    commandPalette_->addAction("Hexbin Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Hexbin Plot");
+    });
+    commandPalette_->addAction("Code Review Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Code Review Tracker");
+    });
+    commandPalette_->addAction("API Version Checker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > API Version Checker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
