@@ -477,6 +477,11 @@
 #include "visualization/PaperTornadoChart.hpp"
 #include "workspace/PaperCapacityPlanner.hpp"
 #include "tools/PaperFeatureFlag.hpp"
+#include "citation/PaperCitationNetwork.hpp"
+#include "reading/PaperReadingStreak.hpp"
+#include "visualization/PaperViolinChart.hpp"
+#include "workspace/PaperDependencyGraph.hpp"
+#include "tools/PaperAuditLog.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8287,6 +8292,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Network", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Network");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationNetwork();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Streak", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Streak");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingStreak();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Violin Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Violin Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperViolinChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Dependency Graph", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Dependency Graph");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDependencyGraph();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Audit Log", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Audit Log");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAuditLog();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9878,6 +9933,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Feature Flag", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Feature Flag");
+    });
+    commandPalette_->addAction("Citation Network", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Network");
+    });
+    commandPalette_->addAction("Reading Streak", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Streak");
+    });
+    commandPalette_->addAction("Violin Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Violin Chart");
+    });
+    commandPalette_->addAction("Dependency Graph", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Dependency Graph");
+    });
+    commandPalette_->addAction("Audit Log", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Audit Log");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

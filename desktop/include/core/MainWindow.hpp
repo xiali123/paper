@@ -480,6 +480,11 @@ class PaperReadingBinge;
 class PaperTornadoChart;
 class PaperCapacityPlanner;
 class PaperFeatureFlag;
+class PaperCitationNetwork;
+class PaperReadingStreak;
+class PaperViolinChart;
+class PaperDependencyGraph;
+class PaperAuditLog;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
