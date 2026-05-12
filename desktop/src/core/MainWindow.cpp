@@ -472,6 +472,11 @@
 #include "visualization/PaperSankeyChart.hpp"
 #include "workspace/PaperRetrospective.hpp"
 #include "tools/PaperSecretVault.hpp"
+#include "analysis/PaperTrendDetector.hpp"
+#include "reading/PaperReadingBinge.hpp"
+#include "visualization/PaperTornadoChart.hpp"
+#include "workspace/PaperCapacityPlanner.hpp"
+#include "tools/PaperFeatureFlag.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8232,6 +8237,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Trend Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Trend Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTrendDetector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Binge", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Binge");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingBinge();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Tornado Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Tornado Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTornadoChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Capacity Planner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Capacity Planner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCapacityPlanner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Feature Flag", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Feature Flag");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFeatureFlag();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9808,6 +9863,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Secret Vault", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Secret Vault");
+    });
+    commandPalette_->addAction("Trend Detector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Trend Detector");
+    });
+    commandPalette_->addAction("Reading Binge", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Binge");
+    });
+    commandPalette_->addAction("Tornado Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Tornado Chart");
+    });
+    commandPalette_->addAction("Capacity Planner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Capacity Planner");
+    });
+    commandPalette_->addAction("Feature Flag", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Feature Flag");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

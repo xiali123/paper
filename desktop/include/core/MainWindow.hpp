@@ -475,6 +475,11 @@ class PaperReadingVelocity;
 class PaperSankeyChart;
 class PaperRetrospective;
 class PaperSecretVault;
+class PaperTrendDetector;
+class PaperReadingBinge;
+class PaperTornadoChart;
+class PaperCapacityPlanner;
+class PaperFeatureFlag;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
