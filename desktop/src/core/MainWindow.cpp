@@ -702,6 +702,11 @@
 #include "visualization/PaperRadialBarChart2.hpp"
 #include "workspace/PaperSeminarScheduler2.hpp"
 #include "tools/PaperMetricExporter2.hpp"
+#include "analysis/PaperAssumptionMap2.hpp"
+#include "reading/PaperReadingSummit2.hpp"
+#include "visualization/PaperBubbleHeatmap2.hpp"
+#include "workspace/PaperLabRotation2.hpp"
+#include "tools/PaperGapFinder2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10763,6 +10768,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Assumption Map", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Assumption Map");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAssumptionMap2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Summit", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Summit");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSummit2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bubble Heatmap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bubble Heatmap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBubbleHeatmap2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lab Rotation", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lab Rotation");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLabRotation2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Gap Finder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Gap Finder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGapFinder2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -13029,6 +13084,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Metric Exporter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Metric Exporter");
+    });
+    commandPalette_->addAction("Assumption Map", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Assumption Map");
+    });
+    commandPalette_->addAction("Reading Summit", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Summit");
+    });
+    commandPalette_->addAction("Bubble Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bubble Heatmap");
+    });
+    commandPalette_->addAction("Lab Rotation", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Lab Rotation");
+    });
+    commandPalette_->addAction("Gap Finder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Gap Finder");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

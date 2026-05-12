@@ -705,6 +705,11 @@ class PaperReadingQuest2;
 class PaperRadialBarChart2;
 class PaperSeminarScheduler2;
 class PaperMetricExporter2;
+class PaperAssumptionMap2;
+class PaperReadingSummit2;
+class PaperBubbleHeatmap2;
+class PaperLabRotation2;
+class PaperGapFinder2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
