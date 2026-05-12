@@ -515,6 +515,11 @@ class PaperReadingFlowState;
 class PaperHexbinPlot;
 class PaperCodeReviewTracker;
 class PaperApiVersionChecker;
+class PaperCitationGraph;
+class PaperReadingSessionSync;
+class PaperStreamgraphPlot;
+class PaperSprintRetroBoard;
+class PaperEndpointMonitor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

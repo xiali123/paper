@@ -512,6 +512,11 @@
 #include "visualization/PaperHexbinPlot.hpp"
 #include "workspace/PaperCodeReviewTracker.hpp"
 #include "tools/PaperApiVersionChecker.hpp"
+#include "citation/PaperCitationGraph.hpp"
+#include "reading/PaperReadingSessionSync.hpp"
+#include "visualization/PaperStreamgraphPlot.hpp"
+#include "workspace/PaperSprintRetroBoard.hpp"
+#include "tools/PaperEndpointMonitor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8672,6 +8677,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Graph", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Graph");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationGraph();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Session Sync", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Session Sync");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSessionSync();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Streamgraph Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Streamgraph Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStreamgraphPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Sprint Retro Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sprint Retro Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSprintRetroBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Endpoint Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Endpoint Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEndpointMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10368,6 +10423,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("API Version Checker", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > API Version Checker");
+    });
+    commandPalette_->addAction("Citation Graph", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Graph");
+    });
+    commandPalette_->addAction("Reading Session Sync", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Session Sync");
+    });
+    commandPalette_->addAction("Streamgraph Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Streamgraph Plot");
+    });
+    commandPalette_->addAction("Sprint Retro Board", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sprint Retro Board");
+    });
+    commandPalette_->addAction("Endpoint Monitor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Endpoint Monitor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
