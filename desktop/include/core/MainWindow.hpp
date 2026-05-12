@@ -410,6 +410,11 @@ class PaperReadingCompass;
 class PaperMarimekkoChart;
 class PaperResourcePool;
 class PaperUnitConverter;
+class PaperRelevanceScorer;
+class PaperReadingSprint;
+class PaperParallelPlot;
+class PaperVersionTracker;
+class PaperTimerWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

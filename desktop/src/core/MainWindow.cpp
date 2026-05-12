@@ -407,6 +407,11 @@
 #include "visualization/PaperMarimekkoChart.hpp"
 #include "workspace/PaperResourcePool.hpp"
 #include "tools/PaperUnitConverter.hpp"
+#include "analysis/PaperRelevanceScorer.hpp"
+#include "reading/PaperReadingSprint.hpp"
+#include "visualization/PaperParallelPlot.hpp"
+#include "workspace/PaperVersionTracker.hpp"
+#include "tools/PaperTimerWidget.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7517,6 +7522,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Relevance Scorer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Relevance Scorer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRelevanceScorer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Sprint", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Sprint");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSprint();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Parallel Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Parallel Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperParallelPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Version Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Version Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVersionTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Timer Widget", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Timer Widget");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTimerWidget();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8898,6 +8953,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Unit Converter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Unit Converter");
+    });
+    commandPalette_->addAction("Relevance Scorer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Relevance Scorer");
+    });
+    commandPalette_->addAction("Reading Sprint", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Sprint");
+    });
+    commandPalette_->addAction("Parallel Plot", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Parallel Plot");
+    });
+    commandPalette_->addAction("Version Tracker", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Version Tracker");
+    });
+    commandPalette_->addAction("Timer Widget", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Timer Widget");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
