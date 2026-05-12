@@ -482,6 +482,11 @@
 #include "visualization/PaperViolinChart.hpp"
 #include "workspace/PaperDependencyGraph.hpp"
 #include "tools/PaperAuditLog.hpp"
+#include "analysis/PaperSemanticsMapper.hpp"
+#include "reading/PaperReadingCalendar.hpp"
+#include "visualization/PaperChordDiagram.hpp"
+#include "workspace/PaperStandupTracker.hpp"
+#include "tools/PaperRateLimiter.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8342,6 +8347,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Semantics Mapper", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Semantics Mapper");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSemanticsMapper();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Calendar", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Calendar");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingCalendar();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Chord Diagram", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Chord Diagram");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperChordDiagram();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Standup Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Standup Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStandupTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Rate Limiter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Rate Limiter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRateLimiter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9948,6 +10003,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Audit Log", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Audit Log");
+    });
+    commandPalette_->addAction("Semantics Mapper", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Semantics Mapper");
+    });
+    commandPalette_->addAction("Reading Calendar", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Calendar");
+    });
+    commandPalette_->addAction("Chord Diagram", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Chord Diagram");
+    });
+    commandPalette_->addAction("Standup Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Standup Tracker");
+    });
+    commandPalette_->addAction("Rate Limiter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Rate Limiter");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

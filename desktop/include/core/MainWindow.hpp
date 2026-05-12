@@ -485,6 +485,11 @@ class PaperReadingStreak;
 class PaperViolinChart;
 class PaperDependencyGraph;
 class PaperAuditLog;
+class PaperSemanticsMapper;
+class PaperReadingCalendar;
+class PaperChordDiagram;
+class PaperStandupTracker;
+class PaperRateLimiter;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
