@@ -557,6 +557,11 @@
 #include "visualization/PaperParallelPlot2.hpp"
 #include "workspace/PaperKnowledgeBase2.hpp"
 #include "tools/PaperLogAnalyzer2.hpp"
+#include "analysis/PaperArgumentChain.hpp"
+#include "reading/PaperReadingCheckpoint.hpp"
+#include "visualization/PaperViolinPlot2.hpp"
+#include "workspace/PaperStudyGroup.hpp"
+#include "tools/PaperJobScheduler.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9167,6 +9172,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Chain", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Chain");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentChain();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Checkpoint", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Checkpoint");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingCheckpoint();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Violin Plot 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Violin Plot 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperViolinPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Study Group", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Study Group");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStudyGroup();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Job Scheduler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Job Scheduler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperJobScheduler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10998,6 +11053,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Log Analyzer 2", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Log Analyzer 2");
+    });
+    commandPalette_->addAction("Argument Chain", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Chain");
+    });
+    commandPalette_->addAction("Reading Checkpoint", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Checkpoint");
+    });
+    commandPalette_->addAction("Violin Plot 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Violin Plot 2");
+    });
+    commandPalette_->addAction("Study Group", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Study Group");
+    });
+    commandPalette_->addAction("Job Scheduler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Job Scheduler");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

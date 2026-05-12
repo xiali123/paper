@@ -560,6 +560,11 @@ class PaperReadingMilestone2;
 class PaperParallelPlot2;
 class PaperKnowledgeBase2;
 class PaperLogAnalyzer2;
+class PaperArgumentChain;
+class PaperReadingCheckpoint;
+class PaperViolinPlot2;
+class PaperStudyGroup;
+class PaperJobScheduler;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
