@@ -547,6 +547,11 @@
 #include "visualization/PaperSankeyDiagram2.hpp"
 #include "workspace/PaperVendorRating2.hpp"
 #include "tools/PaperWebhookTester.hpp"
+#include "analysis/PaperTopicEvolution2.hpp"
+#include "reading/PaperReadingCompass2.hpp"
+#include "visualization/PaperTreeMapChart.hpp"
+#include "workspace/PaperResourcePool2.hpp"
+#include "tools/PaperBatchTester.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9057,6 +9062,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Evolution", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Evolution");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicEvolution2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Compass", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Compass");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingCompass2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Tree Map Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Tree Map Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTreeMapChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Resource Pool", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Resource Pool");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResourcePool2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Batch Tester", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Batch Tester");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBatchTester();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10858,6 +10913,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Webhook Tester", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Webhook Tester");
+    });
+    commandPalette_->addAction("Topic Evolution", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Evolution");
+    });
+    commandPalette_->addAction("Reading Compass", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Compass");
+    });
+    commandPalette_->addAction("Tree Map Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Tree Map Chart");
+    });
+    commandPalette_->addAction("Resource Pool", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Resource Pool");
+    });
+    commandPalette_->addAction("Batch Tester", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Batch Tester");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

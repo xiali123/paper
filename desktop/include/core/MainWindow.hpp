@@ -550,6 +550,11 @@ class PaperReadingSpeedTest2;
 class PaperSankeyDiagram2;
 class PaperVendorRating2;
 class PaperWebhookTester;
+class PaperTopicEvolution2;
+class PaperReadingCompass2;
+class PaperTreeMapChart;
+class PaperResourcePool2;
+class PaperBatchTester;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
