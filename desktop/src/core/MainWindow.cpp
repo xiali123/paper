@@ -577,6 +577,11 @@
 #include "visualization/PaperRidgelineChart2.hpp"
 #include "workspace/PaperPaperVote.hpp"
 #include "tools/PaperHeaderAnalyzer.hpp"
+#include "analysis/PaperBiasDetector2.hpp"
+#include "reading/PaperReadingVortex.hpp"
+#include "visualization/PaperCorrelationPlot.hpp"
+#include "workspace/PaperPeerReview.hpp"
+#include "tools/PaperTokenParser.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9387,6 +9392,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Bias Detector 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bias Detector 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBiasDetector2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Vortex", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Vortex");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingVortex();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Correlation Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Correlation Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCorrelationPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Peer Review", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Peer Review");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPeerReview();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Token Parser", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Token Parser");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTokenParser();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11278,6 +11333,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Header Analyzer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Header Analyzer");
+    });
+    commandPalette_->addAction("Bias Detector 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bias Detector 2");
+    });
+    commandPalette_->addAction("Reading Vortex", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Vortex");
+    });
+    commandPalette_->addAction("Correlation Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Correlation Plot");
+    });
+    commandPalette_->addAction("Peer Review", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Peer Review");
+    });
+    commandPalette_->addAction("Token Parser", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Token Parser");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

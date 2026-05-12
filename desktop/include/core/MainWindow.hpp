@@ -580,6 +580,11 @@ class PaperReadingMarathon;
 class PaperRidgelineChart2;
 class PaperPaperVote;
 class PaperHeaderAnalyzer;
+class PaperBiasDetector2;
+class PaperReadingVortex;
+class PaperCorrelationPlot;
+class PaperPeerReview;
+class PaperTokenParser;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
