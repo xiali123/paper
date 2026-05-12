@@ -690,6 +690,11 @@ class PaperReadingNexus2;
 class PaperBarRace;
 class PaperInventoryAudit;
 class PaperCertRenewer;
+class PaperHypothesisGrid2;
+class PaperReadingExpedition2;
+class PaperTreemapChart2;
+class PaperProposalWriter;
+class PaperApiDebugger;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

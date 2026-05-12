@@ -687,6 +687,11 @@
 #include "visualization/PaperBarRace.hpp"
 #include "workspace/PaperInventoryAudit.hpp"
 #include "tools/PaperCertRenewer.hpp"
+#include "analysis/PaperHypothesisGrid2.hpp"
+#include "reading/PaperReadingExpedition2.hpp"
+#include "visualization/PaperTreemapChart2.hpp"
+#include "workspace/PaperProposalWriter.hpp"
+#include "tools/PaperApiDebugger.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10598,6 +10603,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Hypothesis Grid", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hypothesis Grid");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHypothesisGrid2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Expedition", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Expedition");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingExpedition2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Treemap Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Treemap Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTreemapChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Proposal Writer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Proposal Writer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProposalWriter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("API Debugger", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("API Debugger");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperApiDebugger();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12819,6 +12874,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Cert Renewer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Cert Renewer");
+    });
+    commandPalette_->addAction("Hypothesis Grid", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Hypothesis Grid");
+    });
+    commandPalette_->addAction("Reading Expedition", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Expedition");
+    });
+    commandPalette_->addAction("Treemap Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Treemap Chart");
+    });
+    commandPalette_->addAction("Proposal Writer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Proposal Writer");
+    });
+    commandPalette_->addAction("API Debugger", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > API Debugger");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
