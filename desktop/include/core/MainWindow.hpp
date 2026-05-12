@@ -405,6 +405,11 @@ class PaperReadingVitals;
 class PaperWaffleChart;
 class PaperTeamSync;
 class PaperFormulaEditor;
+class PaperCausalFinder;
+class PaperReadingCompass;
+class PaperMarimekkoChart;
+class PaperResourcePool;
+class PaperUnitConverter;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

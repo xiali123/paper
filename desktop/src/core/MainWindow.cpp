@@ -402,6 +402,11 @@
 #include "visualization/PaperWaffleChart.hpp"
 #include "workspace/PaperTeamSync.hpp"
 #include "tools/PaperFormulaEditor.hpp"
+#include "analysis/PaperCausalFinder.hpp"
+#include "reading/PaperReadingCompass.hpp"
+#include "visualization/PaperMarimekkoChart.hpp"
+#include "workspace/PaperResourcePool.hpp"
+#include "tools/PaperUnitConverter.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7462,6 +7467,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Causal Finder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Causal Finder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCausalFinder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Compass", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Compass");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingCompass();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Marimekko Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Marimekko Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMarimekkoChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Resource Pool", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Resource Pool");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResourcePool();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Unit Converter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Unit Converter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperUnitConverter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8828,6 +8883,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Formula Editor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Formula Editor");
+    });
+    commandPalette_->addAction("Causal Finder", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Causal Finder");
+    });
+    commandPalette_->addAction("Reading Compass", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Compass");
+    });
+    commandPalette_->addAction("Marimekko Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Marimekko Chart");
+    });
+    commandPalette_->addAction("Resource Pool", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Resource Pool");
+    });
+    commandPalette_->addAction("Unit Converter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Unit Converter");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
