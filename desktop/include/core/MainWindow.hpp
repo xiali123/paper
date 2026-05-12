@@ -680,6 +680,11 @@ class PaperGoalSummit;
 class PaperDonutRing;
 class PaperContractVault;
 class PaperEnvGuard;
+class PaperEvidenceGrader;
+class PaperSpeedTracker;
+class PaperFlowSankey;
+class PaperVendorScorecard;
+class PaperWebhookProbe;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

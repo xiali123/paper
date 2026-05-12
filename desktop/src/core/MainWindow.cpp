@@ -677,6 +677,11 @@
 #include "visualization/PaperDonutRing.hpp"
 #include "workspace/PaperContractVault.hpp"
 #include "tools/PaperEnvGuard.hpp"
+#include "analysis/PaperEvidenceGrader.hpp"
+#include "reading/PaperSpeedTracker.hpp"
+#include "visualization/PaperFlowSankey.hpp"
+#include "workspace/PaperVendorScorecard.hpp"
+#include "tools/PaperWebhookProbe.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10488,6 +10493,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Evidence Grader", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Grader");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceGrader();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Speed Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Speed Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSpeedTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Flow Sankey", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Flow Sankey");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFlowSankey();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Vendor Scorecard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Vendor Scorecard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVendorScorecard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Webhook Probe", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Webhook Probe");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWebhookProbe();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12679,6 +12734,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Env Guard", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Env Guard");
+    });
+    commandPalette_->addAction("Evidence Grader", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Grader");
+    });
+    commandPalette_->addAction("Speed Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Speed Tracker");
+    });
+    commandPalette_->addAction("Flow Sankey", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Flow Sankey");
+    });
+    commandPalette_->addAction("Vendor Scorecard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Vendor Scorecard");
+    });
+    commandPalette_->addAction("Webhook Probe", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Webhook Probe");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
