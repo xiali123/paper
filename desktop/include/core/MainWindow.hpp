@@ -570,6 +570,11 @@ class PaperReadingRetreat;
 class PaperScatterPlot3;
 class PaperLabBench;
 class PaperConfigDiff;
+class PaperCitationWeb;
+class PaperReadingSurge;
+class PaperDendrogramPlot;
+class PaperResearchFund;
+class PaperPayloadInspector;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

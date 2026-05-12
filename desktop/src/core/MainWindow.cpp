@@ -567,6 +567,11 @@
 #include "visualization/PaperScatterPlot3.hpp"
 #include "workspace/PaperLabBench.hpp"
 #include "tools/PaperConfigDiff.hpp"
+#include "citation/PaperCitationWeb.hpp"
+#include "reading/PaperReadingSurge.hpp"
+#include "visualization/PaperDendrogramPlot.hpp"
+#include "workspace/PaperResearchFund.hpp"
+#include "tools/PaperPayloadInspector.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9277,6 +9282,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Web", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Web");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationWeb();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Surge", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Surge");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSurge();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Dendrogram Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Dendrogram Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDendrogramPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Research Fund", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Research Fund");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResearchFund();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Payload Inspector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Payload Inspector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPayloadInspector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11138,6 +11193,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Config Diff", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Config Diff");
+    });
+    commandPalette_->addAction("Citation Web", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Web");
+    });
+    commandPalette_->addAction("Reading Surge", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Surge");
+    });
+    commandPalette_->addAction("Dendrogram Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Dendrogram Plot");
+    });
+    commandPalette_->addAction("Research Fund", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Research Fund");
+    });
+    commandPalette_->addAction("Payload Inspector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Payload Inspector");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
