@@ -437,6 +437,11 @@
 #include "visualization/PaperLollipopChart.hpp"
 #include "workspace/PaperExperimentTracker.hpp"
 #include "tools/PaperLogRotator.hpp"
+#include "analysis/PaperClaimVerifier.hpp"
+#include "reading/PaperReadingHeatmap.hpp"
+#include "visualization/PaperRangeChart.hpp"
+#include "workspace/PaperProtocolManager.hpp"
+#include "tools/PaperConfigDiffer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7847,6 +7852,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Claim Verifier", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Claim Verifier");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClaimVerifier();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Heatmap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Heatmap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingHeatmap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Range Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Range Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRangeChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Protocol Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Protocol Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProtocolManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Config Differ", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Config Differ");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConfigDiffer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9318,6 +9373,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Log Rotator", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Log Rotator");
+    });
+    commandPalette_->addAction("Claim Verifier", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Claim Verifier");
+    });
+    commandPalette_->addAction("Reading Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Heatmap");
+    });
+    commandPalette_->addAction("Range Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Range Chart");
+    });
+    commandPalette_->addAction("Protocol Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Protocol Manager");
+    });
+    commandPalette_->addAction("Config Differ", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Config Differ");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

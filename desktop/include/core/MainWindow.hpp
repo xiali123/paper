@@ -440,6 +440,11 @@ class PaperReadingGoalTree;
 class PaperLollipopChart;
 class PaperExperimentTracker;
 class PaperLogRotator;
+class PaperClaimVerifier;
+class PaperReadingHeatmap;
+class PaperRangeChart;
+class PaperProtocolManager;
+class PaperConfigDiffer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
