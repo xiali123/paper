@@ -622,6 +622,11 @@
 #include "visualization/PaperStripPlot.hpp"
 #include "workspace/PaperMilestoneTracker2.hpp"
 #include "tools/PaperConfigValidator.hpp"
+#include "analysis/PaperContradictionHunter.hpp"
+#include "reading/PaperReadingConstellation.hpp"
+#include "visualization/PaperDumbbellPlot.hpp"
+#include "workspace/PaperPublicationPipeline.hpp"
+#include "tools/PaperQueryOptimizer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9882,6 +9887,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Contradiction Hunter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contradiction Hunter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContradictionHunter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Constellation", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Constellation");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingConstellation();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Dumbbell Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Dumbbell Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDumbbellPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Publication Pipeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Publication Pipeline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPublicationPipeline();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Query Optimizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Query Optimizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperQueryOptimizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11908,6 +11963,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Config Validator", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Config Validator");
+    });
+    commandPalette_->addAction("Contradiction Hunter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contradiction Hunter");
+    });
+    commandPalette_->addAction("Reading Constellation", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Constellation");
+    });
+    commandPalette_->addAction("Dumbbell Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Dumbbell Plot");
+    });
+    commandPalette_->addAction("Publication Pipeline", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Publication Pipeline");
+    });
+    commandPalette_->addAction("Query Optimizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Query Optimizer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

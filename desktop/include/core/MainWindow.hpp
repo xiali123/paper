@@ -625,6 +625,11 @@ class PaperReadingFrontier;
 class PaperStripPlot;
 class PaperMilestoneTracker2;
 class PaperConfigValidator;
+class PaperContradictionHunter;
+class PaperReadingConstellation;
+class PaperDumbbellPlot;
+class PaperPublicationPipeline;
+class PaperQueryOptimizer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
