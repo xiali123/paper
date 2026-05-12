@@ -605,6 +605,11 @@ class PaperReadingOdyssey;
 class PaperStepPlot;
 class PaperResearchGrant2;
 class PaperTrafficMonitor;
+class PaperRhetoricAnalyzer;
+class PaperReadingQuest;
+class PaperRadialBarChart;
+class PaperSeminarScheduler;
+class PaperMetricExporter;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
