@@ -642,6 +642,11 @@
 #include "visualization/PaperChordWheel.hpp"
 #include "workspace/PaperResourceGantt.hpp"
 #include "tools/PaperSessionLog.hpp"
+#include "analysis/PaperConceptDrift2.hpp"
+#include "reading/PaperReadingZone.hpp"
+#include "visualization/PaperHexbinChart.hpp"
+#include "workspace/PaperCodeReview.hpp"
+#include "tools/PaperApiVersion.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10103,6 +10108,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Concept Drift 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Concept Drift 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConceptDrift2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Zone", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Zone");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingZone();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Hexbin Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hexbin Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHexbinChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Code Review", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Code Review");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCodeReview();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("API Version", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("API Version");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperApiVersion();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12189,6 +12244,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Session Log", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Session Log");
+    });
+    commandPalette_->addAction("Concept Drift 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Concept Drift 2");
+    });
+    commandPalette_->addAction("Reading Zone", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Zone");
+    });
+    commandPalette_->addAction("Hexbin Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Hexbin Chart");
+    });
+    commandPalette_->addAction("Code Review", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Code Review");
+    });
+    commandPalette_->addAction("API Version", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > API Version");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

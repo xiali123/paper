@@ -645,6 +645,11 @@ class PaperReadingOmega;
 class PaperChordWheel;
 class PaperResourceGantt;
 class PaperSessionLog;
+class PaperConceptDrift2;
+class PaperReadingZone;
+class PaperHexbinChart;
+class PaperCodeReview;
+class PaperApiVersion;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
