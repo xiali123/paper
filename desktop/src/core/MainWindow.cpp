@@ -697,6 +697,11 @@
 #include "visualization/PaperStepPlot2.hpp"
 #include "workspace/PaperDeployTracker2.hpp"
 #include "tools/PaperTrafficMonitor2.hpp"
+#include "analysis/PaperRhetoricAnalyzer2.hpp"
+#include "reading/PaperReadingQuest2.hpp"
+#include "visualization/PaperRadialBarChart2.hpp"
+#include "workspace/PaperSeminarScheduler2.hpp"
+#include "tools/PaperMetricExporter2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10708,6 +10713,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Rhetoric Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Rhetoric Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRhetoricAnalyzer2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Quest", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Quest");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingQuest2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Radial Bar Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Radial Bar Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRadialBarChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Seminar Scheduler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Seminar Scheduler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSeminarScheduler2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Metric Exporter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Metric Exporter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMetricExporter2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12959,6 +13014,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Traffic Monitor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Traffic Monitor");
+    });
+    commandPalette_->addAction("Rhetoric Analyzer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Rhetoric Analyzer");
+    });
+    commandPalette_->addAction("Reading Quest", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Quest");
+    });
+    commandPalette_->addAction("Radial Bar Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Radial Bar Chart");
+    });
+    commandPalette_->addAction("Seminar Scheduler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Seminar Scheduler");
+    });
+    commandPalette_->addAction("Metric Exporter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Metric Exporter");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

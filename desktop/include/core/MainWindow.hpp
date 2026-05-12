@@ -700,6 +700,11 @@ class PaperReadingOdyssey2;
 class PaperStepPlot2;
 class PaperDeployTracker2;
 class PaperTrafficMonitor2;
+class PaperRhetoricAnalyzer2;
+class PaperReadingQuest2;
+class PaperRadialBarChart2;
+class PaperSeminarScheduler2;
+class PaperMetricExporter2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
