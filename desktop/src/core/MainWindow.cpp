@@ -442,6 +442,11 @@
 #include "visualization/PaperRangeChart.hpp"
 #include "workspace/PaperProtocolManager.hpp"
 #include "tools/PaperConfigDiffer.hpp"
+#include "analysis/PaperEvidenceWeigher.hpp"
+#include "reading/PaperReadingDepth.hpp"
+#include "visualization/PaperBulletChart.hpp"
+#include "workspace/PaperHypothesisBoard.hpp"
+#include "tools/PaperPatchManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7902,6 +7907,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Evidence Weigher", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Weigher");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceWeigher();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Depth", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Depth");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingDepth();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bullet Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bullet Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBulletChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Hypothesis Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hypothesis Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHypothesisBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Patch Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Patch Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPatchManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9388,6 +9443,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Config Differ", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Config Differ");
+    });
+    commandPalette_->addAction("Evidence Weigher", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Weigher");
+    });
+    commandPalette_->addAction("Reading Depth", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Depth");
+    });
+    commandPalette_->addAction("Bullet Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bullet Chart");
+    });
+    commandPalette_->addAction("Hypothesis Board", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Hypothesis Board");
+    });
+    commandPalette_->addAction("Patch Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Patch Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

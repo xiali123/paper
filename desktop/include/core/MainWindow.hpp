@@ -445,6 +445,11 @@ class PaperReadingHeatmap;
 class PaperRangeChart;
 class PaperProtocolManager;
 class PaperConfigDiffer;
+class PaperEvidenceWeigher;
+class PaperReadingDepth;
+class PaperBulletChart;
+class PaperHypothesisBoard;
+class PaperPatchManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
