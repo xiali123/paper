@@ -590,6 +590,11 @@ class PaperReadingExpedition;
 class PaperAreaChart2;
 class PaperExperimentLog;
 class PaperCircuitBreaker;
+class PaperClaimAuditor;
+class PaperReadingArchipelago;
+class PaperWaterfallPlot2;
+class PaperPatentTracker;
+class PaperSchemaValidator;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

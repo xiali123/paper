@@ -587,6 +587,11 @@
 #include "visualization/PaperAreaChart2.hpp"
 #include "workspace/PaperExperimentLog.hpp"
 #include "tools/PaperCircuitBreaker.hpp"
+#include "analysis/PaperClaimAuditor.hpp"
+#include "reading/PaperReadingArchipelago.hpp"
+#include "visualization/PaperWaterfallPlot2.hpp"
+#include "workspace/PaperPatentTracker.hpp"
+#include "tools/PaperSchemaValidator.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9497,6 +9502,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Claim Auditor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Claim Auditor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClaimAuditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Archipelago", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Archipelago");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingArchipelago();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Waterfall Plot 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Waterfall Plot 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWaterfallPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Patent Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Patent Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPatentTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Schema Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Schema Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSchemaValidator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11418,6 +11473,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Circuit Breaker", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Circuit Breaker");
+    });
+    commandPalette_->addAction("Claim Auditor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Claim Auditor");
+    });
+    commandPalette_->addAction("Reading Archipelago", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Archipelago");
+    });
+    commandPalette_->addAction("Waterfall Plot 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Waterfall Plot 2");
+    });
+    commandPalette_->addAction("Patent Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Patent Tracker");
+    });
+    commandPalette_->addAction("Schema Validator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Schema Validator");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
