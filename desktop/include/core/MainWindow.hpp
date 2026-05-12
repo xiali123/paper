@@ -430,6 +430,11 @@ class PaperReadingElevation;
 class PaperBoxPlotWidget;
 class PaperTimelineGantt;
 class PaperFileWatcher;
+class PaperNoveltyScore;
+class PaperStudyPlanner;
+class PaperDotPlot;
+class PaperLabNotebook;
+class PaperVersionTree;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
