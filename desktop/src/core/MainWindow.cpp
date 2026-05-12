@@ -462,6 +462,11 @@
 #include "visualization/PaperWaterfallChart.hpp"
 #include "workspace/PaperReleasePlanner.hpp"
 #include "tools/PaperDeprecationTracker.hpp"
+#include "analysis/PaperCitationVerifier.hpp"
+#include "reading/PaperReadingBacklog.hpp"
+#include "visualization/PaperRadarChart.hpp"
+#include "workspace/PaperSprintBoard.hpp"
+#include "tools/PaperKeyStore.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8122,6 +8127,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Verifier", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Verifier");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationVerifier();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Backlog", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Backlog");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingBacklog();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Radar Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Radar Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRadarChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Sprint Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sprint Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSprintBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Key Store", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Key Store");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKeyStore();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9668,6 +9723,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Deprecation Tracker", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Deprecation Tracker");
+    });
+    commandPalette_->addAction("Citation Verifier", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Verifier");
+    });
+    commandPalette_->addAction("Reading Backlog", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Backlog");
+    });
+    commandPalette_->addAction("Radar Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Radar Chart");
+    });
+    commandPalette_->addAction("Sprint Board", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sprint Board");
+    });
+    commandPalette_->addAction("Key Store", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Key Store");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

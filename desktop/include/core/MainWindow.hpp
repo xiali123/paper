@@ -465,6 +465,11 @@ class PaperReadingJournal;
 class PaperWaterfallChart;
 class PaperReleasePlanner;
 class PaperDeprecationTracker;
+class PaperCitationVerifier;
+class PaperReadingBacklog;
+class PaperRadarChart;
+class PaperSprintBoard;
+class PaperKeyStore;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
