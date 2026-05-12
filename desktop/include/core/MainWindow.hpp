@@ -435,6 +435,11 @@ class PaperStudyPlanner;
 class PaperDotPlot;
 class PaperLabNotebook;
 class PaperVersionTree;
+class PaperContrastAnalyzer;
+class PaperReadingGoalTree;
+class PaperLollipopChart;
+class PaperExperimentTracker;
+class PaperLogRotator;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

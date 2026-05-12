@@ -432,6 +432,11 @@
 #include "visualization/PaperDotPlot.hpp"
 #include "workspace/PaperLabNotebook.hpp"
 #include "tools/PaperVersionTree.hpp"
+#include "analysis/PaperContrastAnalyzer.hpp"
+#include "reading/PaperReadingGoalTree.hpp"
+#include "visualization/PaperLollipopChart.hpp"
+#include "workspace/PaperExperimentTracker.hpp"
+#include "tools/PaperLogRotator.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7792,6 +7797,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Contrast Analyzer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contrast Analyzer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContrastAnalyzer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Goal Tree", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Goal Tree");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingGoalTree();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lollipop Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lollipop Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLollipopChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Experiment Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Experiment Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperExperimentTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Log Rotator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Log Rotator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogRotator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9248,6 +9303,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Version Tree", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Version Tree");
+    });
+    commandPalette_->addAction("Contrast Analyzer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contrast Analyzer");
+    });
+    commandPalette_->addAction("Reading Goal Tree", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Goal Tree");
+    });
+    commandPalette_->addAction("Lollipop Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Lollipop Chart");
+    });
+    commandPalette_->addAction("Experiment Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Experiment Tracker");
+    });
+    commandPalette_->addAction("Log Rotator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Log Rotator");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
