@@ -457,6 +457,11 @@
 #include "visualization/PaperCandlestickChart.hpp"
 #include "workspace/PaperMilestoneTracker.hpp"
 #include "tools/PaperServiceMonitor.hpp"
+#include "analysis/PaperArgumentStrength.hpp"
+#include "reading/PaperReadingJournal.hpp"
+#include "visualization/PaperWaterfallChart.hpp"
+#include "workspace/PaperReleasePlanner.hpp"
+#include "tools/PaperDeprecationTracker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8067,6 +8072,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Strength", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Strength");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentStrength();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Journal", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Journal");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingJournal();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Waterfall Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Waterfall Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWaterfallChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Release Planner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Release Planner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReleasePlanner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Deprecation Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Deprecation Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDeprecationTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9598,6 +9653,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Service Monitor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Service Monitor");
+    });
+    commandPalette_->addAction("Argument Strength", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Strength");
+    });
+    commandPalette_->addAction("Reading Journal", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Journal");
+    });
+    commandPalette_->addAction("Waterfall Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Waterfall Chart");
+    });
+    commandPalette_->addAction("Release Planner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Release Planner");
+    });
+    commandPalette_->addAction("Deprecation Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Deprecation Tracker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

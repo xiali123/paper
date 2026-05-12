@@ -460,6 +460,11 @@ class PaperReadingPace;
 class PaperCandlestickChart;
 class PaperMilestoneTracker;
 class PaperServiceMonitor;
+class PaperArgumentStrength;
+class PaperReadingJournal;
+class PaperWaterfallChart;
+class PaperReleasePlanner;
+class PaperDeprecationTracker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
