@@ -627,6 +627,11 @@
 #include "visualization/PaperDumbbellPlot.hpp"
 #include "workspace/PaperPublicationPipeline.hpp"
 #include "tools/PaperQueryOptimizer.hpp"
+#include "analysis/PaperStrengthAssessor.hpp"
+#include "reading/PaperReadingHorizon.hpp"
+#include "visualization/PaperBeeswarmPlot.hpp"
+#include "workspace/PaperReviewExchange.hpp"
+#include "tools/PaperIndexManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9937,6 +9942,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Strength Assessor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Strength Assessor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStrengthAssessor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Horizon", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Horizon");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingHorizon();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Beeswarm Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Beeswarm Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBeeswarmPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Review Exchange", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Review Exchange");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReviewExchange();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Index Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Index Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperIndexManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11978,6 +12033,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Query Optimizer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Query Optimizer");
+    });
+    commandPalette_->addAction("Strength Assessor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Strength Assessor");
+    });
+    commandPalette_->addAction("Reading Horizon", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Horizon");
+    });
+    commandPalette_->addAction("Beeswarm Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Beeswarm Plot");
+    });
+    commandPalette_->addAction("Review Exchange", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Review Exchange");
+    });
+    commandPalette_->addAction("Index Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Index Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

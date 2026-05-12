@@ -630,6 +630,11 @@ class PaperReadingConstellation;
 class PaperDumbbellPlot;
 class PaperPublicationPipeline;
 class PaperQueryOptimizer;
+class PaperStrengthAssessor;
+class PaperReadingHorizon;
+class PaperBeeswarmPlot;
+class PaperReviewExchange;
+class PaperIndexManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
