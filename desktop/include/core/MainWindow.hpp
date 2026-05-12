@@ -675,6 +675,11 @@ class PaperNoteIndexer;
 class PaperBubbleMatrix2;
 class PaperTimelineRuler;
 class PaperPortRadar;
+class PaperLogicInspector;
+class PaperGoalSummit;
+class PaperDonutRing;
+class PaperContractVault;
+class PaperEnvGuard;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

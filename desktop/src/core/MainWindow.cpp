@@ -672,6 +672,11 @@
 #include "visualization/PaperBubbleMatrix2.hpp"
 #include "workspace/PaperTimelineRuler.hpp"
 #include "tools/PaperPortRadar.hpp"
+#include "analysis/PaperLogicInspector.hpp"
+#include "reading/PaperGoalSummit.hpp"
+#include "visualization/PaperDonutRing.hpp"
+#include "workspace/PaperContractVault.hpp"
+#include "tools/PaperEnvGuard.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10433,6 +10438,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Logic Inspector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Logic Inspector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogicInspector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Goal Summit", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Goal Summit");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGoalSummit();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Donut Ring", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Donut Ring");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDonutRing();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Contract Vault", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contract Vault");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContractVault();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Env Guard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Env Guard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEnvGuard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12609,6 +12664,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Port Radar", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Port Radar");
+    });
+    commandPalette_->addAction("Logic Inspector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Logic Inspector");
+    });
+    commandPalette_->addAction("Goal Summit", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Goal Summit");
+    });
+    commandPalette_->addAction("Donut Ring", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Donut Ring");
+    });
+    commandPalette_->addAction("Contract Vault", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contract Vault");
+    });
+    commandPalette_->addAction("Env Guard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Env Guard");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
