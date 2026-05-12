@@ -620,6 +620,11 @@ class PaperReadingVoyage;
 class PaperCoxcombChart;
 class PaperSkillMatrix;
 class PaperLogAggregator;
+class PaperNoveltyRadar;
+class PaperReadingFrontier;
+class PaperStripPlot;
+class PaperMilestoneTracker2;
+class PaperConfigValidator;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

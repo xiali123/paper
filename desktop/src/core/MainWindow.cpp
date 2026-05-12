@@ -617,6 +617,11 @@
 #include "visualization/PaperCoxcombChart.hpp"
 #include "workspace/PaperSkillMatrix.hpp"
 #include "tools/PaperLogAggregator.hpp"
+#include "analysis/PaperNoveltyRadar.hpp"
+#include "reading/PaperReadingFrontier.hpp"
+#include "visualization/PaperStripPlot.hpp"
+#include "workspace/PaperMilestoneTracker2.hpp"
+#include "tools/PaperConfigValidator.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9827,6 +9832,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Novelty Radar", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Novelty Radar");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNoveltyRadar();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Frontier", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Frontier");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingFrontier();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Strip Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Strip Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStripPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Milestone Tracker 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Milestone Tracker 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMilestoneTracker2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Config Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Config Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConfigValidator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11838,6 +11893,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Log Aggregator", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Log Aggregator");
+    });
+    commandPalette_->addAction("Novelty Radar", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Novelty Radar");
+    });
+    commandPalette_->addAction("Reading Frontier", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Frontier");
+    });
+    commandPalette_->addAction("Strip Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Strip Plot");
+    });
+    commandPalette_->addAction("Milestone Tracker 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Milestone Tracker 2");
+    });
+    commandPalette_->addAction("Config Validator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Config Validator");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
