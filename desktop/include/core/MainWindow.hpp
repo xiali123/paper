@@ -710,6 +710,11 @@ class PaperReadingSummit2;
 class PaperBubbleHeatmap2;
 class PaperLabRotation2;
 class PaperGapFinder2;
+class PaperSkillMatrix2;
+class PaperReadingVoyage2;
+class PaperCoxcombChart2;
+class PaperLogAggregator2;
+class PaperNoveltyRadar2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

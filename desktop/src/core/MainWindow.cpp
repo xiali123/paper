@@ -707,6 +707,11 @@
 #include "visualization/PaperBubbleHeatmap2.hpp"
 #include "workspace/PaperLabRotation2.hpp"
 #include "tools/PaperGapFinder2.hpp"
+#include "analysis/PaperSkillMatrix2.hpp"
+#include "reading/PaperReadingVoyage2.hpp"
+#include "visualization/PaperCoxcombChart2.hpp"
+#include "workspace/PaperLogAggregator2.hpp"
+#include "tools/PaperNoveltyRadar2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10818,6 +10823,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Skill Matrix", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Skill Matrix");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSkillMatrix2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Voyage", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Voyage");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingVoyage2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Coxcomb Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Coxcomb Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCoxcombChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Log Aggregator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Log Aggregator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogAggregator2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Novelty Radar", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Novelty Radar");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNoveltyRadar2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -13099,6 +13154,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Gap Finder", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Gap Finder");
+    });
+    commandPalette_->addAction("Skill Matrix", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Skill Matrix");
+    });
+    commandPalette_->addAction("Reading Voyage", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Voyage");
+    });
+    commandPalette_->addAction("Coxcomb Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Coxcomb Chart");
+    });
+    commandPalette_->addAction("Log Aggregator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Log Aggregator");
+    });
+    commandPalette_->addAction("Novelty Radar", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Novelty Radar");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
