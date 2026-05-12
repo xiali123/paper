@@ -562,6 +562,11 @@
 #include "visualization/PaperViolinPlot2.hpp"
 #include "workspace/PaperStudyGroup.hpp"
 #include "tools/PaperJobScheduler.hpp"
+#include "analysis/PaperConceptHeatmap.hpp"
+#include "reading/PaperReadingRetreat.hpp"
+#include "visualization/PaperScatterPlot3.hpp"
+#include "workspace/PaperLabBench.hpp"
+#include "tools/PaperConfigDiff.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9222,6 +9227,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Concept Heatmap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Concept Heatmap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConceptHeatmap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Retreat", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Retreat");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingRetreat();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Scatter Plot 3", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Scatter Plot 3");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperScatterPlot3();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lab Bench", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lab Bench");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLabBench();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Config Diff", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Config Diff");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConfigDiff();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11068,6 +11123,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Job Scheduler", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Job Scheduler");
+    });
+    commandPalette_->addAction("Concept Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Concept Heatmap");
+    });
+    commandPalette_->addAction("Reading Retreat", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Retreat");
+    });
+    commandPalette_->addAction("Scatter Plot 3", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Scatter Plot 3");
+    });
+    commandPalette_->addAction("Lab Bench", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Lab Bench");
+    });
+    commandPalette_->addAction("Config Diff", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Config Diff");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

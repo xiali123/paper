@@ -565,6 +565,11 @@ class PaperReadingCheckpoint;
 class PaperViolinPlot2;
 class PaperStudyGroup;
 class PaperJobScheduler;
+class PaperConceptHeatmap;
+class PaperReadingRetreat;
+class PaperScatterPlot3;
+class PaperLabBench;
+class PaperConfigDiff;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
