@@ -397,6 +397,11 @@
 #include "visualization/PaperRadialChart.hpp"
 #include "workspace/PaperCollaborationHub.hpp"
 #include "tools/PaperCodeVault.hpp"
+#include "analysis/PaperBiasMonitor.hpp"
+#include "reading/PaperReadingVitals.hpp"
+#include "visualization/PaperWaffleChart.hpp"
+#include "workspace/PaperTeamSync.hpp"
+#include "tools/PaperFormulaEditor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7407,6 +7412,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Bias Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bias Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBiasMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Vitals", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Vitals");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingVitals();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Waffle Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Waffle Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWaffleChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Team Sync", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Team Sync");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTeamSync();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Formula Editor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Formula Editor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFormulaEditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -8758,6 +8813,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Code Vault", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Code Vault");
+    });
+    commandPalette_->addAction("Bias Monitor", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Bias Monitor");
+    });
+    commandPalette_->addAction("Reading Vitals", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Vitals");
+    });
+    commandPalette_->addAction("Waffle Chart", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Waffle Chart");
+    });
+    commandPalette_->addAction("Team Sync", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Team Sync");
+    });
+    commandPalette_->addAction("Formula Editor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Formula Editor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

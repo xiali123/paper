@@ -400,6 +400,11 @@ class PaperReadingPulse;
 class PaperRadialChart;
 class PaperCollaborationHub;
 class PaperCodeVault;
+class PaperBiasMonitor;
+class PaperReadingVitals;
+class PaperWaffleChart;
+class PaperTeamSync;
+class PaperFormulaEditor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
