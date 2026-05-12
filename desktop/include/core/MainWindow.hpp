@@ -670,6 +670,11 @@ class PaperHighlightCollector;
 class PaperWaterfall2;
 class PaperCalendarSync;
 class PaperDnsLookup;
+class PaperCitationMerge;
+class PaperNoteIndexer;
+class PaperBubbleMatrix2;
+class PaperTimelineRuler;
+class PaperPortRadar;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

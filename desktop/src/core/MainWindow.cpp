@@ -667,6 +667,11 @@
 #include "visualization/PaperWaterfall2.hpp"
 #include "workspace/PaperCalendarSync.hpp"
 #include "tools/PaperDnsLookup.hpp"
+#include "citation/PaperCitationMerge.hpp"
+#include "reading/PaperNoteIndexer.hpp"
+#include "visualization/PaperBubbleMatrix2.hpp"
+#include "workspace/PaperTimelineRuler.hpp"
+#include "tools/PaperPortRadar.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10378,6 +10383,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Merge", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Merge");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationMerge();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Note Indexer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Note Indexer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNoteIndexer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bubble Matrix 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bubble Matrix 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBubbleMatrix2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Timeline Ruler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Timeline Ruler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTimelineRuler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Port Radar", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Port Radar");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPortRadar();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12539,6 +12594,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("DNS Lookup", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > DNS Lookup");
+    });
+    commandPalette_->addAction("Citation Merge", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Merge");
+    });
+    commandPalette_->addAction("Note Indexer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Note Indexer");
+    });
+    commandPalette_->addAction("Bubble Matrix 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bubble Matrix 2");
+    });
+    commandPalette_->addAction("Timeline Ruler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Timeline Ruler");
+    });
+    commandPalette_->addAction("Port Radar", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Port Radar");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
