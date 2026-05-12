@@ -490,6 +490,11 @@ class PaperReadingCalendar;
 class PaperChordDiagram;
 class PaperStandupTracker;
 class PaperRateLimiter;
+class PaperEntityLinker;
+class PaperReadingDigest;
+class PaperJoyPlot;
+class PaperIncidentBoard;
+class PaperHealthCheck;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

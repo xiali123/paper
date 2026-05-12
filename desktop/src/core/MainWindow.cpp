@@ -487,6 +487,11 @@
 #include "visualization/PaperChordDiagram.hpp"
 #include "workspace/PaperStandupTracker.hpp"
 #include "tools/PaperRateLimiter.hpp"
+#include "analysis/PaperEntityLinker.hpp"
+#include "reading/PaperReadingDigest.hpp"
+#include "visualization/PaperJoyPlot.hpp"
+#include "workspace/PaperIncidentBoard.hpp"
+#include "tools/PaperHealthCheck.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8397,6 +8402,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Entity Linker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Entity Linker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEntityLinker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Digest", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Digest");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingDigest();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Joy Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Joy Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperJoyPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Incident Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Incident Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperIncidentBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Health Check", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Health Check");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHealthCheck();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10018,6 +10073,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Rate Limiter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Rate Limiter");
+    });
+    commandPalette_->addAction("Entity Linker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Entity Linker");
+    });
+    commandPalette_->addAction("Reading Digest", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Digest");
+    });
+    commandPalette_->addAction("Joy Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Joy Plot");
+    });
+    commandPalette_->addAction("Incident Board", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Incident Board");
+    });
+    commandPalette_->addAction("Health Check", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Health Check");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
