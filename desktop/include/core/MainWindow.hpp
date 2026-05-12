@@ -635,6 +635,11 @@ class PaperReadingHorizon;
 class PaperBeeswarmPlot;
 class PaperReviewExchange;
 class PaperIndexManager;
+class PaperRebuttalBuilder;
+class PaperReadingNexus;
+class PaperBulletGraph;
+class PaperTimelinePlanner;
+class PaperAuditTrail;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

@@ -632,6 +632,11 @@
 #include "visualization/PaperBeeswarmPlot.hpp"
 #include "workspace/PaperReviewExchange.hpp"
 #include "tools/PaperIndexManager.hpp"
+#include "analysis/PaperRebuttalBuilder.hpp"
+#include "reading/PaperReadingNexus.hpp"
+#include "visualization/PaperBulletGraph.hpp"
+#include "workspace/PaperTimelinePlanner.hpp"
+#include "tools/PaperAuditTrail.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9992,6 +9997,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Rebuttal Builder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Rebuttal Builder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRebuttalBuilder();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Nexus", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Nexus");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingNexus();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bullet Graph", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bullet Graph");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBulletGraph();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Timeline Planner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Timeline Planner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTimelinePlanner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Audit Trail", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Audit Trail");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAuditTrail();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12048,6 +12103,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Index Manager", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Index Manager");
+    });
+    commandPalette_->addAction("Rebuttal Builder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Rebuttal Builder");
+    });
+    commandPalette_->addAction("Reading Nexus", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Nexus");
+    });
+    commandPalette_->addAction("Bullet Graph", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bullet Graph");
+    });
+    commandPalette_->addAction("Timeline Planner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Timeline Planner");
+    });
+    commandPalette_->addAction("Audit Trail", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Audit Trail");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
