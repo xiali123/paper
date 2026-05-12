@@ -495,6 +495,11 @@ class PaperReadingDigest;
 class PaperJoyPlot;
 class PaperIncidentBoard;
 class PaperHealthCheck;
+class PaperTopicCluster;
+class PaperReadingRhythm;
+class PaperPolarChart;
+class PaperOnCallScheduler;
+class PaperCacheWarmer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

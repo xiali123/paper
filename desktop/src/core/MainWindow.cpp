@@ -492,6 +492,11 @@
 #include "visualization/PaperJoyPlot.hpp"
 #include "workspace/PaperIncidentBoard.hpp"
 #include "tools/PaperHealthCheck.hpp"
+#include "analysis/PaperTopicCluster.hpp"
+#include "reading/PaperReadingRhythm.hpp"
+#include "visualization/PaperPolarChart.hpp"
+#include "workspace/PaperOnCallScheduler.hpp"
+#include "tools/PaperCacheWarmer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8452,6 +8457,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Cluster", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Cluster");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicCluster();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Rhythm", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Rhythm");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingRhythm();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Polar Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Polar Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPolarChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("On-Call Scheduler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("On-Call Scheduler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperOnCallScheduler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cache Warmer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cache Warmer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCacheWarmer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10088,6 +10143,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Health Check", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Health Check");
+    });
+    commandPalette_->addAction("Topic Cluster", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Cluster");
+    });
+    commandPalette_->addAction("Reading Rhythm", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Rhythm");
+    });
+    commandPalette_->addAction("Polar Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Polar Chart");
+    });
+    commandPalette_->addAction("On-Call Scheduler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > On-Call Scheduler");
+    });
+    commandPalette_->addAction("Cache Warmer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cache Warmer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
