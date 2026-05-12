@@ -685,6 +685,11 @@ class PaperSpeedTracker;
 class PaperFlowSankey;
 class PaperVendorScorecard;
 class PaperWebhookProbe;
+class PaperLogicProver;
+class PaperReadingNexus2;
+class PaperBarRace;
+class PaperInventoryAudit;
+class PaperCertRenewer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

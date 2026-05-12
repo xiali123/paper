@@ -682,6 +682,11 @@
 #include "visualization/PaperFlowSankey.hpp"
 #include "workspace/PaperVendorScorecard.hpp"
 #include "tools/PaperWebhookProbe.hpp"
+#include "analysis/PaperLogicProver.hpp"
+#include "reading/PaperReadingNexus2.hpp"
+#include "visualization/PaperBarRace.hpp"
+#include "workspace/PaperInventoryAudit.hpp"
+#include "tools/PaperCertRenewer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10543,6 +10548,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Logic Prover", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Logic Prover");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogicProver();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Nexus", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Nexus");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingNexus2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bar Race", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bar Race");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBarRace();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Inventory Audit", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Inventory Audit");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperInventoryAudit();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cert Renewer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cert Renewer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCertRenewer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12749,6 +12804,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Webhook Probe", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Webhook Probe");
+    });
+    commandPalette_->addAction("Logic Prover", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Logic Prover");
+    });
+    commandPalette_->addAction("Reading Nexus", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Nexus");
+    });
+    commandPalette_->addAction("Bar Race", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bar Race");
+    });
+    commandPalette_->addAction("Inventory Audit", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Inventory Audit");
+    });
+    commandPalette_->addAction("Cert Renewer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cert Renewer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
