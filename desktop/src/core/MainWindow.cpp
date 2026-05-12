@@ -447,6 +447,11 @@
 #include "visualization/PaperBulletChart.hpp"
 #include "workspace/PaperHypothesisBoard.hpp"
 #include "tools/PaperPatchManager.hpp"
+#include "analysis/PaperBiasDetector.hpp"
+#include "reading/PaperReadingScorecard.hpp"
+#include "visualization/PaperFunnelChart.hpp"
+#include "workspace/PaperTaskBoard.hpp"
+#include "tools/PaperTokenCounter.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7957,6 +7962,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Bias Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bias Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBiasDetector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Scorecard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Scorecard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingScorecard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Funnel Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Funnel Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFunnelChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Task Board", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Task Board");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTaskBoard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Token Counter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Token Counter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTokenCounter();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9458,6 +9513,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Patch Manager", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Patch Manager");
+    });
+    commandPalette_->addAction("Bias Detector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bias Detector");
+    });
+    commandPalette_->addAction("Reading Scorecard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Scorecard");
+    });
+    commandPalette_->addAction("Funnel Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Funnel Chart");
+    });
+    commandPalette_->addAction("Task Board", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Task Board");
+    });
+    commandPalette_->addAction("Token Counter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Token Counter");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

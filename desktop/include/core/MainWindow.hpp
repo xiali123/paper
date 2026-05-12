@@ -450,6 +450,11 @@ class PaperReadingDepth;
 class PaperBulletChart;
 class PaperHypothesisBoard;
 class PaperPatchManager;
+class PaperBiasDetector;
+class PaperReadingScorecard;
+class PaperFunnelChart;
+class PaperTaskBoard;
+class PaperTokenCounter;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
