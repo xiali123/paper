@@ -595,6 +595,11 @@ class PaperReadingArchipelago;
 class PaperWaterfallPlot2;
 class PaperPatentTracker;
 class PaperSchemaValidator;
+class PaperLogicChain;
+class PaperReadingLabyrinth;
+class PaperLollipopPlot;
+class PaperCollabHub;
+class PaperServiceProbe;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

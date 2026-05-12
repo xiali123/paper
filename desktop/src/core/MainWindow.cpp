@@ -592,6 +592,11 @@
 #include "visualization/PaperWaterfallPlot2.hpp"
 #include "workspace/PaperPatentTracker.hpp"
 #include "tools/PaperSchemaValidator.hpp"
+#include "analysis/PaperLogicChain.hpp"
+#include "reading/PaperReadingLabyrinth.hpp"
+#include "visualization/PaperLollipopPlot.hpp"
+#include "workspace/PaperCollabHub.hpp"
+#include "tools/PaperServiceProbe.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9552,6 +9557,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Logic Chain", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Logic Chain");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogicChain();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Labyrinth", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Labyrinth");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingLabyrinth();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lollipop Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lollipop Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLollipopPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Collab Hub", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Collab Hub");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCollabHub();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Service Probe", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Service Probe");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperServiceProbe();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11488,6 +11543,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Schema Validator", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Schema Validator");
+    });
+    commandPalette_->addAction("Logic Chain", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Logic Chain");
+    });
+    commandPalette_->addAction("Reading Labyrinth", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Labyrinth");
+    });
+    commandPalette_->addAction("Lollipop Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Lollipop Plot");
+    });
+    commandPalette_->addAction("Collab Hub", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Collab Hub");
+    });
+    commandPalette_->addAction("Service Probe", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Service Probe");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
