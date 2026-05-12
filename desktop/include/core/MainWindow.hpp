@@ -500,6 +500,11 @@ class PaperReadingRhythm;
 class PaperPolarChart;
 class PaperOnCallScheduler;
 class PaperCacheWarmer;
+class PaperSemanticShift;
+class PaperReadingSprintTimer;
+class PaperSwarmPlot;
+class PaperTaskDependency;
+class PaperLatencyProfiler;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

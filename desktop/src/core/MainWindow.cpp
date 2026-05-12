@@ -497,6 +497,11 @@
 #include "visualization/PaperPolarChart.hpp"
 #include "workspace/PaperOnCallScheduler.hpp"
 #include "tools/PaperCacheWarmer.hpp"
+#include "analysis/PaperSemanticShift.hpp"
+#include "reading/PaperReadingSprintTimer.hpp"
+#include "visualization/PaperSwarmPlot.hpp"
+#include "workspace/PaperTaskDependency.hpp"
+#include "tools/PaperLatencyProfiler.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8507,6 +8512,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Semantic Shift", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Semantic Shift");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSemanticShift();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Sprint Timer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Sprint Timer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSprintTimer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Swarm Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Swarm Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSwarmPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Task Dependency", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Task Dependency");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTaskDependency();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Latency Profiler", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Latency Profiler");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLatencyProfiler();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10158,6 +10213,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Cache Warmer", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Cache Warmer");
+    });
+    commandPalette_->addAction("Semantic Shift", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Semantic Shift");
+    });
+    commandPalette_->addAction("Reading Sprint Timer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Sprint Timer");
+    });
+    commandPalette_->addAction("Swarm Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Swarm Plot");
+    });
+    commandPalette_->addAction("Task Dependency", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Task Dependency");
+    });
+    commandPalette_->addAction("Latency Profiler", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Latency Profiler");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
