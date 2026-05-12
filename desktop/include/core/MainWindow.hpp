@@ -535,6 +535,11 @@ class PaperReadingHighlight;
 class PaperWaterfallChart2;
 class PaperTeamCalendar;
 class PaperDnsLookupTool;
+class PaperCitationDiff;
+class PaperReadingNoteSearcher;
+class PaperBubbleChart2;
+class PaperProjectTimeline;
+class PaperPortScanner;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

@@ -532,6 +532,11 @@
 #include "visualization/PaperWaterfallChart2.hpp"
 #include "workspace/PaperTeamCalendar.hpp"
 #include "tools/PaperDnsLookupTool.hpp"
+#include "citation/PaperCitationDiff.hpp"
+#include "reading/PaperReadingNoteSearcher.hpp"
+#include "visualization/PaperBubbleChart2.hpp"
+#include "workspace/PaperProjectTimeline.hpp"
+#include "tools/PaperPortScanner.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8892,6 +8897,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Diff", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Diff");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationDiff();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Note Searcher", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Note Searcher");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingNoteSearcher();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bubble Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bubble Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBubbleChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Project Timeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Project Timeline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProjectTimeline();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Port Scanner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Port Scanner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPortScanner();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10648,6 +10703,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("DNS Lookup Tool", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > DNS Lookup Tool");
+    });
+    commandPalette_->addAction("Citation Diff", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Diff");
+    });
+    commandPalette_->addAction("Reading Note Searcher", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Note Searcher");
+    });
+    commandPalette_->addAction("Bubble Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bubble Chart");
+    });
+    commandPalette_->addAction("Project Timeline", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Project Timeline");
+    });
+    commandPalette_->addAction("Port Scanner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Port Scanner");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
