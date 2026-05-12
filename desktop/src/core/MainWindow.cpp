@@ -637,6 +637,11 @@
 #include "visualization/PaperBulletGraph.hpp"
 #include "workspace/PaperTimelinePlanner.hpp"
 #include "tools/PaperAuditTrail.hpp"
+#include "analysis/PaperHypothesisValidator.hpp"
+#include "reading/PaperReadingOmega.hpp"
+#include "visualization/PaperChordWheel.hpp"
+#include "workspace/PaperResourceGantt.hpp"
+#include "tools/PaperSessionLog.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10048,6 +10053,57 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Hypothesis Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hypothesis Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHypothesisValidator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Omega", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Omega");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingOmega();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Chord Wheel", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Chord Wheel");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperChordWheel();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Resource Gantt", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Resource Gantt");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResourceGantt();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Session Log", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Session Log");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSessionLog();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -12118,6 +12174,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Audit Trail", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Audit Trail");
+    });
+    commandPalette_->addAction("Hypothesis Validator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Hypothesis Validator");
+    });
+    commandPalette_->addAction("Reading Omega", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Omega");
+    });
+    commandPalette_->addAction("Chord Wheel", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Chord Wheel");
+    });
+    commandPalette_->addAction("Resource Gantt", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Resource Gantt");
+    });
+    commandPalette_->addAction("Session Log", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Session Log");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

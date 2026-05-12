@@ -640,6 +640,11 @@ class PaperReadingNexus;
 class PaperBulletGraph;
 class PaperTimelinePlanner;
 class PaperAuditTrail;
+class PaperHypothesisValidator;
+class PaperReadingOmega;
+class PaperChordWheel;
+class PaperResourceGantt;
+class PaperSessionLog;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
