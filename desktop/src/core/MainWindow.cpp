@@ -657,6 +657,11 @@
 #include "visualization/PaperClevelandDot.hpp"
 #include "workspace/PaperWikiForge.hpp"
 #include "tools/PaperCertGuard.hpp"
+#include "analysis/PaperArgumentScorer.hpp"
+#include "reading/PaperBookmarkVault.hpp"
+#include "visualization/PaperMarimekko2.hpp"
+#include "workspace/PaperAssetLedger.hpp"
+#include "tools/PaperSecretWarden.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10268,6 +10273,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Scorer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Scorer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentScorer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bookmark Vault", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bookmark Vault");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBookmarkVault();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Marimekko 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Marimekko 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMarimekko2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Asset Ledger", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Asset Ledger");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAssetLedger();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Secret Warden", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Secret Warden");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSecretWarden();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12399,6 +12454,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Cert Guard", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Cert Guard");
+    });
+    commandPalette_->addAction("Argument Scorer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Scorer");
+    });
+    commandPalette_->addAction("Bookmark Vault", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bookmark Vault");
+    });
+    commandPalette_->addAction("Marimekko 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Marimekko 2");
+    });
+    commandPalette_->addAction("Asset Ledger", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Asset Ledger");
+    });
+    commandPalette_->addAction("Secret Warden", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Secret Warden");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
