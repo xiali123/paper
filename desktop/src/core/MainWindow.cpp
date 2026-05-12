@@ -542,6 +542,11 @@
 #include "visualization/PaperDonutChart2.hpp"
 #include "workspace/PaperContractManager2.hpp"
 #include "tools/PaperEnvVarManager.hpp"
+#include "analysis/PaperEvidenceWeigher2.hpp"
+#include "reading/PaperReadingSpeedTest2.hpp"
+#include "visualization/PaperSankeyDiagram2.hpp"
+#include "workspace/PaperVendorRating2.hpp"
+#include "tools/PaperWebhookTester.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9002,6 +9007,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Evidence Weigher", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Weigher");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceWeigher2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Speed Test", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Speed Test");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingSpeedTest2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Sankey Diagram", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sankey Diagram");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSankeyDiagram2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Vendor Rating", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Vendor Rating");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVendorRating2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Webhook Tester", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Webhook Tester");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWebhookTester();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10788,6 +10843,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Env Var Manager", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Env Var Manager");
+    });
+    commandPalette_->addAction("Evidence Weigher", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Weigher");
+    });
+    commandPalette_->addAction("Reading Speed Test", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Speed Test");
+    });
+    commandPalette_->addAction("Sankey Diagram", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sankey Diagram");
+    });
+    commandPalette_->addAction("Vendor Rating", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Vendor Rating");
+    });
+    commandPalette_->addAction("Webhook Tester", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Webhook Tester");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

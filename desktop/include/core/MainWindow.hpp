@@ -545,6 +545,11 @@ class PaperReadingGoalDashboard;
 class PaperDonutChart2;
 class PaperContractManager2;
 class PaperEnvVarManager;
+class PaperEvidenceWeigher2;
+class PaperReadingSpeedTest2;
+class PaperSankeyDiagram2;
+class PaperVendorRating2;
+class PaperWebhookTester;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
