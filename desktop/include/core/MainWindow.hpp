@@ -470,6 +470,11 @@ class PaperReadingBacklog;
 class PaperRadarChart;
 class PaperSprintBoard;
 class PaperKeyStore;
+class PaperImpactPredictor;
+class PaperReadingVelocity;
+class PaperSankeyChart;
+class PaperRetrospective;
+class PaperSecretVault;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

@@ -467,6 +467,11 @@
 #include "visualization/PaperRadarChart.hpp"
 #include "workspace/PaperSprintBoard.hpp"
 #include "tools/PaperKeyStore.hpp"
+#include "analysis/PaperImpactPredictor.hpp"
+#include "reading/PaperReadingVelocity.hpp"
+#include "visualization/PaperSankeyChart.hpp"
+#include "workspace/PaperRetrospective.hpp"
+#include "tools/PaperSecretVault.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8177,6 +8182,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Impact Predictor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Impact Predictor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperImpactPredictor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Velocity", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Velocity");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingVelocity();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Sankey Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sankey Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSankeyChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Retrospective", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Retrospective");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRetrospective();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Secret Vault", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Secret Vault");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSecretVault();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9738,6 +9793,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Key Store", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Key Store");
+    });
+    commandPalette_->addAction("Impact Predictor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Impact Predictor");
+    });
+    commandPalette_->addAction("Reading Velocity", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Velocity");
+    });
+    commandPalette_->addAction("Sankey Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sankey Chart");
+    });
+    commandPalette_->addAction("Retrospective", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Retrospective");
+    });
+    commandPalette_->addAction("Secret Vault", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Secret Vault");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
