@@ -582,6 +582,11 @@
 #include "visualization/PaperCorrelationPlot.hpp"
 #include "workspace/PaperPeerReview.hpp"
 #include "tools/PaperTokenParser.hpp"
+#include "analysis/PaperHypothesisGrid.hpp"
+#include "reading/PaperReadingExpedition.hpp"
+#include "visualization/PaperAreaChart2.hpp"
+#include "workspace/PaperExperimentLog.hpp"
+#include "tools/PaperCircuitBreaker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9442,6 +9447,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Hypothesis Grid", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hypothesis Grid");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHypothesisGrid();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Expedition", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Expedition");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingExpedition();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Area Chart 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Area Chart 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAreaChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Experiment Log", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Experiment Log");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperExperimentLog();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Circuit Breaker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Circuit Breaker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCircuitBreaker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11348,6 +11403,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Token Parser", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Token Parser");
+    });
+    commandPalette_->addAction("Hypothesis Grid", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Hypothesis Grid");
+    });
+    commandPalette_->addAction("Reading Expedition", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Expedition");
+    });
+    commandPalette_->addAction("Area Chart 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Area Chart 2");
+    });
+    commandPalette_->addAction("Experiment Log", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Experiment Log");
+    });
+    commandPalette_->addAction("Circuit Breaker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Circuit Breaker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

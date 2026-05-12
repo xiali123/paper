@@ -585,6 +585,11 @@ class PaperReadingVortex;
 class PaperCorrelationPlot;
 class PaperPeerReview;
 class PaperTokenParser;
+class PaperHypothesisGrid;
+class PaperReadingExpedition;
+class PaperAreaChart2;
+class PaperExperimentLog;
+class PaperCircuitBreaker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
