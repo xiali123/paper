@@ -525,6 +525,11 @@ class PaperReadingStaminaTracker;
 class PaperClevelandDotPlot;
 class PaperWikiEditor;
 class PaperCertManager;
+class PaperArgumentEvaluator;
+class PaperReadingBookmarks;
+class PaperMarimekkoChart2;
+class PaperAssetInventory;
+class PaperSecretScanner;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
