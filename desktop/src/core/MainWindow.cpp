@@ -452,6 +452,11 @@
 #include "visualization/PaperFunnelChart.hpp"
 #include "workspace/PaperTaskBoard.hpp"
 #include "tools/PaperTokenCounter.hpp"
+#include "analysis/PaperReproducibilityChecker.hpp"
+#include "reading/PaperReadingPace.hpp"
+#include "visualization/PaperCandlestickChart.hpp"
+#include "workspace/PaperMilestoneTracker.hpp"
+#include "tools/PaperServiceMonitor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8012,6 +8017,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Reproducibility Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reproducibility Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReproducibilityChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Pace", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Pace");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingPace();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Candlestick Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Candlestick Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCandlestickChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Milestone Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Milestone Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMilestoneTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Service Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Service Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperServiceMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9528,6 +9583,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Token Counter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Token Counter");
+    });
+    commandPalette_->addAction("Reproducibility Checker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reproducibility Checker");
+    });
+    commandPalette_->addAction("Reading Pace", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Pace");
+    });
+    commandPalette_->addAction("Candlestick Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Candlestick Chart");
+    });
+    commandPalette_->addAction("Milestone Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Milestone Tracker");
+    });
+    commandPalette_->addAction("Service Monitor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Service Monitor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

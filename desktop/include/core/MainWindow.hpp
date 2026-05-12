@@ -455,6 +455,11 @@ class PaperReadingScorecard;
 class PaperFunnelChart;
 class PaperTaskBoard;
 class PaperTokenCounter;
+class PaperReproducibilityChecker;
+class PaperReadingPace;
+class PaperCandlestickChart;
+class PaperMilestoneTracker;
+class PaperServiceMonitor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
