@@ -655,6 +655,11 @@ class PaperReadingSyncHub;
 class PaperStreamgraph;
 class PaperSprintRetro;
 class PaperEndpointPulse;
+class PaperTopicSentinel;
+class PaperReadingEndurance;
+class PaperClevelandDot;
+class PaperWikiForge;
+class PaperCertGuard;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

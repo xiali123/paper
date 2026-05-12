@@ -652,6 +652,11 @@
 #include "visualization/PaperStreamgraph.hpp"
 #include "workspace/PaperSprintRetro.hpp"
 #include "tools/PaperEndpointPulse.hpp"
+#include "analysis/PaperTopicSentinel.hpp"
+#include "reading/PaperReadingEndurance.hpp"
+#include "visualization/PaperClevelandDot.hpp"
+#include "workspace/PaperWikiForge.hpp"
+#include "tools/PaperCertGuard.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10213,6 +10218,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Sentinel", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Sentinel");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicSentinel();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Endurance", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Endurance");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingEndurance();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cleveland Dot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cleveland Dot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClevelandDot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Wiki Forge", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Wiki Forge");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWikiForge();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cert Guard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cert Guard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCertGuard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -12329,6 +12384,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Endpoint Pulse", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Endpoint Pulse");
+    });
+    commandPalette_->addAction("Topic Sentinel", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Sentinel");
+    });
+    commandPalette_->addAction("Reading Endurance", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Endurance");
+    });
+    commandPalette_->addAction("Cleveland Dot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cleveland Dot");
+    });
+    commandPalette_->addAction("Wiki Forge", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Wiki Forge");
+    });
+    commandPalette_->addAction("Cert Guard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cert Guard");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
