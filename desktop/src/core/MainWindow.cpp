@@ -417,6 +417,11 @@
 #include "visualization/PaperDendrogramView.hpp"
 #include "workspace/PaperWorkflowBoard.hpp"
 #include "tools/PaperChecksumTool.hpp"
+#include "analysis/PaperEmbeddingVisualizer.hpp"
+#include "reading/PaperReadingGradient.hpp"
+#include "visualization/PaperHeatmapMatrix.hpp"
+#include "workspace/PaperPipelineView.hpp"
+#include "tools/PaperDiffTool.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -7627,6 +7632,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Embedding Visualizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Embedding Visualizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEmbeddingVisualizer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Gradient", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Gradient");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingGradient();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Heatmap Matrix", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Heatmap Matrix");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHeatmapMatrix();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Pipeline View", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Pipeline View");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPipelineView();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Diff Tool", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Diff Tool");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDiffTool();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -9038,6 +9093,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Checksum Tool", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Checksum Tool");
+    });
+    commandPalette_->addAction("Embedding Visualizer", "", "Analysis", [this]() {
+        ToastWidget::showInfo("Open Tools > Embedding Visualizer");
+    });
+    commandPalette_->addAction("Reading Gradient", "", "Reading", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Gradient");
+    });
+    commandPalette_->addAction("Heatmap Matrix", "", "Visualization", [this]() {
+        ToastWidget::showInfo("Open Tools > Heatmap Matrix");
+    });
+    commandPalette_->addAction("Pipeline View", "", "Workspace", [this]() {
+        ToastWidget::showInfo("Open Tools > Pipeline View");
+    });
+    commandPalette_->addAction("Diff Tool", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Diff Tool");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

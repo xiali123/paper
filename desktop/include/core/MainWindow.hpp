@@ -420,6 +420,11 @@ class PaperReadingWaves;
 class PaperDendrogramView;
 class PaperWorkflowBoard;
 class PaperChecksumTool;
+class PaperEmbeddingVisualizer;
+class PaperReadingGradient;
+class PaperHeatmapMatrix;
+class PaperPipelineView;
+class PaperDiffTool;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
