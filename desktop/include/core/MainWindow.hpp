@@ -540,6 +540,11 @@ class PaperReadingNoteSearcher;
 class PaperBubbleChart2;
 class PaperProjectTimeline;
 class PaperPortScanner;
+class PaperArgumentParser2;
+class PaperReadingGoalDashboard;
+class PaperDonutChart2;
+class PaperContractManager2;
+class PaperEnvVarManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

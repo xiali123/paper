@@ -537,6 +537,11 @@
 #include "visualization/PaperBubbleChart2.hpp"
 #include "workspace/PaperProjectTimeline.hpp"
 #include "tools/PaperPortScanner.hpp"
+#include "analysis/PaperArgumentParser2.hpp"
+#include "reading/PaperReadingGoalDashboard.hpp"
+#include "visualization/PaperDonutChart2.hpp"
+#include "workspace/PaperContractManager2.hpp"
+#include "tools/PaperEnvVarManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8947,6 +8952,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Argument Parser", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Parser");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentParser2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Goal Dashboard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Goal Dashboard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingGoalDashboard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Donut Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Donut Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDonutChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Contract Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contract Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContractManager2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Env Var Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Env Var Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEnvVarManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10718,6 +10773,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Port Scanner", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Port Scanner");
+    });
+    commandPalette_->addAction("Argument Parser", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Parser");
+    });
+    commandPalette_->addAction("Reading Goal Dashboard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Goal Dashboard");
+    });
+    commandPalette_->addAction("Donut Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Donut Chart");
+    });
+    commandPalette_->addAction("Contract Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contract Manager");
+    });
+    commandPalette_->addAction("Env Var Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Env Var Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
