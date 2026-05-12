@@ -520,6 +520,11 @@ class PaperReadingSessionSync;
 class PaperStreamgraphPlot;
 class PaperSprintRetroBoard;
 class PaperEndpointMonitor;
+class PaperTopicClusterer2;
+class PaperReadingStaminaTracker;
+class PaperClevelandDotPlot;
+class PaperWikiEditor;
+class PaperCertManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

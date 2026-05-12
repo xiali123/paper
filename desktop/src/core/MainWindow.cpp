@@ -517,6 +517,11 @@
 #include "visualization/PaperStreamgraphPlot.hpp"
 #include "workspace/PaperSprintRetroBoard.hpp"
 #include "tools/PaperEndpointMonitor.hpp"
+#include "analysis/PaperTopicClusterer2.hpp"
+#include "reading/PaperReadingStaminaTracker.hpp"
+#include "visualization/PaperClevelandDotPlot.hpp"
+#include "workspace/PaperWikiEditor.hpp"
+#include "tools/PaperCertManager.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8727,6 +8732,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Topic Clusterer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Topic Clusterer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTopicClusterer2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Stamina Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Stamina Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingStaminaTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cleveland Dot Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cleveland Dot Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClevelandDotPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Wiki Editor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Wiki Editor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWikiEditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cert Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cert Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCertManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10438,6 +10493,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Endpoint Monitor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Endpoint Monitor");
+    });
+    commandPalette_->addAction("Topic Clusterer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Topic Clusterer");
+    });
+    commandPalette_->addAction("Reading Stamina Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Stamina Tracker");
+    });
+    commandPalette_->addAction("Cleveland Dot Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cleveland Dot Plot");
+    });
+    commandPalette_->addAction("Wiki Editor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Wiki Editor");
+    });
+    commandPalette_->addAction("Cert Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cert Manager");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
