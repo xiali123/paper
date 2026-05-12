@@ -502,6 +502,11 @@
 #include "visualization/PaperSwarmPlot.hpp"
 #include "workspace/PaperTaskDependency.hpp"
 #include "tools/PaperLatencyProfiler.hpp"
+#include "analysis/PaperConceptDrift.hpp"
+#include "reading/PaperReadingZoneTracker.hpp"
+#include "visualization/PaperRidgelinePlot.hpp"
+#include "workspace/PaperMeetingNotes.hpp"
+#include "tools/PaperSchemaMigrator.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8562,6 +8567,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Concept Drift", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Concept Drift");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConceptDrift();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Zone Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Zone Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingZoneTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Ridgeline Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Ridgeline Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRidgelinePlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Meeting Notes", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Meeting Notes");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperMeetingNotes();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Schema Migrator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Schema Migrator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSchemaMigrator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10228,6 +10283,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Latency Profiler", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Latency Profiler");
+    });
+    commandPalette_->addAction("Concept Drift", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Concept Drift");
+    });
+    commandPalette_->addAction("Reading Zone Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Zone Tracker");
+    });
+    commandPalette_->addAction("Ridgeline Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Ridgeline Plot");
+    });
+    commandPalette_->addAction("Meeting Notes", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Meeting Notes");
+    });
+    commandPalette_->addAction("Schema Migrator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Schema Migrator");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

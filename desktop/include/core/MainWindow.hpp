@@ -505,6 +505,11 @@ class PaperReadingSprintTimer;
 class PaperSwarmPlot;
 class PaperTaskDependency;
 class PaperLatencyProfiler;
+class PaperConceptDrift;
+class PaperReadingZoneTracker;
+class PaperRidgelinePlot;
+class PaperMeetingNotes;
+class PaperSchemaMigrator;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
