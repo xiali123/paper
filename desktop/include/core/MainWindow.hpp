@@ -650,6 +650,11 @@ class PaperReadingZone;
 class PaperHexbinChart;
 class PaperCodeReview;
 class PaperApiVersion;
+class PaperCitationGraph2;
+class PaperReadingSyncHub;
+class PaperStreamgraph;
+class PaperSprintRetro;
+class PaperEndpointPulse;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
