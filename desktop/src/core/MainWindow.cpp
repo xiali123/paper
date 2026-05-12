@@ -527,6 +527,11 @@
 #include "visualization/PaperMarimekkoChart2.hpp"
 #include "workspace/PaperAssetInventory.hpp"
 #include "tools/PaperSecretScanner.hpp"
+#include "citation/PaperCitationMatcher.hpp"
+#include "reading/PaperReadingHighlight.hpp"
+#include "visualization/PaperWaterfallChart2.hpp"
+#include "workspace/PaperTeamCalendar.hpp"
+#include "tools/PaperDnsLookupTool.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -8837,6 +8842,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Citation Matcher", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Matcher");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationMatcher();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Highlight", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Highlight");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingHighlight();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Waterfall Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Waterfall Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWaterfallChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Team Calendar", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Team Calendar");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTeamCalendar();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("DNS Lookup Tool", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("DNS Lookup Tool");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDnsLookupTool();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -10578,6 +10633,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Secret Scanner", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Secret Scanner");
+    });
+    commandPalette_->addAction("Citation Matcher", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Matcher");
+    });
+    commandPalette_->addAction("Reading Highlight", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Highlight");
+    });
+    commandPalette_->addAction("Waterfall Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Waterfall Chart");
+    });
+    commandPalette_->addAction("Team Calendar", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Team Calendar");
+    });
+    commandPalette_->addAction("DNS Lookup Tool", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > DNS Lookup Tool");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

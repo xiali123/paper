@@ -530,6 +530,11 @@ class PaperReadingBookmarks;
 class PaperMarimekkoChart2;
 class PaperAssetInventory;
 class PaperSecretScanner;
+class PaperCitationMatcher;
+class PaperReadingHighlight;
+class PaperWaterfallChart2;
+class PaperTeamCalendar;
+class PaperDnsLookupTool;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
