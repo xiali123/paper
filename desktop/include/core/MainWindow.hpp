@@ -600,6 +600,11 @@ class PaperReadingLabyrinth;
 class PaperLollipopPlot;
 class PaperCollabHub;
 class PaperServiceProbe;
+class PaperFallacyMapper;
+class PaperReadingOdyssey;
+class PaperStepPlot;
+class PaperResearchGrant2;
+class PaperTrafficMonitor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

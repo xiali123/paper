@@ -597,6 +597,11 @@
 #include "visualization/PaperLollipopPlot.hpp"
 #include "workspace/PaperCollabHub.hpp"
 #include "tools/PaperServiceProbe.hpp"
+#include "analysis/PaperFallacyMapper.hpp"
+#include "reading/PaperReadingOdyssey.hpp"
+#include "visualization/PaperStepPlot.hpp"
+#include "workspace/PaperResearchGrant2.hpp"
+#include "tools/PaperTrafficMonitor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -9607,6 +9612,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Fallacy Mapper", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Fallacy Mapper");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFallacyMapper();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Odyssey", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Odyssey");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingOdyssey();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Step Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Step Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStepPlot();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Research Grant 2", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Research Grant 2");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperResearchGrant2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Traffic Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Traffic Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTrafficMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -11558,6 +11613,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Service Probe", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Service Probe");
+    });
+    commandPalette_->addAction("Fallacy Mapper", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Fallacy Mapper");
+    });
+    commandPalette_->addAction("Reading Odyssey", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Odyssey");
+    });
+    commandPalette_->addAction("Step Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Step Plot");
+    });
+    commandPalette_->addAction("Research Grant 2", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Research Grant 2");
+    });
+    commandPalette_->addAction("Traffic Monitor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Traffic Monitor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
