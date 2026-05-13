@@ -740,6 +740,11 @@ class PaperBookmarkVault2;
 class PaperMarimekko3;
 class PaperAssetLedger2;
 class PaperSecretWarden2;
+class PaperCitationBinder2;
+class PaperHighlightCollector2;
+class PaperWaterfall3;
+class PaperCalendarSync2;
+class PaperDnsLookup2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
