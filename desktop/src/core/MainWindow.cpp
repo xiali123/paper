@@ -747,6 +747,11 @@
 #include "visualization/PaperDotPlot2.hpp"
 #include "workspace/PaperLabNotebook2.hpp"
 #include "tools/PaperVersionTree2.hpp"
+#include "analysis/PaperClaimExtractor.hpp"
+#include "reading/PaperReadingLog2.hpp"
+#include "visualization/PaperRidgelinePlot2.hpp"
+#include "workspace/PaperGrantTracker2.hpp"
+#include "tools/PaperPingMonitor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11260,6 +11265,57 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Claim Extractor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Claim Extractor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperClaimExtractor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Log", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Log");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingLog2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Ridgeline Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Ridgeline Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRidgelinePlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Grant Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Grant Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperGrantTracker2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Ping Monitor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Ping Monitor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPingMonitor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -13660,6 +13716,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Version Tree", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Version Tree");
+    });
+    commandPalette_->addAction("Claim Extractor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Claim Extractor");
+    });
+    commandPalette_->addAction("Reading Log", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Log");
+    });
+    commandPalette_->addAction("Ridgeline Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Ridgeline Plot");
+    });
+    commandPalette_->addAction("Grant Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Grant Tracker");
+    });
+    commandPalette_->addAction("Ping Monitor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Ping Monitor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

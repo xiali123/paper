@@ -750,6 +750,11 @@ class PaperStudyPlanner2;
 class PaperDotPlot2;
 class PaperLabNotebook2;
 class PaperVersionTree2;
+class PaperClaimExtractor;
+class PaperReadingLog2;
+class PaperRidgelinePlot2;
+class PaperGrantTracker2;
+class PaperPingMonitor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
