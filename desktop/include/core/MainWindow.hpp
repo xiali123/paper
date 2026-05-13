@@ -770,6 +770,11 @@ class PaperQuoteVault;
 class PaperSankeyDiagram3;
 class PaperDocumentVault;
 class PaperSslChecker;
+class PaperEvidenceTracker;
+class PaperReadingDigest2;
+class PaperLollipopChart2;
+class PaperTeamDashboard;
+class PaperHeaderInspector;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

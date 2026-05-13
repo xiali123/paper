@@ -767,6 +767,11 @@
 #include "visualization/PaperSankeyDiagram3.hpp"
 #include "workspace/PaperDocumentVault.hpp"
 #include "tools/PaperSslChecker.hpp"
+#include "analysis/PaperEvidenceTracker.hpp"
+#include "reading/PaperReadingDigest2.hpp"
+#include "visualization/PaperLollipopChart2.hpp"
+#include "workspace/PaperTeamDashboard.hpp"
+#include "tools/PaperHeaderInspector.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11482,10 +11487,58 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
-    // Help menu
-    QMenu* helpMenu = menuBar()->addMenu("&Help");
+    toolsMenu->addAction("Evidence Tracker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Evidence Tracker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperEvidenceTracker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Digest", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Digest");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingDigest2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lollipop Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lollipop Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLollipopChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Team Dashboard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Team Dashboard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTeamDashboard();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Header Inspector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Header Inspector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHeaderInspector();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
-    QAction* aboutAction = helpMenu->addAction("&About");
+    // Help menu
     connect(aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
 }
 
@@ -13942,6 +13995,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("SSL Checker", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > SSL Checker");
+    });
+    commandPalette_->addAction("Evidence Tracker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Evidence Tracker");
+    });
+    commandPalette_->addAction("Reading Digest", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Digest");
+    });
+    commandPalette_->addAction("Lollipop Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Lollipop Chart");
+    });
+    commandPalette_->addAction("Team Dashboard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Team Dashboard");
+    });
+    commandPalette_->addAction("Header Inspector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Header Inspector");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

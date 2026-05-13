@@ -1,0 +1,290 @@
+#include "tools/PaperHeaderInspector.hpp"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QRandomGenerator>
+
+PaperHeaderInspector::PaperHeaderInspector(QWidget* parent)
+    : QWidget(parent)
+    , settings_("PaperCrawler", "HeaderInspector")
+{
+    setupUI();
+    loadSettings();
+}
+
+void PaperHeaderInspector::setupUI() {
+    auto* layout = new QVBoxLayout(this);
+
+    auto* toolbar = new QHBoxLayout();
+    inspectBtn_ = new QPushButton("Inspect");
+    inspectBtn_->setStyleSheet("QPushButton { background: #3b82f6; color: white; padding: 4px 12px; border-radius: 4px; }");
+    connect(inspectBtn_, &QPushButton::clicked, this, &PaperHeaderInspector::onInspect);
+    toolbar->addWidget(inspectBtn_);
+
+    categoryCombo_ = new QComboBox();
+    categoryCombo_->addItems({"All", "Security", "Performance", "Privacy", "Compliance", "Accessibility"});
+    toolbar->addWidget(categoryCombo_, 1);
+
+    inputField_ = new QLineEdit();
+    inputField_->setPlaceholderText("Enter URL to inspect headers...");
+    inputField_->setStyleSheet("QLineEdit { padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; }");
+    toolbar->addWidget(inputField_, 1);
+
+    clearBtn_ = new QPushButton("Clear");
+    clearBtn_->setStyleSheet("color: #dc2626;");
+    connect(clearBtn_, &QPushButton::clicked, this, &PaperHeaderInspector::onClear);
+    toolbar->addWidget(clearBtn_);
+    layout->addLayout(toolbar);
+
+    infoLabel_ = new QLabel("Inspect HTTP response headers");
+    infoLabel_->setStyleSheet("font-size: 12px; color: #334155; padding: 4px;");
+    layout->addWidget(infoLabel_);
+
+    setMinimumSize(580, 480);
+}
+
+void PaperHeaderInspector::addEntry(const HeaderInspectorEntry& entry) {
+    entries_.append(entry);
+    saveSettings();
+    updateInfo();
+    emit headerInspected(entry.id, entry.score);
+    update();
+}
+
+QList<HeaderInspectorEntry> PaperHeaderInspector::entries() const { return entries_; }
+
+int PaperHeaderInspector::secureCount() const {
+    int c = 0;
+    for (const auto& e : entries_) if (e.secure) c++;
+    return c;
+}
+
+qreal PaperHeaderInspector::avgScore() const {
+    if (entries_.isEmpty()) return 0;
+    qreal sum = 0;
+    for (const auto& e : entries_) sum += e.score;
+    return sum / entries_.size();
+}
+
+QMap<QString, int> PaperHeaderInspector::categoryCounts() const {
+    QMap<QString, int> counts;
+    for (const auto& e : entries_) counts[e.category]++;
+    return counts;
+}
+
+void PaperHeaderInspector::onInspect() {
+    QString text = inputField_->text().trimmed();
+
+    QStringList urls = {"https://arxiv.org/abs/2401.0001", "https://doi.org/10.1000/example",
+                        "https://scholar.google.com", "https://pubmed.ncbi.nlm.nih.gov",
+                        "https://ieeexplore.ieee.org", "https://dl.acm.org/doi/10.1145/example",
+                        "https://springer.com/article/10.1007/example", "https://nature.com/articles/example"};
+    QStringList headers = {"Content-Security-Policy", "Strict-Transport-Security", "X-Content-Type-Options",
+                           "X-Frame-Options", "Referrer-Policy", "Permissions-Policy",
+                           "Cache-Control", "X-XSS-Protection", "Feature-Policy", "Expect-CT"};
+    QStringList categories = {"Security", "Performance", "Privacy", "Compliance", "Accessibility"};
+    QColor colors[] = {QColor(59,130,246), QColor(22,163,74), QColor(217,119,6), QColor(220,38,38), QColor(124,58,237)};
+
+    int count = 4 + QRandomGenerator::global()->bounded(5);
+    for (int i = 0; i < count; ++i) {
+        HeaderInspectorEntry e;
+        e.id = entries_.size() + 1;
+        e.url = text.isEmpty() ? urls[QRandomGenerator::global()->bounded(urls.size())]
+                               : text;
+        e.header = headers[QRandomGenerator::global()->bounded(headers.size())];
+        e.category = categories[QRandomGenerator::global()->bounded(categories.size())];
+        e.score = 20.0 + QRandomGenerator::global()->bounded(810) / 10.0;
+        e.checks = 1 + QRandomGenerator::global()->bounded(12);
+        e.secure = QRandomGenerator::global()->bounded(2) == 0;
+        e.color = colors[QRandomGenerator::global()->bounded(5)];
+        addEntry(e);
+    }
+    inputField_->clear();
+}
+
+void PaperHeaderInspector::onClear() {
+    entries_.clear();
+    saveSettings();
+    infoLabel_->setText("Inspect HTTP response headers");
+    update();
+}
+
+void PaperHeaderInspector::paintEvent(QPaintEvent*) {
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillRect(rect(), Qt::white);
+
+    if (entries_.isEmpty()) {
+        p.setPen(QColor(203, 213, 225));
+        p.setFont(QFont("Arial", 12));
+        p.drawText(rect(), Qt::AlignCenter, "Inspect HTTP response headers");
+        return;
+    }
+
+    p.setPen(QColor(15, 23, 42));
+    p.setFont(QFont("Arial", 13, QFont::Bold));
+    p.drawText(20, 30, "Header Inspector");
+
+    int w = width(), h = height();
+    drawInspectorView(p, QRect(20, 50, w / 2 - 20, h - 80));
+    drawCategoryChart(p, QRect(w / 2 + 10, 50, w / 2 - 30, h / 2 - 30));
+    drawStats(p, QRect(w / 2 + 10, h / 2 + 20, w / 2 - 30, h / 2 - 50));
+}
+
+void PaperHeaderInspector::drawInspectorView(QPainter& p, const QRect& rect) {
+    int show = qMin(10, entries_.size());
+    int itemH = qMin(34, (rect.height() - 10) / qMax(show, 1));
+
+    for (int i = 0; i < show; ++i) {
+        const auto& e = entries_[i];
+        int y = rect.y() + i * (itemH + 3);
+
+        p.setPen(Qt::NoPen);
+        p.setBrush(e.color.lighter(185));
+        p.drawRoundedRect(rect.x(), y, rect.width(), itemH, 4, 4);
+
+        p.setPen(Qt::NoPen);
+        p.setBrush(e.color);
+        p.drawRoundedRect(rect.x(), y, 4, itemH, 2, 2);
+
+        p.setPen(QColor(15, 23, 42));
+        p.setFont(QFont("Courier", 8, QFont::Bold));
+        p.drawText(rect.x() + 10, y + 4, rect.width() / 2 - 10, 16, Qt::AlignVCenter,
+                   e.header.left(26));
+
+        p.setPen(QColor(100, 116, 139));
+        p.setFont(QFont("Arial", 7));
+        p.drawText(rect.x() + 10, y + 20, rect.width() / 2 - 10, 14, Qt::AlignVCenter,
+                   e.category + (e.secure ? " | secure" : " | insecure") + " | " + QString::number(e.checks) + " checks");
+        p.drawText(rect.x() + rect.width() / 2, y + 4, rect.width() / 2 - 10, 16,
+                   Qt::AlignVCenter | Qt::AlignRight,
+                   QString::number(e.score, 'f', 1));
+        p.drawText(rect.x() + rect.width() / 2, y + 20, rect.width() / 2 - 10, 14,
+                   Qt::AlignVCenter | Qt::AlignRight,
+                   e.url.left(28));
+    }
+}
+
+void PaperHeaderInspector::drawCategoryChart(QPainter& p, const QRect& rect) {
+    p.setPen(QColor(100, 116, 139));
+    p.setFont(QFont("Arial", 10));
+    p.drawText(rect.topLeft(), "Categories");
+
+    auto counts = categoryCounts();
+    QStringList cats = {"Security", "Performance", "Privacy", "Compliance", "Accessibility"};
+    QColor colors[] = {QColor(59,130,246), QColor(22,163,74), QColor(217,119,6), QColor(220,38,38), QColor(124,58,237)};
+
+    int maxVal = 1;
+    for (const auto& v : counts) maxVal = qMax(maxVal, v);
+
+    int barH = qMin(22, (rect.height() - 30) / 5);
+    for (int i = 0; i < 5; ++i) {
+        int y = rect.y() + 22 + i * (barH + 2);
+        int count = counts.contains(cats[i]) ? counts[cats[i]] : 0;
+        int barW = static_cast<int>((static_cast<qreal>(count) / maxVal) * (rect.width() - 100));
+
+        p.setPen(QColor(15, 23, 42));
+        p.setFont(QFont("Arial", 7));
+        p.drawText(rect.x(), y + barH - 2, 60, barH, Qt::AlignRight | Qt::AlignVCenter, cats[i]);
+
+        p.setPen(Qt::NoPen);
+        p.setBrush(colors[i]);
+        p.drawRoundedRect(rect.x() + 65, y, barW, barH - 2, 3, 3);
+
+        p.setPen(QColor(100, 116, 139));
+        p.drawText(rect.x() + 68 + barW, y + barH - 2, QString::number(count));
+    }
+}
+
+void PaperHeaderInspector::drawStats(QPainter& p, const QRect& rect) {
+    struct Stat { QString label; QString value; QColor color; };
+    QList<Stat> stats = {
+        {"Entries", QString::number(entries_.size()), QColor(59,130,246)},
+        {"Secure", QString::number(secureCount()), QColor(22,163,74)},
+        {"Avg Score", QString::number(avgScore(), 'f', 1), QColor(217,119,6)},
+        {"Categories", QString::number(categoryCounts().size()), QColor(124,58,237)}
+    };
+
+    int boxH = qMin(42, (rect.height() - 10) / 4);
+    for (int i = 0; i < stats.size(); ++i) {
+        int y = rect.y() + i * (boxH + 5);
+        p.setPen(Qt::NoPen);
+        p.setBrush(stats[i].color.lighter(190));
+        p.drawRoundedRect(rect.x(), y, rect.width(), boxH, 6, 6);
+
+        p.setPen(stats[i].color);
+        p.setFont(QFont("Arial", 14, QFont::Bold));
+        p.drawText(rect.x() + 10, y + 5, rect.width() - 20, 22, Qt::AlignVCenter, stats[i].value);
+
+        p.setPen(QColor(100, 116, 139));
+        p.setFont(QFont("Arial", 9));
+        p.drawText(rect.x() + 10, y + 26, rect.width() - 20, 14, Qt::AlignVCenter, stats[i].label);
+    }
+}
+
+void PaperHeaderInspector::updateInfo() {
+    if (entries_.isEmpty()) { infoLabel_->setText("Inspect HTTP response headers"); return; }
+    infoLabel_->setText(QString("%1 entries | %2 secure | avg score %3")
+        .arg(entries_.size()).arg(secureCount()).arg(avgScore(), 0, 'f', 1));
+}
+
+void PaperHeaderInspector::loadSettings() {
+    int size = settings_.beginReadArray("entries");
+    for (int i = 0; i < size; ++i) {
+        settings_.setArrayIndex(i);
+        HeaderInspectorEntry e;
+        e.id = settings_.value("id").toInt();
+        e.url = settings_.value("url").toString();
+        e.category = settings_.value("category").toString();
+        e.header = settings_.value("header").toString();
+        e.score = settings_.value("score").toDouble();
+        e.checks = settings_.value("checks").toInt();
+        e.secure = settings_.value("secure").toBool();
+        e.color = QColor(settings_.value("color").toString());
+        entries_.append(e);
+    }
+    settings_.endArray();
+
+    if (entries_.isEmpty()) {
+        QStringList urls = {"https://arxiv.org/abs/2401.0001", "https://doi.org/10.1000/example",
+                            "https://scholar.google.com", "https://pubmed.ncbi.nlm.nih.gov",
+                            "https://ieeexplore.ieee.org", "https://dl.acm.org/doi/10.1145/example",
+                            "https://springer.com/article/10.1007/example", "https://nature.com/articles/example"};
+        QStringList headers = {"Content-Security-Policy", "Strict-Transport-Security", "X-Content-Type-Options",
+                               "X-Frame-Options", "Referrer-Policy", "Permissions-Policy",
+                               "Cache-Control", "X-XSS-Protection"};
+        QStringList categories = {"Security", "Performance", "Privacy", "Compliance", "Accessibility"};
+        QColor colors[] = {QColor(59,130,246), QColor(22,163,74), QColor(217,119,6), QColor(220,38,38), QColor(124,58,237)};
+
+        qsrand(42);
+        for (int i = 0; i < 8; ++i) {
+            HeaderInspectorEntry e;
+            e.id = i + 1;
+            e.url = urls[i];
+            e.header = headers[i % headers.size()];
+            e.category = categories[i % categories.size()];
+            e.score = 40.0 + (qrand() % 600) / 10.0;
+            e.checks = 2 + qrand() % 10;
+            e.secure = (i % 3) != 0;
+            e.color = colors[i % categories.size()];
+            entries_.append(e);
+        }
+        saveSettings();
+    }
+    updateInfo();
+}
+
+void PaperHeaderInspector::saveSettings() {
+    settings_.beginWriteArray("entries");
+    for (int i = 0; i < entries_.size(); ++i) {
+        settings_.setArrayIndex(i);
+        settings_.setValue("id", entries_[i].id);
+        settings_.setValue("url", entries_[i].url);
+        settings_.setValue("category", entries_[i].category);
+        settings_.setValue("header", entries_[i].header);
+        settings_.setValue("score", entries_[i].score);
+        settings_.setValue("checks", entries_[i].checks);
+        settings_.setValue("secure", entries_[i].secure);
+        settings_.setValue("color", entries_[i].color.name());
+    }
+    settings_.endArray();
+}
