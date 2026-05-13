@@ -780,6 +780,11 @@ class PaperReadingDashboard2;
 class PaperParallelCoordinates2;
 class PaperKnowledgeBase3;
 class PaperCookieAuditor;
+class PaperFallacyDetector2;
+class PaperNoteOrganizer2;
+class PaperSpanChart;
+class PaperReviewPipeline;
+class PaperDnsResolver;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

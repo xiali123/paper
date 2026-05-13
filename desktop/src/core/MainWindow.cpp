@@ -777,6 +777,11 @@
 #include "visualization/PaperParallelCoordinates2.hpp"
 #include "workspace/PaperKnowledgeBase3.hpp"
 #include "tools/PaperCookieAuditor.hpp"
+#include "analysis/PaperFallacyDetector2.hpp"
+#include "reading/PaperNoteOrganizer2.hpp"
+#include "visualization/PaperSpanChart.hpp"
+#include "workspace/PaperReviewPipeline.hpp"
+#include "tools/PaperDnsResolver.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11593,6 +11598,57 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Fallacy Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Fallacy Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFallacyDetector2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Note Organizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Note Organizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNoteOrganizer2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Span Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Span Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSpanChart();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Review Pipeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Review Pipeline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReviewPipeline();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("DNS Resolver", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("DNS Resolver");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDnsResolver();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     connect(aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
 }
@@ -14080,6 +14136,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Cookie Auditor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Cookie Auditor");
+    });
+    commandPalette_->addAction("Fallacy Detector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Fallacy Detector");
+    });
+    commandPalette_->addAction("Note Organizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Note Organizer");
+    });
+    commandPalette_->addAction("Span Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Span Chart");
+    });
+    commandPalette_->addAction("Review Pipeline", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Review Pipeline");
+    });
+    commandPalette_->addAction("DNS Resolver", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > DNS Resolver");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
