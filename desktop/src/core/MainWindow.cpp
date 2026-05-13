@@ -762,6 +762,11 @@
 #include "visualization/PaperViolinChart2.hpp"
 #include "workspace/PaperProjectTimeline2.hpp"
 #include "tools/PaperPortScanner2.hpp"
+#include "analysis/PaperBiasDetector3.hpp"
+#include "reading/PaperQuoteVault.hpp"
+#include "visualization/PaperSankeyDiagram3.hpp"
+#include "workspace/PaperDocumentVault.hpp"
+#include "tools/PaperSslChecker.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11426,6 +11431,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Bias Detector", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bias Detector");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBiasDetector3();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Quote Vault", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Quote Vault");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperQuoteVault();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Sankey Diagram", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Sankey Diagram");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSankeyDiagram3();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Document Vault", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Document Vault");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDocumentVault();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("SSL Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("SSL Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperSslChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -13872,6 +13927,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Port Scanner", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Port Scanner");
+    });
+    commandPalette_->addAction("Bias Detector", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bias Detector");
+    });
+    commandPalette_->addAction("Quote Vault", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Quote Vault");
+    });
+    commandPalette_->addAction("Sankey Diagram", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Sankey Diagram");
+    });
+    commandPalette_->addAction("Document Vault", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Document Vault");
+    });
+    commandPalette_->addAction("SSL Checker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > SSL Checker");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

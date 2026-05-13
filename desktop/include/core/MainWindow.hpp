@@ -765,6 +765,11 @@ class PaperAnnotationSync2;
 class PaperViolinChart2;
 class PaperProjectTimeline2;
 class PaperPortScanner2;
+class PaperBiasDetector3;
+class PaperQuoteVault;
+class PaperSankeyDiagram3;
+class PaperDocumentVault;
+class PaperSslChecker;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
