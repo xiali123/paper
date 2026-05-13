@@ -717,6 +717,11 @@
 #include "analysis/PaperStrengthAssessor2.hpp"
 #include "workspace/PaperContradictionHunter2.hpp"
 #include "tools/PaperPublicationPipeline2.hpp"
+#include "analysis/PaperQueryOptimizer2.hpp"
+#include "reading/PaperReviewExchange2.hpp"
+#include "visualization/PaperDumbbellPlot2.hpp"
+#include "workspace/PaperRebuttalBuilder2.hpp"
+#include "tools/PaperAuditTrail2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10928,6 +10933,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Query Optimizer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Query Optimizer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperQueryOptimizer2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Review Exchange", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Review Exchange");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReviewExchange2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Dumbbell Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Dumbbell Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDumbbellPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Rebuttal Builder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Rebuttal Builder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRebuttalBuilder2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Audit Trail", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Audit Trail");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAuditTrail2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -13239,6 +13294,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Publication Pipeline", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Publication Pipeline");
+    });
+    commandPalette_->addAction("Query Optimizer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Query Optimizer");
+    });
+    commandPalette_->addAction("Review Exchange", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Review Exchange");
+    });
+    commandPalette_->addAction("Dumbbell Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Dumbbell Plot");
+    });
+    commandPalette_->addAction("Rebuttal Builder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Rebuttal Builder");
+    });
+    commandPalette_->addAction("Audit Trail", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Audit Trail");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

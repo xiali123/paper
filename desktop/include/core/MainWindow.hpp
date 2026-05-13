@@ -720,6 +720,11 @@ class PaperReadingFrontier2;
 class PaperStrengthAssessor2;
 class PaperContradictionHunter2;
 class PaperPublicationPipeline2;
+class PaperQueryOptimizer2;
+class PaperReviewExchange2;
+class PaperDumbbellPlot2;
+class PaperRebuttalBuilder2;
+class PaperAuditTrail2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
