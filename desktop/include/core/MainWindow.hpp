@@ -785,6 +785,11 @@ class PaperNoteOrganizer2;
 class PaperSpanChart;
 class PaperReviewPipeline;
 class PaperDnsResolver;
+class PaperCitationAudit;
+class PaperReadingHeatmap2;
+class PaperBeeswarmChart2;
+class PaperCollaborationHub2;
+class PaperRateLimiter2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

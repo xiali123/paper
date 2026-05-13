@@ -782,6 +782,11 @@
 #include "visualization/PaperSpanChart.hpp"
 #include "workspace/PaperReviewPipeline.hpp"
 #include "tools/PaperDnsResolver.hpp"
+#include "analysis/PaperCitationAudit.hpp"
+#include "reading/PaperReadingHeatmap2.hpp"
+#include "visualization/PaperBeeswarmChart2.hpp"
+#include "workspace/PaperCollaborationHub2.hpp"
+#include "tools/PaperRateLimiter2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11649,6 +11654,57 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Citation Audit", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Citation Audit");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCitationAudit();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Heatmap", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Heatmap");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingHeatmap2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Beeswarm Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Beeswarm Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBeeswarmChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Collaboration Hub", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Collaboration Hub");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCollaborationHub2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Rate Limiter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Rate Limiter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperRateLimiter2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     connect(aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
 }
@@ -14151,6 +14207,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("DNS Resolver", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > DNS Resolver");
+    });
+    commandPalette_->addAction("Citation Audit", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Citation Audit");
+    });
+    commandPalette_->addAction("Reading Heatmap", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Heatmap");
+    });
+    commandPalette_->addAction("Beeswarm Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Beeswarm Chart");
+    });
+    commandPalette_->addAction("Collaboration Hub", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Collaboration Hub");
+    });
+    commandPalette_->addAction("Rate Limiter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Rate Limiter");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
