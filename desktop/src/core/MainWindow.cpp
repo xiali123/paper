@@ -752,6 +752,11 @@
 #include "visualization/PaperRidgelinePlot2.hpp"
 #include "workspace/PaperGrantTracker2.hpp"
 #include "tools/PaperPingMonitor.hpp"
+#include "analysis/PaperArgumentMapper2.hpp"
+#include "reading/PaperBookmarkManager.hpp"
+#include "visualization/PaperJoyPlot2.hpp"
+#include "workspace/PaperWorkspaceBackup.hpp"
+#include "tools/PaperTraceroute.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11316,6 +11321,57 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Argument Mapper", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Argument Mapper");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperArgumentMapper2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Bookmark Manager", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Bookmark Manager");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBookmarkManager();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Joy Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Joy Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperJoyPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Workspace Backup", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Workspace Backup");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperWorkspaceBackup();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Traceroute", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Traceroute");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperTraceroute();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -13731,6 +13787,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Ping Monitor", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Ping Monitor");
+    });
+    commandPalette_->addAction("Argument Mapper", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Argument Mapper");
+    });
+    commandPalette_->addAction("Bookmark Manager", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Bookmark Manager");
+    });
+    commandPalette_->addAction("Joy Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Joy Plot");
+    });
+    commandPalette_->addAction("Workspace Backup", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Workspace Backup");
+    });
+    commandPalette_->addAction("Traceroute", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Traceroute");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

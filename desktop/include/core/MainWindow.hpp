@@ -755,6 +755,11 @@ class PaperReadingLog2;
 class PaperRidgelinePlot2;
 class PaperGrantTracker2;
 class PaperPingMonitor;
+class PaperArgumentMapper2;
+class PaperBookmarkManager;
+class PaperJoyPlot2;
+class PaperWorkspaceBackup;
+class PaperTraceroute;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
