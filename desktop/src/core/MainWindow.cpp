@@ -712,6 +712,11 @@
 #include "visualization/PaperCoxcombChart2.hpp"
 #include "workspace/PaperLogAggregator2.hpp"
 #include "tools/PaperNoveltyRadar2.hpp"
+#include "visualization/PaperStripPlot2.hpp"
+#include "reading/PaperReadingFrontier2.hpp"
+#include "analysis/PaperStrengthAssessor2.hpp"
+#include "workspace/PaperContradictionHunter2.hpp"
+#include "tools/PaperPublicationPipeline2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10873,6 +10878,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Strip Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Strip Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStripPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Frontier", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Frontier");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingFrontier2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Strength Assessor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Strength Assessor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStrengthAssessor2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Contradiction Hunter", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contradiction Hunter");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContradictionHunter2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Publication Pipeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Publication Pipeline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPublicationPipeline2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -13169,6 +13224,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Novelty Radar", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Novelty Radar");
+    });
+    commandPalette_->addAction("Strip Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Strip Plot");
+    });
+    commandPalette_->addAction("Reading Frontier", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Frontier");
+    });
+    commandPalette_->addAction("Strength Assessor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Strength Assessor");
+    });
+    commandPalette_->addAction("Contradiction Hunter", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contradiction Hunter");
+    });
+    commandPalette_->addAction("Publication Pipeline", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Publication Pipeline");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
