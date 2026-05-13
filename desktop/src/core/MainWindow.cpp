@@ -722,6 +722,11 @@
 #include "visualization/PaperDumbbellPlot2.hpp"
 #include "workspace/PaperRebuttalBuilder2.hpp"
 #include "tools/PaperAuditTrail2.hpp"
+#include "visualization/PaperBeeswarmPlot2.hpp"
+#include "reading/PaperReadingHorizon2.hpp"
+#include "analysis/PaperHypothesisValidator2.hpp"
+#include "workspace/PaperConfigValidator2.hpp"
+#include "tools/PaperContradictionFinder2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -10983,6 +10988,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Beeswarm Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Beeswarm Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperBeeswarmPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Horizon", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Horizon");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingHorizon2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Hypothesis Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Hypothesis Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperHypothesisValidator2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Config Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Config Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperConfigValidator2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Contradiction Finder", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contradiction Finder");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContradictionFinder2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -13309,6 +13364,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Audit Trail", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Audit Trail");
+    });
+    commandPalette_->addAction("Beeswarm Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Beeswarm Plot");
+    });
+    commandPalette_->addAction("Reading Horizon", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Horizon");
+    });
+    commandPalette_->addAction("Hypothesis Validator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Hypothesis Validator");
+    });
+    commandPalette_->addAction("Config Validator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Config Validator");
+    });
+    commandPalette_->addAction("Contradiction Finder", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contradiction Finder");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

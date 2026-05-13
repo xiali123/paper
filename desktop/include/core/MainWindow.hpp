@@ -725,6 +725,11 @@ class PaperReviewExchange2;
 class PaperDumbbellPlot2;
 class PaperRebuttalBuilder2;
 class PaperAuditTrail2;
+class PaperBeeswarmPlot2;
+class PaperReadingHorizon2;
+class PaperHypothesisValidator2;
+class PaperConfigValidator2;
+class PaperContradictionFinder2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
