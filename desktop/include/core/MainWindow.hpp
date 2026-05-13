@@ -730,6 +730,11 @@ class PaperReadingHorizon2;
 class PaperHypothesisValidator2;
 class PaperConfigValidator2;
 class PaperContradictionFinder2;
+class PaperTopicSentinel2;
+class PaperReadingEndurance2;
+class PaperClevelandDot2;
+class PaperWikiForge2;
+class PaperCertGuard2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
