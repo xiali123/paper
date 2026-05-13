@@ -735,6 +735,11 @@ class PaperReadingEndurance2;
 class PaperClevelandDot2;
 class PaperWikiForge2;
 class PaperCertGuard2;
+class PaperArgumentScorer2;
+class PaperBookmarkVault2;
+class PaperMarimekko3;
+class PaperAssetLedger2;
+class PaperSecretWarden2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
