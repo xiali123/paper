@@ -742,6 +742,11 @@
 #include "visualization/PaperWaterfall3.hpp"
 #include "workspace/PaperCalendarSync2.hpp"
 #include "tools/PaperDnsLookup2.hpp"
+#include "analysis/PaperNoveltyScore2.hpp"
+#include "reading/PaperStudyPlanner2.hpp"
+#include "visualization/PaperDotPlot2.hpp"
+#include "workspace/PaperLabNotebook2.hpp"
+#include "tools/PaperVersionTree2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11204,6 +11209,57 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Novelty Score", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Novelty Score");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperNoveltyScore2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Study Planner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Study Planner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperStudyPlanner2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Dot Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Dot Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperDotPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Lab Notebook", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Lab Notebook");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLabNotebook2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Version Tree", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Version Tree");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperVersionTree2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
 
@@ -13589,6 +13645,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("DNS Lookup", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > DNS Lookup");
+    });
+    commandPalette_->addAction("Novelty Score", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Novelty Score");
+    });
+    commandPalette_->addAction("Study Planner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Study Planner");
+    });
+    commandPalette_->addAction("Dot Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Dot Plot");
+    });
+    commandPalette_->addAction("Lab Notebook", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Lab Notebook");
+    });
+    commandPalette_->addAction("Version Tree", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Version Tree");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

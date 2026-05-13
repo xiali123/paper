@@ -745,6 +745,11 @@ class PaperHighlightCollector2;
 class PaperWaterfall3;
 class PaperCalendarSync2;
 class PaperDnsLookup2;
+class PaperNoveltyScore2;
+class PaperStudyPlanner2;
+class PaperDotPlot2;
+class PaperLabNotebook2;
+class PaperVersionTree2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
