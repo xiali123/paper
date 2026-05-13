@@ -775,6 +775,11 @@ class PaperReadingDigest2;
 class PaperLollipopChart2;
 class PaperTeamDashboard;
 class PaperHeaderInspector;
+class PaperLogicValidator;
+class PaperReadingDashboard2;
+class PaperParallelCoordinates2;
+class PaperKnowledgeBase3;
+class PaperCookieAuditor;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

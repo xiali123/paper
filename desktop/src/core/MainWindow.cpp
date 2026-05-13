@@ -772,6 +772,11 @@
 #include "visualization/PaperLollipopChart2.hpp"
 #include "workspace/PaperTeamDashboard.hpp"
 #include "tools/PaperHeaderInspector.hpp"
+#include "analysis/PaperLogicValidator.hpp"
+#include "reading/PaperReadingDashboard2.hpp"
+#include "visualization/PaperParallelCoordinates2.hpp"
+#include "workspace/PaperKnowledgeBase3.hpp"
+#include "tools/PaperCookieAuditor.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11537,6 +11542,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Logic Validator", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Logic Validator");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLogicValidator();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Dashboard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Dashboard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingDashboard2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Parallel Coordinates", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Parallel Coordinates");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperParallelCoordinates2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Knowledge Base", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Knowledge Base");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperKnowledgeBase3();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Cookie Auditor", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Cookie Auditor");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperCookieAuditor();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     connect(aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
@@ -14010,6 +14065,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Header Inspector", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Header Inspector");
+    });
+    commandPalette_->addAction("Logic Validator", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Logic Validator");
+    });
+    commandPalette_->addAction("Reading Dashboard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Dashboard");
+    });
+    commandPalette_->addAction("Parallel Coordinates", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Parallel Coordinates");
+    });
+    commandPalette_->addAction("Knowledge Base", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Knowledge Base");
+    });
+    commandPalette_->addAction("Cookie Auditor", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Cookie Auditor");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
