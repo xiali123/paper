@@ -757,6 +757,11 @@
 #include "visualization/PaperJoyPlot2.hpp"
 #include "workspace/PaperWorkspaceBackup.hpp"
 #include "tools/PaperTraceroute.hpp"
+#include "analysis/PaperFactChecker.hpp"
+#include "reading/PaperAnnotationSync2.hpp"
+#include "visualization/PaperViolinChart2.hpp"
+#include "workspace/PaperProjectTimeline2.hpp"
+#include "tools/PaperPortScanner2.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11371,6 +11376,56 @@ void MainWindow::createMenus() {
         dlg->exec();
         dlg->deleteLater();
     });
+    toolsMenu->addAction("Fact Checker", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Fact Checker");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperFactChecker();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Annotation Sync", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Annotation Sync");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperAnnotationSync2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Violin Chart", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Violin Chart");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperViolinChart2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Project Timeline", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Project Timeline");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperProjectTimeline2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Port Scanner", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Port Scanner");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperPortScanner2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
 
     // Help menu
     QMenu* helpMenu = menuBar()->addMenu("&Help");
@@ -13802,6 +13857,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Traceroute", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Traceroute");
+    });
+    commandPalette_->addAction("Fact Checker", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Fact Checker");
+    });
+    commandPalette_->addAction("Annotation Sync", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Annotation Sync");
+    });
+    commandPalette_->addAction("Violin Chart", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Violin Chart");
+    });
+    commandPalette_->addAction("Project Timeline", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Project Timeline");
+    });
+    commandPalette_->addAction("Port Scanner", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Port Scanner");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");

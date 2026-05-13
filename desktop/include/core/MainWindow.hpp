@@ -760,6 +760,11 @@ class PaperBookmarkManager;
 class PaperJoyPlot2;
 class PaperWorkspaceBackup;
 class PaperTraceroute;
+class PaperFactChecker;
+class PaperAnnotationSync2;
+class PaperViolinChart2;
+class PaperProjectTimeline2;
+class PaperPortScanner2;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
