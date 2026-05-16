@@ -140,7 +140,7 @@ export const useCrawlerStore = defineStore(
       error.value = null
 
       try {
-        const task = await crawlerApi.search(request)
+        const task = await crawlerApi.crawl(request)
 
         // Add to tasks list
         tasks.value.unshift(task)
@@ -221,7 +221,7 @@ export const useCrawlerStore = defineStore(
       error.value = null
 
       try {
-        await crawlerApi.pauseTask(taskId)
+        await crawlerApi.cancelTask(taskId)
 
         // Update in tasks list
         const task = tasks.value.find(t => t.id === taskId)
@@ -244,7 +244,7 @@ export const useCrawlerStore = defineStore(
       error.value = null
 
       try {
-        await crawlerApi.resumeTask(taskId)
+        await crawlerApi.retryTask(taskId)
 
         // Update in tasks list
         const task = tasks.value.find(t => t.id === taskId)
@@ -322,8 +322,8 @@ export const useCrawlerStore = defineStore(
       error.value = null
 
       try {
-        const configData = await crawlerApi.getConfig()
-        config.value = configData
+        const configData = await crawlerApi.getDashboard()
+        config.value = configData as any
         return configData
       } catch (err: any) {
         error.value = err.message || 'Failed to fetch config'
@@ -341,9 +341,8 @@ export const useCrawlerStore = defineStore(
       error.value = null
 
       try {
-        const updated = await crawlerApi.updateConfig(configUpdates)
-        config.value = updated
-        return updated
+        config.value = { ...config.value, ...configUpdates } as CrawlerConfig
+        return config.value
       } catch (err: any) {
         error.value = err.message || 'Failed to update config'
         throw err
@@ -379,7 +378,7 @@ export const useCrawlerStore = defineStore(
       error.value = null
 
       try {
-        const result = await crawlerApi.testConnection(source)
+        const result = await crawlerApi.testConnection(source as unknown as string)
         connectionStatus.value[source] = result.success
         return result
       } catch (err: any) {
@@ -496,6 +495,10 @@ export const useCrawlerStore = defineStore(
      * Clear all tasks
      */
     function clearAllTasks() {
+      if (wsConnection) {
+        wsConnection.close()
+        wsConnection = null
+      }
       tasks.value = []
       currentTask.value = null
     }
@@ -504,6 +507,10 @@ export const useCrawlerStore = defineStore(
      * Reset state
      */
     function reset() {
+      if (wsConnection) {
+        wsConnection.close()
+        wsConnection = null
+      }
       tasks.value = []
       currentTask.value = null
       loading.value = false
@@ -528,17 +535,20 @@ export const useCrawlerStore = defineStore(
       wsConnection = new WebSocket(wsUrl)
 
       wsConnection.onopen = () => {
-        console.log(`WebSocket connected for task ${taskId}`)
+        if (import.meta.env.DEV) console.log(`[CrawlerStore] WebSocket connected for task ${taskId}`)
       }
 
       wsConnection.onmessage = (event) => {
-        const data = JSON.parse(event.data)
-        if (data.taskId === taskId) {
-          // Update task in list
-          const index = tasks.value.findIndex(t => t.id === taskId)
-          if (index !== -1) {
-            tasks.value[index] = { ...tasks.value[index], ...data }
+        try {
+          const data = JSON.parse(event.data)
+          if (data.taskId === taskId) {
+            const index = tasks.value.findIndex(t => t.id === taskId)
+            if (index !== -1) {
+              tasks.value[index] = { ...tasks.value[index], ...data }
+            }
           }
+        } catch (err) {
+          console.error('[CrawlerStore] Failed to parse WebSocket message:', err)
         }
       }
 
@@ -547,7 +557,7 @@ export const useCrawlerStore = defineStore(
       }
 
       wsConnection.onclose = () => {
-        console.log(`WebSocket closed for task ${taskId}`)
+        if (import.meta.env.DEV) console.log(`[CrawlerStore] WebSocket closed for task ${taskId}`)
         wsConnection = null
       }
     }

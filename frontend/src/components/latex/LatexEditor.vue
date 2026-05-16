@@ -537,21 +537,35 @@ defineExpose({
   }
 }
 
-// 深色模式适配
-.dark {
+// 防止文本选择时的视觉问题
+.latex-textarea::selection {
+  background: var(--el-color-primary-light-7);
+  color: var(--el-color-primary-contrast);
+}
+
+// Dark mode overrides
+[data-theme="dark"] {
   .latex-textarea {
-    background: #1e1e1e;
+    background: var(--el-bg-color);
+
+    &.latex-textarea--transparent {
+      &::selection {
+        background: rgba(64, 158, 255, 0.4);
+      }
+    }
+  }
+
+  .latex-highlight {
+    background: var(--el-bg-color);
+
+    :deep(.latex-math) {
+      background: rgba(255, 255, 255, 0.08);
+    }
   }
 
   .latex-toolbar {
     background: var(--el-bg-color);
     border-top-color: var(--el-border-color-darker);
   }
-}
-
-// 防止文本选择时的视觉问题
-.latex-textarea::selection {
-  background: var(--el-color-primary-light-7);
-  color: var(--el-color-primary-contrast);
 }
 </style>

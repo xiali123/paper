@@ -1,5 +1,5 @@
 <template>
-  <div class="crawler-dashboard">
+  <div class="crawler-dashboard" role="main" aria-label="爬虫仪表盘">
     <!-- Page Header -->
     <div class="page-header">
       <h1 class="page-title">
@@ -15,6 +15,12 @@
         </el-button>
       </div>
     </div>
+
+    <!-- Breadcrumb -->
+    <el-breadcrumb separator="/" class="page-breadcrumb">
+      <el-breadcrumb-item :to="{ path: '/crawler' }">爬虫</el-breadcrumb-item>
+      <el-breadcrumb-item>仪表盘</el-breadcrumb-item>
+    </el-breadcrumb>
 
     <!-- Statistics Cards -->
     <el-row :gutter="20" class="stats-row">
@@ -39,7 +45,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ stats.runningTasks || 0 }}</div>
-              <div class="stat-label">活跃任务</div>
+              <div class="stat-label">\{\{ \$t('activeTasks') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -52,7 +58,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ successRate }}%</div>
-              <div class="stat-label">成功率</div>
+              <div class="stat-label">\{\{ \$t('successRate') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -65,7 +71,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ stats.totalPapers || 0 }}</div>
-              <div class="stat-label">论文总数</div>
+              <div class="stat-label">\{\{ \$t('totalPapers') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -415,6 +421,16 @@ onMounted(async () => {
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
+}
+
+.page-breadcrumb {
+  padding: 0 24px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .page-breadcrumb {
+  color: #9ca3af;
 }
 
 // 页面头部
@@ -948,5 +964,51 @@ onMounted(async () => {
       padding: $spacing-4;
     }
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .crawler-dashboard {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .page-header,
+[data-theme="dark"] .crawler-dashboard .page-title,
+[data-theme="dark"] .crawler-dashboard .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .page-subtitle,
+[data-theme="dark"] .crawler-dashboard .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .crawler-dashboard .stat-card,
+[data-theme="dark"] .crawler-dashboard .filter-card,
+[data-theme="dark"] .crawler-dashboard .tasks-card,
+[data-theme="dark"] .crawler-dashboard .chart-card,
+[data-theme="dark"] .crawler-dashboard .table-card,
+[data-theme="dark"] .crawler-dashboard .form-card,
+[data-theme="dark"] .crawler-dashboard .detail-header,
+[data-theme="dark"] .crawler-dashboard .detail-content,
+[data-theme="dark"] .crawler-dashboard .toolbar,
+[data-theme="dark"] .crawler-dashboard .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .stat-value,
+[data-theme="dark"] .crawler-dashboard .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .crawler-dashboard .stat-label,
+[data-theme="dark"] .crawler-dashboard .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .crawler-dashboard .empty-state,
+[data-theme="dark"] .crawler-dashboard .empty-text {
+  color: #9ca3af;
 }
 </style>

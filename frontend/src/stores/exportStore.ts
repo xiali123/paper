@@ -12,6 +12,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { exportApi } from '@/api'
 import type { Paper } from '@/api/modules/papers'
 
 export type ExportFormat = 'csv' | 'json' | 'bibtex' | 'endnote' | 'xml'
@@ -158,35 +159,45 @@ export const useExportStore = defineStore(
 
       try {
         const opts = { ...options.value, ...exportOptions }
+        const paperIds = papers.map(p => p.id)
 
-        // Simulate export progress
-        const progressInterval = setInterval(() => {
-          if (progress.value < 90) {
-            progress.value += 10
-          }
-        }, 200)
+        // Call real export API based on format
+        let blob: Blob
+        const params = { paperIds, ...opts }
+        switch (opts.format) {
+          case 'csv': blob = await exportApi.exportToCSV(params); break
+          case 'json': blob = await exportApi.exportToJSON(params); break
+          case 'excel': blob = await exportApi.exportToExcel(params); break
+          case 'bibtex': blob = await exportApi.exportToBibTeX(params); break
+          case 'pdf': blob = await exportApi.exportToPDF(params); break
+          case 'word': blob = await exportApi.exportToWord(params); break
+          default: blob = await exportApi.exportToCSV(params); break
+        }
 
-        // TODO: Implement actual export API call
-        // For now, simulate export
-        await new Promise(resolve => setTimeout(resolve, 2000))
-
-        clearInterval(progressInterval)
         progress.value = 100
+
+        // Download the blob
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `papers_export_${Date.now()}.${opts.format === 'excel' ? 'xlsx' : opts.format}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
 
         // Create export record
         const record: ExportRecord = {
           id: `export_${Date.now()}`,
           format: opts.format,
           paperCount: papers.length,
-          fileName: `papers_export_${Date.now()}.${opts.format}`,
-          fileSize: estimateFileSize(papers.length, opts.format),
+          fileName: a.download,
+          fileSize: blob.size,
           createdAt: Date.now(),
           options: opts
         }
 
-        // Add to history
         addToHistory(record)
-
         return record
       } catch (err: any) {
         error.value = err.message || 'Export failed'

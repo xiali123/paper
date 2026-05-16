@@ -1,5 +1,5 @@
 <template>
-  <div class="distributed-crawler">
+  <div class="distributed-crawler" role="main" aria-label="分布式爬虫">
     <!-- Page Header -->
     <div class="page-header">
       <div class="header-left">
@@ -24,6 +24,12 @@
       </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <el-breadcrumb separator="/" class="page-breadcrumb">
+      <el-breadcrumb-item :to="{ path: '/crawler' }">爬虫</el-breadcrumb-item>
+      <el-breadcrumb-item>分布式爬虫</el-breadcrumb-item>
+    </el-breadcrumb>
+
     <!-- Cluster Overview -->
     <el-row :gutter="16" class="cluster-overview">
       <el-col :xs="12" :sm="6">
@@ -34,7 +40,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.totalNodes }}</div>
-              <div class="stat-label">工作节点</div>
+              <div class="stat-label">\{\{ \$t('workerNodes') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">
@@ -57,7 +63,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.totalTasks }}</div>
-              <div class="stat-label">总任务数</div>
+              <div class="stat-label">\{\{ \$t('totalTasks') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">
@@ -80,7 +86,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.totalPapers }}</div>
-              <div class="stat-label">论文总数</div>
+              <div class="stat-label">\{\{ \$t('totalPapers') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">
@@ -97,7 +103,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ clusterStats.avgResponseTime }}ms</div>
-              <div class="stat-label">平均响应</div>
+              <div class="stat-label">\{\{ \$t('avgResponseTime') \}\}</div>
             </div>
           </div>
           <div class="stat-detail">
@@ -146,7 +152,7 @@
                       'status-busy': worker.status === 'BUSY'
                     }"
                   >
-                    <CircleFilled />
+                    <SuccessFilled />
                   </el-icon>
                   {{ worker.name || worker.nodeId }}
                 </div>
@@ -560,7 +566,7 @@ import {
   RemoveFilled,
   CirclePlusFilled,
   Close,
-  CircleFilled,
+  SuccessFilled,
   CircleClose
 } from '@element-plus/icons-vue'
 
@@ -1197,5 +1203,51 @@ onMounted(() => {
   font-size: 12px;
   color: var(--el-text-color-secondary);
   margin-top: 4px;
+}
+
+/* Dark mode */
+[data-theme="dark"] .distributed-crawler {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .distributed-crawler .page-header,
+[data-theme="dark"] .distributed-crawler .page-title,
+[data-theme="dark"] .distributed-crawler .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .distributed-crawler .page-subtitle,
+[data-theme="dark"] .distributed-crawler .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .distributed-crawler .stat-card,
+[data-theme="dark"] .distributed-crawler .filter-card,
+[data-theme="dark"] .distributed-crawler .tasks-card,
+[data-theme="dark"] .distributed-crawler .chart-card,
+[data-theme="dark"] .distributed-crawler .table-card,
+[data-theme="dark"] .distributed-crawler .form-card,
+[data-theme="dark"] .distributed-crawler .detail-header,
+[data-theme="dark"] .distributed-crawler .detail-content,
+[data-theme="dark"] .distributed-crawler .toolbar,
+[data-theme="dark"] .distributed-crawler .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .distributed-crawler .stat-value,
+[data-theme="dark"] .distributed-crawler .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .distributed-crawler .stat-label,
+[data-theme="dark"] .distributed-crawler .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .distributed-crawler .empty-state,
+[data-theme="dark"] .distributed-crawler .empty-text {
+  color: #9ca3af;
 }
 </style>

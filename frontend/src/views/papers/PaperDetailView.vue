@@ -1,5 +1,5 @@
 <template>
-  <div class="paper-detail-view">
+  <div class="paper-detail-view" role="main" aria-label="论文详情">
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
       <el-skeleton animated>
@@ -52,6 +52,13 @@
           </el-button-group>
         </div>
       </div>
+
+      <!-- Breadcrumb -->
+      <el-breadcrumb separator="/" class="page-breadcrumb">
+        <el-breadcrumb-item :to="{ path: '/papers' }">论文</el-breadcrumb-item>
+        <el-breadcrumb-item>论文详情</el-breadcrumb-item>
+        <el-breadcrumb-item v-if="paper?.title">{{ paper.title }}</el-breadcrumb-item>
+      </el-breadcrumb>
 
       <!-- Main Content -->
       <div class="detail-content">
@@ -185,6 +192,21 @@
           <el-empty description="相关论文推荐功能开发中..." :image-size="100" />
         </div>
 
+        <!-- Citation Network -->
+        <div class="citation-network-section">
+          <h3 class="section-title">
+            <el-icon><Connection /></el-icon>
+            引文网络
+          </h3>
+          <CitationNetwork
+            :center-paper="centerPaperForNetwork"
+            :related-papers="mockRelatedPapers"
+            :citations="mockCitations"
+            @navigate-paper="handleNavigatePaper"
+            @import-paper="handleImportPaper"
+          />
+        </div>
+
         <!-- Comments (Placeholder) -->
         <div class="comments-section">
           <h3 class="section-title">
@@ -263,6 +285,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import CitationNetwork from '@/components/citation/CitationNetwork.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePaperStore } from '@/stores/paperStore'
 import { storeToRefs } from 'pinia'
@@ -292,6 +315,47 @@ const { currentPaper: paper, loading, error } = storeToRefs(paperStore)
 
 // Dialog state
 const deleteDialogVisible = ref(false)
+
+// --- Citation Network mock data ---
+const mockRelatedPapers = [
+  { id: 'rp-1', title: 'Attention Is All You Need', authors: 'Vaswani A. et al.', year: 2017, citationCount: 92000 },
+  { id: 'rp-2', title: 'BERT: Pre-training of Deep Bidirectional Transformers', authors: 'Devlin J. et al.', year: 2019, citationCount: 68000 },
+  { id: 'rp-3', title: 'GPT-3: Language Models are Few-Shot Learners', authors: 'Brown T. et al.', year: 2020, citationCount: 45000 },
+  { id: 'rp-4', title: 'Deep Residual Learning for Image Recognition', authors: 'He K. et al.', year: 2016, citationCount: 120000 },
+  { id: 'rp-5', title: 'ImageNet Classification with Deep Convolutional Networks', authors: 'Krizhevsky A. et al.', year: 2012, citationCount: 85000 },
+  { id: 'rp-6', title: 'A Survey on Transfer Learning', authors: 'Pan S. J., Yang Q.', year: 2010, citationCount: 15000 },
+  { id: 'rp-7', title: 'Generative Adversarial Nets', authors: 'Goodfellow I. et al.', year: 2014, citationCount: 55000 },
+]
+
+const mockCitations = [
+  { source: 'rp-1', target: 'rp-5', type: 'cites' as const },
+  { source: 'rp-2', target: 'rp-1', type: 'cites' as const },
+  { source: 'rp-3', target: 'rp-1', type: 'cites' as const },
+  { source: 'rp-3', target: 'rp-2', type: 'cites' as const },
+  { source: 'rp-1', target: 'rp-6', type: 'cites' as const },
+  { source: 'rp-7', target: 'rp-4', type: 'cites' as const },
+  { source: 'rp-4', target: 'rp-5', type: 'cites' as const },
+  { source: 'rp-2', target: 'rp-6', type: 'cites' as const },
+]
+
+const centerPaperForNetwork = computed(() => {
+  if (!paper.value) return { id: '', title: '', authors: '', year: 2024, citationCount: 0 }
+  return {
+    id: String(paper.value.id),
+    title: paper.value.title || '',
+    authors: paper.value.authors || '',
+    year: paper.value.year || 2024,
+    citationCount: paper.value.citations || 0,
+  }
+})
+
+const handleNavigatePaper = (paperId: string) => {
+  ElMessage.info(`导航到论文 ${paperId}（功能开发中）`)
+}
+
+const handleImportPaper = (paperId: string) => {
+  ElMessage.success(`论文 ${paperId} 已成功导入收藏`)
+}
 
 // Source labels
 const sourceLabels: Record<string, string> = {
@@ -408,6 +472,16 @@ onMounted(() => {
   max-width: 1600px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.page-breadcrumb {
+  padding: 0 24px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .page-breadcrumb {
+  color: #9ca3af;
 }
 
 .loading-container,
@@ -561,6 +635,7 @@ onMounted(() => {
 .notes-section,
 .ai-analysis-section,
 .related-section,
+.citation-network-section,
 .comments-section {
   padding: 32px 40px;
   background: white;
@@ -677,5 +752,51 @@ onMounted(() => {
     flex-direction: column;
     gap: 8px;
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .paper-detail-view {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .page-header,
+[data-theme="dark"] .paper-detail-view .page-title,
+[data-theme="dark"] .paper-detail-view .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .page-subtitle,
+[data-theme="dark"] .paper-detail-view .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .paper-detail-view .stat-card,
+[data-theme="dark"] .paper-detail-view .filter-card,
+[data-theme="dark"] .paper-detail-view .tasks-card,
+[data-theme="dark"] .paper-detail-view .chart-card,
+[data-theme="dark"] .paper-detail-view .table-card,
+[data-theme="dark"] .paper-detail-view .form-card,
+[data-theme="dark"] .paper-detail-view .detail-header,
+[data-theme="dark"] .paper-detail-view .detail-content,
+[data-theme="dark"] .paper-detail-view .toolbar,
+[data-theme="dark"] .paper-detail-view .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .stat-value,
+[data-theme="dark"] .paper-detail-view .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .paper-detail-view .stat-label,
+[data-theme="dark"] .paper-detail-view .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .paper-detail-view .empty-state,
+[data-theme="dark"] .paper-detail-view .empty-text {
+  color: #9ca3af;
 }
 </style>

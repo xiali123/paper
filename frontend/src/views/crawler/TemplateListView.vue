@@ -960,4 +960,50 @@ onMounted(() => {
     }
   }
 }
+
+/* Dark mode */
+[data-theme="dark"] .template-list {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-list .page-header,
+[data-theme="dark"] .template-list .page-title,
+[data-theme="dark"] .template-list .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-list .page-subtitle,
+[data-theme="dark"] .template-list .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .template-list .stat-card,
+[data-theme="dark"] .template-list .filter-card,
+[data-theme="dark"] .template-list .tasks-card,
+[data-theme="dark"] .template-list .chart-card,
+[data-theme="dark"] .template-list .table-card,
+[data-theme="dark"] .template-list .form-card,
+[data-theme="dark"] .template-list .detail-header,
+[data-theme="dark"] .template-list .detail-content,
+[data-theme="dark"] .template-list .toolbar,
+[data-theme="dark"] .template-list .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-list .stat-value,
+[data-theme="dark"] .template-list .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .template-list .stat-label,
+[data-theme="dark"] .template-list .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .template-list .empty-state,
+[data-theme="dark"] .template-list .empty-text {
+  color: #9ca3af;
+}
 </style>

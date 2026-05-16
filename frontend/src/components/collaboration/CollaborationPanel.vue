@@ -233,7 +233,7 @@ const permissions = computed({
   },
   set: (value) => {
     // 这里应该更新会话权限
-    console.log('Update permissions:', value)
+    if (import.meta.env.DEV) console.log('Update permissions:', value)
   }
 })
 
@@ -264,7 +264,7 @@ function handleInvite() {
 
 function startCollaboration() {
   // 这里应该连接到协作服务
-  console.log('Starting collaboration...')
+  if (import.meta.env.DEV) console.log('Starting collaboration...')
 }
 
 function leaveCollaboration() {
@@ -272,15 +272,15 @@ function leaveCollaboration() {
 }
 
 function sendMessage(user: CollaborationUser) {
-  console.log('Send message to:', user.name)
+  if (import.meta.env.DEV) console.log('Send message to:', user.name)
 }
 
 function followUser(user: CollaborationUser) {
-  console.log('Follow user:', user.name)
+  if (import.meta.env.DEV) console.log('Follow user:', user.name)
 }
 
 function removeUser(user: CollaborationUser) {
-  console.log('Remove user:', user.name)
+  if (import.meta.env.DEV) console.log('Remove user:', user.name)
 }
 </script>
 

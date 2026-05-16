@@ -82,10 +82,11 @@ export const useAuthStore = defineStore(
       error.value = null
 
       try {
-        const response = await authApi.register(data)
+        await authApi.register(data)
 
-        // 注册成功后自动登录以获取 token
-        console.log('🔵 [AuthStore] Registration successful, auto-login...')
+        if (import.meta.env.DEV) {
+          console.log('[AuthStore] Registration successful, auto-login...')
+        }
 
         // 使用注册的凭证登录
         const loginResult = await login({
@@ -95,7 +96,6 @@ export const useAuthStore = defineStore(
 
         if (!loginResult.success) {
           // 如果自动登录失败，仍然返回注册成功，但提示用户手动登录
-          console.warn('⚠️ [AuthStore] Auto-login after registration failed')
           return { success: true, requiresLogin: true }
         }
 
@@ -113,34 +113,33 @@ export const useAuthStore = defineStore(
      * @param credentials Login credentials including email, password, and optional rememberMe
      */
     async function login(credentials: LoginRequest) {
-      console.log('🔵 [AuthStore] login() called with:', { email: credentials.email, passwordLength: credentials.password.length, rememberMe: credentials.rememberMe })
-      console.log('🔵 [AuthStore] loading before:', loading.value)
+      if (import.meta.env.DEV) {
+        console.log('[AuthStore] login() called')
+      }
 
       loading.value = true
       error.value = null
 
-      console.log('🔵 [AuthStore] Set loading to true')
-
       const rememberMe = credentials.rememberMe ?? false
 
-      // ✅ Mock模式检查：如果启用了Mock模式，直接返回模拟数据
       const isMockMode = import.meta.env.VITE_APP_ENABLE_MOCK === 'true'
-      console.log('🔵 [AuthStore] Mock mode:', isMockMode)
 
       if (isMockMode) {
-        console.log('✅ [AuthStore] Using Mock authentication mode')
+        if (import.meta.env.DEV) {
+          console.log('[AuthStore] Using Mock authentication mode')
+        }
 
-        // 创建模拟用户和token
         const mockUser: User = {
           id: 1,
-          username: credentials.email.split('@')[0] || credentials.username || 'demo',
-          email: credentials.email,
+          username: (credentials.email || credentials.username || 'demo').split('@')[0],
+          email: credentials.email || credentials.username || '',
           fullName: '超级管理员',
           role: 'superadmin',  // 使用superadmin角色以测试模块管理功能
           isActive: true,
           isVerified: true,
           createdAt: Date.now(),
-          updatedAt: Date.now()
+          updatedAt: Date.now(),
+          lastLoginAt: Date.now()
         }
 
         const mockTokens: AuthTokens = {
@@ -163,27 +162,20 @@ export const useAuthStore = defineStore(
           localStorage.removeItem('remembered_email')
         }
 
-        console.log('✅ [AuthStore] Mock auth successful, user:', mockUser)
-        console.log('✅ [AuthStore] Mock tokens:', mockTokens)
+        if (import.meta.env.DEV) {
+          console.log('[AuthStore] Mock auth successful')
+        }
 
         loading.value = false
         return { success: true }
       }
 
-      console.log('🔵 [AuthStore] Calling authApi.login()')
       try {
         const response = await authApi.login(credentials)
-
-        console.log('🟢 [AuthStore] authApi.login() returned:', response)
-        console.log('🟢 [AuthStore] User:', response.user)
-        console.log('🟢 [AuthStore] Tokens:', response.tokens)
 
         // Store user and tokens
         user.value = response.user
         tokens.value = response.tokens
-
-        console.log('🟢 [AuthStore] Stored in state, user:', user.value)
-        console.log('🟢 [AuthStore] Tokens:', tokens.value)
 
         // Store in localStorage/sessionStorage based on rememberMe
         persistTokens(response.tokens, rememberMe)
@@ -197,32 +189,19 @@ export const useAuthStore = defineStore(
           localStorage.removeItem('remembered_email')
         }
 
-        console.log('🟢 [AuthStore] Persisted tokens, rememberMe:', rememberMe)
-
         // Setup auto-refresh
         scheduleTokenRefresh(response.tokens.expiresAt)
-        console.log('🟢 [AuthStore] Scheduled token refresh')
 
         return { success: true }
       } catch (err: any) {
-        console.error('🔴 [AuthStore] Login error:', err)
-
-        // ❌ 安全修复：移除自动Mock认证fallback，防止任意密码登录
-        // 原代码会在登录失败时自动切换到Mock模式，导致安全漏洞
-        // 现在正确返回错误，让用户知道登录失败
-        //
-        // 如果需要Mock模式，请使用环境变量 VITE_APP_ENABLE_MOCK=true
-        //
-        // if (err.message?.includes('User not found') || err.message?.includes('Invalid credentials')) {
-        //   // ... Mock认证代码已移除
-        // }
+        if (import.meta.env.DEV) {
+          console.error('[AuthStore] Login error:', err.message)
+        }
 
         error.value = err.message || 'Login failed'
         return { success: false, error: error.value }
       } finally {
-        console.log('🔵 [AuthStore] Setting loading to false')
         loading.value = false
-        console.log('🔵 [AuthStore] loading after:', loading.value)
       }
     }
 
@@ -238,7 +217,7 @@ export const useAuthStore = defineStore(
           await authApi.logout(tokens.value.refreshToken)
         }
       } catch (err) {
-        console.error('Logout error:', err)
+        if (import.meta.env.DEV) console.error('[AuthStore] Logout error:', err)
       } finally {
         // Clear state regardless of API call result
         clearAuth()
@@ -269,7 +248,7 @@ export const useAuthStore = defineStore(
 
         return true
       } catch (err) {
-        console.error('Token refresh failed:', err)
+        if (import.meta.env.DEV) console.error('[AuthStore] Token refresh failed')
         // If refresh fails, user needs to login again
         clearAuth()
         return false
@@ -289,7 +268,6 @@ export const useAuthStore = defineStore(
         const isMockToken = tokens.value?.accessToken.startsWith('mock_token_')
 
         if (isMockMode || isMockToken) {
-          console.log('✅ [AuthStore] Mock mode: skipping API call, returning current user')
           return user.value
         }
 
@@ -314,20 +292,11 @@ export const useAuthStore = defineStore(
      * Initialize auth from stored tokens
      */
     async function initializeAuth() {
-      console.log('🔄 [AuthStore] initializeAuth() called')
       const stored = loadStoredTokens()
 
       if (!stored) {
-        console.log('❌ [AuthStore] No stored tokens found')
         return false
       }
-
-      console.log('✅ [AuthStore] Stored tokens found:', {
-        hasAccessToken: !!stored.tokens.accessToken,
-        tokenPrefix: stored.tokens.accessToken.substring(0, 20) + '...',
-        expiresAt: new Date(stored.tokens.expiresAt).toISOString(),
-        isExpired: Date.now() > stored.tokens.expiresAt
-      })
 
       tokens.value = stored.tokens
 
@@ -336,7 +305,6 @@ export const useAuthStore = defineStore(
       const isMockToken = stored.tokens.accessToken.startsWith('mock_token_')
 
       if (isMockMode || isMockToken) {
-        console.log('✅ [AuthStore] Detected Mock token/user')
 
         // 创建Mock用户
         const mockUser: User = {
@@ -348,37 +316,30 @@ export const useAuthStore = defineStore(
           isActive: true,
           isVerified: true,
           createdAt: Date.now(),
-          updatedAt: Date.now()
+          updatedAt: Date.now(),
+          lastLoginAt: Date.now()
         }
 
         user.value = mockUser
-        console.log('✅ [AuthStore] Mock user restored:', mockUser)
         return true
       }
 
       // Check if access token is expired
       if (Date.now() > stored.tokens.expiresAt) {
-        console.log('⚠️ [AuthStore] Token expired, trying to refresh')
         // Try to refresh
         const refreshed = await refreshAccessToken()
         if (!refreshed) {
-          console.log('❌ [AuthStore] Token refresh failed')
           clearAuth()
           return false
         }
-        console.log('✅ [AuthStore] Token refreshed successfully')
       } else {
         // Schedule refresh for before expiry
         scheduleTokenRefresh(stored.tokens.expiresAt)
-        console.log('✅ [AuthStore] Token valid, refresh scheduled')
       }
 
       // Fetch user data
-      console.log('🔄 [AuthStore] Fetching current user from API...')
       const userData = await fetchCurrentUser()
-      console.log('📦 [AuthStore] fetchCurrentUser() returned:', userData)
       const success = userData !== null
-      console.log(success ? '✅' : '❌', '[AuthStore] initializeAuth() result:', success)
       return success
     }
 

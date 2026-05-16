@@ -1,5 +1,5 @@
 <template>
-  <div class="node-management">
+  <div class="node-management" role="main" aria-label="节点管理">
     <!-- Page Header -->
     <div class="page-header">
       <h1 class="page-title">
@@ -16,13 +16,19 @@
       </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <el-breadcrumb separator="/" class="page-breadcrumb">
+      <el-breadcrumb-item :to="{ path: '/crawler' }">爬虫</el-breadcrumb-item>
+      <el-breadcrumb-item>节点管理</el-breadcrumb-item>
+    </el-breadcrumb>
+
     <!-- Statistics -->
     <el-row :gutter="20" class="stats-row">
       <el-col :xs="12" :sm="6">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-icon total">
-              <el-icon><Server /></el-icon>
+              <el-icon><Monitor /></el-icon>
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ nodes.length }}</div>
@@ -39,7 +45,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ healthyNodesCount }}</div>
-              <div class="stat-label">健康节点</div>
+              <div class="stat-label">\{\{ \$t('healthyNode') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -52,7 +58,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ totalActiveTasks }}</div>
-              <div class="stat-label">活跃任务</div>
+              <div class="stat-label">\{\{ \$t('activeTasks') \}\}</div>
             </div>
           </div>
         </el-card>
@@ -392,7 +398,6 @@ import {
   Monitor,
   Plus,
   Refresh,
-  Server,
   CircleCheck,
   Loading,
   TrendCharts,
@@ -679,6 +684,16 @@ onMounted(async () => {
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
+}
+
+.page-breadcrumb {
+  padding: 0 24px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .page-breadcrumb {
+  color: #9ca3af;
 }
 
 // 页面头部
@@ -1183,5 +1198,51 @@ onMounted(async () => {
       padding: $spacing-3 $spacing-4;
     }
   }
+}
+
+/* Dark mode */
+[data-theme="dark"] .node-management {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .page-header,
+[data-theme="dark"] .node-management .page-title,
+[data-theme="dark"] .node-management .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .page-subtitle,
+[data-theme="dark"] .node-management .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .node-management .stat-card,
+[data-theme="dark"] .node-management .filter-card,
+[data-theme="dark"] .node-management .tasks-card,
+[data-theme="dark"] .node-management .chart-card,
+[data-theme="dark"] .node-management .table-card,
+[data-theme="dark"] .node-management .form-card,
+[data-theme="dark"] .node-management .detail-header,
+[data-theme="dark"] .node-management .detail-content,
+[data-theme="dark"] .node-management .toolbar,
+[data-theme="dark"] .node-management .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .stat-value,
+[data-theme="dark"] .node-management .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .node-management .stat-label,
+[data-theme="dark"] .node-management .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .node-management .empty-state,
+[data-theme="dark"] .node-management .empty-text {
+  color: #9ca3af;
 }
 </style>

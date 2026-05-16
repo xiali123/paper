@@ -19,7 +19,7 @@
           :name="category.name"
           :label="category.label"
         >
-          <div class="symbol-grid">
+          <div class="symbol-grid" v-once>
             <div
               v-for="symbol in getFilteredSymbols(category.symbols)"
               :key="symbol.command"
@@ -47,6 +47,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import DOMPurify from 'dompurify'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
@@ -202,19 +203,14 @@ function getFilteredSymbols(symbols: Symbol[]): Symbol[] {
 
 function renderSymbol(symbol: Symbol): string {
   try {
+    let html: string
     if (symbol.command.includes('{ }') || symbol.command.includes('{}')) {
-      // 对于需要参数的命令，显示简化版本
       const simplified = symbol.command.replace(/\{ ?\}?/g, 'x')
-      return katex.renderToString(simplified, {
-        displayMode: false,
-        throwOnError: false
-      })
+      html = katex.renderToString(simplified, { displayMode: false, throwOnError: false })
+    } else {
+      html = katex.renderToString(symbol.command, { displayMode: false, throwOnError: false })
     }
-
-    return katex.renderToString(symbol.command, {
-      displayMode: false,
-      throwOnError: false
-    })
+    return DOMPurify.sanitize(html)
   } catch {
     return symbol.command
   }
@@ -323,6 +319,35 @@ function insertSymbol(symbol: string) {
         font-size: 12px;
       }
     }
+  }
+}
+
+// Dark mode overrides
+[data-theme="dark"] {
+  .palette-header {
+    border-bottom-color: rgba(102, 126, 234, 0.3);
+
+    h3 {
+      color: #f3f4f6;
+    }
+  }
+
+  .symbol-item {
+    background: rgba(40, 40, 45, 0.98);
+    border-color: rgba(102, 126, 234, 0.3);
+
+    &:hover {
+      background: rgba(64, 158, 255, 0.15);
+      border-color: var(--el-color-primary);
+    }
+
+    .symbol-preview {
+      color: #f3f4f6;
+    }
+  }
+
+  .palette-footer {
+    border-top-color: rgba(102, 126, 234, 0.3);
   }
 }
 </style>

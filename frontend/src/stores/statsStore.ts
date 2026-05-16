@@ -13,6 +13,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { statsApi } from '@/api'
 import type {
   Statistics,
   JournalStats,
@@ -311,21 +312,10 @@ export const useStatsStore = defineStore(
      */
     async function fetchOverview() {
       try {
-        // TODO: Implement actual API call
-        // const data = await statsApi.getOverview()
-        // overview.value = data
-
-        // Mock data for now
-        overview.value = {
-          totalPapers: 1234,
-          totalJournals: 56,
-          topTierPapers: 234,
-          papersLastYear: 89,
-          mostActiveJournal: 'CVPR',
-          yearRange: '2015-2024'
-        }
+        const data = await statsApi.getOverview()
+        overview.value = data
       } catch (err: any) {
-        console.error('Failed to fetch overview:', err)
+        if (import.meta.env.DEV) console.error('[StatsStore] Failed to fetch overview:', err.message)
         throw err
       }
     }
@@ -335,20 +325,10 @@ export const useStatsStore = defineStore(
      */
     async function fetchJournals() {
       try {
-        // TODO: Implement actual API call
-        // const data = await statsApi.getJournals()
-        // journals.value = data
-
-        // Mock data for now
-        journals.value = [
-          { journal: 'CVPR', count: 45, level: 'A' },
-          { journal: 'ICCV', count: 38, level: 'A' },
-          { journal: 'ECCV', count: 32, level: 'A' },
-          { journal: 'NeurIPS', count: 56, level: 'A' },
-          { journal: 'ICML', count: 42, level: 'A' }
-        ]
+        const data = await statsApi.getJournalStats()
+        journals.value = data
       } catch (err: any) {
-        console.error('Failed to fetch journal stats:', err)
+        if (import.meta.env.DEV) console.error('[StatsStore] Failed to fetch journals:', err.message)
         throw err
       }
     }
@@ -358,20 +338,10 @@ export const useStatsStore = defineStore(
      */
     async function fetchYears() {
       try {
-        // TODO: Implement actual API call
-        // const data = await statsApi.getYears()
-        // years.value = data
-
-        // Mock data for now
-        years.value = [
-          { year: '2020', count: 120, aCount: 45, bCount: 50, cCount: 25 },
-          { year: '2021', count: 145, aCount: 55, bCount: 60, cCount: 30 },
-          { year: '2022', count: 168, aCount: 65, bCount: 70, cCount: 33 },
-          { year: '2023', count: 189, aCount: 75, bCount: 80, cCount: 34 },
-          { year: '2024', count: 89, aCount: 35, bCount: 36, cCount: 18 }
-        ]
+        const data = await statsApi.getYearStats()
+        years.value = data
       } catch (err: any) {
-        console.error('Failed to fetch year stats:', err)
+        if (import.meta.env.DEV) console.error('[StatsStore] Failed to fetch years:', err.message)
         throw err
       }
     }
@@ -381,20 +351,10 @@ export const useStatsStore = defineStore(
      */
     async function fetchAuthors() {
       try {
-        // TODO: Implement actual API call
-        // const data = await statsApi.getAuthors()
-        // authors.value = data
-
-        // Mock data for now
-        authors.value = [
-          { author: 'John Doe', count: 12, totalCitations: 234 },
-          { author: 'Jane Smith', count: 10, totalCitations: 189 },
-          { author: 'Bob Johnson', count: 8, totalCitations: 156 },
-          { author: 'Alice Williams', count: 7, totalCitations: 143 },
-          { author: 'Charlie Brown', count: 6, totalCitations: 98 }
-        ]
+        const data = await statsApi.getAuthorStats()
+        authors.value = data
       } catch (err: any) {
-        console.error('Failed to fetch author stats:', err)
+        if (import.meta.env.DEV) console.error('[StatsStore] Failed to fetch authors:', err.message)
         throw err
       }
     }

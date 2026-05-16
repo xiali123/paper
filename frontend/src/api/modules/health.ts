@@ -37,7 +37,7 @@ export const healthApi = {
    */
   async check(): Promise<HealthStatus> {
     try {
-      return await request.get('/health')
+      return await request.get('/api/health')
     } catch (error) {
       return {
         status: 'error',
@@ -60,7 +60,7 @@ export const healthApi = {
     }
   }> {
     try {
-      return await request.get('/health/detailed')
+      return await request.get('/api/health/detailed')
     } catch (error) {
       return {
         status: 'error',
@@ -82,7 +82,7 @@ export const healthApi = {
    */
   async isReady(): Promise<boolean> {
     try {
-      const response = await request.get<{ ready: boolean }>('/health/ready')
+      const response = await request.get<{ ready: boolean }>('/api/health/ready')
       return response.ready
     } catch {
       return false
@@ -95,7 +95,7 @@ export const healthApi = {
    */
   async isAlive(): Promise<boolean> {
     try {
-      await request.get('/health/live')
+      await request.get('/api/health/live')
       return true
     } catch {
       return false

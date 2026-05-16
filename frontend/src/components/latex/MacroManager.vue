@@ -281,7 +281,7 @@
             class="template-card"
             @click="useTemplate(tpl)"
           >
-            <div class="template-preview" v-html="tpl.preview"></div>
+            <div class="template-preview" v-html="sanitizePreview(tpl.preview)"></div>
             <div class="template-info">
               <div class="template-name">
                 <code>{{ tpl.name }}</code>
@@ -529,7 +529,7 @@
             class="library-template-card"
             @click="useTemplate(tpl)"
           >
-            <div class="template-card-preview" v-html="tpl.preview"></div>
+            <div class="template-card-preview" v-html="sanitizePreview(tpl.preview)"></div>
             <div class="template-card-info">
               <code class="template-card-name">{{ tpl.name }}</code>
               <p class="template-card-desc">{{ tpl.description }}</p>
@@ -574,6 +574,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import DOMPurify from 'dompurify'
 import {
   Plus,
   Download,
@@ -666,6 +667,10 @@ const previewingMacro = ref<MacroCommand | null>(null)
 const saving = ref(false)
 const formRef = ref<FormInstance>()
 const templateCategory = ref('all')
+
+function sanitizePreview(html: string): string {
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['span', 'code', 'strong', 'em', 'br', 'sub', 'sup'] })
+}
 const groupFilter = ref('')
 
 // 表单数据
@@ -2311,6 +2316,125 @@ const importMacros = (content: string) => {
 
   .package-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+// Dark mode overrides
+[data-theme="dark"] {
+  .latex-macro-manager {
+    background: rgba(30, 30, 35, 0.95);
+  }
+
+  .macro-header {
+    background: rgba(40, 40, 45, 0.98);
+  }
+
+  .tab-bar-wrapper {
+    background: rgba(40, 40, 45, 0.98);
+
+    .tab-bar .tab-btn {
+      color: #9ca3af;
+
+      &:hover {
+        background: rgba(40, 40, 45, 0.98);
+        color: #f3f4f6;
+      }
+
+      &.active {
+        background: var(--el-color-primary);
+        color: white;
+      }
+    }
+  }
+
+  .group-tabs {
+    background: rgba(40, 40, 45, 0.98);
+    border-bottom-color: rgba(102, 126, 234, 0.3);
+  }
+
+  .commands-panel,
+  .environments-panel {
+    background: rgba(30, 30, 35, 0.95);
+  }
+
+  .macro-card {
+    background: rgba(40, 40, 45, 0.98);
+    border-color: rgba(102, 126, 234, 0.15);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+    &:hover {
+      border-color: rgba(102, 126, 234, 0.3);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 3px 10px rgba(64, 158, 255, 0.08);
+    }
+
+    .card-usage {
+      background: rgba(30, 30, 35, 0.95);
+      border-color: rgba(102, 126, 234, 0.15);
+    }
+  }
+
+  .packages-panel {
+    background: rgba(30, 30, 35, 0.95);
+  }
+
+  .package-card {
+    background: rgba(40, 40, 45, 0.98);
+    border-color: rgba(102, 126, 234, 0.15);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+
+    &:hover {
+      border-color: rgba(102, 126, 234, 0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(64, 158, 255, 0.1);
+    }
+
+    &.is-enabled {
+      background: linear-gradient(135deg, rgba(103, 194, 58, 0.08) 0%, rgba(40, 40, 45, 0.98) 100%);
+    }
+  }
+
+  .templates-panel {
+    .template-card {
+      background: rgba(40, 40, 45, 0.98);
+      border-color: rgba(102, 126, 234, 0.15);
+
+      &:hover {
+        border-color: rgba(102, 126, 234, 0.3);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 3px 10px rgba(64, 158, 255, 0.1);
+      }
+
+      .template-preview {
+        background: rgba(30, 30, 35, 0.95);
+        border-bottom-color: rgba(102, 126, 234, 0.15);
+      }
+    }
+  }
+
+  .empty-state {
+    .empty-title {
+      color: #f3f4f6;
+    }
+
+    .empty-desc {
+      color: #9ca3af;
+    }
+  }
+
+  .library-template-card {
+    background: rgba(40, 40, 45, 0.98);
+    border-color: rgba(102, 126, 234, 0.15);
+
+    &:hover {
+      border-color: rgba(102, 126, 234, 0.3);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .template-card-preview {
+      background: rgba(30, 30, 35, 0.95);
+    }
+
+    .template-card-code {
+      background: rgba(30, 30, 35, 0.95);
+    }
   }
 }
 </style>

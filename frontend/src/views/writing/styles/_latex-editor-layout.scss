@@ -1,0 +1,460 @@
+// ==========================================
+// LaTeX Editor Layout Styles
+// Main layout, containers, panels, resizer,
+// scrollbar, accessibility, print, animations,
+// dropdown, breadcrumb, drawer, outline
+// ==========================================
+
+// 优化变量
+$transition-fast: 150ms;
+$transition-base: 200ms;
+$transition-slow: 300ms;
+$easing-out: cubic-bezier(0.4, 0, 0.2, 1);
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+
+// ==========================================
+// 全局样式优化
+// ==========================================
+
+.latex-editor-view {
+  height: 100vh;
+  width: 100%;
+  max-width: 100%; // 防止超出父容器
+  display: flex;
+  flex-direction: column;
+  background: var(--el-bg-color);
+  position: relative;
+  isolation: isolate; // 创建新的层叠上下文，防止子元素重叠
+  overflow: hidden; // 防止内容溢出导致重影
+  box-sizing: border-box;
+
+  // 确保EditorToolbar和FindReplacePanel占满宽度
+  > .editor-toolbar {
+    width: 100%;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    background: linear-gradient(
+      to bottom,
+      var(--el-bg-color-page) 0%,
+      rgba(0, 0, 0, 0.02) 100%
+    );
+    flex-shrink: 0;
+  }
+
+  > :deep(.find-replace-panel) {
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  // 确保所有子元素正确渲染
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+// ==========================================
+// 面板布局
+// ==========================================
+
+.editor-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+
+  // 编辑器和预览容器 - 水平布局
+  .editor-preview-container {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    min-height: 0;
+    width: 100%;
+
+    // 左右分屏模式（默认）
+    &.side-by-side {
+      flex-direction: row;
+    }
+
+    // 上下分屏模式：切换为纵向布局
+    &.vertical-split {
+      flex-direction: column;
+    }
+  }
+
+  // 上下分屏模式：整个main容器也垂直
+  &.vertical-split {
+    flex-direction: column;
+  }
+
+  // 左右分屏模式（默认）
+  &.side-by-side {
+    flex-direction: column;
+  }
+
+  // 仅编辑器模式
+  &.editor-only {
+    flex-direction: column;
+
+    .preview-panel {
+      display: none;
+    }
+  }
+
+  // 仅预览模式
+  &.preview-only {
+    flex-direction: column;
+
+    .editor-panel {
+      display: none;
+    }
+  }
+
+  &.show-preview {
+    .editor-panel {
+      border-right: 1px solid var(--el-border-color-lighter);
+    }
+  }
+
+  // vertical-split模式下的边框处理
+  &.vertical-split.show-preview {
+    .editor-panel {
+      border-right: none;
+      border-bottom: 1px solid var(--el-border-color-lighter);
+    }
+  }
+}
+
+// ==========================================
+// 面板调整器 (Panel Resizer)
+// ==========================================
+
+.panel-resizer {
+  position: relative;
+  width: 6px;
+  background: var(--el-border-color-lighter);
+  cursor: col-resize;
+  transition: all $transition-base $easing-out;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: var(--el-color-primary);
+    width: 8px;
+  }
+
+  &.is-resizing {
+    background: var(--el-color-primary);
+    width: 8px;
+
+    .resizer-handle {
+      opacity: 1;
+    }
+  }
+
+  .resizer-handle {
+    position: absolute;
+    width: 4px;
+    height: 40px;
+    background: var(--el-color-primary);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity $transition-base $easing-out;
+  }
+
+  &:hover .resizer-handle {
+    opacity: 0.8;
+  }
+}
+
+// ==========================================
+// 滚动条美化
+// ==========================================
+
+// 自定义滚动条样式
+:deep(.editor-textarea),
+:deep(.preview-content),
+:deep(.document-outline),
+:deep(.outline-content),
+.error-content {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--el-border-color);
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--el-border-color-dark);
+    }
+  }
+
+  & {
+    scrollbar-width: thin;
+    scrollbar-color: var(--el-border-color) transparent;
+  }
+}
+
+// ==========================================
+// 无障碍增强
+// ==========================================
+
+// 屏幕阅读器只读内容
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+// 仅在焦点时显示的轮廓
+.focus-visible-only {
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+  :deep(.el-button),
+  :deep(.symbol-item),
+  :deep(.outline-item) {
+    border-width: 2px;
+  }
+
+  :deep(.latex-textarea) {
+    border-width: 2px;
+  }
+}
+
+// 减少动画模式支持
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// ==========================================
+// 打印样式
+// ==========================================
+
+@media print {
+  .latex-editor-view {
+    .editor-header,
+    .editor-toolbar,
+    .editor-status-bar,
+    .mobile-tabs {
+      display: none !important;
+    }
+
+    .editor-panel,
+    .preview-panel {
+      flex: 1;
+      page-break-inside: avoid;
+    }
+  }
+}
+
+// ==========================================
+// 成功/错误反馈动画
+// ==========================================
+
+// 成功状态动画
+@keyframes successPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(82, 196, 26, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.7);
+  }
+}
+
+.save-success {
+  animation: successPulse 0.6s ease-in-out;
+}
+
+// 错误抖动动画
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-4px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+.save-error {
+  animation: shake 0.4s ease-in-out;
+}
+
+// ==========================================
+// 下拉菜单优化
+// ==========================================
+
+:deep(.el-dropdown-menu) {
+  border: 1px solid var(--el-border-color-lighter);
+  box-shadow: $shadow-lg;
+  border-radius: 8px;
+  padding: 4px;
+
+  .el-dropdown-menu__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: all $transition-fast $easing-out;
+
+    &:hover {
+      background: var(--el-bg-color-overlay);
+    }
+
+    &:active {
+      background: var(--el-color-primary-light-9);
+    }
+
+    // 布局选项样式
+    .layout-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+
+      .layout-icon {
+        font-size: 16px;
+        width: 20px;
+        text-align: center;
+      }
+    }
+
+    // Active state
+    &.is-active {
+      background: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
+      font-weight: 500;
+
+      .layout-icon {
+        transform: scale(1.1);
+      }
+    }
+  }
+}
+
+// ==========================================
+// 面包屑导航增强
+// ==========================================
+
+:deep(.el-breadcrumb) {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+
+  .el-breadcrumb__item {
+    font-size: 13px;
+    font-weight: 500;
+
+    &:last-child {
+      color: var(--el-text-color-primary);
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .el-breadcrumb__separator {
+    color: var(--el-text-color-secondary);
+    margin: 0 6px;
+    flex-shrink: 0;
+  }
+}
+
+// ==========================================
+// 抽屉优化
+// ==========================================
+
+:deep(.el-drawer) {
+  .el-drawer__header {
+    margin-bottom: 0;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+
+    .el-drawer__title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+    }
+  }
+}
+
+// ==========================================
+// 大纲项样式
+// ==========================================
+
+:deep(.outline-item) {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all $transition-base $easing-out;
+  border-left: 2px solid transparent;
+
+  &:hover {
+    background: var(--el-bg-color-overlay);
+    border-left-color: var(--el-border-color);
+    transform: translateX(2px);
+  }
+
+  &.active {
+    background: var(--el-color-primary-light-9);
+    border-left-color: var(--el-color-primary);
+    color: var(--el-color-primary);
+    font-weight: 500;
+  }
+
+  // 滑入动画
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

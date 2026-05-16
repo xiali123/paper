@@ -1,5 +1,5 @@
 <template>
-  <div class="export-page">
+  <div class="export-page" role="main" aria-label="导出">
     <!-- Header Section -->
     <div class="page-header">
       <div class="header-content">
@@ -786,5 +786,51 @@ onMounted(() => {
 .loading-state {
   padding: 32px 16px;
   text-align: center;
+}
+
+/* Dark mode */
+[data-theme="dark"] .export-page {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .export-page .page-header,
+[data-theme="dark"] .export-page .page-title,
+[data-theme="dark"] .export-page .card-header {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .export-page .page-subtitle,
+[data-theme="dark"] .export-page .page-description {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .export-page .stat-card,
+[data-theme="dark"] .export-page .filter-card,
+[data-theme="dark"] .export-page .tasks-card,
+[data-theme="dark"] .export-page .chart-card,
+[data-theme="dark"] .export-page .table-card,
+[data-theme="dark"] .export-page .form-card,
+[data-theme="dark"] .export-page .detail-header,
+[data-theme="dark"] .export-page .detail-content,
+[data-theme="dark"] .export-page .toolbar,
+[data-theme="dark"] .export-page .export-options {
+  background: rgba(40, 40, 45, 0.98) !important;
+  border-color: rgba(102, 126, 234, 0.3) !important;
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .export-page .stat-value,
+[data-theme="dark"] .export-page .metric-value {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .export-page .stat-label,
+[data-theme="dark"] .export-page .metric-label {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .export-page .empty-state,
+[data-theme="dark"] .export-page .empty-text {
+  color: #9ca3af;
 }
 </style>

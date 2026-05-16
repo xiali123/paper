@@ -1,4 +1,4 @@
-export { paperApi } from './modules/paper'
+export { papersApi as paperApi } from './modules/papers'
 export { statsApi } from './modules/stats'
 export { exportApi } from './modules/export'
 export { healthApi } from './modules/health'

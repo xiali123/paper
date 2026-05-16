@@ -1,0 +1,344 @@
+// ==========================================
+// LaTeX Editor Toolbar Styles
+// Header, toolbar buttons, panel tabs,
+// button states, find-replace, keyboard shortcuts
+// ==========================================
+
+// 优化变量 (forwarded for use in this file)
+$transition-fast: 150ms;
+$transition-base: 200ms;
+$transition-slow: 300ms;
+$easing-out: cubic-bezier(0.4, 0, 0.2, 1);
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+
+// ==========================================
+// 按钮状态优化 - 简洁交互
+// ==========================================
+
+:deep(.el-button) {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  position: relative;
+
+  &:hover:not(:disabled) {
+    // 移除 transform，只保留颜色变化
+  }
+
+  &:active:not(:disabled) {
+    // 移除 transform
+  }
+
+  &.is-loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      width: 14px;
+      height: 14px;
+      top: 50%;
+      left: 50%;
+      margin: -7px 0 0 -7px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+  }
+
+  // 小尺寸按钮优化
+  &.el-button--small {
+    height: 28px;
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// ==========================================
+// 头部区域 - 极简设计
+// ==========================================
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+  height: 44px;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  flex-shrink: 0;
+
+  .header-left {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+
+    .doc-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--el-text-color-primary);
+
+      .title-text {
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .el-icon {
+        font-size: 16px;
+        color: var(--el-color-primary);
+      }
+    }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .el-button {
+        padding: 6px;
+        border-radius: 8px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+        &:hover {
+          transform: translateY(-1px);
+        }
+
+        &.active {
+          color: var(--el-color-primary);
+          background: var(--el-color-primary-light-9);
+        }
+
+        .el-icon {
+          font-size: 15px;
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// 编辑器工具栏 - 优化紧凑设计
+// ==========================================
+
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--el-fill-color-extra-light);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  min-height: 42px;
+  gap: 8px;
+  flex-shrink: 0;
+
+  .toolbar-left,
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .toolbar-btn {
+    border: none;
+    background: transparent;
+    color: var(--el-text-color-regular);
+    font-size: 13px;
+    padding: 5px 10px;
+    height: 28px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    cursor: pointer;
+
+    .el-icon {
+      font-size: 15px;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--el-fill-color);
+      color: var(--el-color-primary);
+    }
+
+    &.active {
+      background: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
+      font-weight: 500;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    // 图标按钮（仅图标无文字）
+    &:has(> .el-icon:only-child) {
+      padding: 5px;
+      width: 28px;
+      justify-content: center;
+    }
+  }
+
+  .el-divider--vertical {
+    margin: 0 6px;
+    height: 18px;
+    border-color: var(--el-border-color);
+  }
+
+  // 下拉菜单优化
+  :deep(.el-dropdown) {
+    .toolbar-btn {
+      .el-icon {
+        font-size: 12px;
+        margin-left: -2px;
+      }
+    }
+  }
+
+  // 工具提示优化
+  :deep(.el-tooltip__trigger) {
+    display: inline-flex;
+  }
+}
+
+// ==========================================
+// 查找替换面板样式
+// ==========================================
+
+.find-replace-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  box-shadow: $shadow-lg;
+  padding: 12px;
+  min-width: 400px;
+  margin-top: 4px;
+
+  .find-replace-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    :deep(.el-input) {
+      flex: 1;
+    }
+
+    .match-count {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+      font-weight: 500;
+    }
+  }
+
+  .find-replace-options {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    margin-top: 8px;
+    font-size: 13px;
+  }
+}
+
+// ==========================================
+// 快捷键面板样式
+// ==========================================
+
+.keyboard-shortcuts-content {
+  padding: 8px 0;
+
+  .shortcut-category {
+    margin-bottom: 24px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .category-title {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--el-border-color-lighter);
+    }
+
+    .shortcut-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .shortcut-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 6px;
+        transition: all $transition-fast $easing-out;
+
+        &:hover {
+          background: var(--el-bg-color-overlay);
+        }
+
+        .shortcut-action {
+          font-size: 14px;
+          color: var(--el-text-color-regular);
+        }
+
+        .shortcut-keys {
+          display: flex;
+          gap: 4px;
+
+          kbd {
+            display: inline-block;
+            padding: 4px 8px;
+            min-width: 24px;
+            text-align: center;
+            font-size: 12px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-weight: 500;
+            color: var(--el-text-color-primary);
+            background: var(--el-bg-color-page);
+            border: 1px solid var(--el-border-color);
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+          }
+        }
+      }
+    }
+  }
+}

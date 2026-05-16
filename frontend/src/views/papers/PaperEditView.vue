@@ -14,6 +14,13 @@
       </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <el-breadcrumb separator="/" class="page-breadcrumb">
+      <el-breadcrumb-item :to="{ path: '/papers' }">论文</el-breadcrumb-item>
+      <el-breadcrumb-item>{{ isEditMode ? '编辑论文' : '添加论文' }}</el-breadcrumb-item>
+      <el-breadcrumb-item v-if="isEditMode && paper?.title">{{ paper.title }}</el-breadcrumb-item>
+    </el-breadcrumb>
+
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
       <el-skeleton animated>
@@ -437,12 +444,12 @@ const searchPublications = (queryString: string, cb: any) => {
 
 // Handle file change
 const handleFileChange = (file: UploadFile) => {
-  console.log('File changed:', file)
+  if (import.meta.env.DEV) console.log('File changed:', file)
 }
 
 // Handle file remove
 const handleFileRemove = (file: UploadFile) => {
-  console.log('File removed:', file)
+  if (import.meta.env.DEV) console.log('File removed:', file)
 }
 
 // Handle batch import
@@ -549,6 +556,16 @@ onMounted(() => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.page-breadcrumb {
+  padding: 0 24px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+[data-theme="dark"] .page-breadcrumb {
+  color: #9ca3af;
 }
 
 .page-header {
