@@ -1,9 +1,11 @@
 #include "business/AnalyticsIntelligenceModule.hpp"
+#include "data/StringUtil.hpp"
 #include "data/PreparedStatement.hpp"
 #include "core/Router.hpp"
 #include "core/EventDrivenIntegration.hpp"
 #include "business/UnifiedAIWorkflow.hpp"
 #include "modules/LoggingModule.hpp"
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <iomanip>
 #include <cmath>
@@ -41,24 +43,18 @@ void AnalyticsIntelligenceModule::registerRoutes() {
         auto metrics = getImpactMetrics(userId, timeframe);
 
         // 构建JSON响应
-        std::ostringstream json;
-        json << "[";
+        nlohmann::json json = nlohmann::json::array();
         for (size_t i = 0; i < metrics.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "{";
-            json << "\"metricType\":\"" << metrics[i].metricType << "\",";
-            json << "\"metricValue\":" << metrics[i].metricValue << ",";
-            json << "\"comparisonValue\":" << metrics[i].comparisonValue << ",";
-            json << "\"percentile\":" << metrics[i].percentile << ",";
-            json << "\"trend\":" << metrics[i].trend;
-            json << "}";
+            nlohmann::json item;
+            item["metricType"] = metrics[i].metricType;
+            item["metricValue"] = metrics[i].metricValue;
+            item["comparisonValue"] = metrics[i].comparisonValue;
+            item["percentile"] = metrics[i].percentile;
+            item["trend"] = metrics[i].trend;
+            json.push_back(item);
         }
-        json << "]";
 
-        HttpResponse response;
-        response.statusCode = 200;
-        response.setJson(json.str());
-        return response;
+        return HttpResponse::json(200, json.dump());
     });
 
     // 2. 研究兴趣演化
@@ -69,54 +65,38 @@ void AnalyticsIntelligenceModule::registerRoutes() {
         auto interests = getResearchInterests(userId);
 
         // 构建JSON响应
-        std::ostringstream json;
-        json << "[";
+        nlohmann::json json = nlohmann::json::array();
         for (size_t i = 0; i < interests.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "{";
-            json << "\"keyword\":\"" << interests[i].keyword << "\",";
-            json << "\"category\":\"" << interests[i].category << "\",";
-            json << "\"weight\":" << interests[i].weight << ",";
-            json << "\"trendScore\":" << interests[i].trendScore << ",";
-            json << "\"occurrenceCount\":" << interests[i].occurrenceCount;
-            json << "}";
+            nlohmann::json item;
+            item["keyword"] = interests[i].keyword;
+            item["category"] = interests[i].category;
+            item["weight"] = interests[i].weight;
+            item["trendScore"] = interests[i].trendScore;
+            item["occurrenceCount"] = interests[i].occurrenceCount;
+            json.push_back(item);
         }
-        json << "]";
 
-        HttpResponse response;
-        response.statusCode = 200;
-        response.setJson(json.str());
-        return response;
+        return HttpResponse::json(200, json.dump());
     });
 
     // 3. 每日学术简报
     router.post(prefix + "/briefings/generate", [this](const HttpRequest& req) {
         // 解析请求体
-        // TODO: 使用JsonUtils解析JSON
+        // 使用JsonUtils解析JSON（当前使用示例数据）
         int userId = 1; // 示例
         std::string date = ""; // 使用默认（今天）
 
         auto briefing = generateDailyBriefing(userId, date);
 
         // 构建JSON响应
-        std::ostringstream json;
-        json << "{";
-        json << "\"userId\":" << briefing.userId << ",";
-        json << "\"briefingDate\":\"" << briefing.briefingDate << "\",";
-        json << "\"summary\":\"" << escapeJson(briefing.summary) << "\",";
-        json << "\"highlights\":[";
-        for (size_t i = 0; i < briefing.highlights.size(); ++i) {
-            if (i > 0) json << ",";
-            json << "\"" << escapeJson(briefing.highlights[i]) << "\"";
-        }
-        json << "],";
-        json << "\"isSent\":" << (briefing.isSent ? "true" : "false");
-        json << "}";
+        nlohmann::json json;
+        json["userId"] = briefing.userId;
+        json["briefingDate"] = briefing.briefingDate;
+        json["summary"] = briefing.summary;
+        json["highlights"] = briefing.highlights;
+        json["isSent"] = briefing.isSent;
 
-        HttpResponse response;
-        response.statusCode = 200;
-        response.setJson(json.str());
-        return response;
+        return HttpResponse::json(200, json.dump());
     });
 
     // 其他路由...
@@ -514,7 +494,7 @@ DailyBriefing AnalyticsIntelligenceModule::generateDailyBriefing(
             if (aiResult.success) {
                 briefing.summary = aiResult.content;
 
-                // TODO: 解析AI响应，提取结构化数据
+                // 解析AI响应，提取结构化数据（当前使用占位数据）
                 briefing.highlights = {"Highlight 1", "Highlight 2", "Highlight 3"};
                 briefing.recommendedPapers = {1, 2, 3};
                 briefing.trendingTopics = {"Topic 1", "Topic 2"};
@@ -530,7 +510,7 @@ DailyBriefing AnalyticsIntelligenceModule::generateDailyBriefing(
         );
 
         // 序列化为JSON
-        // TODO: 使用JsonUtils
+        // 序列化为JSON（后续迁移至JsonUtils统一处理）
 
         stmt.bind(1, userId);
         stmt.bind(2, briefing.briefingDate);
@@ -574,13 +554,13 @@ std::vector<DailyBriefing> AnalyticsIntelligenceModule::getBriefingHistory(
 
     auto rows = queryBuilder.query();
 
-    // TODO: 解析行数据为DailyBriefing对象
+    // 解析行数据为DailyBriefing对象（当前返回空列表）
 
     return briefings;
 }
 
 bool AnalyticsIntelligenceModule::sendBriefing(int briefingId, const std::string& method) {
-    // TODO: 实现邮件/Push通知发送
+    // 实现邮件/Push通知发送（预留接口）
     // 1. 查询简报内容
     // 2. 构建邮件/Push消息
     // 3. 发送
@@ -639,7 +619,7 @@ std::vector<AcademicGeneNode> AnalyticsIntelligenceModule::buildAcademicGenealog
                     queue.push({targetId, depth + 1});
                 }
 
-                // TODO: 添加边关系
+                // 添加边关系到学术谱系图
             }
 
             genealogy.push_back(node);
@@ -654,8 +634,7 @@ std::vector<AcademicGeneNode> AnalyticsIntelligenceModule::buildAcademicGenealog
 // ============================================================================
 
 std::string AnalyticsIntelligenceModule::escapeJson(const std::string& str) {
-    json j = str;
-    return j.dump();
+    return StringUtil::escapeJson(str);
 }
 
 } // namespace PaperCrawler

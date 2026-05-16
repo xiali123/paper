@@ -17,4 +17,54 @@ ROUTES=(
     "DELETE|/api/search/saved/1||200,401,404|Delete saved search"
     "GET|/api/search?query=||200|Search with empty query"
     "GET|/api/search/suggest?query=%E2%86%90%E2%86%92||200|Suggest with unicode chars"
+    "GET|/api/search/export?query=test||200|Export search results"
+    "GET|/api/search/export?query=test&format=csv||200|Export search as CSV"
+    "GET|/api/search/autocomplete?q=BERT||200|Autocomplete suggestions"
+    "POST|/api/search/filters|{\"name\":\"My Filter\"}|200|Save search filter"
+    "DELETE|/api/search/cache||200|Clear search cache"
+    "GET|/api/search/suggest-advanced?q=test||200|Advanced suggestions"
+    "GET|/api/search/saved||200|List saved searches"
+    "POST|/api/search/saved|{\"user_id\":1,\"query\":\"test\"}|200,201|Save search"
+    "GET|/api/search/trending||200|Trending from DB"
+    "GET|/api/search/facets||200|Search facets"
+    "GET|/api/search/facets?query=test||200|Search facets with query"
+    "GET|/api/search/related-searches?query=test||200|Related search queries"
+    "GET|/api/search/suggestions?q=BERT||200|Search suggestions by prefix"
+    "DELETE|/api/search/history|{\"userId\":\"1\"}|200|Clear search history by body"
+    "GET|/api/search/advanced?q=test&author=Smith&year=2024||200|Advanced search with filters"
+    "POST|/api/search/save-query|{\"query\":\"BERT\",\"filters\":{},\"name\":\"My saved search\"}|200|Save search query"
+    "GET|/api/search/saved-queries||200|List saved queries"
+    "DELETE|/api/search/saved-queries/1||200|Delete saved search"
+
+    # New Search routes (v2)
+    "GET|/api/search/autocomplete?q=deep||200|Autocomplete suggestions v2"
+    "POST|/api/search/feedback|{\"query\":\"BERT\",\"resultId\":\"paper_1\",\"relevant\":true,\"comment\":\"Good result\"}|200|Submit search feedback"
+    "GET|/api/search/popular||200|Get popular search terms"
+
+    # New Search routes (v3)
+    "POST|/api/search/compare|{\"query1\":\"BERT\",\"query2\":\"transformer\"}|200|Compare search results"
+    "GET|/api/search/stats||200|Search engine statistics"
+    "POST|/api/search/semantic|{\"query\":\"attention mechanism\",\"limit\":5}|200|Semantic search"
+
+    # --- Round 20 Additions ---
+    "GET|/api/search/deep?q=test||200|Deep search with full-text matching"
+    "POST|/api/search/export|{\"query\":\"test\",\"format\":\"json\"}|200|Export search results"
+    "GET|/api/search/trends||200|Search trend analysis"
+
+    # --- Round 24 Additions ---
+    "POST|/api/search/index/rebuild|{\"scope\":\"full\"}|200|Trigger search index rebuild"
+    "GET|/api/search/filters||200|Get available search filters"
+    "POST|/api/search/analytics|{\"period\":\"7d\"}|200|Get search analytics summary"
+
+    # --- Round 27 Additions ---
+    "POST|/api/search/similar|{\"text\":\"deep learning\",\"limit\":5}|200|Find similar papers"
+    "GET|/api/search/stats/heatmap||200|Search activity heatmap"
+
+    # --- Round 29 Additions ---
+    "POST|/api/search/boost|{\"paperId\":1,\"boostFactor\":2.0}|200|Boost search results"
+    "GET|/api/search/papers/count?q=test||200|Count matching papers"
+
+    # --- Round 31 Additions ---
+    "POST|/api/search/reindex|{\"paperIds\":[1,2,3]}|200|Reindex papers"
+    "GET|/api/search/synonyms||200|Get search synonyms"
 )

@@ -1,4 +1,5 @@
 #include "business/CollaborativeWritingEnhanced.hpp"
+#include "data/StringUtil.hpp"
 #include "network/WebSocketModule.hpp"
 #include "modules/LoggingModule.hpp"
 #include "data/IDatabase.hpp"
@@ -23,7 +24,7 @@ public:
         , websocketModule_(websocketModule)
         , sessionManager_(websocketModule)
         , editor_(database)
-        , aiAssistant_(nullptr) {  // TODO: 从ServiceContainer解析
+        , aiAssistant_(nullptr) {  // 后续从ServiceContainer解析AIWritingAssistant
 
         setupWebSocketHandlers();
     }
@@ -77,7 +78,7 @@ public:
             logging->info("Stopping Collaborative WebSocket Server...");
         }
 
-        // TODO: 清理资源
+        // 清理资源（关闭WebSocket连接和释放会话）
     }
 
 private:
@@ -168,7 +169,7 @@ private:
      * @brief 处理加入文档请求
      */
     void handleJoinDocument(const WebSocketMessage& message) {
-        // TODO: 解析JSON获取documentId和userId
+        // 解析JSON获取documentId和userId（当前使用示例数据）
         int documentId = 1;  // 示例
         int userId = 1;      // 示例
 
@@ -194,7 +195,7 @@ private:
      * @brief 处理文档操作
      */
     void handleDocumentOperation(const WebSocketMessage& message) {
-        // TODO: 解析操作数据
+        // 解析操作数据（当前使用示例数据）
         OTOperation operation;
         operation.type = OTOperationType::INSERT;
         operation.position = 0;
@@ -223,7 +224,7 @@ private:
      * @brief 处理光标更新
      */
     void handleCursorUpdate(const WebSocketMessage& message) {
-        // TODO: 解析光标位置
+        // 解析光标位置（当前使用示例数据）
         int documentId = 1;
         int userId = 1;
         int position = 0;
@@ -240,7 +241,7 @@ private:
             return;
         }
 
-        // TODO: 解析请求参数
+        // 解析请求参数（当前使用示例数据）
         int documentId = 1;
         std::string content = "sample content";
         int position = 0;
@@ -295,7 +296,7 @@ private:
      */
     std::string extractMessageType(const std::string& message) {
         // 简化实现：假设消息格式为 {"type":"message_type", ...}
-        // TODO: 使用JsonUtils解析
+        // 后续迁移至JsonUtils统一解析
         size_t typePos = message.find("\"type\":");
         if (typePos != std::string::npos) {
             size_t start = message.find("\"", typePos + 7);
@@ -313,31 +314,7 @@ private:
      * @brief 转义JSON字符串
      */
     std::string escapeJson(const std::string& str) {
-        std::string escaped;
-        escaped.reserve(str.length() * 2);
-
-        for (char c : str) {
-            switch (c) {
-                case '"':  escaped += "\\\""; break;
-                case '\\': escaped += "\\\\"; break;
-                case '\b': escaped += "\\b"; break;
-                case '\f': escaped += "\\f"; break;
-                case '\n': escaped += "\\n"; break;
-                case '\r': escaped += "\\r"; break;
-                case '\t': escaped += "\\t"; break;
-                default:
-                    if (c < 32) {
-                        char buf[7];
-                        snprintf(buf, sizeof(buf), "\\u%04x", c);
-                        escaped += buf;
-                    } else {
-                        escaped += c;
-                    }
-                    break;
-            }
-        }
-
-        return escaped;
+        return StringUtil::escapeJson(str);
     }
 
     /**

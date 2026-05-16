@@ -1,4 +1,6 @@
 #include "business/UnifiedAIWorkflow.hpp"
+#include "data/StringUtil.hpp"
+#include "core/HttpStatus.hpp"
 // #include "core/EventDrivenIntegration.hpp"  // EventDrivenIntegration has missing dependencies
 // #include "modules/LoggingModule.hpp"        // LoggingModule not implemented yet
 #include "features/ai/VectorStore.hpp"
@@ -18,7 +20,7 @@ namespace PaperCrawler {
 class UnifiedAIWorkflow::Impl {
 public:
     std::shared_ptr<IDatabase> database_;
-    // std::shared_ptr<CacheModule> cache_;  // TODO: CacheModule not implemented yet
+    // std::shared_ptr<CacheModule> cache_;  // CacheModule尚未实现，后续集成
     std::shared_ptr<Network::HttpClient> httpClient_;
 
     // 缓存统计
@@ -54,7 +56,7 @@ UnifiedAIWorkflow::~UnifiedAIWorkflow() = default;
 bool UnifiedAIWorkflow::initialize() {
     // 解析服务
     impl_->database_ = Services::resolve<IDatabase>();
-    // impl_->cache_ = Services::resolve<CacheModule>();  // TODO: CacheModule not implemented yet
+    // impl_->cache_ = Services::resolve<CacheModule>();  // CacheModule尚未实现，后续集成
     impl_->httpClient_ = Services::resolve<Network::HttpClient>();
 
     if (!impl_->database_) {
@@ -87,7 +89,7 @@ bool UnifiedAIWorkflow::initialize() {
     precomputeCommonQueries();
 
     // 订阅事件
-    // TODO: EventDrivenIntegration has missing dependencies
+    // EventDrivenIntegration依赖尚未就绪，取消注释即可启用事件订阅
     /*
     auto& eventBus = EventDrivenIntegration::getInstance();
     eventBus.subscribe(EventType::AI_REQUEST_SENT, "UnifiedAIWorkflow",
@@ -314,7 +316,7 @@ RAGContext UnifiedAIWorkflow::buildRAGContext(const std::string& query, int user
                 "SELECT COUNT(*) as cnt FROM paper_embeddings");
             int count = 0;
             if (!existingRows.empty() && existingRows[0].count("cnt")) {
-                try { count = std::stoi(existingRows[0].at("cnt")); } catch (...) {}
+                try { count = std::stoi(existingRows[0].at("cnt")); } catch (...) { spdlog::warn("[UnifiedAIWorkflow] Failed to parse count from cache"); }
             }
             if (count == 0) {
                 spdlog::info("[UnifiedAIWorkflow] Embeddings table empty, indexing papers...");
@@ -536,7 +538,7 @@ std::string UnifiedAIWorkflow::callOpenAIAPI(const std::string& prompt, const st
         throw std::runtime_error("HttpClient not available");
     }
 
-    impl_->httpClient_->setDefaultHeader("Content-Type", "application/json");
+    impl_->httpClient_->setDefaultHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
     impl_->httpClient_->setDefaultHeader("Authorization", "Bearer " + impl_->openaiApiKey_);
 
     auto response = impl_->httpClient_->post(
@@ -544,7 +546,7 @@ std::string UnifiedAIWorkflow::callOpenAIAPI(const std::string& prompt, const st
         jsonBody
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != HTTP::OK) {
         throw std::runtime_error("OpenAI API error: " + response.body);
     }
 
@@ -594,7 +596,7 @@ std::string UnifiedAIWorkflow::callClaudeAPI(const std::string& prompt, const st
         throw std::runtime_error("HttpClient not available");
     }
 
-    impl_->httpClient_->setDefaultHeader("Content-Type", "application/json");
+    impl_->httpClient_->setDefaultHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
     impl_->httpClient_->setDefaultHeader("x-api-key", impl_->claudeApiKey_);
     impl_->httpClient_->setDefaultHeader("anthropic-version", "2023-06-01");
 
@@ -603,7 +605,7 @@ std::string UnifiedAIWorkflow::callClaudeAPI(const std::string& prompt, const st
         jsonBody
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != HTTP::OK) {
         throw std::runtime_error("Claude API error (HTTP " + std::to_string(response.statusCode) + "): " + response.body);
     }
 
@@ -640,13 +642,13 @@ AIResult UnifiedAIWorkflow::callLocalModel(const std::string& prompt) {
             requestBody["max_tokens"] = 2000;
             requestBody["temperature"] = 0.7;
 
-            impl_->httpClient_->setDefaultHeader("Content-Type", "application/json");
+            impl_->httpClient_->setDefaultHeader("Content-Type", HTTP::CONTENT_TYPE_JSON);
             auto response = impl_->httpClient_->post(
                 std::string(localModelUrl) + "/generate",
                 requestBody.dump()
             );
 
-            if (response.statusCode == 200) {
+            if (response.statusCode == HTTP::OK) {
                 auto j = nlohmann::json::parse(response.body);
                 result.success = true;
                 result.content = j.value("content", j.value("response", j.value("text", "")));
@@ -745,18 +747,7 @@ void UnifiedAIWorkflow::precomputeCommonQueries() {
 }
 
 std::string UnifiedAIWorkflow::escapeJson(const std::string& str) {
-    std::string escaped;
-    for (char c : str) {
-        switch (c) {
-            case '"': escaped += "\\\""; break;
-            case '\\': escaped += "\\\\"; break;
-            case '\n': escaped += "\\n"; break;
-            case '\r': escaped += "\\r"; break;
-            case '\t': escaped += "\\t"; break;
-            default: escaped += c; break;
-        }
-    }
-    return escaped;
+    return StringUtil::escapeJson(str);
 }
 
 } // namespace PaperCrawler

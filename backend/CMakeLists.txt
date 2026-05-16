@@ -849,9 +849,9 @@ message(STATUS "")
 #    - TemplateCrawlerModule使用SHARED，因为CrawlerApiModule需要链接它
 # ============================================================================
 
-function(add_dynamic_module MODULE_NAME SOURCES_LIST)
+function(add_dynamic_module MODULE_NAME FIRST_SOURCE)
     # 创建MODULE库
-    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+    add_library(${MODULE_NAME} MODULE ${FIRST_SOURCE} ${ARGN})
 
     # 输出到正确的目录：modules/
     if(WIN32)
@@ -896,8 +896,8 @@ function(add_dynamic_module MODULE_NAME SOURCES_LIST)
 endfunction()
 
 # 辅助函数：编译依赖系统模块的业务模块
-function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
-    add_library(${MODULE_NAME} MODULE ${SOURCES_LIST})
+function(add_dynamic_module_with_system MODULE_NAME FIRST_SOURCE)
+    add_library(${MODULE_NAME} MODULE ${FIRST_SOURCE} ${ARGN})
 
     # 输出到正确的目录：modules/
     if(WIN32)
@@ -916,7 +916,7 @@ function(add_dynamic_module_with_system MODULE_NAME SOURCES_LIST)
         )
     endif()
 
-    target_link_libraries(${MODULE_NAME} PRIVATE SystemModules)
+    target_link_libraries(${MODULE_NAME} PRIVATE SystemModules Router)
 
     target_include_directories(${MODULE_NAME}
         PRIVATE
@@ -985,6 +985,11 @@ add_dynamic_module_with_system(RecommendationApiModule
     src/business/RecommendationApiModule.cpp
 )
 
+# 阶段8b：AiCoPilotModule动态化
+add_dynamic_module_with_system(AiCoPilotModule
+    src/business/AiCoPilotModule.cpp
+)
+
 # 阶段10：CollaborativeWritingModule动态化（NEW - 2026-04-06）
 add_dynamic_module_with_system(CollaborativeWritingModule
     src/business/CollaborativeWritingModule.cpp
@@ -1003,16 +1008,32 @@ elseif(UNIX)
     # 如果需要自定义路径，可以在这里添加
 endif()
 
-# 阶段12：AdminApiModule动态化（NEW - 2026-04-22）
-add_dynamic_module_with_system(AdminApiModule
-    src/business/AdminApiModule.cpp
+# 阶段12：AdminApiModule拆分为4个独立模块（2026-05-02）
+# 原始AdminApiModule保留在源码中但不再编译
+add_dynamic_module_with_system(AdminUserManagementModule
+    src/business/AdminUserManagementModule.cpp
 )
+target_include_directories(AdminUserManagementModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
+add_dynamic_module_with_system(AdminSystemModule
+    src/business/AdminSystemModule.cpp
+)
+target_include_directories(AdminSystemModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
+add_dynamic_module_with_system(AdminAuditModule
+    src/business/AdminAuditModule.cpp
+)
+target_include_directories(AdminAuditModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
+
+add_dynamic_module_with_system(AdminConfigModule
+    src/business/AdminConfigModule.cpp
+)
+target_include_directories(AdminConfigModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
 
 # DashboardApiModule — 仪表盘聚合API（NEW - 2026-05-02）
 add_dynamic_module_with_system(DashboardApiModule
     src/business/DashboardApiModule.cpp
 )
-target_include_directories(AdminApiModule PRIVATE ${EXTERNAL_DIR}/nlohmann)
 
 # 阶段9：分布式爬虫系统（NEW - 2026-04-02）
 # ============================================================================

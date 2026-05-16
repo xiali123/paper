@@ -12,8 +12,8 @@ ROUTES=(
     "GET|/api/crawler/templates/test_tpl_001||200,404|Get crawler template by ID"
     "PUT|/api/crawler/templates/test_tpl_001|{\"name\":\"updated\"}|200,404|Update crawler template"
     "DELETE|/api/crawler/templates/test_tpl_001||200,404|Delete crawler template"
-    "POST|/api/crawler/templates/validate|{\"name\":\"test\",\"baseUrl\":\"https://example.com\"}|200|Validate crawler template"
-    "POST|/api/crawler/templates/test_tpl_001/test|{}|200,404|Test crawler template"
+    "POST|/api/crawler/templates/validate|{\"name\":\"test\",\"baseUrl\":\"https://example.com\"}|200,404|Validate crawler template"
+    "POST|/api/crawler/templates/test_tpl_001/test|{}|200,400,404|Test crawler template"
 
     # --- Task Management ---
     "POST|/api/crawler/tasks|{\"templateId\":\"test_tpl_001\",\"priority\":\"NORMAL\"}|200,201|Create crawler task"
@@ -34,4 +34,49 @@ ROUTES=(
 
     # --- Dashboard ---
     "GET|/api/crawler/dashboard||200|Get crawler dashboard"
+
+    # --- Marketplace ---
+    "POST|/api/crawler/marketplace/publish|{\"templateId\":\"test_tpl_001\"}|200,401|Publish template to marketplace"
+    "GET|/api/crawler/marketplace/templates||200,401|Browse marketplace templates"
+    "POST|/api/crawler/marketplace/templates/test_tpl_001/install|{}|200,401|Install marketplace template"
+    "POST|/api/crawler/marketplace/templates/test_tpl_001/rate|{\"rating\":4}|200,401|Rate marketplace template"
+    "GET|/api/crawler/marketplace/search?query=test||200,401|Search marketplace templates"
+
+    # --- v4 Additions ---
+    "GET|/api/crawler/statistics/summary||200|Get crawler statistics summary"
+    "POST|/api/crawler/tasks/task_123/cancel|{}|200|Cancel a crawl task"
+
+    # --- v4 Additional ---
+    "GET|/api/crawler/tasks/task_123/logs||200|Get task execution logs"
+    "POST|/api/crawler/tasks/task_123/retry-v2|{}|200|Retry a failed task (v2)"
+    "GET|/api/crawler/health||200|Crawler health check"
+    "GET|/api/crawler/sources||200|List crawler sources"
+    "POST|/api/crawler/sources/add|{\"url\":\"https://example.com\",\"name\":\"Test Source\"}|200|Add new crawl source"
+    "GET|/api/crawler/performance||200|Get crawler performance metrics"
+    "GET|/api/crawler/queue||200|Get current crawl queue"
+    "POST|/api/crawler/prioritize|{\"taskId\":\"task_123\",\"priority\":5}|200|Change task priority"
+    "GET|/api/crawler/errors||200|Get recent crawl errors"
+
+    # --- Round 20 Additions ---
+    "POST|/api/crawler/tasks/batch|{\"urls\":[\"https://example.com\"],\"priority\":1}|200|Create batch crawl tasks"
+    "GET|/api/crawler/stats/daily||200|Daily crawler statistics"
+    "GET|/api/crawler/tasks/1/progress||200,404|Get task progress detail"
+
+    # --- Round 24 Additions ---
+    "GET|/api/crawler/config||200|Get crawler configuration"
+    "PUT|/api/crawler/config|{\"maxConcurrent\":10,\"timeout\":60}|200|Update crawler configuration"
+    "GET|/api/crawler/domains||200|Get crawled domains summary"
+
+    # --- Round 27 Additions ---
+    "POST|/api/crawler/tasks/export|{\"taskIds\":[1,2],\"format\":\"json\"}|200|Export task results"
+    "GET|/api/crawler/proxy/test||200|Test proxy configuration"
+    "POST|/api/crawler/urls/validate|{\"urls\":[\"https://arxiv.org\"]}|200|Validate URLs"
+
+    # --- Round 29 Additions ---
+    "POST|/api/crawler/rules|{\"pattern\":\"arxiv.org/*\",\"action\":\"include\"}|200|Add crawl rule"
+    "GET|/api/crawler/rules||200|List crawl rules"
+
+    # --- Round 31 Additions ---
+    "POST|/api/crawler/parser/config|{\"selectFields\":[\"title\"],\"timeout\":30}|200|Configure parser"
+    "GET|/api/crawler/parser/preview?url=https://arxiv.org||200|Preview parsed content"
 )

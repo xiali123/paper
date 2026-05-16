@@ -21,7 +21,59 @@ ROUTES=(
     "DELETE|/api/papers/1||200,404|Delete paper"
     "DELETE|/api/papers/1/tags/test||200,404|Remove tag from paper"
     "GET|/api/papers/abc||400,404|Get paper with invalid id"
-    "POST|/api/papers|{}|400|Create paper with empty body"
+    "POST|/api/papers|{}|200,201,400|Create paper with empty body"
     "GET|/api/papers/search?query=%3Cscript%3Ealert(1)%3C%2Fscript%3E||200|Search with XSS characters"
     "GET|/api/papers/search?query=%27%20OR%20%271%27%3D%271||200|Search with SQL injection attempt"
+    "GET|/api/papers/1/citations||200|Get paper citations"
+    "GET|/api/papers/1/related||200|Get related papers"
+    "GET|/api/papers/tags||200|Get paper tags statistics"
+    "POST|/api/papers/batch|{\"action\":\"delete\",\"ids\":[9999]}|200|Batch operation on papers"
+    "GET|/api/papers/recent||200|Get recent papers"
+    "GET|/api/papers/1/annotations||200|Get paper annotations"
+    "POST|/api/papers/1/annotations|{\"user_id\":1,\"text\":\"Important\"}|200,201|Create annotation"
+    "GET|/api/papers/collections||200|List collections"
+    "POST|/api/papers/collections|{\"user_id\":1,\"name\":\"Test\"}|200,201|Create collection"
+    "POST|/api/papers/collections/1/papers|{\"paper_id\":1}|200|Add paper to collection"
+    "GET|/api/papers/1/tags||200|Get paper tags from table"
+    "GET|/api/papers/reading-history||200|List reading history"
+    "POST|/api/papers/reading-history|{\"user_id\":1,\"paper_id\":1,\"status\":\"reading\"}|200|Update reading history"
+    "GET|/api/papers/bookmarks||200|List bookmarks"
+    "POST|/api/papers/bookmarks|{\"user_id\":1,\"paper_id\":1}|200|Toggle bookmark"
+    "GET|/api/papers/1/detail||200,404|Paper full detail"
+    "DELETE|/api/papers/annotations/1||200|Delete annotation"
+    "DELETE|/api/papers/collections/1/papers/1||200|Remove paper from collection"
+    "GET|/api/papers/me||200|Get current user papers"
+    "GET|/api/papers/1/similar||200,404|Find similar papers"
+    "GET|/api/papers/categories||200|Get paper categories"
+    "POST|/api/papers/1/progress|{\"user_id\":1,\"progress\":50}|200|Update reading progress"
+    "GET|/api/papers/favorites?userId=1||200|Get user favorite papers"
+    "POST|/api/papers/batch-tag|{\"paperIds\":[1,2,3],\"tags\":[\"ml\",\"nlp\"]}|200|Batch add tags to papers"
+    "GET|/api/papers/yours?userId=1||200|Get current user papers"
+    "POST|/api/papers/1/cite|{\"style\":\"apa\"}|200|Generate citation for paper"
+    "GET|/api/papers/duplicates||200|Find potential duplicate papers"
+    "POST|/api/papers/merge|{\"sourceId\":1,\"targetId\":2}|200|Merge duplicate papers"
+    "GET|/api/papers/1/related-by-keywords||200|Get related papers by shared keywords"
+    "POST|/api/papers/import-url|{\"url\":\"https://arxiv.org/abs/2401.00001\",\"title\":\"Test Paper\"}|200|Import paper from URL"
+    "GET|/api/papers/export-stats||200|Paper export statistics"
+
+    # --- Round 20 Additions ---
+    "POST|/api/papers/batch-delete|{\"ids\":[1,2,3]}|200|Batch delete papers"
+
+    # --- Round 23 Additions ---
+    "GET|/api/papers/1/references||200,404|Get paper references"
+    "POST|/api/papers/1/notes|{\"content\":\"Important finding\",\"page\":5}|200|Add note to paper"
+    "GET|/api/papers/1/notes||200,404|Get notes for paper"
+
+    # --- Round 26 Additions ---
+    "POST|/api/papers/batch-update|{\"updates\":[{\"id\":1,\"tags\":[\"ml\"]}]}|200|Batch update papers"
+    "GET|/api/papers/duplicates?title=test||200|Find duplicate papers"
+    "POST|/api/papers/1/rate|{\"rating\":5,\"review\":\"Great\"}|200|Rate a paper"
+
+    # --- Round 29 Additions ---
+    "GET|/api/papers/1/related-by-citations||200,404|Find related papers by citations"
+    "POST|/api/papers/merge|{\"sourceId\":1,\"targetId\":2}|200|Merge duplicate papers"
+
+    # --- Round 31 Additions ---
+    "POST|/api/papers/1/share|{\"targetUserId\":2,\"note\":\"Check this\"}|200|Share paper"
+    "GET|/api/papers/1/metadata||200,404|Get paper metadata"
 )

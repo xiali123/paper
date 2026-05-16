@@ -20,4 +20,50 @@ ROUTES=(
     "POST|/api/auth/register|{\"username\":\"weak\",\"password\":\"123\",\"email\":\"w@w.com\"}|400|Register with weak password"
     "POST|/api/auth/login|{\"username\":\"nonexistent_user_xyz\",\"password\":\"wrong\"}|401|Login with non-existent user"
     "POST|/api/auth/register|{\"username\":\"testuser\",\"password\":\"Pass1234\",\"email\":\"test@test.com\"}|200,201,409|Register duplicate user"
+    "GET|/api/auth/profile||200,401|Get user profile (no auth=401)"
+    "PUT|/api/auth/profile|{\"full_name\":\"Test User\"}|200,401|Update profile (no auth=401)"
+    "POST|/api/auth/forgot-password|{\"email\":\"test@test.com\"}|200|Forgot password request"
+    "POST|/api/auth/deactivate|{\"user_id\":\"1\"}|200|Deactivate account"
+    "POST|/api/auth/reactivate|{\"user_id\":\"1\"}|200|Reactivate account"
+    "POST|/api/auth/avatar|{\"user_id\":1,\"url\":\"/avatars/test.png\"}|200|Upload avatar"
+    "DELETE|/api/auth/avatar|{\"user_id\":1}|200|Remove avatar"
+    "GET|/api/auth/security-log||200|Get security log"
+    "POST|/api/auth/two-factor/enable|{\"userId\":\"1\",\"method\":\"totp\"}|200|Enable two-factor auth"
+    "POST|/api/auth/two-factor/verify|{\"userId\":\"1\",\"code\":\"123456\"}|200|Verify two-factor code"
+    "POST|/api/auth/email-verify|{\"email\":\"test@test.com\"}|200|Send email verification"
+    "POST|/api/auth/email-verify/confirm|{\"token\":\"verify_token_123\"}|200|Confirm email with token"
+    "GET|/api/auth/permissions||200|Get user permissions"
+    "PUT|/api/auth/security|{\"userId\":1,\"twoFactorEnabled\":true,\"loginNotifications\":true,\"sessionTimeout\":30}|200|Update security settings"
+    "GET|/api/auth/security||200|Get security settings"
+    "POST|/api/auth/impersonate|{\"adminUserId\":\"1\",\"targetUserId\":\"2\"}|200,403|Admin impersonation"
+    "POST|/api/auth/verify-email|{\"email\":\"test@test.com\",\"code\":\"123456\"}|200,400|Verify email with code"
+    "GET|/api/auth/login-history||200|Get recent login history"
+    "POST|/api/auth/change-email|{\"userId\":\"1\",\"newEmail\":\"new@test.com\",\"password\":\"Pass1234\"}|200,400,404|Change user email"
+
+    # New Auth routes (v3)
+    "GET|/api/auth/sessions/active||200|Get active sessions"
+    "POST|/api/auth/logout-all|{\"userId\":\"1\",\"keepCurrent\":true}|200|Logout all other sessions"
+    "POST|/api/auth/api-key|{\"userId\":\"1\",\"name\":\"My API Key\",\"permissions\":[\"read\"]}|200|Generate API key"
+
+    # --- Round 21 Additions ---
+    "POST|/api/auth/password-reset/request|{\"email\":\"test@test.com\"}|200|Request password reset"
+    "POST|/api/auth/password-reset/confirm|{\"token\":\"abc123\",\"newPassword\":\"newpass\"}|200|Confirm password reset"
+    "GET|/api/auth/sessions/1||200,404|Get session details"
+
+    # --- Round 24 Additions ---
+    "GET|/api/auth/oauth/providers||200|List OAuth providers"
+    "POST|/api/auth/oauth/callback|{\"provider\":\"google\",\"code\":\"abc\"}|200|Handle OAuth callback"
+    "POST|/api/auth/mfa/setup|{\"userId\":1,\"method\":\"totp\"}|200|Setup MFA"
+
+    # --- Round 27 Additions ---
+    "POST|/api/auth/verify-token|{\"token\":\"abc123\"}|200|Verify token validity"
+    "GET|/api/auth/rate-limits||200|Get auth rate limits"
+
+    # --- Round 29 Additions ---
+    "POST|/api/auth/device/register|{\"deviceName\":\"My Laptop\",\"deviceType\":\"laptop\"}|200|Register device"
+    "GET|/api/auth/devices||200|List trusted devices"
+
+    # --- Round 31 Additions ---
+    "POST|/api/auth/token/refresh|{\"refreshToken\":\"rt_abc\"}|200|Refresh auth token"
+    "GET|/api/auth/permissions/list||200|List all permissions"
 )

@@ -56,6 +56,10 @@ private:
     std::string handleRefresh();
     std::string handleGetConfig();
     std::string handleUpdateConfig(const std::string& body);
+    std::string handleCreateTodo(const std::string& body);
+    std::string handleDeleteTodo(const std::string& id);
+    std::string handleActivities(const std::map<std::string, std::string>& params);
+    std::string handleTrendingPapers(const std::map<std::string, std::string>& params);
 
     // 辅助
     std::string getQueryParam(const HttpRequest& req, const std::string& key, const std::string& defaultVal) const;

@@ -41,6 +41,7 @@
 #include "core/ConfigManager.hpp"
 #include "core/ServiceContainer.hpp"
 #include "core/SharedBroadcastQueue.hpp"  // ⭐ 新增：共享内存广播队列
+#include "features/security/SecurityModule.hpp"
 
 // 网络模块
 #include "network/HttpServerModule.hpp"
@@ -93,6 +94,18 @@ void setupSignalHandlers() {
 void registerManagementAPIs() {
     auto& router = Router::getInstance();
     auto& loader = ModuleLoader::getInstance();
+
+    // Hash round-trip verification endpoint
+    router.get("/api/debug/hash-test", [](const HttpRequest& req) {
+        SecurityModule sec;
+        auto hashResult = sec.hashPassword("Test1234");
+        if (!hashResult.success) {
+            return HttpResponse::json(500, "{\"error\":\"hash failed\"}");
+        }
+        bool verified = sec.verifyPassword("Test1234", hashResult.hash);
+        std::string msg = verified ? "PASS" : "FAIL";
+        return HttpResponse::json(200, "{\"result\":\"" + msg + "\"}");
+    });
 
     // 模块列表API
     router.get("/api/modules", [&loader](const HttpRequest& req) {

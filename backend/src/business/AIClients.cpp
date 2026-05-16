@@ -1,5 +1,6 @@
 #include "business/AIClients.hpp"
 #include "common/JsonUtils.hpp"
+#include "core/HttpStatus.hpp"
 #include "modules/LoggingModule.hpp"
 #include <sstream>
 #include <regex>
@@ -44,7 +45,7 @@ std::string OpenAIClient::chatCompletion(
 
     // 构建请求头
     std::map<std::string, std::string> headers;
-    headers["Content-Type"] = "application/json";
+    headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
     headers["Authorization"] = "Bearer " + apiKey_;
 
     // 发送HTTP POST请求
@@ -54,7 +55,7 @@ std::string OpenAIClient::chatCompletion(
         headers
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != HTTP::OK) {
         throw std::runtime_error("OpenAI API error: " + response.body);
     }
 
@@ -123,10 +124,10 @@ void OpenAIClient::streamChatCompletion(
 
     // 构建请求头
     std::map<std::string, std::string> headers;
-    headers["Content-Type"] = "application/json";
+    headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
     headers["Authorization"] = "Bearer " + apiKey_;
 
-    // 发送流式请求（TODO: 需要HttpClient支持SSE）
+    // 发送流式请求（需HttpClient支持SSE，当前使用非流式API替代）
     // 简化实现：使用非流式API
     std::string response = chatCompletion(model, messages, temperature, maxTokens);
     callback(response);
@@ -182,7 +183,7 @@ std::string ClaudeClient::sendMessage(
 
     // 构建请求头
     std::map<std::string, std::string> headers;
-    headers["Content-Type"] = "application/json";
+    headers["Content-Type"] = HTTP::CONTENT_TYPE_JSON;
     headers["x-api-key"] = apiKey_;
     headers["anthropic-version"] = "2023-06-01";
 
@@ -193,7 +194,7 @@ std::string ClaudeClient::sendMessage(
         headers
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != HTTP::OK) {
         throw std::runtime_error("Claude API error: " + response.body);
     }
 
@@ -220,7 +221,7 @@ LocalLLMClient::LocalLLMClient(const std::string& modelPath)
     httpClient_ = Services::resolve<Network::HttpClient>();
 
     // 检查本地模型是否可用
-    // TODO: 实现真实的本地模型检测
+    // 检查本地模型是否可用（当前为占位，需实现真实的模型检测逻辑）
     available_ = true; // 占位符
 }
 
@@ -253,7 +254,7 @@ std::string LocalLLMClient::generate(
         requestBody
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != HTTP::OK) {
         throw std::runtime_error("Local LLM error: " + response.body);
     }
 

@@ -148,19 +148,24 @@ public:
 
 private:
     std::vector<PaperDto> getUserPapers(int userId) {
-        std::ostringstream sql;
-        sql << "SELECT p.* FROM papers p "
-             << "JOIN user_papers up ON p.id = up.paper_id "
-             << "WHERE up.user_id = " << userId;
+        try {
+            std::ostringstream sql;
+            sql << "SELECT p.* FROM papers p "
+                 << "JOIN user_papers up ON p.id = up.paper_id "
+                 << "WHERE up.user_id = " << userId;
 
-        auto results = database_->query(sql.str());
+            auto results = database_->query(sql.str());
 
-        std::vector<PaperDto> papers;
-        for (const auto& row : results) {
-            papers.push_back(PaperDto::fromRow(row));
+            std::vector<PaperDto> papers;
+            for (const auto& row : results) {
+                papers.push_back(PaperDto::fromRow(row));
+            }
+
+            return papers;
+        } catch (const std::exception& e) {
+            spdlog::error("[ResearchIntel] getUserPapers failed: {}", e.what());
+            return {};
         }
-
-        return papers;
     }
 
     double calculateHIndex(const std::vector<PaperDto>& papers) {
