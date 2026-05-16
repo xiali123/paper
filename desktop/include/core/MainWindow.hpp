@@ -790,6 +790,11 @@ class PaperReadingHeatmap2;
 class PaperBeeswarmChart2;
 class PaperCollaborationHub2;
 class PaperRateLimiter2;
+class PaperContradictionMap;
+class PaperReadingScorecard2;
+class PaperContourPlot2;
+class PaperExperimentLog2;
+class PaperLoadBalancer;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

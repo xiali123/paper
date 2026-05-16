@@ -787,6 +787,11 @@
 #include "visualization/PaperBeeswarmChart2.hpp"
 #include "workspace/PaperCollaborationHub2.hpp"
 #include "tools/PaperRateLimiter2.hpp"
+#include "analysis/PaperContradictionMap.hpp"
+#include "reading/PaperReadingScorecard2.hpp"
+#include "visualization/PaperContourPlot2.hpp"
+#include "workspace/PaperExperimentLog2.hpp"
+#include "tools/PaperLoadBalancer.hpp"
 #include <QTimer>
 #include <QCloseEvent>
 #include <QResizeEvent>
@@ -11705,6 +11710,57 @@ void MainWindow::createMenus() {
         dlg->deleteLater();
     });
 
+    toolsMenu->addAction("Contradiction Map", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contradiction Map");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContradictionMap();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Reading Scorecard", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Reading Scorecard");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperReadingScorecard2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Contour Plot", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Contour Plot");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperContourPlot2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Experiment Log", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Experiment Log");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperExperimentLog2();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+    toolsMenu->addAction("Load Balancer", this, [this]() {
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle("Load Balancer");
+        dlg->setMinimumSize(600, 500);
+        auto* layout = new QVBoxLayout(dlg);
+        auto* w = new PaperLoadBalancer();
+        layout->addWidget(w);
+        dlg->exec();
+        dlg->deleteLater();
+    });
+
     // Help menu
     connect(aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
 }
@@ -14222,6 +14278,21 @@ void MainWindow::connectSignals() {
     });
     commandPalette_->addAction("Rate Limiter", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Rate Limiter");
+    });
+    commandPalette_->addAction("Contradiction Map", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contradiction Map");
+    });
+    commandPalette_->addAction("Reading Scorecard", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Reading Scorecard");
+    });
+    commandPalette_->addAction("Contour Plot", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Contour Plot");
+    });
+    commandPalette_->addAction("Experiment Log", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Experiment Log");
+    });
+    commandPalette_->addAction("Load Balancer", "", "Tools", [this]() {
+        ToastWidget::showInfo("Open Tools > Load Balancer");
     });
     commandPalette_->addAction("Reading Lists", "", "Tools", [this]() {
         ToastWidget::showInfo("Open Tools > Reading Lists");
