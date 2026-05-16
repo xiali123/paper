@@ -15,6 +15,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <algorithm>
 #include "data/ValidationHelper.hpp"
 #include "data/PreparedStatement.hpp"
 
@@ -124,13 +125,17 @@ void DashboardApiModule::registerRoutes() {
 
     // 3. GET /recommendations/papers
     router.get(prefix + "/recommendations/papers", [this](const HttpRequest& req) {
-        int limit = std::stoi(getQueryParam(req, "limit", "5"));
+        int limit = 5;
+        try { limit = std::stoi(getQueryParam(req, "limit", "5")); } catch (...) { limit = 5; }
+        if (limit <= 0) limit = 5;
         return makeJsonResponse(HTTP::OK, handleRecommendations(limit));
     });
 
     // 4. GET /trending/searches
     router.get(prefix + "/trending/searches", [this](const HttpRequest& req) {
-        int limit = std::stoi(getQueryParam(req, "limit", "10"));
+        int limit = 10;
+        try { limit = std::stoi(getQueryParam(req, "limit", "10")); } catch (...) { limit = 10; }
+        if (limit <= 0) limit = 10;
         return makeJsonResponse(HTTP::OK, handleTrendingSearches(limit));
     });
 
@@ -152,7 +157,9 @@ void DashboardApiModule::registerRoutes() {
 
     // 8. GET /growth
     router.get(prefix + "/growth", [this](const HttpRequest& req) {
-        int days = std::stoi(getQueryParam(req, "days", "30"));
+        int days = 30;
+        try { days = std::stoi(getQueryParam(req, "days", "30")); } catch (...) { days = 30; }
+        if (days <= 0) days = 30;
         return makeJsonResponse(HTTP::OK, handleGrowth(days));
     });
 
@@ -208,6 +215,9 @@ void DashboardApiModule::registerRoutes() {
     router.put(prefix + "/todos/:id", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string id = req.pathParams.at("id");
+            if (id.empty() || !std::all_of(id.begin(), id.end(), ::isdigit)) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"success\":false,\"error\":\"Invalid ID\"}");
+            }
             auto json = nlohmann::json::parse(req.body);
             std::string title = json.value("title", "");
             std::string priority = json.value("priority", "");
@@ -244,7 +254,9 @@ void DashboardApiModule::registerRoutes() {
 
         if (database_) {
             try {
-                int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 20;
+                int limit = 20;
+                try { if (req.queryParams.count("limit")) limit = std::stoi(req.queryParams.at("limit")); } catch (...) { limit = 20; }
+                if (limit <= 0) limit = 20;
                 auto results = database_->query(
                     "SELECT id, type, title, message, is_read, created_at FROM notifications "
                     "ORDER BY created_at DESC LIMIT " + std::to_string(limit));
@@ -333,7 +345,9 @@ void DashboardApiModule::registerRoutes() {
 
         if (database_) {
             try {
-                int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 10;
+                int limit = 10;
+                try { if (req.queryParams.count("limit")) limit = std::stoi(req.queryParams.at("limit")); } catch (...) { limit = 10; }
+                if (limit <= 0) limit = 10;
                 auto results = database_->query(
                     "SELECT id, title, authors, citation_count, year FROM papers "
                     "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));
@@ -1030,7 +1044,6 @@ void DashboardApiModule::registerRoutes() {
                     nlohmann::json arr = nlohmann::json::array();
                     int currentStreak = 0;
                     int longestStreak = 0;
-                    int tempStreak = 0;
                     std::string prevDate;
 
                     for (auto& row : results) {
@@ -1041,16 +1054,36 @@ void DashboardApiModule::registerRoutes() {
                     }
 
                     // Calculate streaks from consecutive dates
+                    // Parse YYYY-MM-DD and check if difference is exactly 1 day
+                    auto parseYMD = [](const std::string& s) -> int {
+                        if (s.size() < 10) return 0;
+                        try {
+                            int y = std::stoi(s.substr(0, 4));
+                            int m = std::stoi(s.substr(5, 2));
+                            int d = std::stoi(s.substr(8, 2));
+                            // Approximate day-of-year for comparison (good enough for streaks)
+                            return y * 366 + m * 31 + d;
+                        } catch (...) { return 0; }
+                    };
+
+                    int tempStreak = 0;
                     for (size_t i = 0; i < arr.size(); ++i) {
-                        tempStreak++;
-                        if (i + 1 < arr.size()) {
-                            // Check if next date is consecutive (simple check)
-                            if (tempStreak > longestStreak) longestStreak = tempStreak;
+                        std::string dateStr = arr[i].value("date", "");
+                        int dateVal = parseYMD(dateStr);
+                        int prevVal = parseYMD(prevDate);
+                        if (prevDate.empty() || (prevVal > 0 && dateVal > 0 && prevVal - dateVal == 1)) {
+                            tempStreak++;
                         } else {
-                            if (tempStreak > longestStreak) longestStreak = tempStreak;
-                            currentStreak = tempStreak;
+                            tempStreak = 1;
                         }
+                        longestStreak = std::max(longestStreak, tempStreak);
+                        if (i == 0) currentStreak = 1;
+                        else if (prevVal > 0 && dateVal > 0 && prevVal - dateVal == 1) currentStreak++;
+                        else currentStreak = 0;
+                        prevDate = dateStr;
                     }
+                    // If loop ran at least once, currentStreak equals tempStreak from last consecutive run
+                    currentStreak = tempStreak;
 
                     resp["currentStreak"] = currentStreak;
                     resp["longestStreak"] = longestStreak;
@@ -1447,7 +1480,9 @@ void DashboardApiModule::registerRoutes() {
     // GET /api/dashboard/search-history/timeline — Get search history as timeline
     router.get(prefix + "/search-history/timeline", [this](const HttpRequest& req) -> HttpResponse {
         try {
-            int days = std::stoi(getQueryParam(req, "days", "30"));
+            int days = 30;
+            try { days = std::stoi(getQueryParam(req, "days", "30")); } catch (...) { days = 30; }
+            if (days <= 0) days = 30;
             std::string groupBy = getQueryParam(req, "groupBy", "day");
             if (groupBy != "day" && groupBy != "week" && groupBy != "month") {
                 groupBy = "day";
@@ -1599,7 +1634,9 @@ void DashboardApiModule::registerRoutes() {
     // GET /api/dashboard/papers/favorites — Get favorite/bookmarked papers
     router.get(prefix + "/papers/favorites", [this](const HttpRequest& req) -> HttpResponse {
         try {
-            int limit = std::stoi(getQueryParam(req, "limit", "10"));
+            int limit = 10;
+            try { limit = std::stoi(getQueryParam(req, "limit", "10")); } catch (...) { limit = 10; }
+            if (limit <= 0) limit = 10;
             std::string sort = getQueryParam(req, "sort", "date");
             if (sort != "date" && sort != "title" && sort != "citations") {
                 sort = "date";
@@ -1737,7 +1774,9 @@ void DashboardApiModule::registerRoutes() {
     // GET /api/dashboard/papers/recently-viewed — Get recently viewed papers
     router.get(prefix + "/papers/recently-viewed", [this](const HttpRequest& req) -> HttpResponse {
         try {
-            int limit = std::stoi(getQueryParam(req, "limit", "10"));
+            int limit = 10;
+            try { limit = std::stoi(getQueryParam(req, "limit", "10")); } catch (...) { limit = 10; }
+            if (limit <= 0) limit = 10;
 
             nlohmann::json papers = nlohmann::json::array();
             int total = 0;
@@ -2040,7 +2079,8 @@ void DashboardApiModule::registerRoutes() {
     // GET /api/dashboard/search-history/frequent — Get most frequent search queries
     router.get(prefix + "/search-history/frequent", [this](const HttpRequest& req) -> HttpResponse {
         try {
-            int limit = std::stoi(getQueryParam(req, "limit", "10"));
+            int limit = 10;
+            try { limit = std::stoi(getQueryParam(req, "limit", "10")); } catch (...) { limit = 10; }
             if (limit <= 0) limit = 10;
             if (limit > 100) limit = 100;
             std::string period = getQueryParam(req, "period", "month");
@@ -2802,7 +2842,7 @@ void DashboardApiModule::registerRoutes() {
 
             if (database_) {
                 try {
-                    std::string sql = "UPDATE dashboard_config SET value='" + StringUtil::escapeSql(body.dump()) + "' WHERE key='layout'";
+                    std::string sql = "UPDATE dashboard_config SET value='" + StringUtil::escapeSql(body.dump()) + "' WHERE `key`='layout'";
                     database_->execute(sql);
                 } catch (const std::exception& e) {
                     spdlog::warn("[DashboardApi] Layout config DB update failed: {}", e.what());
@@ -3607,7 +3647,7 @@ void DashboardApiModule::registerRoutes() {
             int limit = 5;
             auto it = req.queryParams.find("limit");
             if (it != req.queryParams.end()) {
-                limit = std::stoi(it->second);
+                try { limit = std::stoi(it->second); } catch (...) { limit = 5; }
                 if (limit < 1) limit = 5;
                 if (limit > 50) limit = 50;
             }
@@ -3708,7 +3748,7 @@ void DashboardApiModule::registerRoutes() {
             int days = 30;
             auto it = req.queryParams.find("days");
             if (it != req.queryParams.end()) {
-                days = std::stoi(it->second);
+                try { days = std::stoi(it->second); } catch (...) { days = 30; }
                 if (days < 1) days = 30;
                 if (days > 365) days = 365;
             }
@@ -3766,7 +3806,7 @@ void DashboardApiModule::registerRoutes() {
             int limit = 10;
             auto it = req.queryParams.find("limit");
             if (it != req.queryParams.end()) {
-                limit = std::stoi(it->second);
+                try { limit = std::stoi(it->second); } catch (...) { limit = 10; }
                 if (limit < 1) limit = 10;
                 if (limit > 100) limit = 100;
             }
@@ -3825,7 +3865,7 @@ void DashboardApiModule::registerRoutes() {
             int limit = 10;
             auto it = req.queryParams.find("limit");
             if (it != req.queryParams.end()) {
-                limit = std::stoi(it->second);
+                try { limit = std::stoi(it->second); } catch (...) { limit = 10; }
                 if (limit < 1) limit = 10;
                 if (limit > 100) limit = 100;
             }
@@ -3941,7 +3981,8 @@ void DashboardApiModule::registerRoutes() {
         try {
             std::string limitStr;
             for (const auto& qp : req.queryParams) { if (qp.first == "limit") limitStr = qp.second; }
-            int limit = limitStr.empty() ? 10 : std::stoi(limitStr);
+            int limit = 10;
+            if (!limitStr.empty()) { try { limit = std::stoi(limitStr); } catch (...) { limit = 10; } }
             if (limit <= 0) limit = 10;
 
             nlohmann::json sessions = nlohmann::json::array();
@@ -4036,7 +4077,7 @@ void DashboardApiModule::registerRoutes() {
                 params[k] = v;
             }
 
-            int days = params.count("days") ? std::stoi(params["days"]) : 30;
+            int days = 30; try { if (params.count("days")) days = std::stoi(params["days"]); } catch (...) { days = 30; }
 
             nlohmann::json resp;
             resp["totalSessions"] = 0;
@@ -4050,7 +4091,7 @@ void DashboardApiModule::registerRoutes() {
                     auto stats = database_->query(
                         "SELECT COUNT(*) as total_sessions, COALESCE(SUM(duration_minutes),0) as total_minutes, "
                         "COUNT(DISTINCT paper_id) as papers_read "
-                        "FROM reading_sessions WHERE start_time >= DATE('now', '-" + std::to_string(days) + " days')");
+                        "FROM reading_sessions WHERE start_time >= DATE_SUB(NOW(), INTERVAL " + std::to_string(days) + " DAY)");
 
                     if (!stats.empty()) {
                         const auto& row = stats[0];
@@ -4131,7 +4172,7 @@ void DashboardApiModule::registerRoutes() {
         try {
             std::unordered_map<std::string, std::string> params;
             for (auto& [k, v] : req.queryParams) params[k] = v;
-            int limit = params.count("limit") ? std::stoi(params.at("limit")) : 10;
+            int limit = 10; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 10; }
 
             nlohmann::json resp;
             if (database_) {
@@ -4218,7 +4259,7 @@ void DashboardApiModule::registerRoutes() {
         try {
             int limit = 10;
             for (auto& [k, v] : req.queryParams) {
-                if (k == "limit") limit = std::stoi(v);
+                if (k == "limit") { try { limit = std::stoi(v); } catch (...) {} }
             }
             if (limit <= 0 || limit > 100) limit = 10;
 
@@ -4306,7 +4347,7 @@ void DashboardApiModule::registerRoutes() {
             std::map<std::string, std::string> params;
             for (auto& [k, v] : req.queryParams) params[k] = v;
 
-            int limit = params.count("limit") ? std::stoi(params.at("limit")) : 20;
+            int limit = 20; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 20; }
             std::string targetType = params.count("targetType") ? params.at("targetType") : "";
 
             nlohmann::json resp;
@@ -4433,7 +4474,7 @@ void DashboardApiModule::registerRoutes() {
             std::map<std::string, std::string> params;
             for (auto& [k, v] : req.queryParams) params[k] = v;
 
-            int days = params.count("days") ? std::stoi(params.at("days")) : 30;
+            int days = 30; try { if (params.count("days")) days = std::stoi(params.at("days")); } catch (...) { days = 30; }
 
             nlohmann::json resp;
             resp["totalSessions"] = 0;
@@ -4451,7 +4492,7 @@ void DashboardApiModule::registerRoutes() {
                         "COALESCE(AVG(duration_minutes), 0) AS avg_minutes, "
                         "COUNT(DISTINCT paper_id) AS papers_read "
                         "FROM reading_sessions "
-                        "WHERE created_at >= DATE('now', '-" + std::to_string(days) + " days')";
+                        "WHERE created_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(days) + " DAY)";
 
                     auto results = database_->query(sql);
                     if (!results.empty()) {
@@ -4480,7 +4521,7 @@ void DashboardApiModule::registerRoutes() {
             std::map<std::string, std::string> params;
             for (auto& [k, v] : req.queryParams) params[k] = v;
 
-            int weeksBack = params.count("weeks") ? std::stoi(params.at("weeks")) : 1;
+            int weeksBack = 1; try { if (params.count("weeks")) weeksBack = std::stoi(params.at("weeks")); } catch (...) { weeksBack = 1; }
 
             auto now = std::chrono::system_clock::now();
             auto time_t_now = std::chrono::system_clock::to_time_t(now);
@@ -4502,7 +4543,7 @@ void DashboardApiModule::registerRoutes() {
                         "SELECT COUNT(DISTINCT paper_id) AS papers_read, "
                         "COALESCE(SUM(duration_minutes), 0) AS total_minutes "
                         "FROM reading_sessions "
-                        "WHERE created_at >= DATE('now', '-" + std::to_string(daysRange) + " days')";
+                        "WHERE created_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(daysRange) + " DAY)";
 
                     auto results = database_->query(sql);
                     if (!results.empty()) {
@@ -4579,7 +4620,7 @@ void DashboardApiModule::registerRoutes() {
             std::map<std::string, std::string> params;
             for (auto& [k, v] : req.queryParams) params[k] = v;
 
-            int limit = params.count("limit") ? std::stoi(params.at("limit")) : 10;
+            int limit = 10; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 10; }
 
             nlohmann::json resp;
             resp["goals"] = nlohmann::json::array();
@@ -4675,7 +4716,7 @@ void DashboardApiModule::registerRoutes() {
         try {
             int limit = 10;
             for (auto& [k, v] : req.queryParams) {
-                if (k == "limit") limit = std::stoi(v);
+                if (k == "limit") { try { limit = std::stoi(v); } catch (...) {} }
             }
 
             nlohmann::json resp;
@@ -4985,7 +5026,7 @@ void DashboardApiModule::registerRoutes() {
         try {
             std::map<std::string, std::string> params;
             for (auto& [k, v] : req.queryParams) params[k] = v;
-            int limit = params.count("limit") ? std::stoi(params.at("limit")) : 10;
+            int limit = 10; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 10; }
 
             nlohmann::json milestones = nlohmann::json::array();
 
@@ -5069,7 +5110,7 @@ void DashboardApiModule::registerRoutes() {
         try {
             std::map<std::string, std::string> params;
             for (auto& [k, v] : req.queryParams) params[k] = v;
-            int limit = params.count("limit") ? std::stoi(params.at("limit")) : 10;
+            int limit = 10; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 10; }
 
             nlohmann::json badges = nlohmann::json::array();
 
@@ -6718,7 +6759,8 @@ void DashboardApiModule::registerRoutes() {
     router.get(prefix + "/reading/engagement-score", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string daysStr = getQueryParam(req, "days", "30");
-            int days = std::stoi(daysStr);
+            int days = 30;
+            try { days = std::stoi(daysStr); } catch (...) { days = 30; }
 
             nlohmann::json resp;
             resp["score"] = 0.0;
@@ -6886,7 +6928,7 @@ void DashboardApiModule::registerRoutes() {
             int limit = 20;
             auto it = req.queryParams.find("limit");
             if (it != req.queryParams.end()) {
-                limit = std::stoi(it->second);
+                try { limit = std::stoi(it->second); } catch (...) { limit = 20; }
                 if (limit < 1) limit = 20;
                 if (limit > 100) limit = 100;
             }
@@ -7557,8 +7599,8 @@ void DashboardApiModule::registerRoutes() {
             for (const auto& [k, v] : req.queryParams) {
                 params[k] = v;
             }
-            int days = params.count("days") ? std::stoi(params.at("days")) : 30;
-            int limit = params.count("limit") ? std::stoi(params.at("limit")) : 10;
+            int days = 30; try { if (params.count("days")) days = std::stoi(params.at("days")); } catch (...) { days = 30; }
+            int limit = 10; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 10; }
 
             nlohmann::json resp;
             resp["disciplines"] = nlohmann::json::array();
@@ -7711,7 +7753,7 @@ void DashboardApiModule::registerRoutes() {
             for (const auto& [k, v] : req.queryParams) {
                 params[k] = v;
             }
-            int days = params.count("days") ? std::stoi(params.at("days")) : 30;
+            int days = 30; try { if (params.count("days")) days = std::stoi(params.at("days")); } catch (...) { days = 30; }
 
             nlohmann::json resp;
             resp["flowBlocks"] = nlohmann::json::array();
@@ -8704,7 +8746,7 @@ void DashboardApiModule::registerRoutes() {
                     auto topicRows = database_->query(
                         "SELECT t.topic, COUNT(r.id) as read_count FROM topics t "
                         "JOIN reading_history r ON r.topic_id = t.id "
-                        "WHERE r.read_at >= DATE('now', '-" + std::to_string(days) + " days') "
+                        "WHERE r.read_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(days) + " DAY) "
                         "GROUP BY t.topic ORDER BY read_count DESC LIMIT " + std::to_string(topics));
 
                     for (const auto& row : topicRows) {
@@ -8727,8 +8769,8 @@ void DashboardApiModule::registerRoutes() {
                                         "JOIN topics t2 ON r2.topic_id = t2.id "
                                         "WHERE t1.topic = '" + StringUtil::escapeSql(topicsArr[i].get<std::string>()) + "' "
                                         "AND t2.topic = '" + StringUtil::escapeSql(topicsArr[j].get<std::string>()) + "' "
-                                        "AND r1.read_at >= DATE('now', '-" + std::to_string(days) + " days') "
-                                        "AND r2.read_at >= DATE('now', '-" + std::to_string(days) + " days')");
+                                        "AND r1.read_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(days) + " DAY) "
+                                        "AND r2.read_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(days) + " DAY)");
                                     double corr = corrRows.empty() ? 0.0 :
                                         std::min(1.0, std::stod(StringUtil::getRowStr(corrRows[0], "co_read", "0")) / 10.0);
                                     row.push_back(std::round(corr * 100.0) / 100.0);
@@ -9077,7 +9119,7 @@ void DashboardApiModule::registerRoutes() {
 
             int limit = 10;
             for (const auto& [k, v] : req.queryParams) {
-                if (k == "limit") limit = std::stoi(v);
+                if (k == "limit") { try { limit = std::stoi(v); } catch (...) {} }
             }
 
             nlohmann::json metrics = nlohmann::json::array();
@@ -9218,7 +9260,7 @@ void DashboardApiModule::registerRoutes() {
             int ehLimit = 20;
             std::string ehFormat;
             for (const auto& [k, v] : req.queryParams) {
-                if (k == "limit") ehLimit = std::stoi(v);
+                if (k == "limit") { try { ehLimit = std::stoi(v); } catch (...) {} }
                 if (k == "format") ehFormat = v;
             }
 
@@ -9337,7 +9379,7 @@ void DashboardApiModule::registerRoutes() {
             int pmLimit = 20;
             for (const auto& [k, v] : req.queryParams) {
                 if (k == "period") pmPeriod = v;
-                if (k == "limit") pmLimit = std::stoi(v);
+                if (k == "limit") { try { pmLimit = std::stoi(v); } catch (...) {} }
             }
 
             auto now = std::chrono::system_clock::now();
@@ -10030,7 +10072,7 @@ void DashboardApiModule::registerRoutes() {
         try {
             int limit = 20;
             for (const auto& [k, v] : req.queryParams) {
-                if (k == "limit") limit = std::stoi(v);
+                if (k == "limit") { try { limit = std::stoi(v); } catch (...) {} }
             }
 
             nlohmann::json papers = nlohmann::json::array();
@@ -10137,7 +10179,7 @@ void DashboardApiModule::registerRoutes() {
         try {
             int year = 0;
             for (const auto& [k, v] : req.queryParams) {
-                if (k == "year") year = std::stoi(v);
+                if (k == "year") { try { year = std::stoi(v); } catch (...) {} }
             }
 
             auto now = std::chrono::system_clock::now();
@@ -10649,7 +10691,7 @@ void DashboardApiModule::registerRoutes() {
                 params[k] = v;
             }
 
-            int days = params.count("days") ? std::stoi(params["days"]) : 30;
+            int days = 30; try { if (params.count("days")) days = std::stoi(params["days"]); } catch (...) { days = 30; }
 
             auto now = std::chrono::system_clock::now();
             auto tt = std::chrono::system_clock::to_time_t(now);
@@ -10663,7 +10705,7 @@ void DashboardApiModule::registerRoutes() {
                     auto results = database_->query(
                         "SELECT date(created_at) as date, COUNT(*) as count, "
                         "'activity' as type FROM activities "
-                        "WHERE created_at >= DATE('now', '-" + std::to_string(days) + " days') "
+                        "WHERE created_at >= DATE_SUB(NOW(), INTERVAL " + std::to_string(days) + " DAY) "
                         "GROUP BY date(created_at) ORDER BY date(created_at) DESC");
 
                     for (const auto& row : results) {
@@ -11459,6 +11501,9 @@ std::string DashboardApiModule::handleCreateTodo(const std::string& body) {
 }
 
 std::string DashboardApiModule::handleDeleteTodo(const std::string& id) {
+    if (id.empty() || !std::all_of(id.begin(), id.end(), ::isdigit)) {
+        return nlohmann::json{{"success", false}, {"error", "Invalid ID"}}.dump();
+    }
     if (database_) {
         try {
             database_->execute("DELETE FROM dashboard_todos WHERE id = " + id);
@@ -11477,7 +11522,7 @@ std::string DashboardApiModule::handleActivities(const std::map<std::string, std
     if (!database_) return resp.dump();
 
     try {
-        int limit = params.count("limit") ? std::stoi(params.at("limit")) : 10;
+        int limit = 10; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 10; }
 
         auto papers = database_->query(
             "SELECT 'paper_added' as type, id, title, created_at as timestamp FROM papers ORDER BY created_at DESC LIMIT "
@@ -11525,7 +11570,7 @@ std::string DashboardApiModule::handleTrendingPapers(const std::map<std::string,
     if (!database_) return resp.dump();
 
     try {
-        int limit = params.count("limit") ? std::stoi(params.at("limit")) : 5;
+        int limit = 5; try { if (params.count("limit")) limit = std::stoi(params.at("limit")); } catch (...) { limit = 5; }
         auto results = database_->query(
             "SELECT id, title, authors, citation_count, keywords FROM papers "
             "ORDER BY citation_count DESC LIMIT " + std::to_string(limit));

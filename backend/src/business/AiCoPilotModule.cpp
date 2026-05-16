@@ -110,7 +110,7 @@ void AiCoPilotModule::registerRoutes() {
             try {
                 database_->query(
                     "INSERT INTO ai_literature_reviews (topic, summary) VALUES ('" +
-                    topic + "', 'Literature review generated successfully')");
+                    StringUtil::escapeSql(topic) + "', 'Literature review generated successfully')");
                 auto result = database_->query("SELECT LAST_INSERT_ID() as id");
                 if (!result.empty() && !result[0].empty())
                     data["id"] = std::stoi(result[0]["id"]);
@@ -139,7 +139,7 @@ void AiCoPilotModule::registerRoutes() {
             try {
                 database_->query(
                     "INSERT INTO ai_literature_reviews (topic, summary) VALUES ('" +
-                    topic + "', 'Literature review generated successfully')");
+                    StringUtil::escapeSql(topic) + "', 'Literature review generated successfully')");
                 auto result = database_->query("SELECT LAST_INSERT_ID() as id");
                 if (!result.empty() && !result[0].empty())
                     data["id"] = std::stoi(result[0]["id"]);
@@ -168,7 +168,7 @@ void AiCoPilotModule::registerRoutes() {
             try {
                 database_->query(
                     "INSERT INTO ai_research_plans (title, summary) VALUES ('" +
-                    title + "', 'Research plan generated successfully')");
+                    StringUtil::escapeSql(title) + "', 'Research plan generated successfully')");
                 auto result = database_->query("SELECT LAST_INSERT_ID() as id");
                 if (!result.empty() && !result[0].empty())
                     data["id"] = std::stoi(result[0]["id"]);
@@ -197,7 +197,7 @@ void AiCoPilotModule::registerRoutes() {
             try {
                 database_->query(
                     "INSERT INTO ai_research_plans (title, summary) VALUES ('" +
-                    title + "', 'Research plan generated successfully')");
+                    StringUtil::escapeSql(title) + "', 'Research plan generated successfully')");
                 auto result = database_->query("SELECT LAST_INSERT_ID() as id");
                 if (!result.empty() && !result[0].empty())
                     data["id"] = std::stoi(result[0]["id"]);
@@ -301,7 +301,7 @@ void AiCoPilotModule::registerRoutes() {
                 auto result = database_->query(
                     "SELECT id, paper_id, review_score, acceptance_probability, "
                     "strengths, weaknesses, improvements, reviewer_comments, model, status, created_at "
-                    "FROM ai_reviews WHERE id = " + idIt->second);
+                    "FROM ai_reviews WHERE id = '" + StringUtil::escapeSql(idIt->second) + "'");
                 if (!result.empty()) {
                     auto& row = result[0];
                     data["id"] = std::stoi(row["id"]);
@@ -541,7 +541,7 @@ void AiCoPilotModule::registerRoutes() {
                 int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 50;
                 auto results = database_->query(
                     "SELECT id, role, content, created_at FROM ai_conversations "
-                    "WHERE session_id = '" + sessionId + "' ORDER BY created_at ASC LIMIT "
+                    "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' ORDER BY created_at ASC LIMIT "
                     + std::to_string(limit));
                 nlohmann::json arr = nlohmann::json::array();
                 for (auto& row : results) {
@@ -663,7 +663,7 @@ void AiCoPilotModule::registerRoutes() {
             if (database_ && !sessionId.empty()) {
                 auto messages = database_->query(
                     "SELECT role, content, created_at FROM ai_conversations "
-                    "WHERE session_id = '" + sessionId + "' ORDER BY created_at ASC");
+                    "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' ORDER BY created_at ASC");
                 for (auto& row : messages) {
                     content += "**" + StringUtil::getRowStr(row, "role", "user") + "**\n\n";
                     content += StringUtil::getRowStr(row, "content", "") + "\n\n---\n\n";
@@ -746,7 +746,7 @@ void AiCoPilotModule::registerRoutes() {
             if (database_) {
                 auto result = database_->query(
                     "SELECT COUNT(*) as cnt FROM ai_conversations WHERE session_id = '"
-                    + sessionId + "'");
+                    + StringUtil::escapeSql(sessionId) + "'");
 
                 if (!result.empty() && !result[0]["cnt"].empty()) {
                     messageCount = std::stoi(result[0]["cnt"]);
@@ -756,7 +756,7 @@ void AiCoPilotModule::registerRoutes() {
                     // Fetch first few messages to build a stub summary
                     auto msgs = database_->query(
                         "SELECT role, content FROM ai_conversations WHERE session_id = '"
-                        + sessionId + "' ORDER BY created_at ASC LIMIT 3");
+                        + StringUtil::escapeSql(sessionId) + "' ORDER BY created_at ASC LIMIT 3");
 
                     std::string topics;
                     for (auto& row : msgs) {
@@ -798,8 +798,8 @@ void AiCoPilotModule::registerRoutes() {
                 database_->query(
                     "UPDATE ai_conversations SET bookmarked = "
                     + std::string(bookmarked ? "1" : "0")
-                    + " WHERE id = " + messageId
-                    + " AND session_id = '" + sessionId + "'");
+                    + " WHERE id = '" + StringUtil::escapeSql(messageId) + "'"
+                    + " AND session_id = '" + StringUtil::escapeSql(sessionId) + "'");
             }
 
             nlohmann::json resp;
@@ -862,10 +862,10 @@ void AiCoPilotModule::registerRoutes() {
                 for (size_t i = 1; i < sessionIdsJson.size(); ++i) {
                     std::string srcId = sessionIdsJson[i].get<std::string>();
                     database_->query(
-                        "UPDATE ai_conversations SET session_id = '" + targetSessionId
-                        + "' WHERE session_id = '" + srcId + "'");
+                        "UPDATE ai_conversations SET session_id = '" + StringUtil::escapeSql(targetSessionId)
+                        + "' WHERE session_id = '" + StringUtil::escapeSql(srcId) + "'");
                     database_->query(
-                        "DELETE FROM ai_copilot_sessions WHERE id = '" + srcId + "'");
+                        "DELETE FROM ai_copilot_sessions WHERE id = '" + StringUtil::escapeSql(srcId) + "'");
                     mergedCount++;
                 }
                 database_->query(
@@ -1407,11 +1407,11 @@ void AiCoPilotModule::registerRoutes() {
 
             return HttpResponse::json(200, nlohmann::json({
                 {"success", true}, {"data", data}
-            }));
+            }).dump());
         } catch (const std::exception& e) {
             return HttpResponse::json(500, nlohmann::json({
                 {"success", false}, {"error", e.what()}
-            }));
+            }).dump());
         }
     });
 
@@ -1431,7 +1431,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     std::string sql = "SELECT id, name, category, description FROM ai_copilot_templates";
                     if (!category.empty()) {
-                        sql += " WHERE category = '" + category + "'";
+                        sql += " WHERE category = '" + StringUtil::escapeSql(category) + "'";
                     }
                     auto result = database_->query(sql);
                     for (const auto& row : result) {
@@ -1452,11 +1452,11 @@ void AiCoPilotModule::registerRoutes() {
 
             return HttpResponse::json(200, nlohmann::json({
                 {"success", true}, {"data", data}
-            }));
+            }).dump());
         } catch (const std::exception& e) {
             return HttpResponse::json(500, nlohmann::json({
                 {"success", false}, {"error", e.what()}
-            }));
+            }).dump());
         }
     });
 
@@ -2672,8 +2672,8 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     std::string sql =
                         "SELECT id, role, content, timestamp FROM ai_session_messages "
-                        "WHERE session_id = " + sessionId +
-                        " AND content LIKE '%" + query + "%'"
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId) +
+                        "' AND content LIKE '%" + StringUtil::escapeSql(query) + "%'"
                         " ORDER BY timestamp DESC LIMIT " + std::to_string(limit);
                     auto result = database_->query(sql);
                     for (auto& row : result) {
@@ -2749,7 +2749,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     // Attempt to generate abstract via database / AI service
                     std::string sql =
-                        "SELECT generate_abstract('" + content + "', '" + type + "', " + std::to_string(maxLength) + ") AS abstract";
+                        "SELECT generate_abstract('" + StringUtil::escapeSql(content) + "', '" + StringUtil::escapeSql(type) + "', " + std::to_string(maxLength) + ") AS abstract";
                     auto result = database_->query(sql);
                     if (!result.empty() && result[0].count("abstract") && !result[0]["abstract"].empty()) {
                         abstract = result[0]["abstract"];
@@ -2821,9 +2821,9 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     std::string dateFilter;
                     if (period == "week") {
-                        dateFilter = " AND created_at >= datetime('now', '-7 days')";
+                        dateFilter = " AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
                     } else if (period == "month") {
-                        dateFilter = " AND created_at >= datetime('now', '-30 days')";
+                        dateFilter = " AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
                     } else {
                         dateFilter = "";
                     }
@@ -2956,7 +2956,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto result = database_->query(
                         "SELECT id, role, content, timestamp FROM ai_session_messages "
-                        "WHERE session_id = '" + sessionId + "' ORDER BY timestamp ASC"
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' ORDER BY timestamp ASC"
                     );
                     int centerIdx = -1;
                     for (int i = 0; i < static_cast<int>(result.size()); ++i) {
@@ -3040,7 +3040,7 @@ void AiCoPilotModule::registerRoutes() {
                     // In production, call embedding API and store result
                     auto result = database_->query(
                         "SELECT embedding, dimensions, tokens_used FROM ai_embeddings "
-                        "WHERE text_hash = MD5('" + text + "') AND model = '" + model + "' LIMIT 1"
+                        "WHERE text_hash = MD5('" + StringUtil::escapeSql(text) + "') AND model = '" + StringUtil::escapeSql(model) + "' LIMIT 1"
                     );
                     if (!result.empty()) {
                         if (result[0].count("embedding") && !result[0].at("embedding").empty()) {
@@ -3206,7 +3206,7 @@ void AiCoPilotModule::registerRoutes() {
                     auto result = database_->query(
                         "SELECT table_data, format, detected_count, tokens_used "
                         "FROM ai_table_extractions "
-                        "WHERE text_hash = MD5('" + text + "') AND format = '" + format + "' LIMIT 1"
+                        "WHERE text_hash = MD5('" + StringUtil::escapeSql(text) + "') AND format = '" + StringUtil::escapeSql(format) + "' LIMIT 1"
                     );
                     if (!result.empty()) {
                         if (result[0].count("table_data") && !result[0].at("table_data").empty()) {
@@ -4151,9 +4151,16 @@ void AiCoPilotModule::registerRoutes() {
         }
     });
 
-    // GET /api/ai-co-pilot/sessions/1/analytics — Get session analytics
-    router.get("/api/ai-co-pilot/sessions/1/analytics", [this](const HttpRequest& req) {
+    // GET /api/ai-co-pilot/sessions/:id/analytics — Get session analytics
+    router.get(prefix + "/sessions/:id/analytics", [this](const HttpRequest& req) {
         try {
+            auto idIt = req.pathParams.find("id");
+            if (idIt == req.pathParams.end())
+                return HttpResponse::json(400, json({
+                    {"success", false}, {"error", "Missing session ID"}
+                }).dump());
+            std::string sessionId = idIt->second;
+
             std::string period = "7d";
             auto it = req.queryParams.find("period");
             if (it != req.queryParams.end()) period = it->second;
@@ -4163,7 +4170,7 @@ void AiCoPilotModule::registerRoutes() {
                 now.time_since_epoch()).count();
 
             json data;
-            data["sessionId"] = "session_001";
+            data["sessionId"] = sessionId;
             data["period"] = period;
             data["totalMessages"] = 48;
             data["totalTokens"] = 25600;
@@ -4380,13 +4387,13 @@ void AiCoPilotModule::registerRoutes() {
                 {"label", "Initial draft"},
                 {"messageCount", 5},
                 {"createdAt", std::to_string(ts - 3600000)}
-            }));
+            }).dump());
             data["versions"].push_back(json({
                 {"versionId", "v_002"},
                 {"label", "After revision"},
                 {"messageCount", 8},
                 {"createdAt", std::to_string(ts - 1800000)}
-            }));
+            }).dump());
             data["totalVersions"] = 2;
             data["currentVersion"] = "v_002";
             data["retrievedAt"] = std::to_string(ts);
@@ -4422,13 +4429,13 @@ void AiCoPilotModule::registerRoutes() {
                 {"original", "The results are good"},
                 {"suggested", "The results demonstrate statistically significant improvement"},
                 {"confidence", 0.91}
-            }));
+            }).dump());
             data["suggestions"].push_back(json({
                 {"type", "coherence"},
                 {"original", "We did the experiment. The data shows stuff."},
                 {"suggested", "We conducted the experiment as described. The collected data indicates a clear trend."},
                 {"confidence", 0.87}
-            }));
+            }).dump());
             data["mode"] = mode;
             data["totalSuggestions"] = 2;
             data["processedAt"] = std::to_string(ts);
@@ -4459,14 +4466,14 @@ void AiCoPilotModule::registerRoutes() {
                 {"type", "concept"},
                 {"frequency", 42},
                 {"relatedEntities", json::array({"Deep Learning", "Neural Networks", "Supervised Learning"})}
-            }));
+            }).dump());
             data["entities"].push_back(json({
                 {"entityId", "ent_002"},
                 {"name", "Transformer Architecture"},
                 {"type", "methodology"},
                 {"frequency", 27},
                 {"relatedEntities", json::array({"Attention Mechanism", "BERT", "GPT"})}
-            }));
+            }).dump());
             data["totalEntities"] = 2;
             data["retrievedAt"] = std::to_string(ts);
 
@@ -4527,14 +4534,14 @@ void AiCoPilotModule::registerRoutes() {
                 {"used", 3542},
                 {"remaining", 6458},
                 {"resetAt", "2026-06-01T00:00:00Z"}
-            }));
+            }).dump());
             data["quotas"].push_back(json({
                 {"resource", "tokens"},
                 {"limit", 5000000},
                 {"used", 1280000},
                 {"remaining", 3720000},
                 {"resetAt", "2026-06-01T00:00:00Z"}
-            }));
+            }).dump());
             data["plan"] = "professional";
             data["checkedAt"] = std::to_string(ts);
 
@@ -4603,7 +4610,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"maxTokens", 8192},
                 {"supportsStreaming", true},
                 {"supportsFunctionCalling", true}
-            }));
+            }).dump());
             data["models"].push_back(json({
                 {"id", "claude-3-opus"},
                 {"name", "Claude 3 Opus"},
@@ -4612,7 +4619,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"maxTokens", 4096},
                 {"supportsStreaming", true},
                 {"supportsFunctionCalling", true}
-            }));
+            }).dump());
             data["models"].push_back(json({
                 {"id", "gpt-3.5-turbo"},
                 {"name", "GPT-3.5 Turbo"},
@@ -4621,7 +4628,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"maxTokens", 4096},
                 {"supportsStreaming", true},
                 {"supportsFunctionCalling", false}
-            }));
+            }).dump());
             data["defaultModelId"] = "gpt-4";
             data["retrievedAt"] = std::to_string(ts);
 
@@ -4659,21 +4666,21 @@ void AiCoPilotModule::registerRoutes() {
                 {"year", 2017},
                 {"venue", "NeurIPS"},
                 {"relevanceScore", 0.95}
-            }));
+            }).dump());
             data["references"].push_back(json({
                 {"title", "BERT: Pre-training of Deep Bidirectional Transformers"},
                 {"authors", "Devlin, J., Chang, M.W., et al."},
                 {"year", 2019},
                 {"venue", "NAACL"},
                 {"relevanceScore", 0.88}
-            }));
+            }).dump());
             data["references"].push_back(json({
                 {"title", "Language Models are Few-Shot Learners"},
                 {"authors", "Brown, T., Mann, B., et al."},
                 {"year", 2020},
                 {"venue", "NeurIPS"},
                 {"relevanceScore", 0.82}
-            }));
+            }).dump());
             data["totalFound"] = 3;
             data["suggestedAt"] = std::to_string(ts);
 
@@ -4712,7 +4719,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"completedAt", std::to_string(ts - 3000000)},
                 {"duration", 600},
                 {"itemsProcessed", 25}
-            }));
+            }).dump());
             data["tasks"].push_back(json({
                 {"taskId", "task_002"},
                 {"type", "export_pdf"},
@@ -4721,7 +4728,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"completedAt", std::to_string(ts - 7150000)},
                 {"duration", 50},
                 {"itemsProcessed", 1}
-            }));
+            }).dump());
             data["tasks"].push_back(json({
                 {"taskId", "task_003"},
                 {"type", "embedding_generate"},
@@ -4730,7 +4737,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"completedAt", std::to_string(ts - 10795000)},
                 {"duration", 5},
                 {"error", "Model unavailable"}
-            }));
+            }).dump());
             data["total"] = 3;
             data["limit"] = limit;
             data["retrievedAt"] = std::to_string(ts);
@@ -4778,7 +4785,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"methodology", "Cross-validation with stratified sampling"},
                 {"testable", true},
                 {"noveltyScore", 0.72}
-            }));
+            }).dump());
             data["hypotheses"].push_back(json({
                 {"id", "hyp_002"},
                 {"statement", "Transfer learning from domain-specific pre-training outperforms general-purpose models for " + topic},
@@ -4786,7 +4793,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"methodology", "Comparative benchmark on standardized datasets"},
                 {"testable", true},
                 {"noveltyScore", 0.65}
-            }));
+            }).dump());
             data["hypotheses"].push_back(json({
                 {"id", "hyp_003"},
                 {"statement", "Multi-modal feature fusion yields superior performance over single-modal approaches in " + topic},
@@ -4794,7 +4801,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"methodology", "Ablation study with controlled variables"},
                 {"testable", true},
                 {"noveltyScore", 0.80}
-            }));
+            }).dump());
             data["totalGenerated"] = 3;
             data["maxHypotheses"] = maxHypotheses;
             data["generatedAt"] = std::to_string(ts);
@@ -4827,7 +4834,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"supportsImages", true},
                 {"supportsTables", true},
                 {"maxFileSize", "50MB"}
-            }));
+            }).dump());
             data["formats"].push_back(json({
                 {"id", "markdown"},
                 {"name", "Markdown"},
@@ -4836,7 +4843,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"supportsImages", false},
                 {"supportsTables", true},
                 {"maxFileSize", "10MB"}
-            }));
+            }).dump());
             data["formats"].push_back(json({
                 {"id", "docx"},
                 {"name", "Word Document"},
@@ -4845,7 +4852,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"supportsImages", true},
                 {"supportsTables", true},
                 {"maxFileSize", "100MB"}
-            }));
+            }).dump());
             data["formats"].push_back(json({
                 {"id", "json"},
                 {"name", "JSON Export"},
@@ -4854,7 +4861,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"supportsImages", false},
                 {"supportsTables", false},
                 {"maxFileSize", "20MB"}
-            }));
+            }).dump());
             data["formats"].push_back(json({
                 {"id", "html"},
                 {"name", "HTML Document"},
@@ -4863,7 +4870,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"supportsImages", true},
                 {"supportsTables", true},
                 {"maxFileSize", "30MB"}
-            }));
+            }).dump());
             data["defaultFormat"] = "pdf";
             data["totalFormats"] = 5;
             data["retrievedAt"] = std::to_string(ts);
@@ -4913,13 +4920,13 @@ void AiCoPilotModule::registerRoutes() {
                 {"category", "sampling"},
                 {"message", "Sample size may be insufficient for statistical significance"},
                 {"suggestion", "Consider increasing sample size to at least 30 for parametric tests"}
-            }));
+            }).dump());
             issues.push_back(json({
                 {"severity", "info"},
                 {"category", "controls"},
                 {"message", "Consider adding a control group for comparison"},
                 {"suggestion", "Randomized controlled design strengthens causal inference"}
-            }));
+            }).dump());
             data["issues"] = issues;
             data["totalIssues"] = 2;
 
@@ -4966,7 +4973,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"usageCount", 15},
                 {"lastUsed", std::to_string(ts - 3600000)},
                 {"rating", 4.5}
-            }));
+            }).dump());
             data["prompts"].push_back(json({
                 {"id", "pr_002"},
                 {"template", "Identify methodological strengths and weaknesses"},
@@ -4974,7 +4981,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"usageCount", 8},
                 {"lastUsed", std::to_string(ts - 7200000)},
                 {"rating", 4.2}
-            }));
+            }).dump());
             data["prompts"].push_back(json({
                 {"id", "pr_003"},
                 {"template", "Compare these two approaches and highlight trade-offs"},
@@ -4982,7 +4989,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"usageCount", 5},
                 {"lastUsed", std::to_string(ts - 10800000)},
                 {"rating", 4.8}
-            }));
+            }).dump());
             data["totalPrompts"] = 3;
             data["limit"] = limit;
             data["retrievedAt"] = std::to_string(ts);
@@ -5024,7 +5031,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"description", "Large-scale image dataset for visual recognition research"},
                 {"url", "https://image-net.org/"},
                 {"tags", {"computer-vision", "deep-learning", "image-classification"}}
-            }));
+            }).dump());
             data["datasets"].push_back(json({
                 {"id", "ds_002"},
                 {"name", "arXiv Dataset"},
@@ -5035,7 +5042,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"description", "Open-access archive of scholarly articles"},
                 {"url", "https://arxiv.org/"},
                 {"tags", {"nlp", "text-mining", "academic-papers"}}
-            }));
+            }).dump());
             data["datasets"].push_back(json({
                 {"id", "ds_003"},
                 {"name", "UCI Machine Learning Repository"},
@@ -5046,7 +5053,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"description", "Collection of databases for machine learning benchmarking"},
                 {"url", "https://archive.ics.uci.edu/"},
                 {"tags", {"machine-learning", "benchmark", "classification"}}
-            }));
+            }).dump());
             data["topic"] = topic;
             data["maxResults"] = maxResults;
             data["totalResults"] = 3;
@@ -5149,7 +5156,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"color", "#FFEB3B"},
                 {"createdAt", std::to_string(ts - 7200000)},
                 {"updatedAt", std::to_string(ts - 3600000)}
-            }));
+            }).dump());
             data["notes"].push_back(json({
                 {"noteId", "note_002"},
                 {"messageId", "msg_012"},
@@ -5157,7 +5164,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"color", "#4FC3F7"},
                 {"createdAt", std::to_string(ts - 1800000)},
                 {"updatedAt", std::to_string(ts - 900000)}
-            }));
+            }).dump());
             data["totalNotes"] = 2;
             data["retrievedAt"] = std::to_string(ts);
 
@@ -5203,7 +5210,7 @@ void AiCoPilotModule::registerRoutes() {
             data["alternatives"].push_back(json({
                 {"latex", "E = m \\cdot c^2"},
                 {"confidence", 0.88}
-            }));
+            }).dump());
             data["generatedAt"] = std::to_string(ts);
 
             return HttpResponse::json(200, json({
@@ -5232,7 +5239,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"enabled", true},
                 {"position", 1},
                 {"collapsible", true}
-            }));
+            }).dump());
             data["widgets"].push_back(json({
                 {"id", "suggestions"},
                 {"type", "recommendation"},
@@ -5240,7 +5247,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"enabled", true},
                 {"position", 2},
                 {"collapsible", true}
-            }));
+            }).dump());
             data["widgets"].push_back(json({
                 {"id", "history"},
                 {"type", "session-list"},
@@ -5248,7 +5255,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"enabled", false},
                 {"position", 3},
                 {"collapsible", true}
-            }));
+            }).dump());
             data["theme"] = "default";
             data["width"] = 360;
             data["pinned"] = true;
@@ -5286,22 +5293,22 @@ void AiCoPilotModule::registerRoutes() {
             data["entries"] = json::array();
             data["entries"].push_back(json({
                 {"level", 1}, {"title", "Introduction"}, {"pageNumber", 1}
-            }));
+            }).dump());
             data["entries"].push_back(json({
                 {"level", 1}, {"title", "Methodology"}, {"pageNumber", 5}
-            }));
+            }).dump());
             data["entries"].push_back(json({
                 {"level", 2}, {"title", "Data Collection"}, {"pageNumber", 6}
-            }));
+            }).dump());
             data["entries"].push_back(json({
                 {"level", 2}, {"title", "Analysis Framework"}, {"pageNumber", 9}
-            }));
+            }).dump());
             data["entries"].push_back(json({
                 {"level", 1}, {"title", "Results"}, {"pageNumber", 12}
-            }));
+            }).dump());
             data["entries"].push_back(json({
                 {"level", 1}, {"title", "Conclusion"}, {"pageNumber", 18}
-            }));
+            }).dump());
             data["totalEntries"] = 6;
             data["maxDepth"] = maxDepth;
             data["generatedAt"] = std::to_string(ts);
@@ -5338,21 +5345,21 @@ void AiCoPilotModule::registerRoutes() {
                 {"title", "Paper review completed"},
                 {"status", "completed"},
                 {"timestamp", std::to_string(ts - 1000)}
-            }));
+            }).dump());
             data["activities"].push_back(json({
                 {"id", "act_" + std::to_string(ts - 3000)},
                 {"type", "summarize"},
                 {"title", "Abstract generation completed"},
                 {"status", "completed"},
                 {"timestamp", std::to_string(ts - 3000)}
-            }));
+            }).dump());
             data["activities"].push_back(json({
                 {"id", "act_" + std::to_string(ts - 5000)},
                 {"type", "translate"},
                 {"title", "Document translation in progress"},
                 {"status", "in_progress"},
                 {"timestamp", std::to_string(ts - 5000)}
-            }));
+            }).dump());
             data["limit"] = limit;
             data["retrievedAt"] = std::to_string(ts);
 
@@ -5392,19 +5399,19 @@ void AiCoPilotModule::registerRoutes() {
                 {"replaces", "shows"},
                 {"context", "academic writing"},
                 {"confidence", 0.92}
-            }));
+            }).dump());
             data["suggestions"].push_back(json({
                 {"word", "furthermore"},
                 {"replaces", "also"},
                 {"context", "transition"},
                 {"confidence", 0.88}
-            }));
+            }).dump());
             data["suggestions"].push_back(json({
                 {"word", "subsequently"},
                 {"replaces", "then"},
                 {"context", "sequence"},
                 {"confidence", 0.85}
-            }));
+            }).dump());
             data["totalSuggestions"] = 3;
             data["maxSuggestions"] = maxSuggestions;
             data["enrichedAt"] = std::to_string(ts);
@@ -5454,7 +5461,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"content", "Key finding about neural network convergence"},
                 {"color", "#FFEB3B"},
                 {"createdAt", std::to_string(ts - 1000)}
-            }));
+            }).dump());
             data["annotations"].push_back(json({
                 {"id", "ann_" + std::to_string(ts - 2000)},
                 {"messageId", "msg_38"},
@@ -5462,7 +5469,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"content", "Need to revisit methodology section"},
                 {"color", "#4CAF50"},
                 {"createdAt", std::to_string(ts - 2000)}
-            }));
+            }).dump());
             data["annotations"].push_back(json({
                 {"id", "ann_" + std::to_string(ts - 3000)},
                 {"messageId", "msg_25"},
@@ -5470,7 +5477,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"content", "Important reference to transformer architecture"},
                 {"color", "#2196F3"},
                 {"createdAt", std::to_string(ts - 3000)}
-            }));
+            }).dump());
             data["total"] = 3;
             data["page"] = page;
             data["pageSize"] = pageSize;
@@ -5515,13 +5522,13 @@ void AiCoPilotModule::registerRoutes() {
                 {"original", "This shows that"},
                 {"suggestion", "The results demonstrate that"},
                 {"confidence", 0.95}
-            }));
+            }).dump());
             data["suggestions"].push_back(json({
                 {"type", "coherence"},
                 {"original", "Also we found"},
                 {"suggestion", "Furthermore, the analysis revealed"},
                 {"confidence", 0.89}
-            }));
+            }).dump());
             data["qualityScore"] = 0.82;
             data["improvedAt"] = std::to_string(ts);
             data["draftId"] = "draft_" + std::to_string(ts);
@@ -5568,7 +5575,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"sections", json::array({"background", "problem_statement", "objectives", "paper_structure"})},
                 {"estimatedWords", 500},
                 {"popularity", 0.92}
-            }));
+            }).dump());
             data["templates"].push_back(json({
                 {"id", "tpl_method"},
                 {"name", "Methodology Template"},
@@ -5577,7 +5584,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"sections", json::array({"approach", "data_collection", "analysis_methods", "validation"})},
                 {"estimatedWords", 800},
                 {"popularity", 0.88}
-            }));
+            }).dump());
             data["templates"].push_back(json({
                 {"id", "tpl_results"},
                 {"name", "Results Template"},
@@ -5586,7 +5593,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"sections", json::array({"findings", "statistical_analysis", "figures_tables", "interpretation"})},
                 {"estimatedWords", 600},
                 {"popularity", 0.85}
-            }));
+            }).dump());
             data["total"] = 3;
             data["category"] = category;
             data["retrievedAt"] = std::to_string(ts);
@@ -5676,7 +5683,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"sections", json::array({"summary", "implications", "future_work"})},
                 {"estimatedWords", 300},
                 {"popularity", 0.90}
-            }));
+            }).dump());
             data["templates"].push_back(json({
                 {"id", "tpl_concl_empirical"},
                 {"name", "Empirical Research Conclusion"},
@@ -5685,7 +5692,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"sections", json::array({"findings_summary", "statistical_significance", "practical_implications", "limitations"})},
                 {"estimatedWords", 450},
                 {"popularity", 0.85}
-            }));
+            }).dump());
             data["templates"].push_back(json({
                 {"id", "tpl_concl_review"},
                 {"name", "Review Paper Conclusion"},
@@ -5694,7 +5701,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"sections", json::array({"synthesis", "research_gaps", "recommendations"})},
                 {"estimatedWords", 350},
                 {"popularity", 0.78}
-            }));
+            }).dump());
             data["total"] = 3;
             data["category"] = category;
             data["retrievedAt"] = std::to_string(ts);
@@ -5732,27 +5739,27 @@ void AiCoPilotModule::registerRoutes() {
                 {"title", "A Novel Approach to " + (content.empty() ? "Research" : content.substr(0, 30))},
                 {"score", 0.92},
                 {"style", "descriptive"}
-            }));
+            }).dump());
             suggestions.push_back(json({
                 {"title", "Exploring " + (content.empty() ? "the Topic" : content.substr(0, 25)) + ": A Comprehensive Study"},
                 {"score", 0.88},
                 {"style", "comprehensive"}
-            }));
+            }).dump());
             suggestions.push_back(json({
                 {"title", "On the Implications of " + (content.empty() ? "Modern Research" : content.substr(0, 20))},
                 {"score", 0.85},
                 {"style", "analytical"}
-            }));
+            }).dump());
             suggestions.push_back(json({
                 {"title", "Advances in " + field + ": " + (content.empty() ? "A Review" : "New Perspectives")},
                 {"score", 0.82},
                 {"style", "review"}
-            }));
+            }).dump());
             suggestions.push_back(json({
                 {"title", "From Theory to Practice: " + (content.empty() ? "Bridging the Gap" : content.substr(0, 20))},
                 {"score", 0.79},
                 {"style", "applied"}
-            }));
+            }).dump());
 
             if (maxSuggestions > 0 && maxSuggestions < 5) {
                 while (suggestions.size() > static_cast<size_t>(maxSuggestions)) {
@@ -5809,7 +5816,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"maxTokens", 4096},
                 {"latencyMs", 1200},
                 {"costPer1kTokens", 0.03}
-            }));
+            }).dump());
             models.push_back(json({
                 {"id", "gpt-3.5-turbo"},
                 {"name", "GPT-3.5 Turbo"},
@@ -5819,7 +5826,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"maxTokens", 4096},
                 {"latencyMs", 450},
                 {"costPer1kTokens", 0.002}
-            }));
+            }).dump());
             models.push_back(json({
                 {"id", "claude-3-opus"},
                 {"name", "Claude 3 Opus"},
@@ -5829,7 +5836,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"maxTokens", 4096},
                 {"latencyMs", 1500},
                 {"costPer1kTokens", 0.015}
-            }));
+            }).dump());
             models.push_back(json({
                 {"id", "gemini-pro"},
                 {"name", "Gemini Pro"},
@@ -5839,7 +5846,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"maxTokens", 2048},
                 {"latencyMs", 800},
                 {"costPer1kTokens", 0.0025}
-            }));
+            }).dump());
 
             json data;
             data["models"] = models;
@@ -5903,7 +5910,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"label", topic.empty() ? "Central Topic" : topic},
                 {"type", "core"},
                 {"weight", 1.0}
-            }));
+            }).dump());
 
             for (int i = 1; i <= std::min(maxNodes - 1, 9); ++i) {
                 std::string nodeId = "related_" + std::to_string(i);
@@ -5912,12 +5919,12 @@ void AiCoPilotModule::registerRoutes() {
                     {"label", "Related Concept " + std::to_string(i)},
                     {"type", "related"},
                     {"weight", 0.5 + (0.05 * i)}
-                }));
+                }).dump());
                 edges.push_back(json({
                     {"source", "core_1"},
                     {"target", nodeId},
                     {"weight", 0.8 - (0.05 * i)}
-                }));
+                }).dump());
             }
 
             json data;
@@ -5990,13 +5997,13 @@ void AiCoPilotModule::registerRoutes() {
                         {"year", 2022 + y},
                         {"publicationCount", 1000 + (i * 200) + (y * 150)},
                         {"growthRate", 0.15 + (i * 0.05) - (y * 0.01)}
-                    }));
+                    }).dump());
                 }
                 trends.push_back(json({
                     {"name", trendNames[i]},
                     {"data", yearData},
                     {"rank", i + 1}
-                }));
+                }).dump());
             }
 
             json data;
@@ -6104,7 +6111,7 @@ void AiCoPilotModule::registerRoutes() {
                     {"name", modeNames[i]},
                     {"description", descriptions[i]},
                     {"id", i + 1}
-                }));
+                }).dump());
             }
 
             json data;
@@ -6170,7 +6177,7 @@ void AiCoPilotModule::registerRoutes() {
                     {"title", sectionNames[i]},
                     {"order", i + 1},
                     {"level", 1}
-                }));
+                }).dump());
             }
 
             json data;
@@ -6518,7 +6525,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto result = database_->query(
                         "SELECT id, name, category, usage_count, rating FROM ai_prompts WHERE featured = 1 AND category = '" +
-                        category + "' ORDER BY usage_count DESC LIMIT " + std::to_string(limit));
+                        StringUtil::escapeSql(category) + "' ORDER BY usage_count DESC LIMIT " + std::to_string(limit));
                     if (!result.empty()) {
                         json dbPrompts = json::array();
                         for (const auto& row : result) {
@@ -6751,7 +6758,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto result = database_->query(
                         "SELECT gap_id, title, description, significance, related_works FROM ai_research_gaps WHERE topic = '" +
-                        topic + "' AND field = '" + field + "' ORDER BY significance DESC LIMIT " +
+                        StringUtil::escapeSql(topic) + "' AND field = '" + StringUtil::escapeSql(field) + "' ORDER BY significance DESC LIMIT " +
                         std::to_string(maxGaps));
                     if (!result.empty()) {
                         json dbGaps = json::array();
@@ -6959,7 +6966,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto result = database_->query(
                         "SELECT id, title, authors, year, relevance_score, relation_type, summary "
-                        "FROM ai_related_work WHERE topic = '" + topic + "' "
+                        "FROM ai_related_work WHERE topic = '" + StringUtil::escapeSql(topic) + "' "
                         "ORDER BY relevance_score DESC LIMIT " + std::to_string(maxSuggestions));
                     if (!result.empty()) {
                         json dbSuggestions = json::array();
@@ -7170,7 +7177,7 @@ void AiCoPilotModule::registerRoutes() {
                     auto result = database_->query(
                         "SELECT refined_text, clarity, specificity, feasibility, novelty "
                         "FROM ai_question_refinements "
-                        "WHERE original_question = '" + question + "' "
+                        "WHERE original_question = '" + StringUtil::escapeSql(question) + "' "
                         "ORDER BY created_at DESC LIMIT " + std::to_string(maxRefinements));
                     if (!result.empty()) {
                         json dbRefinements = json::array();
@@ -7432,8 +7439,8 @@ void AiCoPilotModule::registerRoutes() {
                     auto result = database_->query(
                         "SELECT output_latex, output_mathml, output_unicode "
                         "FROM ai_notation_conversions "
-                        "WHERE input_notation = '" + notation + "' "
-                        "AND input_format = '" + inputFormat + "' "
+                        "WHERE input_notation = '" + StringUtil::escapeSql(notation) + "' "
+                        "AND input_format = '" + StringUtil::escapeSql(inputFormat) + "' "
                         "ORDER BY created_at DESC LIMIT 5");
                     if (!result.empty()) {
                         json dbHistory = json::array();
@@ -7578,8 +7585,8 @@ void AiCoPilotModule::registerRoutes() {
                     auto result = database_->query(
                         "SELECT feature_name, interaction_count, avg_tokens "
                         "FROM ai_interaction_heatmap "
-                        "WHERE user_id = '" + userId + "' "
-                        "AND period = '" + period + "' "
+                        "WHERE user_id = '" + StringUtil::escapeSql(userId) + "' "
+                        "AND period = '" + StringUtil::escapeSql(period) + "' "
                         "ORDER BY interaction_count DESC");
                     if (!result.empty()) {
                         json dbFeatures = json::array();
@@ -7695,8 +7702,8 @@ void AiCoPilotModule::registerRoutes() {
                     auto result = database_->query(
                         "SELECT dimension, score, status "
                         "FROM ai_ethics_evaluations "
-                        "WHERE paper_id = '" + paperId + "' "
-                        "AND framework = '" + framework + "' "
+                        "WHERE paper_id = '" + StringUtil::escapeSql(paperId) + "' "
+                        "AND framework = '" + StringUtil::escapeSql(framework) + "' "
                         "ORDER BY evaluated_at DESC LIMIT 1");
                     if (!result.empty()) {
                         json prevEval;
@@ -7808,7 +7815,7 @@ void AiCoPilotModule::registerRoutes() {
                     auto result = database_->query(
                         "SELECT snapshot_id, version, frozen_at, message_count, status "
                         "FROM ai_session_snapshots "
-                        "WHERE session_id = '" + sessionId + "' "
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' "
                         "ORDER BY frozen_at DESC");
                     if (!result.empty()) {
                         json dbSnapshots = json::array();
@@ -8059,7 +8066,7 @@ void AiCoPilotModule::registerRoutes() {
                     auto rows = database_->query(
                         "SELECT message_count, total_chunks, format, created_at "
                         "FROM ai_session_exports "
-                        "WHERE session_id = '" + sessionId + "' "
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' "
                         "ORDER BY created_at DESC LIMIT 5");
                     if (!rows.empty()) {
                         json history = json::array();
@@ -8194,7 +8201,7 @@ void AiCoPilotModule::registerRoutes() {
                         "coherence_score, word_count, created_at "
                         "FROM ai_style_analyses ";
                     if (!style.empty()) {
-                        query += "WHERE style = '" + style + "' ";
+                        query += "WHERE style = '" + StringUtil::escapeSql(style) + "' ";
                     }
                     query += "ORDER BY created_at DESC LIMIT " + std::to_string(limit);
                     auto rows = database_->query(query);
@@ -8402,7 +8409,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT id, topic, sentiment, message_count FROM ai_sessions "
-                        "WHERE session_id = '" + sessionId + "' LIMIT 1");
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' LIMIT 1");
                     for (const auto& row : rows) {
                         data["dbSessionId"] = row.count("id") ? row.at("id") : "";
                         data["dbSentiment"] = row.count("sentiment") ? row.at("sentiment") : "";
@@ -8684,7 +8691,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT section_count, avg_coherence FROM paper_coherence "
-                        "WHERE paper_id = '" + paperId + "' ORDER BY analyzed_at DESC LIMIT 1");
+                        "WHERE paper_id = '" + StringUtil::escapeSql(paperId) + "' ORDER BY analyzed_at DESC LIMIT 1");
                     for (const auto& row : rows) {
                         data["dbSectionCount"] = row.count("section_count") ? row.at("section_count") : "";
                         data["dbAvgCoherence"] = row.count("avg_coherence") ? row.at("avg_coherence") : "";
@@ -8809,7 +8816,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT model_name, avg_quality_score, avg_latency_ms FROM ai_model_performance "
-                        "WHERE task_type = '" + taskType + "' ORDER BY avg_quality_score DESC");
+                        "WHERE task_type = '" + StringUtil::escapeSql(taskType) + "' ORDER BY avg_quality_score DESC");
                     json dbScores = json::array();
                     for (const auto& row : rows) {
                         json score;
@@ -8913,7 +8920,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT chart_type, usage_count, avg_rating FROM visualization_history "
-                        "WHERE data_type = '" + dataType + "' ORDER BY avg_rating DESC LIMIT 5");
+                        "WHERE data_type = '" + StringUtil::escapeSql(dataType) + "' ORDER BY avg_rating DESC LIMIT 5");
                     json history = json::array();
                     for (const auto& row : rows) {
                         json h;
@@ -9024,7 +9031,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT field, proficiency_score, last_updated FROM researcher_expertise "
-                        "WHERE user_id = '" + userId + "' ORDER BY proficiency_score DESC");
+                        "WHERE user_id = '" + StringUtil::escapeSql(userId) + "' ORDER BY proficiency_score DESC");
                     json dbExpertise = json::array();
                     for (const auto& row : rows) {
                         json ex;
@@ -9183,7 +9190,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT paper_id, title, citation_count FROM citation_graph "
-                        "WHERE seed_paper_id = '" + seedPaperId + "' ORDER BY citation_count DESC LIMIT " + std::to_string(maxNodes));
+                        "WHERE seed_paper_id = '" + StringUtil::escapeSql(seedPaperId) + "' ORDER BY citation_count DESC LIMIT " + std::to_string(maxNodes));
                     json dbNodes = json::array();
                     for (const auto& row : rows) {
                         json dn;
@@ -9317,7 +9324,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT period, avg_rating, total_count, category FROM feedback_trends "
-                        "WHERE category = '" + category + "' ORDER BY period DESC LIMIT 12");
+                        "WHERE category = '" + StringUtil::escapeSql(category) + "' ORDER BY period DESC LIMIT 12");
                     json dbTrends = json::array();
                     for (const auto& row : rows) {
                         json dt;
@@ -9431,7 +9438,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT debate_id, topic, stance, score FROM debate_preparations "
-                        "WHERE topic = '" + topic + "' ORDER BY created_at DESC LIMIT 5");
+                        "WHERE topic = '" + StringUtil::escapeSql(topic) + "' ORDER BY created_at DESC LIMIT 5");
                     json history = json::array();
                     for (const auto& row : rows) {
                         json h;
@@ -9565,7 +9572,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT paper_id, overall_score, grade FROM creativity_scores "
-                        "WHERE paper_id = '" + paperId + "' ORDER BY evaluated_at DESC LIMIT 10");
+                        "WHERE paper_id = '" + StringUtil::escapeSql(paperId) + "' ORDER BY evaluated_at DESC LIMIT 10");
                     json scoreHistory = json::array();
                     for (const auto& row : rows) {
                         json sh;
@@ -9668,7 +9675,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT narrative_id, title, audience, tone FROM research_narratives "
-                        "WHERE audience = '" + audience + "' ORDER BY created_at DESC LIMIT 5");
+                        "WHERE audience = '" + StringUtil::escapeSql(audience) + "' ORDER BY created_at DESC LIMIT 5");
                     json narrativeHistory = json::array();
                     for (const auto& row : rows) {
                         json nh;
@@ -9792,7 +9799,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT researcher_id, match_score, collaboration_type FROM collaboration_suggestions "
-                        "WHERE research_field = '" + researchField + "' ORDER BY suggested_at DESC LIMIT 10");
+                        "WHERE research_field = '" + StringUtil::escapeSql(researchField) + "' ORDER BY suggested_at DESC LIMIT 10");
                     json pastSuggestions = json::array();
                     for (const auto& row : rows) {
                         json ps;
@@ -9992,7 +9999,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT mind_map_id, topic, layout FROM mind_maps "
-                        "WHERE topic LIKE '%" + topic + "%' ORDER BY created_at DESC LIMIT 5");
+                        "WHERE topic LIKE '%" + StringUtil::escapeSql(topic) + "%' ORDER BY created_at DESC LIMIT 5");
                     json mapHistory = json::array();
                     for (const auto& row : rows) {
                         json mh;
@@ -10128,7 +10135,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT reading_list_id, research_field, total_papers FROM smart_reading_lists "
-                        "WHERE research_field = '" + researchField + "' ORDER BY generated_at DESC LIMIT 5");
+                        "WHERE research_field = '" + StringUtil::escapeSql(researchField) + "' ORDER BY generated_at DESC LIMIT 5");
                     json pastLists = json::array();
                     for (const auto& row : rows) {
                         json pl;
@@ -10221,7 +10228,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT prediction_id, overall_impact_score, predicted_at FROM paper_impact_predictions "
-                        "WHERE paper_id = '" + paperId + "' ORDER BY predicted_at DESC LIMIT 5");
+                        "WHERE paper_id = '" + StringUtil::escapeSql(paperId) + "' ORDER BY predicted_at DESC LIMIT 5");
                     json pastPredictions = json::array();
                     for (const auto& row : rows) {
                         json pp;
@@ -10363,7 +10370,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT synthesis_id, topic, confidence_score FROM literature_syntheses "
-                        "WHERE topic = '" + topic + "' ORDER BY synthesized_at DESC LIMIT 5");
+                        "WHERE topic = '" + StringUtil::escapeSql(topic) + "' ORDER BY synthesized_at DESC LIMIT 5");
                     json pastSyntheses = json::array();
                     for (const auto& row : rows) {
                         json ps;
@@ -10473,7 +10480,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT session_date, word_count, net_change FROM writing_progress "
-                        "WHERE document_id = '" + documentId + "' ORDER BY session_date DESC LIMIT " + std::to_string(days));
+                        "WHERE document_id = '" + StringUtil::escapeSql(documentId) + "' ORDER BY session_date DESC LIMIT " + std::to_string(days));
                     json dbTrend = json::array();
                     for (const auto& row : rows) {
                         json dt;
@@ -10603,7 +10610,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT map_id, claim, overall_strength FROM argument_maps "
-                        "WHERE claim = '" + claim + "' ORDER BY mapped_at DESC LIMIT 5");
+                        "WHERE claim = '" + StringUtil::escapeSql(claim) + "' ORDER BY mapped_at DESC LIMIT 5");
                     json pastMaps = json::array();
                     for (const auto& row : rows) {
                         json pm;
@@ -10687,7 +10694,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto rows = database_->query(
                         "SELECT overall_score, readability_grade, scored_at FROM complexity_scores "
-                        "WHERE paper_id = '" + paperId + "' ORDER BY scored_at DESC LIMIT 5");
+                        "WHERE paper_id = '" + StringUtil::escapeSql(paperId) + "' ORDER BY scored_at DESC LIMIT 5");
                     json history = json::array();
                     for (const auto& row : rows) {
                         json hr;
@@ -10803,7 +10810,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto insightRows = database_->query(
                         "SELECT total_interactions, productivity_score, analyzed_at FROM session_insights "
-                        "WHERE session_id = '" + sessionId + "' ORDER BY analyzed_at DESC LIMIT 5");
+                        "WHERE session_id = '" + StringUtil::escapeSql(sessionId) + "' ORDER BY analyzed_at DESC LIMIT 5");
                     json insightHistory = json::array();
                     for (const auto& row : insightRows) {
                         json ih;
@@ -11217,7 +11224,7 @@ void AiCoPilotModule::registerRoutes() {
                 try {
                     auto sentimentRows = database_->query(
                         "SELECT sentiment, confidence, phrase FROM ai_paper_sentiment WHERE paper_id = '" +
-                        paperId + "' ORDER BY confidence DESC");
+                        StringUtil::escapeSql(paperId) + "' ORDER BY confidence DESC");
                     if (!sentimentRows.empty()) {
                         data["overallSentiment"] = sentimentRows[0].count("sentiment") ? sentimentRows[0].at("sentiment") : std::string("positive");
                         data["confidence"] = sentimentRows[0].count("confidence") ? std::stod(sentimentRows[0].at("confidence")) : 0.82;
@@ -12402,7 +12409,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"researchOutput", 12500},
                 {"fields", {"computer science", "engineering", "physics"}},
                 {"matchScore", 0.98}
-            }));
+            }).dump());
             data["institutions"].push_back(json({
                 {"institutionId", "inst_002"},
                 {"name", "Stanford University"},
@@ -12411,7 +12418,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"researchOutput", 11200},
                 {"fields", {"computer science", "medicine", "biology"}},
                 {"matchScore", 0.95}
-            }));
+            }).dump());
             data["institutions"].push_back(json({
                 {"institutionId", "inst_003"},
                 {"name", "Tsinghua University"},
@@ -12420,7 +12427,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"researchOutput", 10800},
                 {"fields", {"engineering", "computer science", "materials science"}},
                 {"matchScore", 0.92}
-            }));
+            }).dump());
             data["total"] = 3;
             data["searchedAt"] = std::to_string(ts);
 
@@ -12569,21 +12576,21 @@ void AiCoPilotModule::registerRoutes() {
                 {"type", "open_ended"},
                 {"category", "background"},
                 {"priority", 1}
-            }));
+            }).dump());
             data["questions"].push_back(json({
                 {"questionId", "sq_002"},
                 {"text", "What are the key challenges in " + topic + "?"},
                 {"type", "multiple_choice"},
                 {"category", "challenges"},
                 {"priority", 2}
-            }));
+            }).dump());
             data["questions"].push_back(json({
                 {"questionId", "sq_003"},
                 {"text", "How has " + topic + " evolved over the past five years?"},
                 {"type", "open_ended"},
                 {"category", "trends"},
                 {"priority", 3}
-            }));
+            }).dump());
             data["totalQuestions"] = 3;
             data["suggestedAt"] = std::to_string(surveyTs);
 
@@ -12722,7 +12729,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"researchType", effectiveType},
                 {"suitability", "high"},
                 {"estimatedDuration", "4-8 weeks"}
-            }));
+            }).dump());
             methodologies.push_back(json({
                 {"methodologyId", "meth_002"},
                 {"name", "Experimental Research Design"},
@@ -12730,7 +12737,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"researchType", effectiveType},
                 {"suitability", "medium"},
                 {"estimatedDuration", "8-16 weeks"}
-            }));
+            }).dump());
             methodologies.push_back(json({
                 {"methodologyId", "meth_003"},
                 {"name", "Case Study Analysis"},
@@ -12738,7 +12745,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"researchType", effectiveType},
                 {"suitability", "medium"},
                 {"estimatedDuration", "6-12 weeks"}
-            }));
+            }).dump());
 
             json data;
             data["topic"] = topic;
@@ -12812,7 +12819,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"type", "independent"},
                 {"measurement", "categorical"},
                 {"confidence", 0.92}
-            }));
+            }).dump());
             variables.push_back(json({
                 {"variableId", "var_002"},
                 {"name", "Dependent Variable"},
@@ -12820,7 +12827,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"type", "dependent"},
                 {"measurement", "continuous"},
                 {"confidence", 0.88}
-            }));
+            }).dump());
             variables.push_back(json({
                 {"variableId", "var_003"},
                 {"name", "Control Variable"},
@@ -12828,7 +12835,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"type", "control"},
                 {"measurement", "mixed"},
                 {"confidence", 0.85}
-            }));
+            }).dump());
 
             json data;
             data["description"] = description;
@@ -12899,7 +12906,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"papersPublished", 42},
                 {"hIndex", 18},
                 {"reason", std::string("Strong expertise match for \"") + (paperTitle.empty() ? "general research" : paperTitle) + std::string("\"")}
-            }));
+            }).dump());
             suggestions.push_back(json({
                 {"authorId", std::string("auth_") + std::to_string(coauthTs) + std::string("_2")},
                 {"name", "Prof. Sarah Chen"},
@@ -12909,7 +12916,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"papersPublished", 37},
                 {"hIndex", 15},
                 {"reason", "High citation overlap with your research area"}
-            }));
+            }).dump());
             suggestions.push_back(json({
                 {"authorId", std::string("auth_") + std::to_string(coauthTs) + std::string("_3")},
                 {"name", "Dr. James Park"},
@@ -12919,7 +12926,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"papersPublished", 29},
                 {"hIndex", 12},
                 {"reason", "Complementary skills in methodology and analysis"}
-            }));
+            }).dump());
 
             json data;
             data["paperTitle"] = paperTitle;
@@ -12994,21 +13001,21 @@ void AiCoPilotModule::registerRoutes() {
                 {"category", "methodology"},
                 {"weight", 0.95},
                 {"description", "Core computational approach referenced in text"}
-            }));
+            }).dump());
             concepts.push_back(json({
                 {"conceptId", std::string("cpt_") + std::to_string(cmapTs) + std::string("_2")},
                 {"label", "Data Analysis"},
                 {"category", "process"},
                 {"weight", 0.88},
                 {"description", "Quantitative analysis of experimental results"}
-            }));
+            }).dump());
             concepts.push_back(json({
                 {"conceptId", std::string("cpt_") + std::to_string(cmapTs) + std::string("_3")},
                 {"label", "Neural Networks"},
                 {"category", "technology"},
                 {"weight", 0.82},
                 {"description", "Deep learning architecture used in the study"}
-            }));
+            }).dump());
 
             json edges = json::array();
             edges.push_back(json({
@@ -13016,13 +13023,13 @@ void AiCoPilotModule::registerRoutes() {
                 {"target", std::string("cpt_") + std::to_string(cmapTs) + std::string("_3")},
                 {"relation", "uses"},
                 {"strength", 0.9}
-            }));
+            }).dump());
             edges.push_back(json({
                 {"source", std::string("cpt_") + std::to_string(cmapTs) + std::string("_1")},
                 {"target", std::string("cpt_") + std::to_string(cmapTs) + std::string("_2")},
                 {"relation", "requires"},
                 {"strength", 0.85}
-            }));
+            }).dump());
 
             json data;
             data["textLength"] = static_cast<int>(text.length());
@@ -13106,35 +13113,35 @@ void AiCoPilotModule::registerRoutes() {
                 {"category", "exploratory"},
                 {"difficulty", "intermediate"},
                 {"relevanceScore", 0.95}
-            }));
+            }).dump());
             questions.push_back(json({
                 {"questionId", std::string("rq_") + std::to_string(qgenTs) + std::string("_2")},
                 {"question", std::string("How has the approach to ") + topic + std::string(" evolved in the last decade?")},
                 {"category", "historical"},
                 {"difficulty", "intermediate"},
                 {"relevanceScore", 0.88}
-            }));
+            }).dump());
             questions.push_back(json({
                 {"questionId", std::string("rq_") + std::to_string(qgenTs) + std::string("_3")},
                 {"question", std::string("What methodologies are most effective for studying ") + topic + std::string("?")},
                 {"category", "methodological"},
                 {"difficulty", "advanced"},
                 {"relevanceScore", 0.92}
-            }));
+            }).dump());
             questions.push_back(json({
                 {"questionId", std::string("rq_") + std::to_string(qgenTs) + std::string("_4")},
                 {"question", std::string("What are the practical applications of ") + topic + std::string(" in industry?")},
                 {"category", "applied"},
                 {"difficulty", "beginner"},
                 {"relevanceScore", 0.85}
-            }));
+            }).dump());
             questions.push_back(json({
                 {"questionId", std::string("rq_") + std::to_string(qgenTs) + std::string("_5")},
                 {"question", std::string("What ethical considerations arise from research in ") + topic + std::string("?")},
                 {"category", "ethical"},
                 {"difficulty", "advanced"},
                 {"relevanceScore", 0.80}
-            }));
+            }).dump());
 
             // Trim to requested count
             while (static_cast<int>(questions.size()) > count) {
@@ -13218,7 +13225,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"duration", "4-6 weeks"},
                 {"order", 1},
                 {"status", "planned"}
-            }));
+            }).dump());
             phases.push_back(json({
                 {"phaseId", std::string("phase_") + std::to_string(protTs) + std::string("_2")},
                 {"name", "Study Design"},
@@ -13226,7 +13233,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"duration", "2-3 weeks"},
                 {"order", 2},
                 {"status", "planned"}
-            }));
+            }).dump());
             phases.push_back(json({
                 {"phaseId", std::string("phase_") + std::to_string(protTs) + std::string("_3")},
                 {"name", "Data Collection"},
@@ -13234,7 +13241,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"duration", "6-8 weeks"},
                 {"order", 3},
                 {"status", "planned"}
-            }));
+            }).dump());
             phases.push_back(json({
                 {"phaseId", std::string("phase_") + std::to_string(protTs) + std::string("_4")},
                 {"name", "Analysis"},
@@ -13242,7 +13249,7 @@ void AiCoPilotModule::registerRoutes() {
                 {"duration", "3-4 weeks"},
                 {"order", 4},
                 {"status", "planned"}
-            }));
+            }).dump());
 
             // Parse objectives array
             json parsedObjectives = json::array();
@@ -13262,7 +13269,7 @@ void AiCoPilotModule::registerRoutes() {
                     {"description", std::string("Investigate key aspects of ") + title},
                     {"priority", "high"},
                     {"status", "defined"}
-                }));
+                }).dump());
             }
 
             json data;

@@ -48,6 +48,7 @@ public:
     };
     std::unordered_map<std::string, CacheEntry> inMemoryCache_;
     std::mutex cacheMutex_;
+    std::chrono::system_clock::time_point lastCacheClean_ = std::chrono::system_clock::now();
 
     Impl() {
         startTime_ = std::chrono::system_clock::now();
@@ -561,13 +562,12 @@ public:
      * @brief 检查并清理过期缓存（定期调用）
      */
     void maybeCleanCache() {
-        static auto lastClean = std::chrono::system_clock::now();
         auto now = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::minutes>(now - lastClean);
+        auto elapsed = std::chrono::duration_cast<std::chrono::minutes>(now - lastCacheClean_);
 
         if (elapsed.count() >= 5) { // 每5分钟清理一次
             cleanExpiredCache();
-            lastClean = now;
+            lastCacheClean_ = now;
         }
     }
 
@@ -690,12 +690,18 @@ std::vector<RecommendationResult> RecommendationApiModule::getRecommendations(
 
     spdlog::info("[Recommendation] Generating recommendations for user {}", request.userId);
 
+    // Determine effective algorithm (per-request override or global config)
+    RecommendationAlgorithm effectiveAlgo = impl_->config_.algorithm;
+    if (request.algorithmOverride) {
+        effectiveAlgo = static_cast<RecommendationAlgorithm>(request.algorithmOverrideValue);
+    }
+
     // 定期清理缓存
     impl_->maybeCleanCache();
 
     // 检查缓存
     std::string cacheKey = "user_" + std::to_string(request.userId) +
-                          "_algo_" + std::to_string(static_cast<int>(impl_->config_.algorithm)) +
+                          "_algo_" + std::to_string(static_cast<int>(effectiveAlgo)) +
                           "_limit_" + std::to_string(request.limit);
 
     auto cached = getCachedRecommendations(cacheKey);
@@ -729,7 +735,7 @@ std::vector<RecommendationResult> RecommendationApiModule::getRecommendations(
     std::vector<RecommendationResult> results;
 
     // 根据配置选择推荐算法
-    switch (impl_->config_.algorithm) {
+    switch (effectiveAlgo) {
         case RecommendationAlgorithm::COLLABORATIVE_FILTERING:
             results = collaborativeFiltering(request.userId, request.limit, request.excludedPaperIds);
             break;
@@ -1492,26 +1498,22 @@ void RecommendationApiModule::registerRoutes() {
 
         auto userIdIt = req.queryParams.find("user_id");
         if (userIdIt != req.queryParams.end()) {
-            userId = std::stoi(userIdIt->second);
+            try { userId = std::stoi(userIdIt->second); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid user_id\"}");
+            }
         }
 
         auto limitIt = req.queryParams.find("limit");
         if (limitIt != req.queryParams.end()) {
-            limit = std::min(50, std::max(1, std::stoi(limitIt->second)));
+            try { limit = std::min(50, std::max(1, std::stoi(limitIt->second))); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid limit\"}");
+            }
         }
 
         auto algoIt = req.queryParams.find("algorithm");
         if (algoIt != req.queryParams.end()) {
             algo = algoIt->second;
-            if (algo == "collaborative") {
-                impl_->config_.algorithm = RecommendationAlgorithm::COLLABORATIVE_FILTERING;
-            } else if (algo == "content") {
-                impl_->config_.algorithm = RecommendationAlgorithm::CONTENT_BASED;
-            } else if (algo == "trending") {
-                impl_->config_.algorithm = RecommendationAlgorithm::POPULARITY;
-            } else {
-                impl_->config_.algorithm = RecommendationAlgorithm::HYBRID;
-            }
+            // Do NOT mutate impl_->config_.algorithm — use per-request override instead
         }
 
         // 查询缓存
@@ -1532,6 +1534,20 @@ void RecommendationApiModule::registerRoutes() {
             request.userId = userId;
             request.limit = limit;
             request.excludedPaperIds = {};
+
+            // Set per-request algorithm override from query param
+            if (algoIt != req.queryParams.end()) {
+                request.algorithmOverride = true;
+                if (algo == "collaborative") {
+                    request.algorithmOverrideValue = static_cast<int>(RecommendationAlgorithm::COLLABORATIVE_FILTERING);
+                } else if (algo == "content") {
+                    request.algorithmOverrideValue = static_cast<int>(RecommendationAlgorithm::CONTENT_BASED);
+                } else if (algo == "trending") {
+                    request.algorithmOverrideValue = static_cast<int>(RecommendationAlgorithm::POPULARITY);
+                } else {
+                    request.algorithmOverrideValue = static_cast<int>(RecommendationAlgorithm::HYBRID);
+                }
+            }
 
             auto recommendations = getRecommendations(request);
 
@@ -1573,7 +1589,9 @@ void RecommendationApiModule::registerRoutes() {
 
         auto limitIt = req.queryParams.find("limit");
         if (limitIt != req.queryParams.end()) {
-            limit = std::min(50, std::max(1, std::stoi(limitIt->second)));
+            try { limit = std::min(50, std::max(1, std::stoi(limitIt->second))); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid limit\"}");
+            }
         }
 
         auto windowIt = req.queryParams.find("window");
@@ -1619,12 +1637,17 @@ void RecommendationApiModule::registerRoutes() {
             return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Missing paper_id"}}.dump());
         }
 
-        int paperId = std::stoi(paperIdIt->second);
+        int paperId;
+        try { paperId = std::stoi(paperIdIt->second); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Invalid paper_id"}}.dump());
+        }
         int limit = 10;
 
         auto limitIt = req.queryParams.find("limit");
         if (limitIt != req.queryParams.end()) {
-            limit = std::min(50, std::max(1, std::stoi(limitIt->second)));
+            try { limit = std::min(50, std::max(1, std::stoi(limitIt->second))); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid limit\"}");
+            }
         }
 
         try {
@@ -1704,10 +1727,15 @@ void RecommendationApiModule::registerRoutes() {
         int userId = 1;
         auto userIdIt = req.queryParams.find("user_id");
         if (userIdIt != req.queryParams.end()) {
-            userId = std::stoi(userIdIt->second);
+            try { userId = std::stoi(userIdIt->second); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid user_id\"}");
+            }
         }
 
-        int paperId = std::stoi(paperIdIt->second);
+        int paperId;
+        try { paperId = std::stoi(paperIdIt->second); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, json{{"success", false}, {"error", "Invalid paper_id"}}.dump());
+        }
 
         try {
             std::string explanation = explainRecommendation(userId, paperId);
@@ -1744,12 +1772,16 @@ void RecommendationApiModule::registerRoutes() {
 
         auto userIdIt = req.queryParams.find("user_id");
         if (userIdIt != req.queryParams.end()) {
-            userId = std::stoi(userIdIt->second);
+            try { userId = std::stoi(userIdIt->second); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid user_id\"}");
+            }
         }
 
         auto limitIt = req.queryParams.find("limit");
         if (limitIt != req.queryParams.end()) {
-            limit = std::min(50, std::max(1, std::stoi(limitIt->second)));
+            try { limit = std::min(50, std::max(1, std::stoi(limitIt->second))); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid limit\"}");
+            }
         }
 
         try {
@@ -1790,8 +1822,12 @@ void RecommendationApiModule::registerRoutes() {
         if (userIdIt == req.pathParams.end())
             return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Missing userId\"}");
 
+        int userId;
+        try { userId = std::stoi(userIdIt->second); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid userId\"}");
+        }
+
         try {
-            int userId = std::stoi(userIdIt->second);
             auto interests = getUserInterests(userId);
             auto history = impl_->getUserHistory(userId, 20);
 
@@ -1832,7 +1868,10 @@ void RecommendationApiModule::registerRoutes() {
         auto userIdIt = req.pathParams.find("userId");
         if (userIdIt == req.pathParams.end())
             return HttpResponse::json(400, "{\"error\":\"Missing userId\"}");
-        int userId = std::stoi(userIdIt->second);
+        int userId;
+        try { userId = std::stoi(userIdIt->second); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid userId\"}");
+        }
         nlohmann::json resp;
         resp["userId"] = userId;
         resp["collaborators"] = nlohmann::json::array();
@@ -1909,7 +1948,10 @@ void RecommendationApiModule::registerRoutes() {
         auto userIdIt = req.pathParams.find("userId");
         if (userIdIt == req.pathParams.end())
             return HttpResponse::json(400, "{\"error\":\"Missing userId\"}");
-        int userId = std::stoi(userIdIt->second);
+        int userId;
+        try { userId = std::stoi(userIdIt->second); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid userId\"}");
+        }
         nlohmann::json resp;
         resp["userId"] = userId;
         resp["feedback"] = nlohmann::json::array();
@@ -1943,8 +1985,12 @@ void RecommendationApiModule::registerRoutes() {
         if (!database_)
             return HttpResponse::json(200, "{\"feedback\":[],\"total\":0}");
 
+        int userId;
+        try { userId = std::stoi(req.pathParams.at("userId")); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid userId\"}");
+        }
+
         try {
-            int userId = std::stoi(req.pathParams.at("userId"));
             auto results = database_->query(
                 "SELECT rf.id, rf.paper_id, rf.feedback_type, rf.created_at, p.title "
                 "FROM recommend_feedback rf LEFT JOIN papers p ON rf.paper_id = p.id "
@@ -1973,9 +2019,18 @@ void RecommendationApiModule::registerRoutes() {
         if (!database_)
             return HttpResponse::json(200, "{\"papers\":[],\"total\":0}");
 
+        int userId;
+        try { userId = std::stoi(req.pathParams.at("userId")); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid userId\"}");
+        }
+        int limit = 10;
+        if (req.queryParams.count("limit")) {
+            try { limit = std::stoi(req.queryParams.at("limit")); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid limit\"}");
+            }
+        }
+
         try {
-            int userId = std::stoi(req.pathParams.at("userId"));
-            int limit = req.queryParams.count("limit") ? std::stoi(req.queryParams.at("limit")) : 10;
 
             auto results = database_->query(
                 "SELECT p.id, p.title, p.authors, p.citation_count, p.keywords "
@@ -2017,8 +2072,12 @@ void RecommendationApiModule::registerRoutes() {
         if (!database_)
             return HttpResponse::json(HTTP::OK, "{\"success\":true}");
 
+        int fbId;
+        try { fbId = std::stoi(req.pathParams.at("id")); } catch (...) {
+            return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid feedback ID\"}");
+        }
+
         try {
-            int fbId = std::stoi(req.pathParams.at("id"));
             database_->execute("DELETE FROM recommendation_feedback WHERE id = " + std::to_string(fbId));
             return HttpResponse::json(HTTP::OK, "{\"success\":true,\"id\":" + std::to_string(fbId) + "}");
         } catch (const std::exception& e) {
@@ -2156,15 +2215,22 @@ void RecommendationApiModule::registerRoutes() {
         try {
             std::string id = req.pathParams.at("id");
 
+            // Validate id is numeric to prevent SQL injection
+            int idInt;
+            try { idInt = std::stoi(id); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid paper ID\"}");
+            }
+            std::string safeId = std::to_string(idInt);
+
             nlohmann::json resp;
             resp["papers"] = nlohmann::json::array();
-            resp["sourcePaperId"] = id;
+            resp["sourcePaperId"] = safeId;
             resp["total"] = 0;
 
             if (database_) {
                 auto result = database_->query(
                     "SELECT p.id, p.title, p.authors, p.year FROM papers p WHERE p.id != "
-                    + id + " ORDER BY p.citation_count DESC LIMIT 5");
+                    + safeId + " ORDER BY p.citation_count DESC LIMIT 5");
                 nlohmann::json arr = nlohmann::json::array();
                 for (auto& row : result) {
                     nlohmann::json item;
@@ -2192,6 +2258,15 @@ void RecommendationApiModule::registerRoutes() {
             if (userId.empty() || paperId.empty())
                 return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"userId and paperId required\"}");
 
+            // Validate userId and paperId are numeric to prevent SQL injection
+            int userIdInt, paperIdInt;
+            try { userIdInt = std::stoi(userId); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid user ID\"}");
+            }
+            try { paperIdInt = std::stoi(paperId); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid paper ID\"}");
+            }
+
             if (database_) {
                 try {
                     database_->execute(
@@ -2207,7 +2282,7 @@ void RecommendationApiModule::registerRoutes() {
 
                 database_->execute(
                     "INSERT IGNORE INTO recommendation_blocklist (user_id, paper_id) VALUES ("
-                    + userId + ", " + paperId + ")");
+                    + std::to_string(userIdInt) + ", " + std::to_string(paperIdInt) + ")");
             }
             return HttpResponse::json(HTTP::OK, "{\"success\":true}");
         } catch (const std::exception& e) {
@@ -2504,6 +2579,14 @@ void RecommendationApiModule::registerRoutes() {
                 emptyResp["algorithm"] = "content_based";
                 return HttpResponse::json(HTTP::OK, emptyResp.dump());
             }
+
+            // Validate userId is numeric to prevent SQL injection
+            int userIdInt;
+            try { userIdInt = std::stoi(userId); } catch (...) {
+                return HttpResponse::json(HTTP::BAD_REQUEST, "{\"error\":\"Invalid user ID\"}");
+            }
+            std::string safeUserId = std::to_string(userIdInt);
+
             nlohmann::json papers = nlohmann::json::array();
 
             if (database_) {
@@ -2511,9 +2594,9 @@ void RecommendationApiModule::registerRoutes() {
                     "SELECT DISTINCT p2.id, p2.title, p2.authors FROM user_reading_history urh "
                     "JOIN papers p1 ON urh.paper_id = p1.id "
                     "JOIN papers p2 ON p1.keywords = p2.keywords "
-                    "WHERE urh.user_id = " + userId + " "
+                    "WHERE urh.user_id = " + safeUserId + " "
                     "AND p2.id NOT IN (SELECT paper_id FROM user_reading_history WHERE user_id = "
-                    + userId + ") LIMIT 10");
+                    + safeUserId + ") LIMIT 10");
                 for (auto& row : result) {
                     nlohmann::json item;
                     item["id"] = row.count("id") && !row.at("id").empty() ? std::stoi(row.at("id")) : 0;
@@ -3152,7 +3235,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::stringstream tsStream;
-            tsStream << std::put_time(std::localtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm local_buf_0; localtime_r(&now_time_t, &local_buf_0); tsStream << std::put_time(&local_buf_0, "%Y-%m-%dT%H:%M:%SZ");
 
             if (database_) {
                 try {
@@ -3319,7 +3402,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto nowTime = std::chrono::system_clock::to_time_t(now);
             std::stringstream tsStream;
-            tsStream << std::put_time(std::localtime(&nowTime), "%Y%m%d%H%M%S");
+            struct tm local_buf_1; localtime_r(&nowTime, &local_buf_1); tsStream << std::put_time(&local_buf_1, "%Y%m%d%H%M%S");
             std::string scheduleId = "sched_" + tsStream.str();
 
             // Calculate next run based on frequency
@@ -3337,7 +3420,7 @@ void RecommendationApiModule::registerRoutes() {
 
             auto nextRunTime = std::chrono::system_clock::to_time_t(nextRun);
             std::stringstream nextRunStream;
-            nextRunStream << std::put_time(std::localtime(&nextRunTime), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm local_buf_2; localtime_r(&nextRunTime, &local_buf_2); nextRunStream << std::put_time(&local_buf_2, "%Y-%m-%dT%H:%M:%SZ");
 
             if (database_) {
                 try {
@@ -3518,7 +3601,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_0; gmtime_r(&now_time_t, &gm_buf_0); oss << std::put_time(&gm_buf_0, "%Y-%m-%dT%H:%M:%SZ");
             blacklistedAt = oss.str();
 
             if (database_) {
@@ -3575,7 +3658,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_1; gmtime_r(&now_time_t, &gm_buf_1); oss << std::put_time(&gm_buf_1, "%Y-%m-%dT%H:%M:%SZ");
             lastUpdated = oss.str();
 
             if (database_) {
@@ -3589,7 +3672,7 @@ void RecommendationApiModule::registerRoutes() {
                         "WHERE rf.paper_id IS NULL AND rb.paper_id IS NULL ";
 
                     if (!category.empty()) {
-                        query += "AND p.category = '" + category + "' ";
+                        query += "AND p.category = '" + StringUtil::escapeSql(category) + "' ";
                     }
 
                     query += "ORDER BY p.created_at DESC LIMIT " + std::to_string(limit);
@@ -3618,7 +3701,7 @@ void RecommendationApiModule::registerRoutes() {
                         "LEFT JOIN recommendation_blacklist rb ON p.id = rb.paper_id "
                         "WHERE rf.paper_id IS NULL AND rb.paper_id IS NULL ";
                     if (!category.empty()) {
-                        countQuery += "AND p.category = '" + category + "'";
+                        countQuery += "AND p.category = '" + StringUtil::escapeSql(category) + "'";
                     }
                     auto countRows = database_->query(countQuery);
                     if (!countRows.empty() && countRows[0].count("total") && !countRows[0].at("total").empty()) {
@@ -3709,7 +3792,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto time_t_val = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&time_t_val), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_2; gmtime_r(&time_t_val, &gm_buf_2); oss << std::put_time(&gm_buf_2, "%Y-%m-%dT%H:%M:%SZ");
             evaluatedAt = oss.str();
 
             nlohmann::json data;
@@ -4123,7 +4206,7 @@ void RecommendationApiModule::registerRoutes() {
             auto nextDeliveryTime = now + std::chrono::hours(168); // 1 week from now
             auto timeT = std::chrono::system_clock::to_time_t(nextDeliveryTime);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&timeT), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_3; gmtime_r(&timeT, &gm_buf_3); oss << std::put_time(&gm_buf_3, "%Y-%m-%dT%H:%M:%SZ");
             std::string nextDelivery = oss.str();
 
             nlohmann::json categories = nlohmann::json::array();
@@ -4192,7 +4275,7 @@ void RecommendationApiModule::registerRoutes() {
 
             auto timeT = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&timeT), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_4; gmtime_r(&timeT, &gm_buf_4); oss << std::put_time(&gm_buf_4, "%Y-%m-%dT%H:%M:%SZ");
             std::string votedAt = oss.str();
 
             nlohmann::json data;
@@ -5336,7 +5419,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_5; gmtime_r(&now_time_t, &gm_buf_5); oss << std::put_time(&gm_buf_5, "%Y-%m-%dT%H:%M:%SZ");
             std::string blacklistedAt = oss.str();
 
             if (database_) {
@@ -5475,7 +5558,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_6; gmtime_r(&now_time_t, &gm_buf_6); oss << std::put_time(&gm_buf_6, "%Y-%m-%dT%H:%M:%SZ");
             std::string updatedAt = oss.str();
 
             if (database_) {
@@ -5626,7 +5709,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_7; gmtime_r(&now_time_t, &gm_buf_7); oss << std::put_time(&gm_buf_7, "%Y-%m-%dT%H:%M:%SZ");
             std::string createdAt = oss.str();
 
             std::string collectionId = "col_" + std::to_string(now_time_t);
@@ -5778,7 +5861,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_8; gmtime_r(&now_time_t, &gm_buf_8); oss << std::put_time(&gm_buf_8, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             if (database_) {
@@ -5848,7 +5931,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_9; gmtime_r(&now_time_t, &gm_buf_9); oss << std::put_time(&gm_buf_9, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json papers = nlohmann::json::array();
@@ -5951,7 +6034,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_10; gmtime_r(&now_time_t, &gm_buf_10); oss << std::put_time(&gm_buf_10, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json categories = nlohmann::json::array({"machine_learning", "natural_language_processing", "computer_vision", "data_mining"});
@@ -6001,7 +6084,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_11; gmtime_r(&now_time_t, &gm_buf_11); oss << std::put_time(&gm_buf_11, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json papers = nlohmann::json::array();
@@ -6066,7 +6149,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_12; gmtime_r(&now_time_t, &gm_buf_12); oss << std::put_time(&gm_buf_12, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             // Stub learning path steps
@@ -6142,7 +6225,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_13; gmtime_r(&now_time_t, &gm_buf_13); oss << std::put_time(&gm_buf_13, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             // Stub sentiment summary
@@ -6201,7 +6284,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_14; gmtime_r(&now_time_t, &gm_buf_14); oss << std::put_time(&gm_buf_14, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             double contentWeight = 0.4;
@@ -6264,7 +6347,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_15; gmtime_r(&now_time_t, &gm_buf_15); oss << std::put_time(&gm_buf_15, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json collections = nlohmann::json::array();
@@ -6317,7 +6400,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_16; gmtime_r(&now_time_t, &gm_buf_16); oss << std::put_time(&gm_buf_16, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             std::string userId;
@@ -6382,7 +6465,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_17; gmtime_r(&now_time_t, &gm_buf_17); oss << std::put_time(&gm_buf_17, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json clusters = nlohmann::json::array();
@@ -6449,7 +6532,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_18; gmtime_r(&now_time_t, &gm_buf_18); oss << std::put_time(&gm_buf_18, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json nodes = nlohmann::json::array();
@@ -6531,7 +6614,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_19; gmtime_r(&now_time_t, &gm_buf_19); oss << std::put_time(&gm_buf_19, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json trends = nlohmann::json::array();
@@ -6598,7 +6681,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_20; gmtime_r(&now_time_t, &gm_buf_20); oss << std::put_time(&gm_buf_20, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json influencers = nlohmann::json::array();
@@ -6686,7 +6769,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_21; gmtime_r(&now_time_t, &gm_buf_21); oss << std::put_time(&gm_buf_21, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json papers = nlohmann::json::array();
@@ -6764,7 +6847,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_22; gmtime_r(&now_time_t, &gm_buf_22); oss << std::put_time(&gm_buf_22, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json adjustedPapers = nlohmann::json::array();
@@ -6838,7 +6921,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_23; gmtime_r(&now_time_t, &gm_buf_23); oss << std::put_time(&gm_buf_23, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json nodes = nlohmann::json::array();
@@ -6932,7 +7015,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_24; gmtime_r(&now_time_t, &gm_buf_24); oss << std::put_time(&gm_buf_24, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json clusters = nlohmann::json::array();
@@ -7005,7 +7088,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_25; gmtime_r(&now_time_t, &gm_buf_25); oss << std::put_time(&gm_buf_25, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json timeline = nlohmann::json::array();
@@ -7076,7 +7159,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_26; gmtime_r(&now_time_t, &gm_buf_26); oss << std::put_time(&gm_buf_26, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json weights = nlohmann::json::array();
@@ -7151,7 +7234,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_27; gmtime_r(&now_time_t, &gm_buf_27); oss << std::put_time(&gm_buf_27, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json driftEvents = nlohmann::json::array();
@@ -7235,7 +7318,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_28; gmtime_r(&now_time_t, &gm_buf_28); oss << std::put_time(&gm_buf_28, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             if (episodeId.empty()) episodeId = "ep_" + std::to_string(now_time_t);
@@ -7298,7 +7381,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_29; gmtime_r(&now_time_t, &gm_buf_29); oss << std::put_time(&gm_buf_29, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json points = nlohmann::json::array();
@@ -7379,7 +7462,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_30; gmtime_r(&now_time_t, &gm_buf_30); oss << std::put_time(&gm_buf_30, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json weights;
@@ -7437,7 +7520,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_31; gmtime_r(&now_time_t, &gm_buf_31); oss << std::put_time(&gm_buf_31, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json nodes = nlohmann::json::array();
@@ -7541,7 +7624,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_32; gmtime_r(&now_time_t, &gm_buf_32); oss << std::put_time(&gm_buf_32, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json rankings = nlohmann::json::array();
@@ -7615,7 +7698,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_33; gmtime_r(&now_time_t, &gm_buf_33); oss << std::put_time(&gm_buf_33, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json evolution = nlohmann::json::array();
@@ -7712,7 +7795,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_34; gmtime_r(&now_time_t, &gm_buf_34); oss << std::put_time(&gm_buf_34, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json papers = nlohmann::json::array();
@@ -7794,7 +7877,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_35; gmtime_r(&now_time_t, &gm_buf_35); oss << std::put_time(&gm_buf_35, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json categories = nlohmann::json::array();
@@ -7869,7 +7952,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_36; gmtime_r(&now_time_t, &gm_buf_36); oss << std::put_time(&gm_buf_36, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json transferredPapers = nlohmann::json::array();
@@ -7943,7 +8026,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_37; gmtime_r(&now_time_t, &gm_buf_37); oss << std::put_time(&gm_buf_37, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json nodes = nlohmann::json::array();
@@ -8029,7 +8112,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_38; gmtime_r(&now_time_t, &gm_buf_38); oss << std::put_time(&gm_buf_38, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             double updatedAlpha = 1.0 + reward;
@@ -8157,7 +8240,7 @@ void RecommendationApiModule::registerRoutes() {
             auto now = std::chrono::system_clock::now();
             auto now_time_t = std::chrono::system_clock::to_time_t(now);
             std::ostringstream oss;
-            oss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
+            struct tm gm_buf_39; gmtime_r(&now_time_t, &gm_buf_39); oss << std::put_time(&gm_buf_39, "%Y-%m-%dT%H:%M:%SZ");
             std::string timestamp = oss.str();
 
             nlohmann::json categoryScores = nlohmann::json::array();
@@ -13459,7 +13542,7 @@ void RecommendationApiModule::registerRoutes() {
                         auto projDate = projStart + std::chrono::hours(24 * p * periodDays);
                         auto projTt = std::chrono::system_clock::to_time_t(projDate);
                         std::stringstream projSs;
-                        projSs << std::put_time(std::localtime(&projTt), "%Y-%m-%d");
+                        struct tm local_buf_3; localtime_r(&projTt, &local_buf_3); projSs << std::put_time(&local_buf_3, "%Y-%m-%d");
 
                         double estimated = avgCount * std::pow(growthFactor, p);
                         nlohmann::json projEntry;
@@ -13482,7 +13565,7 @@ void RecommendationApiModule::registerRoutes() {
                     auto periodDate = stubStart + std::chrono::hours(24 * p * periodDays);
                     auto periodTt = std::chrono::system_clock::to_time_t(periodDate);
                     std::stringstream pss;
-                    pss << std::put_time(std::localtime(&periodTt), "%Y-%m-%d");
+                    struct tm local_buf_4; localtime_r(&periodTt, &local_buf_4); pss << std::put_time(&local_buf_4, "%Y-%m-%d");
 
                     int cnt = 2 + (p * 3 / pastPeriods) + (rand() % 3);
                     nlohmann::json entry;
@@ -13514,7 +13597,7 @@ void RecommendationApiModule::registerRoutes() {
                     auto projDate = projStart + std::chrono::hours(24 * p * periodDays);
                     auto projTt = std::chrono::system_clock::to_time_t(projDate);
                     std::stringstream projSs;
-                    projSs << std::put_time(std::localtime(&projTt), "%Y-%m-%d");
+                    struct tm local_buf_5; localtime_r(&projTt, &local_buf_5); projSs << std::put_time(&local_buf_5, "%Y-%m-%d");
 
                     double estimated = avgCount * std::pow(growthFactor, p);
                     nlohmann::json projEntry;

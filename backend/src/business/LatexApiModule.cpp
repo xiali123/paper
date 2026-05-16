@@ -8,6 +8,7 @@
 #include <sstream>
 #include <map>
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
@@ -56,6 +57,25 @@ public:
 
     std::string escapeJson(const std::string& str) {
         return StringUtil::escapeJson(str);
+    }
+
+    // Validate that a string is purely numeric (safe for unquoted SQL concatenation)
+    static bool isNumericId(const std::string& s) {
+        if (s.empty()) return false;
+        return std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isdigit(c); });
+    }
+
+    // Escape LIKE wildcards (% and _) in a search term to prevent LIKE injection
+    static std::string escapeLikeWildcards(const std::string& s) {
+        std::string result;
+        result.reserve(s.size());
+        for (char c : s) {
+            if (c == '%' || c == '_' || c == '\\') {
+                result += '\\';
+            }
+            result += c;
+        }
+        return result;
     }
 
     std::string buildJsonResponse(int statusCode, bool success, const std::string& message, const std::string& data = "") {
@@ -783,8 +803,9 @@ void LatexApiModule::registerRoutes() {
                 try {
                     std::string sql = "SELECT id, type, bib_key, fields FROM latex_bibliography WHERE 1=1";
                     if (!q.empty()) {
-                        sql += " AND (bib_key LIKE '%" + StringUtil::escapeSql(q)
-                            + "%' OR fields LIKE '%" + StringUtil::escapeSql(q) + "%')";
+                        std::string likeQ = Impl::escapeLikeWildcards(StringUtil::escapeSql(q));
+                        sql += " AND (bib_key LIKE '%" + likeQ
+                            + "%' OR fields LIKE '%" + likeQ + "%')";
                     }
                     if (!type.empty()) {
                         sql += " AND type = '" + StringUtil::escapeSql(type) + "'";
@@ -1206,7 +1227,7 @@ void LatexApiModule::registerRoutes() {
                                 "SELECT DISTINCT p.id, p.name FROM latex_projects p "
                                 "JOIN latex_project_files pf ON p.id = pf.project_id "
                                 "WHERE pf.content LIKE '%"
-                                + StringUtil::escapeSql(key) + "%' LIMIT 10");
+                                + Impl::escapeLikeWildcards(StringUtil::escapeSql(key)) + "%' LIMIT 10");
                             for (auto& pr : projRows) {
                                 nlohmann::json proj;
                                 proj["id"] = pr.count("id") && !pr["id"].empty() ? std::stoi(pr["id"]) : 0;
@@ -1316,7 +1337,7 @@ void LatexApiModule::registerRoutes() {
                         try {
                             auto refRows = database_->query(
                                 "SELECT COUNT(*) as cnt FROM latex_project_files WHERE content LIKE '%"
-                                + StringUtil::escapeSql(dupKey) + "%'");
+                                + Impl::escapeLikeWildcards(StringUtil::escapeSql(dupKey)) + "%'");
                             if (!refRows.empty() && refRows[0].count("cnt")) {
                                 updatedReferences += std::stoi(refRows[0]["cnt"]);
                             }
@@ -1527,7 +1548,7 @@ void LatexApiModule::registerRoutes() {
 
             if (database_) {
                 try {
-                    std::string escapedQ = StringUtil::escapeSql(q);
+                    std::string escapedQ = Impl::escapeLikeWildcards(StringUtil::escapeSql(q));
                     std::string escapedCat = StringUtil::escapeSql(category);
                     std::string sql = "SELECT id, name, category, content FROM latex_snippets WHERE name LIKE '%"
                         + escapedQ + "%'";
@@ -1822,10 +1843,10 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/:id/structure", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string id = req.pathParams.count("id") ? req.pathParams.at("id") : "";
-            if (id.empty()) {
+            if (id.empty() || !Impl::isNumericId(id)) {
                 std::ostringstream errJson;
-                errJson << "{\"success\":false,\"error\":\"Missing project ID\"}";
-                return HttpResponse::json(HTTP::OK, errJson.str());
+                errJson << "{\"success\":false,\"error\":\"Invalid project ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
             }
 
             int totalFiles = 0;
@@ -1836,7 +1857,7 @@ void LatexApiModule::registerRoutes() {
                 try {
                     auto rows = impl_->database_->query(
                         "SELECT filename, size, content FROM latex_project_files WHERE project_id = "
-                        + StringUtil::escapeSql(id) + " ORDER BY filename");
+                        + id + " ORDER BY filename");
                     totalFiles = static_cast<int>(rows.size());
 
                     std::ostringstream childrenArr;
@@ -1856,9 +1877,9 @@ void LatexApiModule::registerRoutes() {
                         std::string ext = (dotPos != std::string::npos) ? filename.substr(dotPos + 1) : "";
                         if (ext == "tex") type = "tex";
                         else if (ext == "bib") type = "bibliography";
-                        else if (ext == "sty" || ext == "cls") type = "style";
-                        else if (ext == "png" || ext == "jpg" || ext == "pdf") type = "image";
+                        else if (ext == "sty") type = "style";
                         else if (ext == "cls") type = "class";
+                        else if (ext == "png" || ext == "jpg" || ext == "pdf") type = "image";
 
                         if (i > 0) childrenArr << ",";
                         childrenArr << "{"
@@ -1959,10 +1980,10 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/:id/dependencies", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string id = req.pathParams.count("id") ? req.pathParams.at("id") : "";
-            if (id.empty()) {
+            if (id.empty() || !Impl::isNumericId(id)) {
                 std::ostringstream errJson;
-                errJson << "{\"success\":false,\"error\":\"Missing project ID\"}";
-                return HttpResponse::json(HTTP::OK, errJson.str());
+                errJson << "{\"success\":false,\"error\":\"Invalid project ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
             }
 
             std::ostringstream nodesArr;
@@ -1972,7 +1993,7 @@ void LatexApiModule::registerRoutes() {
                 try {
                     auto rows = impl_->database_->query(
                         "SELECT filename, content FROM latex_project_files WHERE project_id = "
-                        + StringUtil::escapeSql(id) + " ORDER BY filename");
+                        + id + " ORDER BY filename");
 
                     nodesArr << "[";
                     edgesArr << "[";
@@ -2148,10 +2169,10 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/:id/packages", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string id = req.pathParams.count("id") ? req.pathParams.at("id") : "";
-            if (id.empty()) {
+            if (id.empty() || !Impl::isNumericId(id)) {
                 std::ostringstream errJson;
-                errJson << "{\"success\":false,\"error\":\"Missing project ID\"}";
-                return HttpResponse::json(HTTP::OK, errJson.str());
+                errJson << "{\"success\":false,\"error\":\"Invalid project ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
             }
 
             std::ostringstream packagesArr;
@@ -2164,7 +2185,7 @@ void LatexApiModule::registerRoutes() {
                 try {
                     auto rows = impl_->database_->query(
                         "SELECT name, version, source FROM latex_packages WHERE project_id = "
-                        + StringUtil::escapeSql(id) + " ORDER BY name");
+                        + id + " ORDER BY name");
 
                     bool first = true;
                     for (auto& row : rows) {
@@ -2364,10 +2385,10 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/templates/:id", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string id = req.pathParams.count("id") ? req.pathParams.at("id") : "";
-            if (id.empty()) {
+            if (id.empty() || !Impl::isNumericId(id)) {
                 std::ostringstream errJson;
-                errJson << "{\"success\":false,\"error\":\"Missing template ID\"}";
-                return HttpResponse::json(HTTP::OK, errJson.str());
+                errJson << "{\"success\":false,\"error\":\"Invalid template ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
             }
 
             bool found = false;
@@ -2381,7 +2402,7 @@ void LatexApiModule::registerRoutes() {
                 try {
                     auto rows = impl_->database_->query(
                         "SELECT id, name, description, content, variables, created_at, usage_count "
-                        "FROM latex_templates WHERE id = " + StringUtil::escapeSql(id));
+                        "FROM latex_templates WHERE id = " + id);
 
                     if (!rows.empty()) {
                         found = true;
@@ -2520,10 +2541,10 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/files/:id/magic-comments", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string id = req.pathParams.count("id") ? req.pathParams.at("id") : "";
-            if (id.empty()) {
+            if (id.empty() || !Impl::isNumericId(id)) {
                 std::ostringstream errJson;
-                errJson << "{\"success\":false,\"error\":\"Missing file ID\"}";
-                return HttpResponse::json(HTTP::OK, errJson.str());
+                errJson << "{\"success\":false,\"error\":\"Invalid file ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
             }
 
             std::ostringstream commentsArr;
@@ -2537,7 +2558,7 @@ void LatexApiModule::registerRoutes() {
                 try {
                     auto rows = impl_->database_->query(
                         "SELECT comment_id, line, comment, type, author, status "
-                        "FROM latex_magic_comments WHERE file_id = " + StringUtil::escapeSql(id)
+                        "FROM latex_magic_comments WHERE file_id = " + id
                         + " ORDER BY line ASC");
 
                     for (auto& row : rows) {
@@ -2552,7 +2573,7 @@ void LatexApiModule::registerRoutes() {
                         commentsArr << "{\"id\":\"" << impl_->escapeJson(row.count("comment_id") ? row.at("comment_id") : "") << "\""
                             << ",\"line\":" << (row.count("line") ? row.at("line") : "0")
                             << ",\"comment\":\"" << impl_->escapeJson(row.count("comment") ? row.at("comment") : "") << "\""
-                            << ",\"type\":\"" << cType << "\""
+                            << ",\"type\":\"" << impl_->escapeJson(cType) << "\""
                             << ",\"author\":\"" << impl_->escapeJson(row.count("author") ? row.at("author") : "") << "\""
                             << ",\"status\":\"" << impl_->escapeJson(row.count("status") ? row.at("status") : "open") << "\"}";
                     }
@@ -2646,10 +2667,10 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/:id/labels", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string id = req.pathParams.count("id") ? req.pathParams.at("id") : "";
-            if (id.empty()) {
+            if (id.empty() || !Impl::isNumericId(id)) {
                 std::ostringstream errJson;
-                errJson << "{\"success\":false,\"error\":\"Missing project ID\"}";
-                return HttpResponse::json(HTTP::OK, errJson.str());
+                errJson << "{\"success\":false,\"error\":\"Invalid project ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
             }
 
             std::ostringstream labelsArr;
@@ -2661,7 +2682,7 @@ void LatexApiModule::registerRoutes() {
                 try {
                     auto rows = impl_->database_->query(
                         "SELECT label_id, name, color, COUNT(file_id) as file_count FROM latex_labels "
-                        "WHERE project_id = " + StringUtil::escapeSql(id)
+                        "WHERE project_id = " + id
                         + " GROUP BY label_id, name, color ORDER BY name");
 
                     for (auto& row : rows) {
@@ -2881,6 +2902,11 @@ void LatexApiModule::registerRoutes() {
     router.get(prefix + "/projects/:id/stats", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string projectId = req.pathParams.count("id") ? req.pathParams.at("id") : "0";
+            if (!Impl::isNumericId(projectId)) {
+                std::ostringstream errJson;
+                errJson << "{\"success\":false,\"error\":\"Invalid project ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
+            }
 
             int totalFiles = 0;
             int totalLines = 0;
@@ -2894,7 +2920,7 @@ void LatexApiModule::registerRoutes() {
                 try {
                     auto fileStats = database_->query(
                         "SELECT COUNT(*) as cnt, COALESCE(SUM(line_count),0) as lines, COALESCE(SUM(file_size),0) as size "
-                        "FROM latex_project_files WHERE project_id = " + StringUtil::escapeSql(projectId));
+                        "FROM latex_project_files WHERE project_id = " + projectId);
                     if (!fileStats.empty()) {
                         totalFiles = fileStats[0].count("cnt") ? std::stoi(fileStats[0].at("cnt")) : 0;
                         totalLines = fileStats[0].count("lines") ? std::stoi(fileStats[0].at("lines")) : 0;
@@ -2905,7 +2931,7 @@ void LatexApiModule::registerRoutes() {
                         "SELECT COUNT(*) as cnt, COALESCE(SUM(CASE WHEN status='error' THEN 1 ELSE 0 END),0) as errors, "
                         "COALESCE(AVG(duration_ms),0) as avg_time, "
                         "MAX(CASE WHEN status='success' THEN compiled_at ELSE NULL END) as last_ok "
-                        "FROM latex_compilation_records WHERE project_id = " + StringUtil::escapeSql(projectId));
+                        "FROM latex_compilation_records WHERE project_id = " + projectId);
                     if (!compStats.empty()) {
                         compileCount = compStats[0].count("cnt") ? std::stoi(compStats[0].at("cnt")) : 0;
                         errorCount = compStats[0].count("errors") ? std::stoi(compStats[0].at("errors")) : 0;
@@ -3636,6 +3662,11 @@ void LatexApiModule::registerRoutes() {
     router.post(prefix + "/projects/:id/duplicate", [this](const HttpRequest& req) -> HttpResponse {
         try {
             std::string projectId = req.pathParams.count("id") ? req.pathParams.at("id") : "0";
+            if (!Impl::isNumericId(projectId)) {
+                std::ostringstream errJson;
+                errJson << "{\"success\":false,\"error\":\"Invalid project ID\"}";
+                return HttpResponse::json(HTTP::BAD_REQUEST, errJson.str());
+            }
             std::string timestamp = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count());
             std::string newProjectId = "proj_dup_" + timestamp;
@@ -3650,12 +3681,12 @@ void LatexApiModule::registerRoutes() {
                     database_->execute(
                         "INSERT INTO latex_projects (name, owner_id, description, created_at) "
                         "SELECT CONCAT(name, ' (Copy)'), owner_id, description, NOW() "
-                        "FROM latex_projects WHERE id = " + StringUtil::escapeSql(projectId));
+                        "FROM latex_projects WHERE id = " + projectId);
 
                     // Copy files to new project
                     auto rows = database_->query(
                         "SELECT name, content, file_type FROM latex_project_files WHERE project_id = "
-                        + StringUtil::escapeSql(projectId) + " ORDER BY name");
+                        + projectId + " ORDER BY name");
                     for (auto& row : rows) {
                         if (fileCount > 0) filesArr << ",";
                         filesArr << "{\"name\":\"" << impl_->escapeJson(row.count("name") ? row.at("name") : "") << "\""

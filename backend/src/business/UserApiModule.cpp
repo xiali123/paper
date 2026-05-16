@@ -633,7 +633,7 @@ void UserApiModule::registerRoutes() {
                 if (role.is_string()) {
                     impl_->database_->execute(
                         "INSERT IGNORE INTO user_roles (user_id, role_id) "
-                        "SELECT " + std::to_string(userId) + ", id FROM roles WHERE name = '" + role.get<std::string>() + "'");
+                        "SELECT " + std::to_string(userId) + ", id FROM roles WHERE name = '" + StringUtil::escapeSql(role.get<std::string>()) + "'");
                 }
             }
             return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Permissions updated\"}");
@@ -803,8 +803,8 @@ void UserApiModule::registerRoutes() {
                 std::string valStr = value.is_boolean() ? (value.get<bool>() ? "true" : "false") : value.get<std::string>();
                 impl_->database_->execute(
                     "INSERT INTO user_preferences (user_id, preference_key, preference_value) "
-                    "VALUES (" + std::to_string(userId) + ", '" + key + "', '" + valStr + "') "
-                    "ON DUPLICATE KEY UPDATE preference_value = '" + valStr + "'");
+                    "VALUES (" + std::to_string(userId) + ", '" + StringUtil::escapeSql(key) + "', '" + StringUtil::escapeSql(valStr) + "') "
+                    "ON DUPLICATE KEY UPDATE preference_value = '" + StringUtil::escapeSql(valStr) + "'");
             }
             return HttpResponse::json(HTTP::OK, "{\"success\":true,\"message\":\"Preferences updated\"}");
         } catch (const std::exception& e) {
@@ -3069,7 +3069,8 @@ void UserApiModule::registerRoutes() {
                 return buildJsonResponse(HTTP::BAD_REQUEST, "Missing required field: content");
             }
 
-            int noteId = 100 + (std::rand() % 900);
+            int noteId = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count() % 1000000);
             std::string timestamp = "2026-05-12T12:00:00Z";
 
             nlohmann::json data;
@@ -3888,7 +3889,9 @@ void UserApiModule::registerRoutes() {
 
             nlohmann::json data;
             data["userId"] = std::stoi(userId);
-            data["deviceId"] = deviceId.empty() ? "dev_" + std::to_string(std::rand() % 9000 + 1000) : deviceId;
+            data["deviceId"] = deviceId.empty() ? "dev_" + std::to_string(
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count() % 9000 + 1000) : deviceId;
             data["platform"] = platform;
             data["tokenRegistered"] = true;
             data["registeredAt"] = oss.str();
@@ -4744,7 +4747,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_highlights (id, user_id, title, content, color, created_at) VALUES ('" +
-                        highlightId + "', " + userId + ", '" + title + "', '" + content + "', '" + color + "', '" +
+                        highlightId + "', " + userId + ", '" + StringUtil::escapeSql(title) + "', '" + StringUtil::escapeSql(content) + "', '" + StringUtil::escapeSql(color) + "', '" +
                         oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist highlight: {}", e.what());
@@ -4846,7 +4849,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_endorsements (id, from_user_id, target_user_id, skill_name, comment, created_at) VALUES ('" +
-                        endorsementId + "', " + userId + ", " + targetUserId + ", '" + skillName + "', '" + comment + "', '" +
+                        endorsementId + "', " + userId + ", " + targetUserId + ", '" + StringUtil::escapeSql(skillName) + "', '" + StringUtil::escapeSql(comment) + "', '" +
                         oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist endorsement: {}", e.what());
@@ -4954,8 +4957,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_mentorship_requests (id, mentee_id, mentor_id, topic, message, goals, status, created_at) VALUES ('" +
-                        requestId + "', " + userId + ", " + mentorId + ", '" + topic + "', '" + message + "', '" +
-                        goals + "', 'pending', '" + oss.str() + "')");
+                        requestId + "', " + userId + ", " + mentorId + ", '" + StringUtil::escapeSql(topic) + "', '" + StringUtil::escapeSql(message) + "', '" +
+                        StringUtil::escapeSql(goals) + "', 'pending', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist mentorship request: {}", e.what());
                 }
@@ -5059,8 +5062,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_conferences (id, user_id, name, location, start_date, end_date, role, created_at) VALUES ('" +
-                        confId + "', " + userId + ", '" + name + "', '" + location + "', '" + startDate + "', '" +
-                        endDate + "', '" + role + "', '" + oss.str() + "')");
+                        confId + "', " + userId + ", '" + StringUtil::escapeSql(name) + "', '" + StringUtil::escapeSql(location) + "', '" + StringUtil::escapeSql(startDate) + "', '" +
+                        StringUtil::escapeSql(endDate) + "', '" + StringUtil::escapeSql(role) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist conference: {}", e.what());
                 }
@@ -5172,8 +5175,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_grants (id, user_id, title, agency, amount, status, start_date, end_date, created_at) VALUES ('" +
-                        grantId + "', " + userId + ", '" + title + "', '" + agency + "', '" + amount + "', '" +
-                        status + "', '" + startDate + "', '" + endDate + "', '" + oss.str() + "')");
+                        grantId + "', " + userId + ", '" + StringUtil::escapeSql(title) + "', '" + StringUtil::escapeSql(agency) + "', '" + StringUtil::escapeSql(amount) + "', '" +
+                        StringUtil::escapeSql(status) + "', '" + StringUtil::escapeSql(startDate) + "', '" + StringUtil::escapeSql(endDate) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist grant: {}", e.what());
                 }
@@ -5281,8 +5284,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_patents (id, user_id, title, patent_number, filing_date, status, abstract, inventors, created_at) VALUES ('" +
-                        patentId + "', " + userId + ", '" + title + "', '" + patentNumber + "', '" +
-                        filingDate + "', '" + status + "', '" + abstract_ + "', '" + inventors + "', '" + oss.str() + "')");
+                        patentId + "', " + userId + ", '" + StringUtil::escapeSql(title) + "', '" + StringUtil::escapeSql(patentNumber) + "', '" +
+                        StringUtil::escapeSql(filingDate) + "', '" + StringUtil::escapeSql(status) + "', '" + StringUtil::escapeSql(abstract_) + "', '" + StringUtil::escapeSql(inventors) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist patent: {}", e.what());
                 }
@@ -5386,8 +5389,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_publications (id, user_id, title, year, venue, doi, type, authors, created_at) VALUES ('" +
-                        publicationId + "', " + userId + ", '" + title + "', '" + year + "', '" +
-                        venue + "', '" + doi + "', '" + type_ + "', '" + authors + "', '" + oss.str() + "')");
+                        publicationId + "', " + userId + ", '" + StringUtil::escapeSql(title) + "', '" + StringUtil::escapeSql(year) + "', '" +
+                        StringUtil::escapeSql(venue) + "', '" + StringUtil::escapeSql(doi) + "', '" + StringUtil::escapeSql(type_) + "', '" + StringUtil::escapeSql(authors) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist publication: {}", e.what());
                 }
@@ -5488,8 +5491,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_certifications (id, user_id, name, issuer, issued_at, expires_at, credential_url, created_at) VALUES ('" +
-                        certificationId + "', " + userId + ", '" + name + "', '" + issuer + "', '" +
-                        issuedAt + "', '" + expiresAt + "', '" + credentialUrl + "', '" + oss.str() + "')");
+                        certificationId + "', " + userId + ", '" + StringUtil::escapeSql(name) + "', '" + StringUtil::escapeSql(issuer) + "', '" +
+                        StringUtil::escapeSql(issuedAt) + "', '" + StringUtil::escapeSql(expiresAt) + "', '" + StringUtil::escapeSql(credentialUrl) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist certification: {}", e.what());
                 }
@@ -5582,8 +5585,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_affiliations (id, user_id, institution, department, role, start_date, end_date, created_at) VALUES ('" +
-                        affiliationId + "', " + userId + ", '" + institution + "', '" + department + "', '" +
-                        role + "', '" + startDate + "', '" + endDate + "', '" + oss.str() + "')");
+                        affiliationId + "', " + userId + ", '" + StringUtil::escapeSql(institution) + "', '" + StringUtil::escapeSql(department) + "', '" +
+                        StringUtil::escapeSql(role) + "', '" + StringUtil::escapeSql(startDate) + "', '" + StringUtil::escapeSql(endDate) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist affiliation: {}", e.what());
                 }
@@ -5674,7 +5677,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_storage_cleanup (id, user_id, categories, older_than_days, freed_bytes, status, completed_at) VALUES ('" +
-                        cleanupId + "', " + userId + ", '" + categories + "', " + std::to_string(olderThanDays) +
+                        cleanupId + "', " + userId + ", '" + StringUtil::escapeSql(categories) + "', " + std::to_string(olderThanDays) +
                         ", 0, 'completed', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist storage cleanup: {}", e.what());
@@ -5780,8 +5783,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_references (id, user_id, referrer_name, referrer_email, relationship, recommendation, created_at) VALUES ('" +
-                        referenceId + "', " + userId + ", '" + referrerName + "', '" + referrerEmail + "', '" +
-                        relationship + "', '" + recommendation + "', '" + oss.str() + "')");
+                        referenceId + "', " + userId + ", '" + StringUtil::escapeSql(referrerName) + "', '" + StringUtil::escapeSql(referrerEmail) + "', '" +
+                        StringUtil::escapeSql(relationship) + "', '" + StringUtil::escapeSql(recommendation) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist reference: {}", e.what());
                 }
@@ -5885,8 +5888,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_api_keys (id, user_id, name, key_prefix, permissions, created_at) VALUES ('" +
-                        keyId + "', " + userId + ", '" + name + "', '" + keyPrefix + "', '" +
-                        permissions + "', '" + oss.str() + "')");
+                        keyId + "', " + userId + ", '" + StringUtil::escapeSql(name) + "', '" + keyPrefix + "', '" +
+                        StringUtil::escapeSql(permissions) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist api-key: {}", e.what());
                 }
@@ -6020,8 +6023,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_folders (id, user_id, name, description, visibility, color, paper_count, created_at, updated_at) VALUES ('" +
-                        folderId + "', " + userId + ", '" + name + "', '" + description + "', '" +
-                        visibility + "', '" + color + "', 0, '" + oss.str() + "', '" + oss.str() + "')");
+                        folderId + "', " + userId + ", '" + StringUtil::escapeSql(name) + "', '" + StringUtil::escapeSql(description) + "', '" +
+                        StringUtil::escapeSql(visibility) + "', '" + StringUtil::escapeSql(color) + "', 0, '" + oss.str() + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist folder: {}", e.what());
                 }
@@ -6134,8 +6137,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_feedback (id, user_id, type, subject, message, category, priority, status, created_at) VALUES ('" +
-                        feedbackId + "', " + userId + ", '" + type + "', '" + subject + "', '" +
-                        message + "', '" + category + "', '" + priority + "', 'submitted', '" + oss.str() + "')");
+                        feedbackId + "', " + userId + ", '" + StringUtil::escapeSql(type) + "', '" + StringUtil::escapeSql(subject) + "', '" +
+                        StringUtil::escapeSql(message) + "', '" + StringUtil::escapeSql(category) + "', '" + StringUtil::escapeSql(priority) + "', 'submitted', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist feedback: {}", e.what());
                 }
@@ -6278,12 +6281,12 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_endorsements (id, user_id, endorser_id, skill_name, comment, weight, status, created_at) VALUES ('" +
-                        endorsementId + "', " + userId + ", '" + endorserId + "', '" + skillName + "', '" +
-                        comment + "', " + std::to_string(weight) + ", 'recorded', '" + oss.str() + "')");
+                        endorsementId + "', " + userId + ", '" + StringUtil::escapeSql(endorserId) + "', '" + StringUtil::escapeSql(skillName) + "', '" +
+                        StringUtil::escapeSql(comment) + "', " + std::to_string(weight) + ", 'recorded', '" + oss.str() + "')");
 
                     auto rows = database_->query(
                         "SELECT COUNT(*) as cnt FROM user_endorsements WHERE user_id = " + userId +
-                        " AND skill_name = '" + skillName + "'");
+                        " AND skill_name = '" + StringUtil::escapeSql(skillName) + "'");
                     int endorsementCount = 0;
                     for (const auto& row : rows) {
                         endorsementCount = row.count("cnt") ? std::stoi(row.at("cnt")) : 0;
@@ -6342,7 +6345,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     std::string countQuery = "SELECT COUNT(*) as cnt FROM user_endorsements WHERE user_id = " + userId;
                     if (!skillFilter.empty())
-                        countQuery += " AND skill_name = '" + skillFilter + "'";
+                        countQuery += " AND skill_name = '" + StringUtil::escapeSql(skillFilter) + "'";
 
                     auto countRows = database_->query(countQuery);
                     for (const auto& row : countRows) {
@@ -6351,7 +6354,7 @@ void UserApiModule::registerRoutes() {
 
                     std::string dataQuery = "SELECT * FROM user_endorsements WHERE user_id = " + userId;
                     if (!skillFilter.empty())
-                        dataQuery += " AND skill_name = '" + skillFilter + "'";
+                        dataQuery += " AND skill_name = '" + StringUtil::escapeSql(skillFilter) + "'";
                     dataQuery += " ORDER BY created_at DESC LIMIT " + std::to_string(limit) +
                                  " OFFSET " + std::to_string(offset);
 
@@ -6449,8 +6452,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_scheduled_reports (id, user_id, report_type, frequency, format, day_of_week, is_active, next_run_at, created_at) VALUES ('" +
-                        scheduleId + "', " + userId + ", '" + reportType + "', '" + frequency + "', '" +
-                        format + "', '" + dayOfWeek + "', 1, '" + oss.str() + "', '" + oss.str() + "')");
+                        scheduleId + "', " + userId + ", '" + StringUtil::escapeSql(reportType) + "', '" + StringUtil::escapeSql(frequency) + "', '" +
+                        StringUtil::escapeSql(format) + "', '" + StringUtil::escapeSql(dayOfWeek) + "', 1, '" + oss.str() + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist scheduled report: {}", e.what());
                 }
@@ -6585,14 +6588,14 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_communication_preferences (user_id, email_digest, notification_frequency, quiet_hours_start, quiet_hours_end, mention_notifications, follower_notifications, paper_update_notifications, updated_at) VALUES (" +
-                        userId + ", '" + emailDigest + "', '" + notificationFrequency + "', '" +
-                        quietHoursStart + "', '" + quietHoursEnd + "', " +
+                        userId + ", '" + StringUtil::escapeSql(emailDigest) + "', '" + StringUtil::escapeSql(notificationFrequency) + "', '" +
+                        StringUtil::escapeSql(quietHoursStart) + "', '" + StringUtil::escapeSql(quietHoursEnd) + "', " +
                         (mentionNotifications ? "1" : "0") + ", " +
                         (followerNotifications ? "1" : "0") + ", " +
                         (paperUpdateNotifications ? "1" : "0") + ", '" +
                         oss.str() + "') ON DUPLICATE KEY UPDATE " +
-                        "email_digest='" + emailDigest + "', notification_frequency='" + notificationFrequency +
-                        "', quiet_hours_start='" + quietHoursStart + "', quiet_hours_end='" + quietHoursEnd +
+                        "email_digest='" + StringUtil::escapeSql(emailDigest) + "', notification_frequency='" + StringUtil::escapeSql(notificationFrequency) +
+                        "', quiet_hours_start='" + StringUtil::escapeSql(quietHoursStart) + "', quiet_hours_end='" + StringUtil::escapeSql(quietHoursEnd) +
                         "', mention_notifications=" + (mentionNotifications ? "1" : "0") +
                         ", follower_notifications=" + (followerNotifications ? "1" : "0") +
                         ", paper_update_notifications=" + (paperUpdateNotifications ? "1" : "0") +
@@ -6663,9 +6666,9 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_institution_transfers (transfer_id, user_id, current_institution, target_institution, target_department, target_role, reason, effective_date, status, requested_at) VALUES ('" +
-                        transferId + "', " + userId + ", '" + currentInstitution + "', '" + targetInstitution +
-                        "', '" + targetDepartment + "', '" + targetRole + "', '" + transferReason +
-                        "', '" + effectiveDate + "', 'pending', '" + oss.str() + "')");
+                        transferId + "', " + userId + ", '" + StringUtil::escapeSql(currentInstitution) + "', '" + StringUtil::escapeSql(targetInstitution) +
+                        "', '" + StringUtil::escapeSql(targetDepartment) + "', '" + StringUtil::escapeSql(targetRole) + "', '" + StringUtil::escapeSql(transferReason) +
+                        "', '" + StringUtil::escapeSql(effectiveDate) + "', 'pending', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist institution transfer: {}", e.what());
                 }
@@ -6768,8 +6771,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_research_milestones (milestone_id, user_id, title, description, category, achieved_at, verified, source, created_at) VALUES ('" +
-                        milestoneId + "', " + userId + ", '" + title + "', '" + description +
-                        "', '" + category + "', '" + achievedDate + "', 0, '" + source + "', '" + oss.str() + "')");
+                        milestoneId + "', " + userId + ", '" + StringUtil::escapeSql(title) + "', '" + StringUtil::escapeSql(description) +
+                        "', '" + StringUtil::escapeSql(category) + "', '" + StringUtil::escapeSql(achievedDate) + "', 0, '" + StringUtil::escapeSql(source) + "', '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist research milestone: {}", e.what());
                 }
@@ -6874,8 +6877,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_research_awards (award_id, user_id, title, issuer, category, awarded_at, description, verified, created_at) VALUES ('" +
-                        awardId + "', " + userId + ", '" + title + "', '" + issuer +
-                        "', '" + category + "', '" + awardedDate + "', '" + description + "', 0, '" + oss.str() + "')");
+                        awardId + "', " + userId + ", '" + StringUtil::escapeSql(title) + "', '" + StringUtil::escapeSql(issuer) +
+                        "', '" + StringUtil::escapeSql(category) + "', '" + StringUtil::escapeSql(awardedDate) + "', '" + StringUtil::escapeSql(description) + "', 0, '" + oss.str() + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist research award: {}", e.what());
                 }
@@ -7188,7 +7191,7 @@ void UserApiModule::registerRoutes() {
                     // Record the import job
                     database_->query(
                         "INSERT INTO user_data_imports (id, user_id, source, format, overwrite, status, created_at) VALUES ('" +
-                        importId + "', " + userId + ", '" + source + "', '" + format + "', " +
+                        importId + "', " + userId + ", '" + StringUtil::escapeSql(source) + "', '" + StringUtil::escapeSql(format) + "', " +
                         (overwrite ? "1" : "0") + ", 'processing', '" + timestamp + "')");
 
                     // Import profiles if available
@@ -7199,9 +7202,9 @@ void UserApiModule::registerRoutes() {
                                 std::string bio = profile.value("bio", "");
                                 std::string affiliation = profile.value("affiliation", "");
                                 database_->query(
-                                    "UPDATE users SET display_name = '" + displayName +
-                                    "', bio = '" + bio +
-                                    "', affiliation = '" + affiliation +
+                                    "UPDATE users SET display_name = '" + StringUtil::escapeSql(displayName) +
+                                    "', bio = '" + StringUtil::escapeSql(bio) +
+                                    "', affiliation = '" + StringUtil::escapeSql(affiliation) +
                                     "' WHERE id = " + userId);
                                 importStats["profilesImported"] = importStats["profilesImported"].get<int>() + 1;
                             } catch (const std::exception& e) {
@@ -7220,7 +7223,7 @@ void UserApiModule::registerRoutes() {
                                 if (!skillName.empty()) {
                                     database_->query(
                                         "INSERT INTO user_skills (user_id, skill_name, level, source, imported_at) VALUES (" +
-                                        userId + ", '" + skillName + "', '" + level + "', '" + source + "', '" + timestamp + "')");
+                                        userId + ", '" + StringUtil::escapeSql(skillName) + "', '" + StringUtil::escapeSql(level) + "', '" + StringUtil::escapeSql(source) + "', '" + timestamp + "')");
                                     importStats["skillsImported"] = importStats["skillsImported"].get<int>() + 1;
                                 }
                             } catch (const std::exception& e) {
@@ -7403,7 +7406,7 @@ void UserApiModule::registerRoutes() {
                         database_->query(
                             "INSERT INTO user_account_recovery (id, user_id, method, backup_email, "
                             "verification_code, status, created_at) VALUES ('" +
-                            recoveryId + "', " + userId + ", '" + method + "', '" + backupEmail +
+                            recoveryId + "', " + userId + ", '" + StringUtil::escapeSql(method) + "', '" + StringUtil::escapeSql(backupEmail) +
                             "', '" + std::to_string(code) + "', 'pending', '" + timestamp + "')");
 
                         spdlog::info("[UserApi] Account recovery initiated for user {}: method={}", userId, method);
@@ -7461,7 +7464,7 @@ void UserApiModule::registerRoutes() {
                         auto skills = database_->query(
                             "SELECT skill_name, proficiency, endorsed_count, last_used_at "
                             "FROM user_skills WHERE user_id = " + userId +
-                            " AND category = '" + categoryName +
+                            " AND category = '" + StringUtil::escapeSql(categoryName) +
                             "' ORDER BY proficiency DESC");
                         for (const auto& sk : skills) {
                             nlohmann::json s;
@@ -7542,9 +7545,9 @@ void UserApiModule::registerRoutes() {
                     database_->query(
                         "INSERT INTO user_availability (id, user_id, status, scope, message, "
                         "max_concurrent, available_from, available_until, updated_at) VALUES ('" +
-                        availabilityId + "', " + userId + ", '" + status + "', '" + scope +
-                        "', '" + message + "', " + std::to_string(maxConcurrent) +
-                        ", '" + availableFrom + "', '" + availableUntil + "', '" + timestamp + "')");
+                        availabilityId + "', " + userId + ", '" + StringUtil::escapeSql(status) + "', '" + StringUtil::escapeSql(scope) +
+                        "', '" + StringUtil::escapeSql(message) + "', " + std::to_string(maxConcurrent) +
+                        ", '" + StringUtil::escapeSql(availableFrom) + "', '" + StringUtil::escapeSql(availableUntil) + "', '" + timestamp + "')");
 
                     spdlog::info("[UserApi] Availability updated for user {}: status={}, scope={}", userId, status, scope);
                 } catch (const std::exception& e) {
@@ -7659,8 +7662,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_feedback_reactions (id, feedback_id, user_id, reaction, comment, created_at) "
-                        "VALUES ('" + reactionId + "', '" + feedbackId + "', " + userId +
-                        ", '" + reaction + "', '" + comment + "', '" + timestamp + "')");
+                        "VALUES ('" + reactionId + "', '" + StringUtil::escapeSql(feedbackId) + "', " + userId +
+                        ", '" + StringUtil::escapeSql(reaction) + "', '" + StringUtil::escapeSql(comment) + "', '" + timestamp + "')");
 
                     spdlog::info("[UserApi] Feedback reaction recorded for user {} on feedback {}", userId, feedbackId);
                 } catch (const std::exception& e) {
@@ -7796,8 +7799,8 @@ void UserApiModule::registerRoutes() {
                     database_->query(
                         "INSERT INTO user_delegated_access (id, grantor_id, grantee_id, scope, permissions, expires_at, reason, granted_at, is_active) "
                         "VALUES ('" + delegationId + "', " + userId + ", " + delegateToUserId +
-                        ", '" + scope + "', '" + permissions + "', '" + expiresAt +
-                        "', '" + reason + "', '" + timestamp + "', 1)");
+                        ", '" + StringUtil::escapeSql(scope) + "', '" + StringUtil::escapeSql(permissions) + "', '" + StringUtil::escapeSql(expiresAt) +
+                        "', '" + StringUtil::escapeSql(reason) + "', '" + timestamp + "', 1)");
 
                     spdlog::info("[UserApi] Delegated access granted: user {} -> user {} scope={} perms={}",
                         userId, delegateToUserId, scope, permissions);
@@ -7931,8 +7934,8 @@ void UserApiModule::registerRoutes() {
                     database_->query(
                         "INSERT INTO user_mood_log (id, user_id, mood, energy_level, note, activity, logged_at) "
                         "VALUES ('" + moodId + "', " + userId +
-                        ", '" + mood + "', " + std::to_string(energyLevel) +
-                        ", '" + note + "', '" + activity + "', '" + timestamp + "')");
+                        ", '" + StringUtil::escapeSql(mood) + "', " + std::to_string(energyLevel) +
+                        ", '" + StringUtil::escapeSql(note) + "', '" + StringUtil::escapeSql(activity) + "', '" + timestamp + "')");
 
                     spdlog::info("[UserApi] Mood logged for user {}: mood={} energy={}", userId, mood, energyLevel);
                 } catch (const std::exception& e) {
@@ -7983,7 +7986,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     std::string query = "SELECT id, type, title, description, date, related_paper_id FROM user_research_timeline WHERE user_id = " + userId;
                     if (!yearFilter.empty())
-                        query += " AND strftime('%Y', date) = '" + yearFilter + "'";
+                        query += " AND strftime('%Y', date) = '" + StringUtil::escapeSql(yearFilter) + "'";
                     query += " ORDER BY date DESC LIMIT " + std::to_string(limit);
 
                     auto rows = database_->query(query);
@@ -8121,9 +8124,9 @@ void UserApiModule::registerRoutes() {
                             ", " + (emailNotifications ? "1" : "0") +
                             ", " + (paperAlerts ? "1" : "0") +
                             ", " + (weeklyDigest ? "1" : "0") +
-                            ", '" + categoriesStr + "'" +
-                            ", '" + quietHoursStart + "'" +
-                            ", '" + quietHoursEnd + "'" +
+                            ", '" + StringUtil::escapeSql(categoriesStr) + "'" +
+                            ", '" + StringUtil::escapeSql(quietHoursStart) + "'" +
+                            ", '" + StringUtil::escapeSql(quietHoursEnd) + "'" +
                             ", '" + timestamp + "')");
                     } else {
                         std::string existingId = existing[0].count("id") ? existing[0].at("id") : prefId;
@@ -8132,9 +8135,9 @@ void UserApiModule::registerRoutes() {
                             "email_notifications = " + std::string(emailNotifications ? "1" : "0") +
                             ", paper_alerts = " + std::string(paperAlerts ? "1" : "0") +
                             ", weekly_digest = " + std::string(weeklyDigest ? "1" : "0") +
-                            ", custom_categories = '" + categoriesStr + "'" +
-                            ", quiet_hours_start = '" + quietHoursStart + "'" +
-                            ", quiet_hours_end = '" + quietHoursEnd + "'" +
+                            ", custom_categories = '" + StringUtil::escapeSql(categoriesStr) + "'" +
+                            ", quiet_hours_start = '" + StringUtil::escapeSql(quietHoursStart) + "'" +
+                            ", quiet_hours_end = '" + StringUtil::escapeSql(quietHoursEnd) + "'" +
                             ", updated_at = '" + timestamp + "'" +
                             " WHERE user_id = " + userId);
 
@@ -8192,7 +8195,7 @@ void UserApiModule::registerRoutes() {
                     std::string sql = "SELECT id, name, description, category, earned_at, rarity "
                                       "FROM user_achievements WHERE user_id = " + userId;
                     if (!category.empty())
-                        sql += " AND category = '" + category + "'";
+                        sql += " AND category = '" + StringUtil::escapeSql(category) + "'";
                     sql += " ORDER BY earned_at DESC LIMIT " + std::to_string(limit);
 
                     auto rows = database_->query(sql);
@@ -8280,9 +8283,9 @@ void UserApiModule::registerRoutes() {
                         "(id, requester_id, target_user_id, paper_id, message, collaboration_type, status, sent_at) "
                         "VALUES ('" + requestId + "', " + userId +
                         ", " + std::to_string(targetUserId) +
-                        ", '" + paperId + "'" +
-                        ", '" + message + "'" +
-                        ", '" + collaborationType + "'" +
+                        ", '" + StringUtil::escapeSql(paperId) + "'" +
+                        ", '" + StringUtil::escapeSql(message) + "'" +
+                        ", '" + StringUtil::escapeSql(collaborationType) + "'" +
                         ", 'pending'" +
                         ", '" + timestamp + "')");
 
@@ -8400,7 +8403,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     for (const auto& section : sections) {
                         auto countResult = database_->query(
-                            "SELECT COUNT(*) as cnt FROM " + section + " WHERE user_id = " + userId);
+                            "SELECT COUNT(*) as cnt FROM " + StringUtil::escapeSql(section) + " WHERE user_id = " + userId);
                         if (!countResult.empty() && countResult[0].count("cnt")) {
                             try { totalRecords += std::stoi(countResult[0].at("cnt")); } catch (...) {}
                         }
@@ -8563,8 +8566,8 @@ void UserApiModule::registerRoutes() {
                     std::string tagsStr = tags.dump();
                     database_->query(
                         "INSERT INTO user_feedback (id, user_id, feedback_type, title, description, priority, tags, status, created_at) VALUES ('" +
-                        feedbackId + "', " + userId + ", '" + feedbackType + "', '" + title + "', '" +
-                        description + "', '" + priority + "', '" + tagsStr + "', 'submitted', '" + timestamp + "')");
+                        feedbackId + "', " + userId + ", '" + StringUtil::escapeSql(feedbackType) + "', '" + StringUtil::escapeSql(title) + "', '" +
+                        StringUtil::escapeSql(description) + "', '" + StringUtil::escapeSql(priority) + "', '" + StringUtil::escapeSql(tagsStr) + "', 'submitted', '" + timestamp + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist feedback submission: {}", e.what());
                 }
@@ -8707,8 +8710,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_reading_lists (id, user_id, name, description, paper_count, created_at, updated_at) "
-                        "VALUES ('" + listId + "', " + userId + ", '" + listName + "', '" +
-                        listDescription + "', 0, '" + timestamp + "', '" + timestamp + "')");
+                        "VALUES ('" + listId + "', " + userId + ", '" + StringUtil::escapeSql(listName) + "', '" +
+                        StringUtil::escapeSql(listDescription) + "', 0, '" + timestamp + "', '" + timestamp + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to persist reading list: {}", e.what());
                 }
@@ -8830,10 +8833,10 @@ void UserApiModule::registerRoutes() {
                     try {
                         database_->query(
                             "INSERT INTO user_preferences (user_id, pref_key, pref_value, updated_at) "
-                            "VALUES (" + userId + ", '" + prefKey + "', '" + prefValue +
+                            "VALUES (" + userId + ", '" + StringUtil::escapeSql(prefKey) + "', '" + StringUtil::escapeSql(prefValue) +
                             "', '" + timestampPref + "') "
                             "ON CONFLICT(user_id, pref_key) DO UPDATE SET pref_value = '" +
-                            prefValue + "', updated_at = '" + timestampPref + "'");
+                            StringUtil::escapeSql(prefValue) + "', updated_at = '" + timestampPref + "'");
                     } catch (const std::exception& e) {
                         spdlog::warn("[UserApi] Failed to update preference '{}': {}", prefKey, e.what());
                     }
@@ -8960,8 +8963,8 @@ void UserApiModule::registerRoutes() {
 
                     database_->query(
                         "INSERT INTO calendar_sync_log (user_id, calendar_type, sync_direction, "
-                        "events_synced, synced_at) VALUES (" + userId + ", '" + calendarType +
-                        "', '" + syncDirection + "', " + std::to_string(syncedEvents) +
+                        "events_synced, synced_at) VALUES (" + userId + ", '" + StringUtil::escapeSql(calendarType) +
+                        "', '" + StringUtil::escapeSql(syncDirection) + "', " + std::to_string(syncedEvents) +
                         ", '" + syncTimestamp + "')");
                 } catch (const std::exception& e) {
                     spdlog::warn("[UserApi] Failed to sync calendar: {}", e.what());
@@ -9077,7 +9080,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_social_links (id, user_id, platform, access_token, linked_at) VALUES ('" +
-                        linkId + "', " + userId + ", '" + platform + "', '" + accessToken +
+                        linkId + "', " + userId + ", '" + StringUtil::escapeSql(platform) + "', '" + StringUtil::escapeSql(accessToken) +
                         "', '" + linkedAt + "')");
                     linked = true;
                     spdlog::info("[UserApi] Social account linked for user {}: platform={}", userId, platform);
@@ -9195,8 +9198,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_research_goals (id, user_id, title, description, target_date, status, created_at) VALUES ('" +
-                        goalId + "', " + userId + ", '" + title + "', '" + description +
-                        "', '" + targetDate + "', 'active', '" + createdAt + "')");
+                        goalId + "', " + userId + ", '" + StringUtil::escapeSql(title) + "', '" + StringUtil::escapeSql(description) +
+                        "', '" + StringUtil::escapeSql(targetDate) + "', 'active', '" + createdAt + "')");
                     created = true;
                     spdlog::info("[UserApi] Research goal created for user {}: goalId={}", userId, goalId);
                 } catch (const std::exception& e) {
@@ -9325,9 +9328,9 @@ void UserApiModule::registerRoutes() {
                 try {
                     std::string query = "SELECT id, login_at, logout_at, ip_address, user_agent FROM user_sessions WHERE user_id = " + userId;
                     if (!dateRangeStart.empty())
-                        query += " AND login_at >= '" + dateRangeStart + "'";
+                        query += " AND login_at >= '" + StringUtil::escapeSql(dateRangeStart) + "'";
                     if (!dateRangeEnd.empty())
-                        query += " AND login_at <= '" + dateRangeEnd + "'";
+                        query += " AND login_at <= '" + StringUtil::escapeSql(dateRangeEnd) + "'";
                     query += " ORDER BY login_at DESC";
 
                     auto rows = database_->query(query);
@@ -9459,7 +9462,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_tags (id, user_id, name, color, created_at) VALUES ('" +
-                        tagId + "', " + userId + ", '" + name + "', '" + color +
+                        tagId + "', " + userId + ", '" + StringUtil::escapeSql(name) + "', '" + StringUtil::escapeSql(color) +
                         "', '" + createdAt + "')");
                     created = true;
                     spdlog::info("[UserApi] Tag created for user {}: tagId={}", userId, tagId);
@@ -9599,8 +9602,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_filter_presets (id, user_id, name, criteria, created_at) VALUES ('" +
-                        filterId + "', " + userId + ", '" + name + "', '" +
-                        criteria.dump() + "', '" + createdAt + "')");
+                        filterId + "', " + userId + ", '" + StringUtil::escapeSql(name) + "', '" +
+                        StringUtil::escapeSql(criteria.dump()) + "', '" + createdAt + "')");
                     saved = true;
                     spdlog::info("[UserApi] Filter preset saved for user {}: filterId={}", userId, filterId);
                 } catch (const std::exception& e) {
@@ -9695,8 +9698,8 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_backup_requests (id, user_id, format, include_options, status, requested_at) VALUES ('" +
-                        backupId + "', " + userId + ", '" + format + "', '" +
-                        includeOptions.dump() + "', 'pending', '" + requestedAt + "')");
+                        backupId + "', " + userId + ", '" + StringUtil::escapeSql(format) + "', '" +
+                        StringUtil::escapeSql(includeOptions.dump()) + "', 'pending', '" + requestedAt + "')");
                     spdlog::info("[UserApi] Backup requested for user {}: backupId={}", userId, backupId);
 
                     auto sizeRows = database_->query(
@@ -9797,8 +9800,8 @@ void UserApiModule::registerRoutes() {
             if (database_) {
                 try {
                     database_->query(
-                        "UPDATE user_subscriptions SET plan = '" + plan + "', billing_cycle = '" +
-                        billingCycle + "', updated_at = '" + updatedAt + "' WHERE user_id = " + userId);
+                        "UPDATE user_subscriptions SET plan = '" + StringUtil::escapeSql(plan) + "', billing_cycle = '" +
+                        StringUtil::escapeSql(billingCycle) + "', updated_at = '" + updatedAt + "' WHERE user_id = " + userId);
                     updated = true;
                     spdlog::info("[UserApi] Subscription updated for user {}: plan={}, billingCycle={}", userId, plan, billingCycle);
                 } catch (const std::exception& e) {
@@ -9893,7 +9896,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_devices (user_id, device_id, device_token, platform, device_name, registered_at) VALUES (" +
-                        userId + ", '" + deviceId + "', '" + deviceToken + "', '" + platform + "', '" + deviceName + "', '" + registeredAt + "')");
+                        userId + ", '" + StringUtil::escapeSql(deviceId) + "', '" + StringUtil::escapeSql(deviceToken) + "', '" + StringUtil::escapeSql(platform) + "', '" + StringUtil::escapeSql(deviceName) + "', '" + registeredAt + "')");
                     registered = true;
                     spdlog::info("[UserApi] Device registered for user {}: platform={}, name={}", userId, platform, deviceName);
                 } catch (const std::exception& e) {
@@ -10012,7 +10015,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_avatars (user_id, avatar_id, mime_type, uploaded_at) VALUES (" +
-                        userId + ", '" + avatarId + "', '" + mimeType + "', '" + uploadedAt + "')");
+                        userId + ", '" + avatarId + "', '" + StringUtil::escapeSql(mimeType) + "', '" + uploadedAt + "')");
                     uploaded = true;
                     spdlog::info("[UserApi] Avatar uploaded for user {}: id={}", userId, avatarId);
                 } catch (const std::exception& e) {
@@ -10143,7 +10146,7 @@ void UserApiModule::registerRoutes() {
                     }
                     database_->query(
                         "INSERT INTO user_api_keys (user_id, key_id, key_name, api_key, permissions, created_at) VALUES (" +
-                        userId + ", '" + keyId + "', '" + keyName + "', '" + apiKey + "', '" + permsStr + "', '" + createdAt + "')");
+                        userId + ", '" + keyId + "', '" + StringUtil::escapeSql(keyName) + "', '" + apiKey + "', '" + StringUtil::escapeSql(permsStr) + "', '" + createdAt + "')");
                     created = true;
                     spdlog::info("[UserApi] API key generated for user {}: id={}", userId, keyId);
                 } catch (const std::exception& e) {
@@ -10254,7 +10257,7 @@ void UserApiModule::registerRoutes() {
                 try {
                     database_->query(
                         "INSERT INTO user_invitations (invite_id, user_id, invite_code, role, expires_at, created_at) VALUES ('" +
-                        inviteId + "', " + userId + ", '" + inviteCode + "', '" + role + "', '" + expiresAt + "', '" + createdAt + "')");
+                        inviteId + "', " + userId + ", '" + inviteCode + "', '" + StringUtil::escapeSql(role) + "', '" + StringUtil::escapeSql(expiresAt) + "', '" + createdAt + "')");
                     created = true;
                     spdlog::info("[UserApi] Invitation generated for user {}: id={}", userId, inviteId);
                 } catch (const std::exception& e) {
@@ -10609,7 +10612,8 @@ HttpResponse UserApiModule::handleCreateUser(const HttpRequest& req) {
 
         // 优雅降级：没有数据库时使用stub实现
         if (!database_) {
-            int userId = 1000 + (std::rand() % 9000);
+            int userId = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count() % 1000000);
             nlohmann::json data;
             data["id"] = userId;
             data["username"] = username;

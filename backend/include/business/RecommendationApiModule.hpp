@@ -49,6 +49,8 @@ struct RecommendationRequest {
     std::vector<int> excludedPaperIds;  // 排除的论文ID
     std::string category;  // 限定类别（可选）
     int limit{20};
+    bool algorithmOverride{false};  // whether algorithmOverrideValue is set
+    int algorithmOverrideValue{0};  // static_cast<int>(RecommendationAlgorithm)
 };
 
 /**

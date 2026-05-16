@@ -596,7 +596,7 @@ void CollaborativeWritingModule::registerRoutes() {
     router.put(prefix + "/documents/:id/cursor", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
         if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docIdStr = getParam(req.pathParams, "id", "0");
+            std::string docIdStr = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             auto json = nlohmann::json::parse(req.body);
 
             int userId = json.value<int>("user_id", 0);
@@ -657,7 +657,7 @@ void CollaborativeWritingModule::registerRoutes() {
     router.get(prefix + "/documents/:id/presence", [this, requireAuth, unauthorizedResp](const HttpRequest& req) {
         if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docIdStr = getParam(req.pathParams, "id", "0");
+            std::string docIdStr = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json data;
             nlohmann::json users = nlohmann::json::array();
@@ -699,9 +699,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/export — export document
-    router.post(prefix + "/documents/:id/export", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/export", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             std::string format = "markdown";
             if (!req.body.empty()) {
                 auto json = nlohmann::json::parse(req.body);
@@ -729,10 +730,11 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/comments/resolve-all — resolve all comments for doc
-    router.put(prefix + "/comments/resolve-all", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/comments/resolve-all", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             auto json = nlohmann::json::parse(req.body);
-            std::string docId = json.value("documentId", "");
+            std::string docId = StringUtil::escapeSql(json.value("documentId", ""));
 
             if (database_ && !docId.empty()) {
                 database_->execute(
@@ -748,11 +750,12 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/restore — restore document version
-    router.post(prefix + "/documents/:id/restore", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/restore", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto json = nlohmann::json::parse(req.body);
-            std::string versionId = json.value("versionId", "");
+            std::string versionId = StringUtil::escapeSql(json.value("versionId", ""));
 
             nlohmann::json data;
             data["success"] = true;
@@ -784,9 +787,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
 
     // POST /api/writing/comments/:id/reply — Reply to a comment
-    router.post(prefix + "/comments/:id/reply", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/comments/:id/reply", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string commentId = req.pathParams.at("id");
+            std::string commentId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             std::string content = ValidationHelper::sanitize(body.value<std::string>("content", ""));
             std::string userId = std::to_string(body.value<int>("userId", 0));
@@ -811,9 +815,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
 
     // PUT /api/writing/documents/:id/title — Update document title
-    router.put("/api/writing/documents/:id/title", [this](const HttpRequest& req) -> HttpResponse {
+    router.put("/api/writing/documents/:id/title", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             std::string title = body.value("title", "");
 
@@ -833,9 +838,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/word-count — Get word count stats
-    router.get("/api/writing/documents/:id/word-count", [this](const HttpRequest& req) -> HttpResponse {
+    router.get("/api/writing/documents/:id/word-count", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json stats;
             stats["words"] = 0;
@@ -877,9 +883,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/duplicate — Duplicate a document
-    router.post("/api/writing/documents/:id/duplicate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post("/api/writing/documents/:id/duplicate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             std::string newTitle = "Copy of ...";
             if (!req.body.empty()) {
                 auto body = nlohmann::json::parse(req.body);
@@ -904,9 +911,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/collaborators — Get document collaborators
-    router.get(prefix + "/documents/:id/collaborators", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/collaborators", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json data;
             data["documentId"] = docId;
@@ -942,9 +950,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/share-link — Generate share link for document
-    router.post(prefix + "/documents/:id/share-link", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/share-link", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             int expiresIn = 24;
             if (!req.body.empty()) {
                 auto body = nlohmann::json::parse(req.body);
@@ -969,7 +978,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/recent — Get recently edited documents
-    router.get(prefix + "/documents/recent", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/recent", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             nlohmann::json data;
             data["documents"] = nlohmann::json::array();
@@ -999,9 +1009,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // PUT /api/writing/documents/:id/permissions — Update document permissions
-    router.put(prefix + "/documents/:id/permissions", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/documents/:id/permissions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             std::string userId = std::to_string(body.value("userId", 0));
             std::string role = body.value("role", "viewer");
@@ -1036,9 +1047,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/stats — Get document editing stats
-    router.get(prefix + "/documents/:id/stats", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/stats", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json stats;
             stats["versions"] = 0;
@@ -1094,9 +1106,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // GET /api/writing/documents/:id/diff — Get diff between two versions
-    router.get(prefix + "/documents/:id/diff", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/diff", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             std::string versionId1, versionId2;
             auto v1It = req.queryParams.find("versionId1");
@@ -1149,9 +1162,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/comments/:id/react — Add reaction to a comment
-    router.post(prefix + "/comments/:id/react", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/comments/:id/react", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string commentId = req.pathParams.at("id");
+            std::string commentId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             std::string userId = std::to_string(body.value("userId", 0));
             std::string emoji = body.value("emoji", "");
@@ -1185,7 +1199,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/search — Search within documents
-    router.get(prefix + "/documents/search", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/search", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             std::string query;
             auto qIt = req.queryParams.find("q");
@@ -1224,9 +1239,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // POST /api/writing/documents/:id/autosave — Autosave document content
-    router.post(prefix + "/documents/:id/autosave", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/autosave", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             std::string content = body.value<std::string>("content", "");
             std::string userId = std::to_string(body.value<int>("userId", 0));
@@ -1262,9 +1278,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/activity — Get document activity log
-    router.get(prefix + "/documents/:id/activity", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/activity", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json resp;
             resp["activities"] = nlohmann::json::array();
@@ -1295,9 +1312,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/invite — Invite user to collaborate
-    router.post(prefix + "/documents/:id/invite", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/invite", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             std::string email = body.value<std::string>("email", "");
             std::string role = body.value<std::string>("role", "viewer");
@@ -1349,9 +1367,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // POST /api/writing/documents/:id/merge — Merge document changes
-    router.post(prefix + "/documents/:id/merge", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/merge", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             int sourceVersion = 0;
             int targetVersion = 0;
             std::string strategy = "auto";
@@ -1412,9 +1431,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/export/pdf — Export document as PDF
-    router.get(prefix + "/documents/:id/export/pdf", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/export/pdf", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json resp;
             resp["downloadUrl"] = "/downloads/doc_" + docId + "_export.pdf";
@@ -1457,9 +1477,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/tag — Add tag to document
-    router.post(prefix + "/documents/:id/tag", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/tag", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             std::string tag = body.value("tag", "");
 
@@ -1508,9 +1529,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // POST /api/writing/documents/:id/transform — Transform document format
-    router.post(prefix + "/documents/:id/transform", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/transform", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             std::string fromFormat = "markdown";
             std::string toFormat = "html";
 
@@ -1557,7 +1579,8 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/templates — Get writing templates
-    router.get(prefix + "/templates", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/templates", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             nlohmann::json resp;
             nlohmann::json arr = nlohmann::json::array();
@@ -1601,9 +1624,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // POST /api/writing/documents/:id/clone — Clone a document
-    router.post(prefix + "/documents/:id/clone", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/clone", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             std::string newTitle = "Copy of Document";
             bool includeComments = true;
 
@@ -1664,9 +1688,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/stats/detailed — Get detailed document stats
-    router.get(prefix + "/documents/:id/stats/detailed", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/stats/detailed", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json resp;
             resp["documentId"] = docId;
@@ -1736,9 +1761,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // POST /api/writing/documents/:id/archive — Archive a document
-    router.post(prefix + "/documents/:id/archive", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/archive", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             auto body = nlohmann::json::parse(req.body);
             bool archived = body.value("archived", true);
 
@@ -1776,9 +1802,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/revisions — Get document revision history
-    router.get(prefix + "/documents/:id/revisions", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/revisions", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             int limit = 20;
             auto limitIt = req.queryParams.find("limit");
@@ -1840,9 +1867,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // ========================================================================
 
     // PUT /api/writing/documents/:id/publish — Publish a document
-    router.put(prefix + "/documents/:id/publish", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/documents/:id/publish", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
             std::string version = "1.0";
             std::string changelog = "";
 
@@ -1896,9 +1924,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
 
     // POST /api/writing/templates/:id/instantiate — Create document from template
-    router.post(prefix + "/templates/:id/instantiate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/templates/:id/instantiate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string templateId = req.pathParams.at("id");
+            std::string templateId = StringUtil::escapeSql(req.pathParams.at("id"));
             std::string title = "Untitled";
             nlohmann::json variables = nlohmann::json::object();
 
@@ -1971,9 +2000,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/documents/:id/metadata — Update document metadata
-    router.put(prefix + "/documents/:id/metadata", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/documents/:id/metadata", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json resp;
             nlohmann::json metadata;
@@ -2043,9 +2073,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/related — Find related documents
-    router.get(prefix + "/documents/:id/related", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/related", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json resp;
             nlohmann::json documents = nlohmann::json::array();
@@ -2090,9 +2121,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/contributors — Get document contributors with stats
-    router.get(prefix + "/documents/:id/contributors", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/contributors", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json resp;
             nlohmann::json contributors = nlohmann::json::array();
@@ -2134,9 +2166,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // --- Round 37 Additions ---
 
     // POST /api/writing/comments/:id/pin — Pin a comment to top
-    router.post(prefix + "/comments/:id/pin", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/comments/:id/pin", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string commentId = req.pathParams.at("id");
+            std::string commentId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json body;
             try {
@@ -2186,9 +2219,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/comments/threaded — Get threaded comments view
-    router.get(prefix + "/documents/:id/comments/threaded", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/comments/threaded", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json threads = nlohmann::json::array();
 
@@ -2252,9 +2286,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/table-of-contents — Generate/update table of contents
-    router.post(prefix + "/documents/:id/table-of-contents", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/table-of-contents", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             int maxDepth = 3;
             std::string style = "numbered";
@@ -2331,9 +2366,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/export/markdown — Export document as Markdown
-    router.get(prefix + "/documents/:id/export/markdown", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/export/markdown", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             std::string content = "";
             std::string title = "Untitled";
@@ -2390,9 +2426,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/review/request — Request peer review
-    router.post(prefix + "/documents/:id/review/request", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/review/request", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = req.pathParams.at("id");
+            std::string docId = StringUtil::escapeSql(req.pathParams.at("id"));
 
             nlohmann::json reviewers = nlohmann::json::array();
             std::string deadline = "";
@@ -2480,13 +2517,14 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/reviews/pending — Get pending reviews for current user
-    router.get(prefix + "/reviews/pending", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/reviews/pending", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
             std::string status = "pending";
 
             auto statusIt = req.queryParams.find("status");
             if (statusIt != req.queryParams.end() && !statusIt->second.empty()) {
-                status = statusIt->second;
+                status = StringUtil::escapeSql(statusIt->second);
             }
 
             nlohmann::json reviews = nlohmann::json::array();
@@ -2545,9 +2583,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/reviews/:id/submit — Submit a peer review
-    router.post(prefix + "/reviews/:id/submit", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/reviews/:id/submit", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string reviewId = getParam(req.pathParams, "id", "0");
+            std::string reviewId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             int rating = 0;
             std::string comments;
@@ -2632,9 +2671,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/reviews — Get all reviews for a document
-    router.get(prefix + "/documents/:id/reviews", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/reviews", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json reviews = nlohmann::json::array();
             double averageRating = 0.0;
@@ -2705,9 +2745,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/export/docx — Export document as DOCX
-    router.post(prefix + "/documents/:id/export/docx", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/export/docx", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string templateName = "default";
             bool includeComments = true;
@@ -2772,9 +2813,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/access-log — Get document access history
-    router.get(prefix + "/documents/:id/access-log", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/access-log", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             int limit = 20;
             {
@@ -2840,9 +2882,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/sections/reorder — Reorder document sections
-    router.post(prefix + "/documents/:id/sections/reorder", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/sections/reorder", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto json = nlohmann::json::parse(req.body);
             if (!json.contains("sections") || !json["sections"].is_array()) {
@@ -2907,9 +2950,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/sections — Get document sections breakdown
-    router.get(prefix + "/documents/:id/sections", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/sections", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json sections = nlohmann::json::array();
             int totalSections = 0;
@@ -2981,10 +3025,11 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/sections/:sid/move — Move section to new position
-    router.post(prefix + "/documents/:id/sections/:sid/move", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/sections/:sid/move", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
-            std::string sectionId = getParam(req.pathParams, "sid", "");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
+            std::string sectionId = StringUtil::escapeSql(getParam(req.pathParams, "sid", ""));
 
             auto json = nlohmann::json::parse(req.body);
 
@@ -3078,9 +3123,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/word-count/history — Get word count change history
-    router.get(prefix + "/documents/:id/word-count/history", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/word-count/history", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             std::string granularity = getParam(req.queryParams, "granularity", "day");
             std::string daysStr = getParam(req.queryParams, "days", "30");
             int days = safeStoi(daysStr);
@@ -3164,10 +3210,11 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // PUT /api/writing/documents/:id/sections/:sid — Update section content
-    router.put(prefix + "/documents/:id/sections/:sid", [this](const HttpRequest& req) -> HttpResponse {
+    router.put(prefix + "/documents/:id/sections/:sid", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
-            std::string sectionId = getParam(req.pathParams, "sid", "");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
+            std::string sectionId = StringUtil::escapeSql(getParam(req.pathParams, "sid", ""));
 
             auto json = nlohmann::json::parse(req.body);
 
@@ -3226,10 +3273,11 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // DELETE /api/writing/documents/:id/sections/:sid — Delete a section
-    router.del(prefix + "/documents/:id/sections/:sid", [this](const HttpRequest& req) -> HttpResponse {
+    router.del(prefix + "/documents/:id/sections/:sid", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
-            std::string sectionId = getParam(req.pathParams, "sid", "");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
+            std::string sectionId = StringUtil::escapeSql(getParam(req.pathParams, "sid", ""));
 
             int remainingSections = 0;
 
@@ -3272,10 +3320,11 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/sections/:sid/clone — Clone a section
-    router.post(prefix + "/documents/:id/sections/:sid/clone", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/sections/:sid/clone", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
-            std::string sectionId = getParam(req.pathParams, "sid", "");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
+            std::string sectionId = StringUtil::escapeSql(getParam(req.pathParams, "sid", ""));
 
             auto json = nlohmann::json::parse(req.body);
 
@@ -3355,10 +3404,11 @@ void CollaborativeWritingModule::registerRoutes() {
 
 
     // POST /api/writing/documents/:id/comments/:cid/resolve — Resolve a comment with resolution
-    router.post(prefix + "/documents/:id/comments/:cid/resolve", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/comments/:cid/resolve", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
-            std::string commentId = getParam(req.pathParams, "cid", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
+            std::string commentId = StringUtil::escapeSql(getParam(req.pathParams, "cid", "0"));
 
             nlohmann::json body = nlohmann::json::parse(req.body);
             std::string resolution = body.value("resolution", "");
@@ -3408,9 +3458,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/templates/:id/usage — Get template usage statistics
-    router.get(prefix + "/templates/:id/usage", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/templates/:id/usage", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string templateId = getParam(req.pathParams, "id", "0");
+            std::string templateId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             int totalUses = 0;
             double avgRating = 0.0;
@@ -3478,9 +3529,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/collaborators/invite — Invite collaborator by email
-    router.post(prefix + "/documents/:id/collaborators/invite", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/collaborators/invite", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json body = nlohmann::json::parse(req.body);
             std::string email = body.value("email", "");
@@ -3547,9 +3599,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/permissions/matrix — Get full permissions matrix
-    router.get(prefix + "/documents/:id/permissions/matrix", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/permissions/matrix", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json permissions = nlohmann::json::array();
             std::string defaultRole = "viewer";
@@ -3613,9 +3666,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/export/pdf — Export document as PDF
-    router.post(prefix + "/documents/:id/export/pdf", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/export/pdf", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string format = "pdf";
             bool includeComments = false;
@@ -3689,9 +3743,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/versions/diff — Get diff between two document versions
-    router.get(prefix + "/documents/:id/versions/diff", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/versions/diff", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string fromVersion;
             std::string toVersion;
@@ -3767,9 +3822,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/lock — Lock document for editing
-    router.post(prefix + "/documents/:id/lock", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/lock", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string userId;
             try {
@@ -3831,9 +3887,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/references — Get document references/bibliography
-    router.get(prefix + "/documents/:id/references", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/references", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json references = nlohmann::json::array();
 
@@ -3880,9 +3937,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/tags/batch — Batch update document tags
-    router.post(prefix + "/documents/:id/tags/batch", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/tags/batch", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json body = nlohmann::json::parse(req.body);
             nlohmann::json tagsToAdd = body.value("add", nlohmann::json::array());
@@ -3983,9 +4041,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/changelog — Get document changelog/history
-    router.get(prefix + "/documents/:id/changelog", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/changelog", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             int limit = 50;
             for (const auto& [key, value] : req.queryParams) {
@@ -4045,9 +4104,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/templates/:id/duplicate — Duplicate a writing template
-    router.post(prefix + "/templates/:id/duplicate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/templates/:id/duplicate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string templateId = getParam(req.pathParams, "id", "0");
+            std::string templateId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json body;
             if (!req.body.empty()) {
@@ -4146,9 +4206,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/export/html — Export document as HTML
-    router.get(prefix + "/documents/:id/export/html", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/export/html", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             bool includeStyles = true;
             for (const auto& [key, value] : req.queryParams) {
@@ -4235,9 +4296,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/ai-assist — AI-assisted writing suggestion
-    router.post(prefix + "/documents/:id/ai-assist", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/ai-assist", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string context;
             int cursorPosition = 0;
@@ -4328,9 +4390,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/collaborators/active — Get currently active collaborators
-    router.get(prefix + "/documents/:id/collaborators/active", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/collaborators/active", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string filterRole;
             for (const auto& [key, value] : req.queryParams) {
@@ -4417,9 +4480,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
 
     // GET /api/writing/documents/:id/review/status — Get review status
-    router.get(prefix + "/documents/:id/review/status", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/review/status", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string documentTitle = "Document " + docId;
             if (database_) {
@@ -4487,9 +4551,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // ---- Round 54: grammar-check, outline ----
 
-    router.post(prefix + "/documents/:id/grammar-check", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/grammar-check", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json body;
             try { body = nlohmann::json::parse(req.body); } catch (...) {}
@@ -4575,9 +4640,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.get(prefix + "/documents/:id/outline", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/outline", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string documentTitle = "Document " + docId;
             if (database_) {
@@ -4673,9 +4739,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/bookmarks — 获取文档书签列表
-    router.get(prefix + "/documents/:id/bookmarks", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/bookmarks", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -4726,9 +4793,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/bookmark — 添加文档书签
-    router.post(prefix + "/documents/:id/bookmark", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/bookmark", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -4799,9 +4867,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/annotations — 获取文档批注列表
-    router.get(prefix + "/documents/:id/annotations", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/annotations", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -4854,9 +4923,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/annotate — 添加文档批注
-    router.post(prefix + "/documents/:id/annotate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/annotate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -4939,9 +5009,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/snapshots — 获取文档快照列表
-    router.get(prefix + "/documents/:id/snapshots", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/snapshots", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -4990,9 +5061,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/snapshot — 创建文档快照
-    router.post(prefix + "/documents/:id/snapshot", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/snapshot", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5050,9 +5122,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/readability — 获取文档可读性指标
-    router.get(prefix + "/documents/:id/readability", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/readability", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5096,9 +5169,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/citation — 添加文献引用
-    router.post(prefix + "/documents/:id/citation", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/citation", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5162,9 +5236,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/coauthors — 获取文档共同作者列表
-    router.get(prefix + "/documents/:id/coauthors", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/coauthors", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5210,9 +5285,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/writing-session — 记录写作会话
-    router.post(prefix + "/documents/:id/writing-session", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/writing-session", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5278,9 +5354,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/footnotes — 获取文档脚注列表
-    router.get(prefix + "/documents/:id/footnotes", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/footnotes", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5325,9 +5402,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/structure — 更新文档结构（章节/段落排序）
-    router.post(prefix + "/documents/:id/structure", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/structure", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5388,9 +5466,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 61 Additions ---
 
-    router.get(prefix + "/documents/:id/endnotes", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/endnotes", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json endnotes = nlohmann::json::array();
 
@@ -5427,9 +5506,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/endnote", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/endnote", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5491,9 +5571,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 62 Additions ---
 
-    router.get(prefix + "/documents/:id/marginalia", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/marginalia", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json items = nlohmann::json::array();
 
@@ -5533,9 +5614,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/marginalia", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/marginalia", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5608,9 +5690,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 63 Additions ---
 
-    router.get(prefix + "/documents/:id/cross-references", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/cross-references", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json items = nlohmann::json::array();
 
@@ -5648,9 +5731,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/sticky-note", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/sticky-note", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5724,9 +5808,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // --- Round 64 Additions ---
 
     // GET /documents/:id/highlights - Get document highlights
-    router.get(prefix + "/documents/:id/highlights", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/highlights", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json highlights = nlohmann::json::array();
 
@@ -5768,9 +5853,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /documents/:id/highlight - Add highlight to document
-    router.post(prefix + "/documents/:id/highlight", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/highlight", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5845,9 +5931,10 @@ void CollaborativeWritingModule::registerRoutes() {
     // --- Round 65 Additions ---
 
     // GET /documents/:id/formatting - Get document formatting/styles
-    router.get(prefix + "/documents/:id/formatting", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/formatting", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             nlohmann::json styles = nlohmann::json::array();
 
@@ -5889,9 +5976,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /documents/:id/formatting - Apply formatting to document
-    router.post(prefix + "/documents/:id/formatting", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/formatting", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -5965,9 +6053,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // ---- Round 66: writing-style, typography ----
 
-    router.get(prefix + "/documents/:id/writing-style", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/writing-style", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6012,9 +6101,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/typography", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/typography", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6085,9 +6175,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 67 Additions ---
 
-    router.get(prefix + "/documents/:id/reading-progress", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/reading-progress", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6134,9 +6225,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/subscribe", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/subscribe", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6193,9 +6285,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /api/writing/documents/:id/track-changes — Get document track changes history
-    router.get(prefix + "/documents/:id/track-changes", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/track-changes", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string filterStatus;
             std::string filterAuthor;
@@ -6259,9 +6352,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /api/writing/documents/:id/track-changes/accept — Accept track changes
-    router.post(prefix + "/documents/:id/track-changes/accept", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/track-changes/accept", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string changeId = "all";
             std::string acceptAction = "accept";
@@ -6270,10 +6364,10 @@ void CollaborativeWritingModule::registerRoutes() {
             try {
                 auto body = nlohmann::json::parse(req.body);
                 if (body.contains("changeId") && body["changeId"].is_string()) {
-                    changeId = body["changeId"].get<std::string>();
+                    changeId = StringUtil::escapeSql(body["changeId"].get<std::string>());
                 }
                 if (body.contains("action") && body["action"].is_string()) {
-                    acceptAction = body["action"].get<std::string>();
+                    acceptAction = StringUtil::escapeSql(body["action"].get<std::string>());
                 }
                 if (body.contains("userId") && body["userId"].is_number()) {
                     userId = body["userId"].get<int>();
@@ -6335,9 +6429,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 69 Additions ---
 
-    router.get(prefix + "/documents/:id/review-history", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/review-history", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6384,9 +6479,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/track-changes/reject", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/track-changes/reject", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             std::string changeId = "all";
             int userId = 0;
@@ -6395,13 +6491,13 @@ void CollaborativeWritingModule::registerRoutes() {
             try {
                 auto body = nlohmann::json::parse(req.body);
                 if (body.contains("changeId") && body["changeId"].is_string()) {
-                    changeId = body["changeId"].get<std::string>();
+                    changeId = StringUtil::escapeSql(body["changeId"].get<std::string>());
                 }
                 if (body.contains("userId") && body["userId"].is_number()) {
                     userId = body["userId"].get<int>();
                 }
                 if (body.contains("reason") && body["reason"].is_string()) {
-                    reason = body["reason"].get<std::string>();
+                    reason = StringUtil::escapeSql(body["reason"].get<std::string>());
                 }
             } catch (const nlohmann::json::parse_error&) {
                 nlohmann::json errResp;
@@ -6461,9 +6557,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 70 Additions ---
 
-    router.get(prefix + "/documents/:id/track-changes/summary", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/track-changes/summary", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6509,9 +6606,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/track-changes/resolve-all", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/track-changes/resolve-all", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             std::string action = "accept";
             int userId = 0;
 
@@ -6582,9 +6680,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 71 Additions ---
 
-    router.get(prefix + "/documents/:id/table-of-contents/refresh", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/table-of-contents/refresh", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6634,9 +6733,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/track-changes/toggle", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/track-changes/toggle", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             bool enabled = true;
             int userId = 0;
 
@@ -6698,9 +6798,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 72 Additions ---
 
-    router.get(prefix + "/documents/:id/track-changes/count", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/track-changes/count", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6748,9 +6849,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/notify", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/notify", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             std::string message;
             int userId = 0;
             std::string notifyType = "info";
@@ -6814,9 +6916,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 73 Additions ---
 
-    router.get(prefix + "/documents/:id/track-changes/active", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/track-changes/active", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6863,9 +6966,10 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/auto-merge", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/auto-merge", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             std::string mergeStrategy = "recursive";
             bool resolveConflicts = true;
 
@@ -6944,9 +7048,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
     // --- Round 74 Additions ---
 
-    router.get(prefix + "/documents/:id/conflicts", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/conflicts", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6995,16 +7100,17 @@ void CollaborativeWritingModule::registerRoutes() {
         }
     });
 
-    router.post(prefix + "/documents/:id/auto-format", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/auto-format", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             std::string formatStyle = "default";
             bool fixGrammar = false;
 
             try {
                 auto body = nlohmann::json::parse(req.body);
                 if (body.contains("formatStyle") && body["formatStyle"].is_string()) {
-                    formatStyle = body["formatStyle"].get<std::string>();
+                    formatStyle = StringUtil::escapeSql(body["formatStyle"].get<std::string>());
                 }
                 if (body.contains("fixGrammar") && body["fixGrammar"].is_boolean()) {
                     fixGrammar = body["fixGrammar"].get<bool>();
@@ -7061,9 +7167,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 75: GET /documents/:id/export-status
-    router.get(prefix + "/documents/:id/export-status", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/export-status", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7109,9 +7216,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 75: POST /documents/:id/ai-translate
-    router.post(prefix + "/documents/:id/ai-translate", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/ai-translate", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
             std::string targetLang = "en";
             std::string sourceLang = "auto";
 
@@ -7177,9 +7285,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 76: GET /documents/:id/auto-save/config
-    router.get(prefix + "/documents/:id/auto-save/config", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/auto-save/config", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7225,9 +7334,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 76: POST /documents/:id/auto-save/config
-    router.post(prefix + "/documents/:id/auto-save/config", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/auto-save/config", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7281,9 +7391,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 77: GET /documents/:id/reading-time
-    router.get(prefix + "/documents/:id/reading-time", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/reading-time", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7342,9 +7453,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 77: POST /documents/:id/focus-mode
-    router.post(prefix + "/documents/:id/focus-mode", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/focus-mode", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7406,9 +7518,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 78: GET /documents/:id/writing-goals
-    router.get(prefix + "/documents/:id/writing-goals", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/writing-goals", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7478,9 +7591,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 79: POST /documents/:id/branch
-    router.post(prefix + "/documents/:id/branch", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/branch", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7544,9 +7658,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // GET /documents/:id/branches - List all branches/forks of a document
-    router.get(prefix + "/documents/:id/branches", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/branches", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7593,9 +7708,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // POST /documents/:id/merge-branch - Merge a branch back into the parent document
-    router.post(prefix + "/documents/:id/merge-branch", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/merge-branch", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7607,7 +7723,7 @@ void CollaborativeWritingModule::registerRoutes() {
 
             try {
                 nlohmann::json body = nlohmann::json::parse(req.body);
-                if (body.count("branchId")) branchId = body["branchId"].get<std::string>();
+                if (body.count("branchId")) branchId = StringUtil::escapeSql(body["branchId"].get<std::string>());
                 if (body.count("mergeStrategy")) mergeStrategy = body["mergeStrategy"].get<std::string>();
                 if (body.count("createBackup")) createBackup = body["createBackup"].get<bool>();
             } catch (const std::exception& e) {
@@ -7665,9 +7781,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 81: GET /documents/:id/voice-notes
-    router.get(prefix + "/documents/:id/voice-notes", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/voice-notes", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7717,9 +7834,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 81: POST /documents/:id/voice-note
-    router.post(prefix + "/documents/:id/voice-note", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/voice-note", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7728,8 +7846,8 @@ void CollaborativeWritingModule::registerRoutes() {
             nlohmann::json body = nlohmann::json::parse(req.body);
             int authorId = body.value("authorId", 0);
             int durationSeconds = body.value("durationSeconds", 0);
-            std::string transcript = body.value("transcript", "");
-            std::string audioFormat = body.value("audioFormat", "webm");
+            std::string transcript = StringUtil::escapeSql(body.value("transcript", ""));
+            std::string audioFormat = StringUtil::escapeSql(body.value("audioFormat", "webm"));
 
             std::string noteId = "vn_" + std::to_string(ts);
 
@@ -7775,9 +7893,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 82: GET /documents/:id/revision-timeline
-    router.get(prefix + "/documents/:id/revision-timeline", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/revision-timeline", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7832,9 +7951,10 @@ void CollaborativeWritingModule::registerRoutes() {
 
 
     // Round 83: GET /documents/:id/sentiment-analysis
-    router.get(prefix + "/documents/:id/sentiment-analysis", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/sentiment-analysis", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -7939,9 +8059,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 83: POST /documents/:id/smart-outline
-    router.post(prefix + "/documents/:id/smart-outline", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/smart-outline", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -8058,9 +8179,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 84: GET /documents/:id/keyboard-shortcuts
-    router.get(prefix + "/documents/:id/keyboard-shortcuts", [this](const HttpRequest& req) -> HttpResponse {
+    router.get(prefix + "/documents/:id/keyboard-shortcuts", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -8124,9 +8246,10 @@ void CollaborativeWritingModule::registerRoutes() {
     });
 
     // Round 84: POST /documents/:id/compare-side-by-side
-    router.post(prefix + "/documents/:id/compare-side-by-side", [this](const HttpRequest& req) -> HttpResponse {
+    router.post(prefix + "/documents/:id/compare-side-by-side", [this, requireAuth, unauthorizedResp](const HttpRequest& req) -> HttpResponse {
+        if (!requireAuth(req)) return unauthorizedResp();
         try {
-            std::string docId = getParam(req.pathParams, "id", "0");
+            std::string docId = StringUtil::escapeSql(getParam(req.pathParams, "id", "0"));
 
             auto now = std::chrono::system_clock::now();
             auto ts = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -8136,8 +8259,8 @@ void CollaborativeWritingModule::registerRoutes() {
             if (!req.body.empty()) {
                 body = nlohmann::json::parse(req.body);
             }
-            std::string leftVersionId = body.value("leftVersionId", "");
-            std::string rightVersionId = body.value("rightVersionId", "");
+            std::string leftVersionId = StringUtil::escapeSql(body.value("leftVersionId", ""));
+            std::string rightVersionId = StringUtil::escapeSql(body.value("rightVersionId", ""));
             bool includeMetadata = body.value("includeMetadata", true);
             bool highlightDiffs = body.value("highlightDiffs", true);
 
@@ -11579,7 +11702,7 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             nlohmann::json moveBody = nlohmann::json::parse(req.body);
 
-            std::string sectionId = moveBody.value("sectionId", "");
+            std::string sectionId = StringUtil::escapeSql(moveBody.value("sectionId", ""));
             int fromPosition = moveBody.value("fromPosition", -1);
             int toPosition = moveBody.value("toPosition", -1);
 
@@ -11803,7 +11926,7 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             std::string userId;
             auto uIt = req.queryParams.find("userId");
-            if (uIt != req.queryParams.end()) userId = uIt->second;
+            if (uIt != req.queryParams.end()) userId = StringUtil::escapeSql(uIt->second);
 
             nlohmann::json statsData;
 
@@ -11865,17 +11988,17 @@ void CollaborativeWritingModule::registerRoutes() {
 
             std::string documentId;
             if (body.contains("documentId") && !body["documentId"].is_null()) {
-                documentId = body["documentId"].get<std::string>();
+                documentId = StringUtil::escapeSql(body["documentId"].get<std::string>());
             }
 
             std::string reviewerId;
             if (body.contains("reviewerId") && !body["reviewerId"].is_null()) {
-                reviewerId = body["reviewerId"].get<std::string>();
+                reviewerId = StringUtil::escapeSql(body["reviewerId"].get<std::string>());
             }
 
             std::string deadline;
             if (body.contains("deadline") && !body["deadline"].is_null()) {
-                deadline = body["deadline"].get<std::string>();
+                deadline = StringUtil::escapeSql(body["deadline"].get<std::string>());
             }
 
             if (documentId.empty() || reviewerId.empty()) {
@@ -12009,17 +12132,17 @@ void CollaborativeWritingModule::registerRoutes() {
 
             std::string documentId;
             if (body.contains("documentId") && !body["documentId"].is_null()) {
-                documentId = body["documentId"].get<std::string>();
+                documentId = StringUtil::escapeSql(body["documentId"].get<std::string>());
             }
 
             std::string userId;
             if (body.contains("userId") && !body["userId"].is_null()) {
-                userId = body["userId"].get<std::string>();
+                userId = StringUtil::escapeSql(body["userId"].get<std::string>());
             }
 
             std::string permission;
             if (body.contains("permission") && !body["permission"].is_null()) {
-                permission = body["permission"].get<std::string>();
+                permission = StringUtil::escapeSql(body["permission"].get<std::string>());
             }
 
             if (documentId.empty() || userId.empty() || permission.empty()) {
@@ -12536,12 +12659,12 @@ void CollaborativeWritingModule::registerRoutes() {
 
             std::string documentId;
             if (body.contains("documentId") && !body["documentId"].is_null()) {
-                documentId = body["documentId"].get<std::string>();
+                documentId = StringUtil::escapeSql(body["documentId"].get<std::string>());
             }
 
             std::string userId;
             if (body.contains("userId") && !body["userId"].is_null()) {
-                userId = body["userId"].get<std::string>();
+                userId = StringUtil::escapeSql(body["userId"].get<std::string>());
             }
 
             if (documentId.empty()) {
@@ -12606,7 +12729,7 @@ void CollaborativeWritingModule::registerRoutes() {
             std::string userId;
             auto uidIt = req.queryParams.find("userId");
             if (uidIt != req.queryParams.end() && !uidIt->second.empty()) {
-                userId = uidIt->second;
+                userId = StringUtil::escapeSql(uidIt->second);
             }
 
             auto now = std::chrono::system_clock::now();
@@ -12974,7 +13097,7 @@ void CollaborativeWritingModule::registerRoutes() {
         try {
             std::string userId;
             for (const auto& [k, v] : req.queryParams) {
-                if (k == "userId") userId = v;
+                if (k == "userId") userId = StringUtil::escapeSql(v);
             }
 
             if (userId.empty()) {
