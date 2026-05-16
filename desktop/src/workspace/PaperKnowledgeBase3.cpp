@@ -127,6 +127,8 @@ void PaperKnowledgeBase3::onUpdate() {
         e.color = palette[catIdx == 0 ? QRandomGenerator::global()->bounded(5) : catIdx - 1];
         addEntry(e);
         inputField_->clear();
+        update();
+        return;
     }
     saveSettings();
     updateInfo();

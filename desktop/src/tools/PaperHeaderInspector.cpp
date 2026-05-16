@@ -255,15 +255,15 @@ void PaperHeaderInspector::loadSettings() {
         QStringList categories = {"Security", "Performance", "Privacy", "Compliance", "Accessibility"};
         QColor colors[] = {QColor(59,130,246), QColor(22,163,74), QColor(217,119,6), QColor(220,38,38), QColor(124,58,237)};
 
-        qsrand(42);
+        QRandomGenerator rng(42);
         for (int i = 0; i < 8; ++i) {
             HeaderInspectorEntry e;
             e.id = i + 1;
             e.url = urls[i];
             e.header = headers[i % headers.size()];
             e.category = categories[i % categories.size()];
-            e.score = 40.0 + (qrand() % 600) / 10.0;
-            e.checks = 2 + qrand() % 10;
+            e.score = 40.0 + rng.bounded(600) / 10.0;
+            e.checks = 2 + rng.bounded(10);
             e.secure = (i % 3) != 0;
             e.color = colors[i % categories.size()];
             entries_.append(e);

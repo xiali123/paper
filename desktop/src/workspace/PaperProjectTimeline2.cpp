@@ -150,11 +150,10 @@ void PaperProjectTimeline2::loadSettings()
             {"Production Deploy",     "Deployment",   "Phase 5", 0.00,  5, true},
         };
 
-        qint64 baseId = static_cast<qint64>(QDateTime::currentMSecsSinceEpoch() % 1000000);
         for (int i = 0; i < 8; ++i) {
             const auto& s = seeds[i];
             ProjectTimeline2Entry entry;
-            entry.id = static_cast<int>(baseId + i);
+            entry.id = i + 1;
             entry.milestone = s.milestone;
             entry.category = s.category;
             entry.phase = s.phase;
@@ -256,8 +255,7 @@ void PaperProjectTimeline2::onPlan()
     };
     QString phase = catToPhase.value(category, "Phase 1");
 
-    int id = static_cast<int>(QDateTime::currentMSecsSinceEpoch() % 1000000)
-             + QRandomGenerator::global()->bounded(0, 1000);
+    int id = entries_.isEmpty() ? 1 : entries_.last().id + 1;
 
     ProjectTimeline2Entry entry;
     entry.id = id;

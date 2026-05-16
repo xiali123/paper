@@ -301,9 +301,6 @@ void PaperSpanChart::drawCategoryLegend(QPainter& p, const QRect& rect) {
 
         // Count bar
         p.setPen(Qt::NoPen);
-        p.setBrush(palette[i].lighter(160));
-        p.drawRoundedRect(rect.x() + rect.width() / 2, y + 2, barW, itemH - 4, 3, 3);
-
         p.setBrush(palette[i]);
         p.drawRoundedRect(rect.x() + rect.width() / 2, y + 2, barW, itemH - 4, 3, 3);
 

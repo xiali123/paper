@@ -127,7 +127,7 @@ void PaperCitationAudit::onAudit()
     if (refText.isEmpty())
         return;
 
-    static int nextId = 1;
+    int nextId = entries_.isEmpty() ? 1 : entries_.last().id + 1;
 
     const QStringList statuses = {
         QStringLiteral("Verified"), QStringLiteral("Unverified"),
