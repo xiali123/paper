@@ -1,0 +1,44 @@
+#pragma once
+#include <QWidget>
+#include <QSettings>
+#include <QPainter>
+#include <QPushButton>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QLabel>
+struct CollabEntry {
+    int id; QString member; QString category; QString role;
+    qreal contribution; int papers; bool lead; QColor color;
+};
+class PaperCollabHub : public QWidget {
+    Q_OBJECT
+public:
+    explicit PaperCollabHub(QWidget* parent = nullptr);
+    void addEntry(const CollabEntry& entry);
+    QList<CollabEntry> entries() const;
+    int leadCount() const;
+    qreal avgContribution() const;
+    QMap<QString, int> categoryCounts() const;
+signals:
+    void memberAdded(int id, qreal contribution);
+private slots:
+    void onAdd();
+    void onClear();
+protected:
+    void paintEvent(QPaintEvent*) override;
+private:
+    void setupUI();
+    void drawHubView(QPainter& p, const QRect& rect);
+    void drawCategoryChart(QPainter& p, const QRect& rect);
+    void drawStats(QPainter& p, const QRect& rect);
+    void updateInfo();
+    void loadSettings();
+    void saveSettings();
+    QList<CollabEntry> entries_;
+    QSettings settings_;
+    QPushButton* addBtn_;
+    QPushButton* clearBtn_;
+    QComboBox* categoryCombo_;
+    QLineEdit* inputField_;
+    QLabel* infoLabel_;
+};

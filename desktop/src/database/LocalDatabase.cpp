@@ -344,7 +344,7 @@ DbSearchResult LocalDatabase::searchPapers(const QString& keyword, int offset, i
     }
 
     while (query.next()) {
-        result.papers.append(fromQuery(query));
+        result.papers.append(fromQuery(query).toPaper());
     }
 
     // 获取总数

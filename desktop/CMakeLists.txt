@@ -11,16 +11,6 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Charts Network Sql)
 
-# Include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/../core/include)
-include_directories(${CMAKE_SOURCE_DIR}/../include)
-
-# Collect source files
-file(GLOB_RECURSE DESKTOP_SOURCES
-    "${CMAKE_SOURCE_DIR}/src/*.cpp"
-)
-
 # Collect header files
 file(GLOB_RECURSE DESKTOP_HEADERS
     "${CMAKE_SOURCE_DIR}/include/*.hpp"
@@ -28,13 +18,38 @@ file(GLOB_RECURSE DESKTOP_HEADERS
 )
 
 # Exclude build directory
-list(FILTER DESKTOP_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build/.*")
 list(FILTER DESKTOP_HEADERS EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build/.*")
+
+# Subdirectory object libraries
+add_subdirectory(src/core)
+add_subdirectory(src/search)
+add_subdirectory(src/paper)
+add_subdirectory(src/citation)
+add_subdirectory(src/reading)
+add_subdirectory(src/latex)
+add_subdirectory(src/visualization)
+add_subdirectory(src/analysis)
+add_subdirectory(src/workspace)
+add_subdirectory(src/tools)
+add_subdirectory(src/pdf)
+add_subdirectory(src/database)
 
 # Create executable
 add_executable(PaperCrawlerDesktop
-    ${DESKTOP_SOURCES}
+    src/main.cpp
     ${DESKTOP_HEADERS}
+    $<TARGET_OBJECTS:core_lib>
+    $<TARGET_OBJECTS:search_lib>
+    $<TARGET_OBJECTS:paper_lib>
+    $<TARGET_OBJECTS:citation_lib>
+    $<TARGET_OBJECTS:reading_lib>
+    $<TARGET_OBJECTS:latex_lib>
+    $<TARGET_OBJECTS:visualization_lib>
+    $<TARGET_OBJECTS:analysis_lib>
+    $<TARGET_OBJECTS:workspace_lib>
+    $<TARGET_OBJECTS:tools_lib>
+    $<TARGET_OBJECTS:pdf_lib>
+    $<TARGET_OBJECTS:database_lib>
 )
 
 # Link Qt libraries
@@ -45,6 +60,13 @@ target_link_libraries(PaperCrawlerDesktop
         Qt6::Charts
         Qt6::Network
         Qt6::Sql
+)
+
+# Include directories for main executable
+target_include_directories(PaperCrawlerDesktop PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/../core/include
+    ${CMAKE_SOURCE_DIR}/../include
 )
 
 # Platform specific
@@ -75,5 +97,6 @@ message(STATUS "")
 message(STATUS "================== Desktop Configuration ==================")
 message(STATUS "Qt Version: ${Qt6_VERSION}")
 message(STATUS "Executable: PaperCrawlerDesktop")
+message(STATUS "Modules: core search paper citation reading latex visualization analysis workspace tools pdf database")
 message(STATUS "============================================================")
 message(STATUS "")

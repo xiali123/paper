@@ -1,0 +1,5 @@
+file(GLOB CORE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+add_library(core_lib OBJECT ${CORE_SOURCES})
+target_include_directories(core_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(core_lib PRIVATE ${CMAKE_SOURCE_DIR}/../core/include)
+target_include_directories(core_lib PRIVATE ${CMAKE_SOURCE_DIR}/../include)

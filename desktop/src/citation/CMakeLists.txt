@@ -1,0 +1,5 @@
+file(GLOB CITATION_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+add_library(citation_lib OBJECT ${CITATION_SOURCES})
+target_include_directories(citation_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(citation_lib PRIVATE ${CMAKE_SOURCE_DIR}/../core/include)
+target_include_directories(citation_lib PRIVATE ${CMAKE_SOURCE_DIR}/../include)

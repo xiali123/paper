@@ -1,0 +1,5 @@
+file(GLOB WORKSPACE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+add_library(workspace_lib OBJECT ${WORKSPACE_SOURCES})
+target_include_directories(workspace_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(workspace_lib PRIVATE ${CMAKE_SOURCE_DIR}/../core/include)
+target_include_directories(workspace_lib PRIVATE ${CMAKE_SOURCE_DIR}/../include)
